@@ -5,7 +5,7 @@ export async function generateMetadata() {
   return getPageMetadata('/privacy', {
     title: 'Privacy Policy | CalVant',
     description: 'CalVant privacy policy and data handling practices.',
-    alternates: { canonical: 'https://calvant.com/privacy' },
+    alternates: { canonical: 'https://main.d38cbxzpofbmee.amplifyapp.com/privacy' },
   });
 }
 

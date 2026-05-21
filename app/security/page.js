@@ -5,7 +5,7 @@ export async function generateMetadata() {
   return getPageMetadata('/security', {
     title: 'Security | CalVant',
     description: 'How CalVant keeps your data secure.',
-    alternates: { canonical: 'https://calvant.com/security' },
+    alternates: { canonical: 'https://main.d38cbxzpofbmee.amplifyapp.com/security' },
   });
 }
 

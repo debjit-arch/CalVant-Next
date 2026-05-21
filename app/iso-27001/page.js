@@ -5,7 +5,7 @@ export async function generateMetadata() {
   return getPageMetadata('/iso-27001', {
     title: 'ISO 27001 Compliance | CalVant',
     description: 'Streamline your ISO 27001 certification journey with CalVant.',
-    alternates: { canonical: 'https://calvant.com/iso-27001' },
+    alternates: { canonical: 'https://main.d38cbxzpofbmee.amplifyapp.com/iso-27001' },
   });
 }
 

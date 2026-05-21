@@ -5,7 +5,7 @@ export async function generateMetadata() {
   return getPageMetadata('/soc2', {
     title: 'SOC 2 Compliance | CalVant',
     description: 'Automate your SOC 2 compliance program with CalVant.',
-    alternates: { canonical: 'https://calvant.com/soc2' },
+    alternates: { canonical: 'https://main.d38cbxzpofbmee.amplifyapp.com/soc2' },
   });
 }
 

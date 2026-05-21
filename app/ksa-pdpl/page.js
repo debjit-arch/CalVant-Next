@@ -5,7 +5,7 @@ export async function generateMetadata() {
   return getPageMetadata('/ksa-pdpl', {
     title: 'KSA PDPL Compliance | CalVant',
     description: 'Saudi Arabia Personal Data Protection Law compliance with CalVant.',
-    alternates: { canonical: 'https://calvant.com/ksa-pdpl' },
+    alternates: { canonical: 'https://main.d38cbxzpofbmee.amplifyapp.com/ksa-pdpl' },
   });
 }
 

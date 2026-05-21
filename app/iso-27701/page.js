@@ -5,7 +5,7 @@ export async function generateMetadata() {
   return getPageMetadata('/iso-27701', {
     title: 'ISO 27701 Compliance | CalVant',
     description: 'Privacy Information Management with ISO 27701 on CalVant.',
-    alternates: { canonical: 'https://calvant.com/iso-27701' },
+    alternates: { canonical: 'https://main.d38cbxzpofbmee.amplifyapp.com/iso-27701' },
   });
 }
 
