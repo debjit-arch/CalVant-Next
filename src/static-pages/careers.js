@@ -1,9 +1,9 @@
+import Link from 'next/link';
 
 // ============================================================================
 // C:\CalVant_frontend-1\src\static-pages\careers.js
 // ============================================================================
 
-import Link from "next/link";
 import Image from "next/image"
 import React, { useState, useEffect } from "react";
 import { Helmet } from "react-helmet-async";

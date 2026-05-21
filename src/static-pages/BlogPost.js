@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import Image from "next/image";
 import React, { useState, useEffect, useMemo } from "react";
 import axios from "axios";

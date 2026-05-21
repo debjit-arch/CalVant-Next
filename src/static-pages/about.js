@@ -1,5 +1,6 @@
-// C:\CalVant_frontend-1\src\static-pages\about.js
 "use client";
+import Link from 'next/link';
+// C:\CalVant_frontend-1\src\static-pages\about.js
 import { useRouter } from "next/navigation";
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
@@ -24,7 +25,6 @@ import {
   X,
 } from "lucide-react";
 import "./about.css";
-import Link from "next/link";
 const AboutPage = () => {
   const [mounted, setMounted] = useState(false);
   const [activeSection, setActiveSection] = useState("overview");

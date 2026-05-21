@@ -1,5 +1,5 @@
+import Link from 'next/link';
 import Image from "next/image";
-import Link from "next/link";
 // // Policies.js - EXACT ISO_27001 Theme + Animations
 // // D:\cf-tool-frontend-test-2\src\modules\dashboard\Policies.js
 // import React, { useState, useEffect } from 'react';

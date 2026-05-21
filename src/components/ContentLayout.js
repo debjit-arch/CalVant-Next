@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import React from "react";
 import BlogNavbar from "./BlogNavbar";
 import "../styles/ProfessionalLayout.css";
