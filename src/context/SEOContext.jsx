@@ -1,3 +1,5 @@
+"use client";
+
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import { fetchSeoData, sanitizeMetaContent } from '../utils/seoApi';
 // Simple local matchPath replacement for Next.js compatibility
@@ -90,7 +92,7 @@ export const SEOProvider = ({ children }) => {
             description: sanitizeMetaContent(matched.metaDesc),
             keywords: sanitizeMetaContent(matched.metaKeywords),
             ogImage: advanced.og_img || null,
-            canonical: advanced.canonical || `${window.location.origin}${currentPath}`,
+            canonical: advanced.canonical || currentPath,
             robots: advanced.robots || 'index, follow',
         };
     }, [seoEntries]);
