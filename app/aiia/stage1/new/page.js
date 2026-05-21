@@ -1,5 +1,5 @@
 "use client";
-"use client";
+
 import ProtectedPage from "@/components/ProtectedPage";
 import FrameworkPage from "@/components/FrameworkPage";
 import PlanAssessmentModal from "@/modules/aiia/components/PlanAssessmentModal";

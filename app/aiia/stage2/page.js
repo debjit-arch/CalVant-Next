@@ -1,5 +1,5 @@
 "use client";
-"use client";
+
 import ProtectedPage from "@/components/ProtectedPage";
 import FrameworkPage from "@/components/FrameworkPage";
 import Stage2List from "@/modules/aiia/pages/Stage2List";

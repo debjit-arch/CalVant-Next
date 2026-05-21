@@ -1,5 +1,5 @@
 "use client";
-"use client";
+
 import React from "react";
 import { useSession } from "@/context/SessionContext";
 import Dashboard from "@/modules/dashboard/Dashboard";

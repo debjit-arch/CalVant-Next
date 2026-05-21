@@ -1,5 +1,5 @@
 "use client";
-"use client";
+
 import RoleBasedPage from "@/components/RoleBasedPage";
 import SavedRisksPage from "@/modules/riskAssesment/pages/SavedRisksPage";
 
