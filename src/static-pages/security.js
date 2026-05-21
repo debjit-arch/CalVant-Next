@@ -1,3 +1,4 @@
+"use client";
 import Image from "next/image";
 // C:\CalVant_frontend-1\src\static-pages\security.js
 import React, { useState, useEffect } from "react";

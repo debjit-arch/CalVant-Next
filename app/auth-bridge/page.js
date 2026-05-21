@@ -1,6 +1,9 @@
 "use client";
-import AuthBridge from "@/modules/departments/pages/AuthBridge";
 
-export default function AuthBridge(){
-    return <AuthBridge/>
+import dynamic from 'next/dynamic';
+
+const AuthBridge = dynamic(() => import('@/modules/departments/pages/AuthBridge'), { ssr: false });
+
+export default function AuthBridgePage() {
+  return <AuthBridge />;
 }
