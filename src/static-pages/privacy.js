@@ -1,5 +1,4 @@
 "use client";
-import Link from 'next/link';
 import Image from "next/image";
 import React, { useState, useEffect } from "react";
 import { Helmet } from "react-helmet-async";
@@ -295,7 +294,7 @@ const PrivacyPage = () => {
       <header className="privacy-header">
         <div className="privacy-header-content">
           <div className="privacy-logo-section">
-            <Image
+            <img
               src="/CalVant Logo.svg"
               alt="CalVant"
               style={{ height: "210px", width: "auto", cursor: "pointer" }}
@@ -713,4 +712,5 @@ const PrivacyPage = () => {
 };
 
 export default PrivacyPage;
+
 

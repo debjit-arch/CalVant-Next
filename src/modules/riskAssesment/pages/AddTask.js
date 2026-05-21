@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { usePathname } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import AddTaskForm from '../components/forms/RiskDetailsForm';
 
 const AddTask = () => {

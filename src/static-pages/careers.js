@@ -1,10 +1,9 @@
-import Link from 'next/link';
-
+"use client";
+import Image from "next/image";
 // ============================================================================
 // C:\CalVant_frontend-1\src\static-pages\careers.js
 // ============================================================================
-
-import Image from "next/image"
+import Link from "next/link";
 import React, { useState, useEffect } from "react";
 import { Helmet } from "react-helmet-async";
 import {
@@ -38,18 +37,10 @@ import {
 } from "lucide-react";
 import "./careers.css";
 
+
 const CareersPage = () => {
   const [mounted, setMounted] = useState(false);
-const [isLoggedIn, setIsLoggedIn] = useState(false);
-
-useEffect(() => {
-  setMounted(true);
-
-  // sessionStorage is only available in the browser
-  if (typeof window !== "undefined") {
-    setIsLoggedIn(!!sessionStorage.getItem("user"));
-  }
-}, []);
+  const [isLoggedIn] = useState(typeof window !== "undefined" && !!sessionStorage.getItem("user"));
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeJobId, setActiveJobId] = useState(null);
 
@@ -202,15 +193,12 @@ useEffect(() => {
       <header className="careers-header">
         <div className="careers-header-content">
           <div className="careers-logo-section">
-           
-<Image
-  src="/CalVant Logo.svg"
-  alt="CalVant"
-  width={210}
-  height={60}
-  style={{ width: "auto", height: "210px", cursor: "pointer" }}
-  onClick={() => (window.location.href = "/")}
-/>
+            <img
+              src="/CalVant Logo.svg"
+              alt="CalVant"
+              style={{ height: "210px", width: "auto", cursor: "pointer" }}
+              onClick={() => (window.location.href = "/")}
+            />
           </div>
 
           <nav className="careers-header-nav">
@@ -687,4 +675,5 @@ useEffect(() => {
 };
 
 export default CareersPage;
+
 

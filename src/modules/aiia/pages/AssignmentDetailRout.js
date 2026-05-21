@@ -1,5 +1,5 @@
 import React from "react";
-import { usePathname } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import AssignmentDetailPage from "../components/AssignementDetailPage";
 
 /**

@@ -132,12 +132,54 @@
 // console.log("\n🎉 All pages updated!");
 
 
+// const fs = require('fs');
+// const path = require('path');
+// const { execSync } = require('child_process');
+
+// const result = execSync('git ls-files src/').toString();
+// const files = result.split('\n').filter(f => f.endsWith('.js') || f.endsWith('.jsx'));
+
+// let fixedCount = 0;
+
+// files.forEach(filePath => {
+//   const fullPath = path.resolve(filePath);
+//   if (!fs.existsSync(fullPath)) return;
+
+//   let content = fs.readFileSync(fullPath, 'utf8');
+
+//   if (!content.includes('<Link')) return;
+
+//   // Remove ALL existing Link imports anywhere in the file
+//   content = content.replace(/import Link from ['"]next\/link['"];\n?/g, '');
+
+//   // Find "use client" anywhere in the file
+//   const useClientMatch = content.match(/^([\s\S]*?)(["']use client["'];?\n?)/m);
+
+//   if (useClientMatch) {
+//     // Put "use client" first, then Link import, then rest
+//     const before = content.substring(0, content.indexOf(useClientMatch[2]));
+//     const after = content.substring(content.indexOf(useClientMatch[2]) + useClientMatch[2].length);
+//     content = '"use client";\nimport Link from \'next/link\';\n' + before + after;
+//   } else {
+//     // No "use client" - add Link at top
+//     content = "import Link from 'next/link';\n" + content;
+//   }
+
+//   fs.writeFileSync(fullPath, content, 'utf8');
+//   console.log(`✅ Fixed: ${filePath}`);
+//   fixedCount++;
+// });
+
+// console.log(`\n🎉 Fixed ${fixedCount} files`);
+
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 
 const result = execSync('git ls-files src/').toString();
-const files = result.split('\n').filter(f => f.endsWith('.js') || f.endsWith('.jsx'));
+const files = result.split('\n').filter(f =>
+  f.endsWith('.js') || f.endsWith('.jsx') || f.endsWith('.ts') || f.endsWith('.tsx')
+);
 
 let fixedCount = 0;
 
@@ -147,25 +189,49 @@ files.forEach(filePath => {
 
   let content = fs.readFileSync(fullPath, 'utf8');
 
-  if (!content.includes('<Link')) return;
+  // Skip if useRouter is not used at all
+  if (!content.includes('useRouter')) return;
 
-  // Remove ALL existing Link imports anywhere in the file
-  content = content.replace(/import Link from ['"]next\/link['"];\n?/g, '');
+  // Skip if import already exists
+  if (content.includes("from 'next/navigation'") || content.includes('from "next/navigation"')) {
+    // Check if useRouter is actually in the import
+    const importMatch = content.match(/import\s*\{([^}]+)\}\s*from\s*["']next\/navigation["']/);
+    if (importMatch && importMatch[1].includes('useRouter')) return;
 
-  // Find "use client" anywhere in the file
-  const useClientMatch = content.match(/^([\s\S]*?)(["']use client["'];?\n?)/m);
-
-  if (useClientMatch) {
-    // Put "use client" first, then Link import, then rest
-    const before = content.substring(0, content.indexOf(useClientMatch[2]));
-    const after = content.substring(content.indexOf(useClientMatch[2]) + useClientMatch[2].length);
-    content = '"use client";\nimport Link from \'next/link\';\n' + before + after;
-  } else {
-    // No "use client" - add Link at top
-    content = "import Link from 'next/link';\n" + content;
+    // next/navigation exists but useRouter not included — add it
+    content = content.replace(
+      /import\s*\{([^}]+)\}\s*from\s*["']next\/navigation["']/,
+      (match, imports) => {
+        const trimmed = imports.trim();
+        return `import { useRouter, ${trimmed} } from "next/navigation"`;
+      }
+    );
+    fs.writeFileSync(fullPath, content, 'utf8');
+    console.log(`🔧 Added useRouter to existing import: ${filePath}`);
+    fixedCount++;
+    return;
   }
 
-  fs.writeFileSync(fullPath, content, 'utf8');
+  // No next/navigation import at all — need to add it
+  const lines = content.split('\n');
+
+  // Find "use client" line index
+  const useClientIndex = lines.findIndex(line =>
+    /^["']use client["'];?$/.test(line.trim())
+  );
+
+  const importLine = `import { useRouter } from "next/navigation";`;
+
+  if (useClientIndex !== -1) {
+    console.log(`   📍 "use client" found at line ${useClientIndex + 1} in ${filePath}`);
+    // Insert import right after "use client"
+    lines.splice(useClientIndex + 1, 0, importLine);
+  } else {
+    // No "use client" — insert at top of file
+    lines.unshift(importLine);
+  }
+
+  fs.writeFileSync(fullPath, lines.join('\n'), 'utf8');
   console.log(`✅ Fixed: ${filePath}`);
   fixedCount++;
 });

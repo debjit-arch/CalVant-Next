@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import Image from "next/image";
 import React, { useState } from "react";
-import { usePathname } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
 
 const BlogNavbar = () => {
@@ -19,7 +19,7 @@ const BlogNavbar = () => {
     <header className="blog-header">
       <div className="blog-header-container">
         <div className="blog-logo" onClick={() => router.push("/")}>
-          <Image src="/image.png" alt="CalVant" />
+          <img src="/image.png" alt="CalVant" />
         </div>
         <nav className="blog-nav">
           <button
@@ -31,7 +31,7 @@ const BlogNavbar = () => {
           <ul className={`blog-nav-list ${mobileMenuOpen ? "active" : ""}`}>
             <li>
               <Link
-                to="/"
+                href="/"
                 className={isActive("/") ? "active" : ""}
                 onClick={() => setMobileMenuOpen(false)}
               >
@@ -40,7 +40,7 @@ const BlogNavbar = () => {
             </li>
             <li>
               <Link
-                to="/about"
+                href="/about"
                 className={isActive("/about") ? "active" : ""}
                 onClick={() => setMobileMenuOpen(false)}
               >
@@ -49,7 +49,7 @@ const BlogNavbar = () => {
             </li>
             <li>
               <Link
-                to="/blog"
+                href="/blog"
                 className={isActive("/blog") ? "active" : ""}
                 onClick={() => setMobileMenuOpen(false)}
               >
@@ -59,7 +59,7 @@ const BlogNavbar = () => {
             {!isLoggedIn && (
               <li>
                 <Link
-                  to="/login"
+                  href="/login"
                   className="blog-login-btn"
                   onClick={() => setMobileMenuOpen(false)}
                 >

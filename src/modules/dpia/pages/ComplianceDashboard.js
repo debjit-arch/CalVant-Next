@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import React, { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { getCompliance } from "../services/dpiaApi";
 import { useUser } from "../../../hooks/useUser";
 import riskService from "../../riskAssesment/services/riskService";
