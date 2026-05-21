@@ -22,6 +22,6 @@ export default function robots() {
         ],
       },
     ],
-    sitemap: 'https://calvant.com/sitemap.xml',
+    sitemap: 'https://main.d38cbxzpofbmee.amplifyapp.com/sitemap.xml',
   };
 }
