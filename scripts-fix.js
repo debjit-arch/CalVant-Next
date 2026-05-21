@@ -1,0 +1,132 @@
+const fs = require("fs");
+const path = require("path");
+
+const pages = [
+  {
+    file: "app/iso-27001/page.js",
+    path: "/iso-27001",
+    title: "ISO 27001 Compliance | CalVant",
+    desc: "Streamline your ISO 27001 certification journey with CalVant.",
+    component: "ISO_27001",
+    from: "@/modules/dashboard/FrameWorks/ISO_27001",
+    h1: "ISO 27001 Compliance | CalVant",
+  },
+  {
+    file: "app/iso-27701/page.js",
+    path: "/iso-27701",
+    title: "ISO 27701 Compliance | CalVant",
+    desc: "Privacy Information Management with ISO 27701 on CalVant.",
+    component: "ISO_27701",
+    from: "@/modules/dashboard/FrameWorks/ISO_27701",
+    h1: "ISO 27701 Compliance | CalVant",
+  },
+  {
+    file: "app/iso-42001/page.js",
+    path: "/iso-42001",
+    title: "ISO 42001 AI Management | CalVant",
+    desc: "Manage AI risks and compliance with ISO 42001 using CalVant.",
+    component: "ISO_42001",
+    from: "@/modules/dashboard/FrameWorks/ISO_42001",
+    h1: "ISO 42001 AI Management | CalVant",
+  },
+  {
+    file: "app/ksa-pdpl/page.js",
+    path: "/ksa-pdpl",
+    title: "KSA PDPL Compliance | CalVant",
+    desc: "Saudi Arabia Personal Data Protection Law compliance with CalVant.",
+    component: "KSA_PDPL",
+    from: "@/modules/dashboard/FrameWorks/KSA_PDPL",
+    h1: "KSA PDPL Compliance | CalVant",
+  },
+  {
+    file: "app/soc2/page.js",
+    path: "/soc2",
+    title: "SOC 2 Compliance | CalVant",
+    desc: "Automate your SOC 2 compliance program with CalVant.",
+    component: "SOC2",
+    from: "@/modules/dashboard/FrameWorks/SOC2",
+    h1: "SOC 2 Compliance | CalVant",
+  },
+  {
+    file: "app/blog/page.js",
+    path: "/blog",
+    title: "Compliance & Security Blog | CalVant",
+    desc: "Latest insights on compliance, security and data privacy from CalVant.",
+    component: "BlogPage",
+    from: "@/static-pages/blog",
+    h1: "Compliance & Security Blog | CalVant",
+  },
+  {
+    file: "app/gdpr/page.js",
+    path: "/gdpr",
+    title: "GDPR Compliance | CalVant",
+    desc: "Achieve GDPR compliance with CalVant automated tools and frameworks.",
+    component: "GDPR",
+    from: "@/modules/dashboard/FrameWorks/GDPR",
+    h1: "GDPR Compliance | CalVant",
+  },
+  {
+    file: "app/privacy/page.js",
+    path: "/privacy",
+    title: "Privacy Policy | CalVant",
+    desc: "CalVant privacy policy and data handling practices.",
+    component: "FooterContentPage",
+    from: "@/footer-pages/FooterContentPage",
+    h1: "Privacy Policy | CalVant",
+    props: ' type="privacy"',
+  },
+  {
+    file: "app/security/page.js",
+    path: "/security",
+    title: "Security | CalVant",
+    desc: "How CalVant keeps your data secure.",
+    component: "FooterContentPage",
+    from: "@/footer-pages/FooterContentPage",
+    h1: "Security | CalVant",
+    props: ' type="security"',
+  },
+  {
+    file: "app/terms/page.js",
+    path: "/terms",
+    title: "Terms of Service | CalVant",
+    desc: "CalVant terms of service and usage policies.",
+    component: "FooterContentPage",
+    from: "@/footer-pages/FooterContentPage",
+    h1: "Terms of Service | CalVant",
+    props: ' type="terms"',
+  },
+];
+
+pages.forEach(
+  ({ file, path: pagePath, title, desc, component, from, h1, props = "" }) => {
+    const content = `import dynamic from 'next/dynamic';
+import { getPageMetadata } from '@/utils/getPageMetadata';
+
+export async function generateMetadata() {
+  return getPageMetadata('${pagePath}', {
+    title: '${title}',
+    description: '${desc}',
+    alternates: { canonical: 'https://calvant.com${pagePath}' },
+  });
+}
+
+const ${component} = dynamic(() => import('${from}'), { ssr: false });
+
+export default function Page() {
+  return (
+    <>
+      <h1 style={{ position: 'absolute', width: '1px', height: '1px', overflow: 'hidden', clip: 'rect(0,0,0,0)', whiteSpace: 'nowrap' }}>
+        ${h1}
+      </h1>
+      <${component}${props} />
+    </>
+  );
+}
+`;
+
+    fs.writeFileSync(path.resolve(file), content, "utf8");
+    console.log(`✅ Fixed: ${file}`);
+  },
+);
+
+console.log("\n🎉 All pages updated!");

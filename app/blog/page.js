@@ -1,20 +1,23 @@
 import dynamic from 'next/dynamic';
+import { getPageMetadata } from '@/utils/getPageMetadata';
 
-export const metadata = {
-  title: "Blog | CalVant",
-  description: "Latest insights on compliance, security and data privacy from CalVant.",
-  openGraph: {
-    title: "Blog | CalVant",
-    description: "Latest insights on compliance, security and data privacy from CalVant.",
-    siteName: 'CalVant',
-  },
-  alternates: {
-    canonical: "https://calvant.com/blog",
-  },
-};
+export async function generateMetadata() {
+  return getPageMetadata('/blog', {
+    title: 'Compliance & Security Blog | CalVant',
+    description: 'Latest insights on compliance, security and data privacy from CalVant.',
+    alternates: { canonical: 'https://calvant.com/blog' },
+  });
+}
 
 const BlogPage = dynamic(() => import('@/static-pages/blog'), { ssr: false });
 
 export default function Page() {
-  return <BlogPage />;
+  return (
+    <>
+      <h1 style={{ position: 'absolute', width: '1px', height: '1px', overflow: 'hidden', clip: 'rect(0,0,0,0)', whiteSpace: 'nowrap' }}>
+        Compliance & Security Blog | CalVant
+      </h1>
+      <BlogPage />
+    </>
+  );
 }

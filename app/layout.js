@@ -7,11 +7,15 @@ import { SEOProvider } from "@/context/SEOContext";
 import SidebarWrapper from "@/components/SidebarWrapper";
 import MainContentWrapper from "@/components/MainContentWrapper";
 import DynamicSEO from "@/components/DynamicSEO";
+import { getPageMetadata } from '@/utils/getPageMetadata';
 
-export const metadata = {
-  title: "CalVant | ISO Compliance & Risk Management Platform",
-  description: "Empower your organization with CalVant's industry-leading ISO 27001 & 27701 compliance platform.",
-};
+export async function generateMetadata() {
+  return getPageMetadata('/', {
+    title: 'CalVant | ISO Compliance & Risk Management Platform',
+    description: 'Empower your organization with CalVant compliance platform.',
+    verification: { google: '41e5318870c428ec' },
+  });
+}
 
 export default function RootLayout({ children }) {
   return (
@@ -24,9 +28,7 @@ export default function RootLayout({ children }) {
                 <LayoutProvider>
                   <DynamicSEO />
                   <SidebarWrapper />
-                  <MainContentWrapper>
-                    {children}
-                  </MainContentWrapper>
+                  <MainContentWrapper>{children}</MainContentWrapper>
                 </LayoutProvider>
               </FrameworkProvider>
             </SessionProvider>
