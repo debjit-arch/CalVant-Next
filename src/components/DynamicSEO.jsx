@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useSEO } from "../context/SEOContext";
 
 const DEFAULT_TITLE = "CalVant | ISO Compliance & Risk Management Platform";
-const DEFAULT_DESC = "Empower your organization with CalVant's industry-leading ISO 27001 & 27701 compliance platform. Automate risk management and audit readiness.";
+const DEFAULT_DESC = "Empower your organization with CalVant's industry-leading ISO 27001 & 27701 compliance platform.";
 const DEFAULT_KEYWORDS = "ISO 27001, ISO 27701, Compliance, Risk Management, Cybersecurity";
 
 const DynamicSEO = () => {
@@ -23,11 +23,10 @@ const DynamicSEO = () => {
     const canonical = seo?.canonical || window.location.href;
     const robots = seo?.robots || "index, follow";
 
-    // Title
     document.title = title;
 
     const setMeta = (attr, key, content) => {
-      let el = document.querySelector(meta[=""]);
+      let el = document.querySelector(`meta[${attr}="${key}"]`);
       if (!el) {
         el = document.createElement("meta");
         el.setAttribute(attr, key);
@@ -51,7 +50,6 @@ const DynamicSEO = () => {
     setMeta("name", "twitter:description", description);
     setMeta("name", "twitter:image", ogImage);
 
-    // Canonical
     let link = document.querySelector("link[rel='canonical']");
     if (!link) {
       link = document.createElement("link");
