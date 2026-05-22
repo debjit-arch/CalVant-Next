@@ -1,8 +1,13 @@
-"use client";
-import BlogPost from "@/static-pages/BlogPost";
-import { useParams } from "next/navigation";
+import { getPageMetadata } from '@/utils/getPageMetadata';
+import BlogPostClient from '@/components/BlogPostClient';
+
+export async function generateMetadata({ params }) {
+  return getPageMetadata(`/blog/${params.slug}`, {
+    title: 'Blog | CalVant',
+    description: 'Insights on ISO compliance, risk management and cybersecurity.',
+  });
+}
 
 export default function Page() {
-  const params = useParams();
-  return <BlogPost match={{ params }} />;
+  return <BlogPostClient />;
 }
