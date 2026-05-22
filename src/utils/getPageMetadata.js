@@ -1,73 +1,77 @@
-const BASE_URL = process.env.NEXT_PUBLIC_CFTB || "https://api.calvant.com";
+const BASE_URL = process.env.NEXT_PUBLIC_CFTB || 'https://api.calvant.com';
 
 const normalizePath = (path) => {
-  if (!path) return "/";
-  return path.toLowerCase().trim().replace(/\/$/, "") || "/";
+  if (!path) return '/';
+  return path.toLowerCase().trim().replace(/\/$/, '') || '/';
 };
 
 export async function getPageMetadata(path, fallback = {}) {
   try {
     const normalizedPath = normalizePath(path);
+    const url = `${BASE_URL}/seo-form/api/seo/by-path?path=${normalizedPath}`;
 
-    const res = await fetch(
-      `${BASE_URL}/seo-form/api/seo/by-path?path=${encodeURIComponent(normalizedPath)}`,
-      { next: { revalidate: 3600 } },
-    );
+    console.log('[SEO] fetching:', url);
 
-    // No CMS entry for this path — use fallback silently
-    if (res.status === 404) return fallback;
-    if (!res.ok) throw new Error(`SEO fetch failed: ${res.status}`);
+    const res = await fetch(url, { cache: 'no-store' });
+
+    console.log('[SEO] status:', res.status);
+
+    if (res.status === 404) {
+      console.log('[SEO] 404 - no entry found, using fallback');
+      return fallback;
+    }
+    if (!res.ok) {
+      console.log('[SEO] error response:', res.status, res.statusText);
+      return fallback;
+    }
 
     const entry = await res.json();
+    console.log('[SEO] success - pageTitle:', entry.pageTitle);
 
-    // Decode advanced JSON packed into metaKeywords
     let advanced = {};
-    const keywordData = entry.metaKeywords || "";
-    if (keywordData.includes(" | {")) {
+    const keywordData = entry.metaKeywords || '';
+    if (keywordData.includes(' | {')) {
       try {
-        advanced = JSON.parse(keywordData.split(" | ")[1]);
+        advanced = JSON.parse(keywordData.split(' | ')[1]);
       } catch {
-        console.warn("[SEO] Malformed JSON in metaKeywords for path:", path);
+        console.warn('[SEO] malformed JSON in metaKeywords');
       }
     }
 
     const title = entry.pageTitle || fallback.title;
     const description = entry.metaDesc || fallback.description;
-    const keywords = keywordData.split(" | ")[0] || "";
+    const keywords = keywordData.split(' | ')[0] || '';
     const ogImage = advanced.og_img;
-    const canonical =
-      advanced.canonical || `https://main.d38cbxzpofbmee.amplifyapp.com${normalizedPath}`;
+    const canonical = advanced.canonical || `https://calvant.com${normalizedPath}`;
 
     return {
       title,
       description,
       keywords,
-      robots: advanced.robots || "index, follow",
-      alternates: {
-        canonical,
-      },
+      robots: advanced.robots || 'index, follow',
+      alternates: { canonical },
       openGraph: {
         title,
         description,
         url: canonical,
-        siteName: "CalVant",
-        type: "website",
+        siteName: 'CalVant',
+        type: 'website',
         ...(ogImage && { images: [{ url: ogImage }] }),
       },
       twitter: {
-        card: "summary_large_image",
+        card: 'summary_large_image',
         title,
         description,
         ...(ogImage && { images: [ogImage] }),
       },
-      // Pass through any extra fallback fields (e.g. verification)
       ...Object.fromEntries(
         Object.entries(fallback).filter(
-          ([key]) => !["title", "description"].includes(key),
-        ),
+          ([key]) => !['title', 'description'].includes(key)
+        )
       ),
     };
-  } catch {
+  } catch (err) {
+    console.error('[SEO] fetch failed:', err.message);  // ← this will show the real error
     return fallback;
   }
 }
