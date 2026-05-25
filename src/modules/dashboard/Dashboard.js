@@ -1,5 +1,5 @@
 "use client";
-import Link from 'next/link';
+import Link from "next/link";
 import Image from "next/image";
 import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
@@ -636,6 +636,29 @@ const Dashboard = () => {
   const router = useRouter();
   const [user, setUser] = useState(null);
 
+    const [frameworkNavOptions, setFrameworkNavOptions] = useState([]); // ADD THIS
+
+  // ADD THIS — fetch frameworks for the nav dropdown (public, no auth)
+  useEffect(() => {
+    const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "https://api.calvant.com";
+    fetch(`${API_BASE}/framework/api/frameworks`)
+      .then((res) => res.ok ? res.json() : [])
+      .then((data) => {
+        setFrameworkNavOptions(
+          data
+            .filter((fw) => fw.label && fw.path)
+            .map((fw) => ({ label: fw.label, route: fw.path }))
+        );
+      })
+      .catch(() => {}); // fail silently — nav just won't show dropdown items
+  }, []);
+
+  // existing useEffect for user
+  useEffect(() => {
+    const storedUser = sessionStorage.getItem("user");
+    if (storedUser) setUser(JSON.parse(storedUser));
+  }, []);
+
   useEffect(() => {
     const storedUser = sessionStorage.getItem("user");
 
@@ -944,11 +967,6 @@ const Dashboard = () => {
     );
   }
 
-  const frameworkOptions = Object.values(FRAMEWORK_CONFIG).map((fw) => ({
-    label: fw.label,
-    route: fw.path,
-  }));
-
   // ============================================
   // GUEST USER VIEW
   // ============================================
@@ -1014,7 +1032,7 @@ const Dashboard = () => {
           >
             {!isMobile && (
               <>
-                <HeaderDropdown label="Frameworks" options={frameworkOptions} />
+                <HeaderDropdown label="Frameworks" options={frameworkNavOptions} />
                 <HeaderDropdown
                   label="Templates"
                   options={[
@@ -1528,7 +1546,7 @@ const Dashboard = () => {
               <li>
                 <Link href="/about">About</Link>
               </li>
-             
+
               <li>
                 <Link href="/careers">Careers</Link>
               </li>
@@ -1548,7 +1566,7 @@ const Dashboard = () => {
               </li>
             </ul>
           </div>
-           <div className="dashboard-footer-section">
+          <div className="dashboard-footer-section">
             <h4>Resources</h4>
             <ul>
               <li>
