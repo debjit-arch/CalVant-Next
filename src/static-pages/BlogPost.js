@@ -4,7 +4,7 @@ import Link from "next/link";
 import React, { useState, useEffect, useMemo } from "react";
 import axios from "axios";
 import { useRouter } from "next/navigation";
-import { useParams} from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import {
   Calendar,
@@ -145,10 +145,8 @@ const BlogPost = ({ slug: propSlug, match }) => {
         </button>
         <span className="professional-badge">{post.category}</span>
       </div>
-      
-      <h1 className="post-hero-title">
-        {post.safeTitle}
-      </h1>
+
+      <h1 className="post-hero-title">{post.safeTitle}</h1>
 
       <div className="post-hero-meta">
         <div className="meta-item">
@@ -168,64 +166,95 @@ const BlogPost = ({ slug: propSlug, match }) => {
       <Helmet>
         {/* Primary */}
         <title>{post.safeTitle} - CalVant Blog</title>
-        <meta name="description" content={post.safeExcerpt?.substring(0, 160)} />
+        <meta
+          name="description"
+          content={post.safeExcerpt?.substring(0, 160)}
+        />
         <meta name="robots" content="index, follow" />
-        <link rel="canonical" href={`https://app.calvant.com/blog/${post.slug}`} />
+        <link
+          rel="canonical"
+          href={`https://app.calvant.com/blog/${post.slug}`}
+        />
 
         {/* Open Graph - Article */}
         <meta property="og:type" content="article" />
         <meta property="og:site_name" content="CalVant" />
-        <meta property="og:title" content={`${post.safeTitle} - CalVant Blog`} />
-        <meta property="og:description" content={post.safeExcerpt?.substring(0, 160)} />
-        <meta property="og:url" content={`https://app.calvant.com/blog/${post.slug}`} />
+        <meta
+          property="og:title"
+          content={`${post.safeTitle} - CalVant Blog`}
+        />
+        <meta
+          property="og:description"
+          content={post.safeExcerpt?.substring(0, 160)}
+        />
+        <meta
+          property="og:url"
+          content={`https://app.calvant.com/blog/${post.slug}`}
+        />
         <meta property="og:image" content={post.imageUrl} />
         <meta property="article:published_time" content={post.createdAt} />
         <meta property="article:section" content={post.category} />
 
         {/* Twitter Card */}
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content={`${post.safeTitle} - CalVant Blog`} />
-        <meta name="twitter:description" content={post.safeExcerpt?.substring(0, 160)} />
+        <meta
+          name="twitter:title"
+          content={`${post.safeTitle} - CalVant Blog`}
+        />
+        <meta
+          name="twitter:description"
+          content={post.safeExcerpt?.substring(0, 160)}
+        />
         <meta name="twitter:image" content={post.imageUrl} />
 
         {/* JSON-LD Structured Data */}
-        <script type="application/ld+json">{JSON.stringify({
-          "@context": "https://schema.org",
-          "@type": "BlogPosting",
-          "headline": post.safeTitle,
-          "description": post.safeExcerpt?.substring(0, 160),
-          "image": post.imageUrl,
-          "datePublished": post.createdAt,
-          "dateModified": post.updatedAt || post.createdAt,
-          "url": `https://app.calvant.com/blog/${post.slug}`,
-          "author": {
-            "@type": "Organization",
-            "name": "CalVant",
-            "url": "https://app.calvant.com"
-          },
-          "publisher": {
-            "@type": "Organization",
-            "name": "CalVant",
-            "logo": {
-              "@type": "ImageObject",
-              "url": "https://app.calvant.com/CalVant Logo.svg"
-            }
-          },
-          "articleSection": post.category,
-          "mainEntityOfPage": {
-            "@type": "WebPage",
-            "@id": `https://app.calvant.com/blog/${post.slug}`
-          }
-        })}</script>
+        <script type="application/ld+json">
+          {JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "BlogPosting",
+            headline: post.safeTitle,
+            description: post.safeExcerpt?.substring(0, 160),
+            image: post.imageUrl,
+            datePublished: post.createdAt,
+            dateModified: post.updatedAt || post.createdAt,
+            url: `https://app.calvant.com/blog/${post.slug}`,
+            author: {
+              "@type": "Organization",
+              name: "CalVant",
+              url: "https://app.calvant.com",
+            },
+            publisher: {
+              "@type": "Organization",
+              name: "CalVant",
+              logo: {
+                "@type": "ImageObject",
+                url: "https://app.calvant.com/CalVant Logo.svg",
+              },
+            },
+            articleSection: post.category,
+            mainEntityOfPage: {
+              "@type": "WebPage",
+              "@id": `https://app.calvant.com/blog/${post.slug}`,
+            },
+          })}
+        </script>
       </Helmet>
 
       {/* FEATURED IMAGE — eager load for LCP */}
       <div className="post-featured-image">
-        <img src={post.imageUrl} alt={post.safeTitle} loading="eager" fetchpriority="high" />
+        <img
+          src={post.imageUrl}
+          alt={post.safeTitle}
+          loading="eager"
+          fetchpriority="high"
+        />
       </div>
 
       {/* CONTENT */}
-      <div dangerouslySetInnerHTML={{ __html: post.content }} />
+      <div
+        className="post-body-content"
+        dangerouslySetInnerHTML={{ __html: post.content }}
+      />
 
       {/* RELATED POSTS (OUTSIDE OF NARROW CONTAINER) */}
       {relatedPosts.length > 0 && (
@@ -233,11 +262,14 @@ const BlogPost = ({ slug: propSlug, match }) => {
           className="professional-container"
           style={{ marginTop: "80px", maxWidth: "var(--cv-container)" }}
         >
-          <h2 className="professional-section-title" style={{ textAlign: "center" }}>
+          <h2
+            className="professional-section-title"
+            style={{ textAlign: "center" }}
+          >
             Other Articles
           </h2>
           <div className="professional-blog-grid">
-                {relatedPosts.map((rp) => (
+            {relatedPosts.map((rp) => (
               <article
                 key={rp.id}
                 className="blog-card"
@@ -271,5 +303,3 @@ const BlogPost = ({ slug: propSlug, match }) => {
 };
 
 export default BlogPost;
-
-
