@@ -31,12 +31,23 @@ import {
   logClick,
 } from "../../services/activities";
 
-
-
 // ── Per-framework mini card ───────────────────────────────────────────────────
-const CompactFrameworkChart = ({ frameworkObj, complianceData, isLoading }) => {
-  const cfg = frameworkObj || { label: "Unknown", color: "#64748b", description: "Unknown Framework" };
-  const Icon = cfg.riskTypes?.includes("Privacy") ? Lock : (cfg.riskTypes?.includes("Artificial Intelligence") ? Brain : AlertTriangle);
+const CompactFrameworkChart = ({
+  frameworkObj,
+  complianceData,
+  isLoading,
+  hasMounted,
+}) => {
+  const cfg = frameworkObj || {
+    label: "Unknown",
+    color: "#64748b",
+    description: "Unknown Framework",
+  };
+  const Icon = cfg.riskTypes?.includes("Privacy")
+    ? Lock
+    : cfg.riskTypes?.includes("Artificial Intelligence")
+      ? Brain
+      : AlertTriangle;
 
   const pieData = [
     {
@@ -147,12 +158,15 @@ const CompactFrameworkChart = ({ frameworkObj, complianceData, isLoading }) => {
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 const Compliances = () => {
-  const { availableFrameworks, selectedFrameworks, isAllSelected } = useFramework();
+  const { availableFrameworks, selectedFrameworks, isAllSelected } =
+    useFramework();
   const router = useRouter();
   const [user] = useState(() => JSON.parse(sessionStorage.getItem("user")));
   const [run, setRun] = useState(false);
   const [hasMounted, setHasMounted] = useState(false);
-  useEffect(() => { setHasMounted(true); }, []);
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
   const [tenantReady, setTenantReady] = useState(false);
 
   const userRoles = Array.isArray(user?.role) ? user.role : [user?.role || ""];
@@ -164,7 +178,6 @@ const Compliances = () => {
       loadFramework(fw.code);
     });
   }, [availableFrameworks, loadFramework]);
-
 
   const emptyStats = {
     totalControls: 0,
@@ -191,8 +204,8 @@ const Compliances = () => {
 
   useEffect(() => {
     if (availableFrameworks && availableFrameworks.length > 0) {
-      setFrameworkData(prev => ({ ...initialStats, ...prev }));
-      setLoadingFrameworks(prev => ({ ...initialLoading, ...prev }));
+      setFrameworkData((prev) => ({ ...initialStats, ...prev }));
+      setLoadingFrameworks((prev) => ({ ...initialLoading, ...prev }));
     }
   }, [availableFrameworks, initialStats, initialLoading]);
   const steps = [
@@ -292,8 +305,13 @@ const Compliances = () => {
   }, []);
 
   useEffect(() => {
-    if (!tenantReady || !availableFrameworks || availableFrameworks.length === 0) return;
-    availableFrameworks.forEach(fw => {
+    if (
+      !tenantReady ||
+      !availableFrameworks ||
+      availableFrameworks.length === 0
+    )
+      return;
+    availableFrameworks.forEach((fw) => {
       loadFramework(fw.code);
     });
   }, [tenantReady, loadFramework, availableFrameworks]);
@@ -303,7 +321,7 @@ const Compliances = () => {
     if (isAllSelected) return frameworkData;
 
     const activeKeys = selectedFrameworks
-      .map((fwId) => availableFrameworks?.find(f => f.id === fwId)?.code)
+      .map((fwId) => availableFrameworks?.find((f) => f.id === fwId)?.code)
       .filter(Boolean);
 
     return Object.fromEntries(
@@ -395,8 +413,14 @@ const Compliances = () => {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <span className={`text-xs font-bold px-3 py-1.5 rounded-full ${isRoot ? "bg-blue-100 text-blue-700" : "bg-violet-100 text-violet-700"}`}>
-              {isRoot ? "Root" : (userRoles[0] ? userRoles[0].replace("_", " ") : "User")}
+            <span
+              className={`text-xs font-bold px-3 py-1.5 rounded-full ${isRoot ? "bg-blue-100 text-blue-700" : "bg-violet-100 text-violet-700"}`}
+            >
+              {isRoot
+                ? "Root"
+                : userRoles[0]
+                  ? userRoles[0].replace("_", " ")
+                  : "User"}
             </span>
             <span className="text-sm font-semibold text-slate-600">
               {user?.name || "User"}
@@ -415,11 +439,7 @@ const Compliances = () => {
               onClick={() => {
                 setRun(false);
                 setTimeout(() => setRun(true), 200);
-                logClick(
-                  "Compliance · Start Tutorial",
-                  {},
-                  window.pathname,
-                );
+                logClick("Compliance · Start Tutorial", {}, window.pathname);
               }}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
@@ -485,13 +505,16 @@ const Compliances = () => {
           ) : (
             <>
               {Object.keys(filteredFrameworkData).map((fwCode) => {
-                const fwObj = availableFrameworks?.find(f => f.code === fwCode);
+                const fwObj = availableFrameworks?.find(
+                  (f) => f.code === fwCode,
+                );
                 return (
                   <CompactFrameworkChart
                     key={fwCode}
                     frameworkObj={fwObj}
                     complianceData={filteredFrameworkData[fwCode]}
                     isLoading={loadingFrameworks[fwCode]}
+                    hasMounted={hasMounted}
                   />
                 );
               })}

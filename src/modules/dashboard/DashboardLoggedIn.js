@@ -2012,7 +2012,7 @@ const DashboardLoggedIn = () => {
                             )
                           : 0;
                       const tileColor =
-                        FRAMEWORK_TILE_COLORS[fw.code] ?? fw.color ?? "#f43f5e";
+                        fw.color ?? "#f43f5e";
                       const glowClass =
                         fw.code.toLowerCase().replace(/[^a-z0-9]/g, "") +
                         "-glow";

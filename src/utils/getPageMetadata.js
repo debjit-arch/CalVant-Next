@@ -63,7 +63,7 @@ export async function getPageMetadata(path, fallback = {}) {
       // Pass through any extra fallback fields (e.g. verification)
       ...Object.fromEntries(
         Object.entries(fallback).filter(
-          ([key]) => !["title", "description"].includes(key),
+          ([key]) => !["title", "description", "alternates"].includes(key),
         ),
       ),
     };

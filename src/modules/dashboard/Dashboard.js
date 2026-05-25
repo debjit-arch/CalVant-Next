@@ -636,20 +636,23 @@ const Dashboard = () => {
   const router = useRouter();
   const [user, setUser] = useState(null);
 
-    const [frameworkNavOptions, setFrameworkNavOptions] = useState([]); // ADD THIS
+  const [frameworkNavOptions, setFrameworkNavOptions] = useState([]); // ADD THIS
 
   // ADD THIS — fetch frameworks for the nav dropdown (public, no auth)
   useEffect(() => {
-    const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "https://api.calvant.com";
+    const API_BASE =
+      process.env.NEXT_PUBLIC_API_BASE_URL || "https://api.calvant.com";
     fetch(`${API_BASE}/framework/api/frameworks`)
-      .then((res) => res.ok ? res.json() : [])
+      .then((res) => (res.ok ? res.json() : []))
       .then((data) => {
+        console.log("frameworks data:", data[0]); // ← add this temporarily
         setFrameworkNavOptions(
           data
-            .filter((fw) => fw.label && fw.path)
-            .map((fw) => ({ label: fw.label, route: fw.path }))
+            .filter((fw) => fw.label)
+            .map((fw) => ({ label: fw.label, route: `/frameworks/${fw.id}` })),
         );
       })
+
       .catch(() => {}); // fail silently — nav just won't show dropdown items
   }, []);
 
@@ -1032,7 +1035,10 @@ const Dashboard = () => {
           >
             {!isMobile && (
               <>
-                <HeaderDropdown label="Frameworks" options={frameworkNavOptions} />
+                <HeaderDropdown
+                  label="Frameworks"
+                  options={frameworkNavOptions}
+                />
                 <HeaderDropdown
                   label="Templates"
                   options={[

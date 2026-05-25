@@ -143,6 +143,7 @@ function ChartsColumn({
   BAR_COLORS,
   loadingStats,
   stats,
+  hasMounted,
 }) {
   const chartsContainerRef = useRef(null);
   const roTimerRef = useRef(null);
@@ -318,7 +319,9 @@ export default function AiiaDashboard() {
   // ── All hooks declared unconditionally at top level ───────────────────────
   const [user, setUser] = useState(null);
   const [hasMounted, setHasMounted] = useState(false);
-  useEffect(() => { setHasMounted(true); }, []);
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
   // isAuthenticated:
   //   null  → still reading sessionStorage (initial render / hard reload)
   //   true  → user found in storage, stay on page
@@ -345,19 +348,23 @@ export default function AiiaDashboard() {
   const steps = [
     {
       target: "#dashboard-header",
-      content: "Welcome to your AI Impact Assessment (AIIA) dashboard. Assess and mitigate risks of AI models and systems.",
+      content:
+        "Welcome to your AI Impact Assessment (AIIA) dashboard. Assess and mitigate risks of AI models and systems.",
     },
     {
       target: "#stats-grid",
-      content: "A comprehensive metrics summary showing total, approved, completed, and pending AI impact assessments.",
+      content:
+        "A comprehensive metrics summary showing total, approved, completed, and pending AI impact assessments.",
     },
     {
       target: "#action-cards",
-      content: "Quick tools to plan new impact assessments, manage ongoing AIIAs, or browse assignment pipelines.",
+      content:
+        "Quick tools to plan new impact assessments, manage ongoing AIIAs, or browse assignment pipelines.",
     },
     {
       target: "#charts-container",
-      content: "Visual charts for status distribution and monthly AI assessment trends.",
+      content:
+        "Visual charts for status distribution and monthly AI assessment trends.",
     },
   ];
 
@@ -661,9 +668,15 @@ export default function AiiaDashboard() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
         >
-            <div className="flex items-center justify-between w-full">
-            <div className="flex items-center gap-4 flex-1" style={{ justifyContent: "flex-start", textAlign: "left", alignItems: "flex-start" }}>
-
+          <div className="flex items-center justify-between w-full">
+            <div
+              className="flex items-center gap-4 flex-1"
+              style={{
+                justifyContent: "flex-start",
+                textAlign: "left",
+                alignItems: "flex-start",
+              }}
+            >
               <div className="w-14 h-14 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0">
                 <Brain className="w-7 h-7 text-white drop-shadow-sm" />
               </div>
@@ -794,7 +807,9 @@ export default function AiiaDashboard() {
                           <motion.div
                             key={action.key}
                             className="group bg-white/70 backdrop-blur-sm border border-slate-100/50 rounded-xl p-5 shadow-sm hover:shadow-lg hover:-translate-y-1 hover:bg-white transition-all duration-300 cursor-pointer"
-                            initial={hasMounted ? { opacity: 0, scale: 0.93 } : false}
+                            initial={
+                              hasMounted ? { opacity: 0, scale: 0.93 } : false
+                            }
                             animate={{ opacity: 1, scale: 1 }}
                             transition={{
                               duration: 0.4,
@@ -868,7 +883,9 @@ export default function AiiaDashboard() {
                           <motion.div
                             key={action.key}
                             className="group bg-white/70 backdrop-blur-sm border border-slate-100/50 rounded-xl p-5 shadow-sm hover:shadow-lg hover:-translate-y-1 hover:bg-white transition-all duration-300 cursor-pointer"
-                            initial={hasMounted ? { opacity: 0, scale: 0.93 } : false}
+                            initial={
+                              hasMounted ? { opacity: 0, scale: 0.93 } : false
+                            }
                             animate={{ opacity: 1, scale: 1 }}
                             transition={{
                               duration: 0.4,
@@ -912,6 +929,7 @@ export default function AiiaDashboard() {
             BAR_COLORS={BAR_COLORS}
             loadingStats={loadingStats}
             stats={stats}
+            hasMounted={hasMounted}
           />
         </div>
       </main>
@@ -960,7 +978,9 @@ export default function AiiaDashboard() {
             >
               <motion.div
                 key="assignments-panel"
-                initial={hasMounted ? { opacity: 0, y: 40, scale: 0.97 } : false}
+                initial={
+                  hasMounted ? { opacity: 0, y: 40, scale: 0.97 } : false
+                }
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 40, scale: 0.97 }}
                 transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
