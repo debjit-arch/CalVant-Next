@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { useSession } from "./SessionContext";
 import { captureActivity, ACTIONS } from "../services/activities";
-import { fetchFrameworks, FRAMEWORK_CONFIG } from "./frameworkService";
+import { fetchFrameworks } from "./frameworkService";
 
 export const ALL_FRAMEWORKS = "ALL Frameworks";
 
@@ -83,14 +83,7 @@ export const FrameworkProvider = ({ children }) => {
       })
       .catch((err) => {
         console.error("[FrameworkContext] Failed to load frameworks:", err);
-        const fallback = Object.entries(FRAMEWORK_CONFIG).map(
-          ([code, cfg]) => ({
-            id: cfg.label,
-            code,
-            ...cfg,
-          }),
-        );
-        setAvailableFrameworks(fallback);
+        setAvailableFrameworks([]); // API is source of truth; no static fallback needed
       })
       .finally(() => setFrameworksLoading(false));
   }, [isAuthenticated]); // ← re-runs when auth state changes

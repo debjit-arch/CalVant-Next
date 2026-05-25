@@ -31,7 +31,6 @@ import taskService from "../taskManagement/services/taskService";
 import tprmService from "../tprm/services/tprmService";
 import { getAllAssessments } from "../dpia/services/dpiaApi";
 import { stage1Api } from "../aiia/services/aiiaApi";
-import { FRAMEWORK_TILE_COLORS } from "../../context/frameworkService";
 import "./DashboardLoggedIn.css";
 import { useFramework } from "../../context/FrameworkContex";
 import { getFrameworkCompliance } from "../integrations/complianceData";
@@ -1074,7 +1073,7 @@ const DashboardLoggedIn = () => {
       partial: d.partial,
       nonCompliant: d.nonCompliant,
       totalControls: d.totalControls,
-      color: FRAMEWORK_TILE_COLORS[activeFw] ?? fw?.color ?? "#f43f5e",
+      color: fw?.color ?? "#f43f5e",
     };
   }, [
     activeFw,
@@ -1562,8 +1561,7 @@ const DashboardLoggedIn = () => {
                   d.totalControls > 0
                     ? Math.round((d.fullyCompliant / d.totalControls) * 100)
                     : 0;
-                const tileColor =
-                  FRAMEWORK_TILE_COLORS[fw.code] ?? fw.color ?? "#f43f5e";
+                const tileColor = fw.color ?? "#f43f5e";
 
                 return (
                   <div
