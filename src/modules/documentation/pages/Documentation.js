@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import documentationService from "../services/documentationService";
 import controlService from "../services/controlService";
@@ -15,6 +15,7 @@ import {
   HelpCircle,
   FolderOpen,
   Archive,
+  RefreshCw,
 } from "lucide-react";
 import {
   PieChart,
@@ -37,7 +38,7 @@ import { motion, AnimatePresence } from "framer-motion";
 const Documentation = () => {
   const router = useRouter();
   const chartsContainerRef = useRef(null);
-
+  // 
   const [user] = useState(() => JSON.parse(sessionStorage.getItem("user")));
   const userRoles = Array.isArray(user?.role) ? user.role : [user?.role || ""];
   const isRoot = user?.role?.some((r) => {
@@ -56,6 +57,8 @@ const Documentation = () => {
     pending: 0,
     archived: 0,
   });
+  const [hasMounted, setHasMounted] = useState(false);
+  useEffect(() => { setHasMounted(true); }, []);
   const [allDocuments, setAllDocuments] = useState([]);
   const [run, setRun] = useState(false);
 
@@ -111,8 +114,14 @@ const Documentation = () => {
   }, []);
 
   useEffect(() => {
-    if (!user) router.push("/");
+    if (!user) {
+      router.push("/");
+    }
   }, [user, router]);
+
+  // useEffect(() => {
+  //   collapseSidebar();
+  // }, [collapseSidebar]);
 
   // ── Count total required docs from backend controls ───────────────────────
   const getTotalFromBackendControls = (controls, currentUser, userIsAdmin) => {
@@ -418,19 +427,11 @@ const Documentation = () => {
             justifyContent: "flex-start",
             alignItems: "flex-start",
           }}
-          initial={{ opacity: 0, y: -15 }}
+          initial={hasMounted ? { opacity: 0, y: -15 } : false}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
         >
-          <div
-            className="flex flex-col lg:flex-row items-start lg:items-center gap-4 lg:gap-6"
-            style={{
-              justifyContent: "flex-start",
-              width: "100%",
-              textAlign: "left",
-              alignItems: "flex-start",
-            }}
-          >
+          <div className="flex items-center justify-between w-full">
             <div
               className="flex items-center gap-4 flex-1"
               style={{
@@ -455,29 +456,46 @@ const Documentation = () => {
                 </p>
               </div>
             </div>
-            <motion.button
-              className="px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 flex items-center gap-2"
-              onClick={() => {
-                setRun(false);
-                setTimeout(() => setRun(true), 100);
-              }}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              <HelpCircle size={18} />
-              <span>Tutorial</span>
-            </motion.button>
+            <div className="flex items-center gap-3">
+              <span className={`text-xs font-bold px-3 py-1.5 rounded-full ${isRoot ? "bg-blue-100 text-blue-700" : "bg-violet-100 text-violet-700"}`}>
+                {isRoot ? "Root" : (userRoles[0] ? userRoles[0].replace("_", " ") : "User")}
+              </span>
+              <span className="text-sm font-semibold text-slate-600">
+                {user?.name || "User"}
+              </span>
+              <motion.button
+                onClick={loadDocumentStats}
+                title="Refresh"
+                className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 transition-colors border border-slate-200 flex items-center justify-center"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <RefreshCw size={15} className="text-slate-500" />
+              </motion.button>
+              <motion.button
+                className="px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 flex items-center gap-2"
+                onClick={() => {
+                  setRun(false);
+                  setTimeout(() => setRun(true), 100);
+                }}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <HelpCircle size={18} />
+                <span>Tutorial</span>
+              </motion.button>
+            </div>
           </div>
         </motion.header>
 
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 h-full">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 w-full min-w-0">
           {/* LEFT */}
-          <div className="space-y-10">
+          <div className="space-y-10 w-full min-w-0">
             {/* Stats Grid */}
             <motion.section
               id="stats-grid"
               className="grid grid-cols-2 md:grid-cols-4 gap-4"
-              initial={{ opacity: 0, y: 15 }}
+              initial={hasMounted ? { opacity: 0, y: 15 } : false}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.1 }}
             >
@@ -547,7 +565,7 @@ const Documentation = () => {
             <motion.section
               id="action-cards"
               className="space-y-1"
-              initial={{ opacity: 0, y: 5 }}
+              initial={hasMounted ? { opacity: 0, y: 5 } : false}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.3 }}
             >
@@ -573,7 +591,7 @@ const Documentation = () => {
                       <motion.div
                         key={`${id}-${index}`}
                         className={`group bg-white/70 backdrop-blur-sm border border-slate-100/50 rounded-xl p-6 h-full flex flex-col justify-between shadow-sm hover:shadow-lg hover:-translate-y-1 hover:bg-white transition-all duration-300 cursor-pointer relative ${primary ? "ring-2 ring-emerald-200/50 bg-gradient-to-br " + color : ""}`}
-                        initial={{ opacity: 0, scale: 0.9 }}
+                        initial={hasMounted ? { opacity: 0, scale: 0.9 } : false}
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 0.9 }}
                         transition={{
@@ -633,21 +651,21 @@ const Documentation = () => {
           <div
             ref={chartsContainerRef}
             id="charts-container"
-            className="space-y-1"
+            className="space-y-1 w-full min-w-0"
           >
             {/* Pie Chart */}
             <motion.div
-              className="bg-white/70 backdrop-blur-sm border border-slate-100/50 rounded-2xl p-3 shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-400 h-64 flex flex-col"
-              initial={{ opacity: 0, scale: 0.95 }}
+              className="bg-white/70 backdrop-blur-sm border border-slate-100/50 rounded-2xl p-3 shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-400 h-64 flex flex-col w-full min-w-0"
+              initial={hasMounted ? { opacity: 0, scale: 0.95 } : false}
               animate={{ opacity: 1, scale: 1 }}
               whileHover={{ scale: 1.01 }}
             >
               <h3 className="text-lg font-semibold text-slate-800 mb-6">
                 Document Status
               </h3>
-              <div className=" h-40 flex items-center justify-center">
+              <div className="h-40 flex items-center justify-center w-full min-w-0">
                 {documentStats.total > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ResponsiveContainer width="100%" height="100%" debounce={50}>
                     <PieChart>
                       <Pie
                         data={pieData}
@@ -706,8 +724,8 @@ const Documentation = () => {
 
             {/* Bar Chart */}
             <motion.div
-              className="bg-white/70 backdrop-blur-sm border border-slate-100/50 rounded-2xl p-6 shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300 h-72"
-              initial={{ opacity: 0, scale: 0.95 }}
+              className="bg-white/70 backdrop-blur-sm border border-slate-100/50 rounded-2xl p-6 shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300 h-72 w-full min-w-0"
+              initial={hasMounted ? { opacity: 0, scale: 0.95 } : false}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.5, delay: 0.3 }}
               whileHover={{ scale: 1.01 }}
@@ -724,7 +742,7 @@ const Documentation = () => {
                 </p>
               </div>
               {barData.some((d) => d.value > 0) ? (
-                <ResponsiveContainer width="100%" height="75%">
+                <ResponsiveContainer width="100%" height="75%" debounce={50}>
                   <BarChart
                     data={barData}
                     margin={{ top: 10, right: 10, left: 0, bottom: 5 }}

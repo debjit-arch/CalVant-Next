@@ -18,6 +18,7 @@ import {
   YAxis,
   CartesianGrid,
 } from "recharts";
+import Joyride, { STATUS } from "react-joyride";
 import {
   ShieldCheck,
   ClipboardList,
@@ -32,6 +33,7 @@ import {
   UserCheck,
   Layers,
   Search,
+  HelpCircle,
 } from "lucide-react";
 
 // ── Modal imports ─────────────────────────────────────────────────────────────
@@ -127,6 +129,8 @@ export default function Dashboard() {
   const chartsContainerRef = useRef(null);
   const pageLoggedRef = useRef(false);
   const [departments, setDepartments] = useState([]);
+  const [hasMounted, setHasMounted] = useState(false);
+  useEffect(() => { setHasMounted(true); }, []);
 
   // ── Auth loading guard ────────────────────────────────────────────────────
   // useUser() returns null on the very first render (before its internal
@@ -180,6 +184,25 @@ export default function Dashboard() {
   const [error, setError] = useState(null);
   const [modal, setModal] = useState(null);
   const [riskOwners, setRiskOwners] = useState([]);
+  const [run, setRun] = useState(false);
+  const steps = [
+    {
+      target: "#dashboard-header",
+      content: "Welcome to your DPIA dashboard. Manage data protection impact assessments efficiently.",
+    },
+    {
+      target: "#stats-grid",
+      content: "A quick summary of assessments categorized by status.",
+    },
+    {
+      target: "#action-cards",
+      content: "Plan new assessments, manage assignments, or review submitted audits.",
+    },
+    {
+      target: "#charts-container",
+      content: "Visual status metrics and monthly DPIA trends.",
+    },
+  ];
 
   useEffect(() => {
     if (!organizationId) return;
@@ -487,9 +510,23 @@ export default function Dashboard() {
     >
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
 
+      <Joyride
+        steps={steps}
+        run={run}
+        continuous
+        showSkipButton
+        scrollToFirstStep
+        styles={{ options: { primaryColor: "#3b82f6", width: 300 } }}
+        callback={(data) => {
+          if ([STATUS.FINISHED, STATUS.SKIPPED].includes(data.status))
+            setRun(false);
+        }}
+      />
+
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 pb-24 lg:pb-28">
         {/* ── HEADER ── */}
         <motion.header
+          id="dashboard-header"
           className="bg-white/80 backdrop-blur-md border border-slate-100/50 rounded-xl shadow-md mb-6 p-6 !text-left"
           style={{
             textAlign: "left",
@@ -497,19 +534,11 @@ export default function Dashboard() {
             justifyContent: "flex-start",
             alignItems: "flex-start",
           }}
-          initial={{ opacity: 0, y: -15 }}
+          initial={hasMounted ? { opacity: 0, y: -15 } : false}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
         >
-          <div
-            className="flex flex-col lg:flex-row items-start lg:items-center gap-4 lg:gap-6"
-            style={{
-              justifyContent: "flex-start",
-              width: "100%",
-              textAlign: "left",
-              alignItems: "flex-start",
-            }}
-          >
+          <div className="flex items-center justify-between w-full">
             <div
               className="flex items-center gap-4 flex-1"
               style={{
@@ -541,7 +570,7 @@ export default function Dashboard() {
               <motion.button
                 onClick={loadData}
                 title="Refresh"
-                className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 transition-colors border border-slate-200"
+                className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 transition-colors border border-slate-200 flex items-center justify-center"
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
               >
@@ -552,6 +581,18 @@ export default function Dashboard() {
                     loading ? { animation: "spin 1s linear infinite" } : {}
                   }
                 />
+              </motion.button>
+              <motion.button
+                className="px-5 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white text-sm font-semibold rounded-xl shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 flex items-center gap-2"
+                onClick={() => {
+                  setRun(false);
+                  setTimeout(() => setRun(true), 100);
+                }}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <HelpCircle size={18} />
+                <span>Guide</span>
               </motion.button>
             </div>
           </div>
@@ -569,8 +610,9 @@ export default function Dashboard() {
             {/* Stat Cards — root / default only (risk owners see assignment summary) */}
             {!isRiskOwner && (
               <motion.section
+                id="stats-grid"
                 className="grid grid-cols-2 sm:grid-cols-3 gap-4"
-                initial={{ opacity: 0, y: 15 }}
+                initial={hasMounted ? { opacity: 0, y: 15 } : false}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.1 }}
               >
@@ -580,7 +622,7 @@ export default function Dashboard() {
                     <motion.div
                       key={stat.label}
                       className="group bg-white/70 backdrop-blur-sm border border-slate-100/50 rounded-xl p-4 shadow-sm hover:shadow-md transition-all duration-300 flex items-center gap-3 h-20 hover:bg-white"
-                      initial={{ opacity: 0, y: 20 }}
+                      initial={hasMounted ? { opacity: 0, y: 20 } : false}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.4, delay: 0.15 + i * 0.05 }}
                       whileHover={{ scale: 1.02 }}
@@ -607,8 +649,9 @@ export default function Dashboard() {
             {/* Risk owner — assigned summary card */}
             {isRiskOwner && (
               <motion.div
+                id="stats-grid"
                 className="bg-white/70 backdrop-blur-sm border border-slate-100/50 rounded-xl p-5 shadow-sm"
-                initial={{ opacity: 0, y: 15 }}
+                initial={hasMounted ? { opacity: 0, y: 15 } : false}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.1 }}
               >
@@ -630,7 +673,8 @@ export default function Dashboard() {
 
             {/* Quick Actions */}
             <motion.section
-              initial={{ opacity: 0, y: 20 }}
+              id="action-cards"
+              initial={hasMounted ? { opacity: 0, y: 20 } : false}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.25 }}
             >
@@ -648,7 +692,7 @@ export default function Dashboard() {
                       <motion.div
                         key={action.key}
                         className="group bg-white/70 backdrop-blur-sm border border-slate-100/50 rounded-xl p-5 shadow-sm hover:shadow-lg hover:-translate-y-1 hover:bg-white transition-all duration-300 cursor-pointer"
-                        initial={{ opacity: 0, scale: 0.93 }}
+                        initial={hasMounted ? { opacity: 0, scale: 0.93 } : false}
                         animate={{ opacity: 1, scale: 1 }}
                         transition={{ duration: 0.4, delay: 0.3 + i * 0.07 }}
                         whileHover={{ scale: 1.02 }}
@@ -677,11 +721,11 @@ export default function Dashboard() {
           </div>
 
           {/* ── RIGHT COLUMN: CHARTS ── */}
-          <div ref={chartsContainerRef} className="space-y">
+          <div id="charts-container" ref={chartsContainerRef} className="space-y">
             {/* Pie Chart */}
             <motion.div
               className="bg-white/70 backdrop-blur-sm border border-slate-100/50 rounded-2xl p-6 shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300 h-64 flex flex-col"
-              initial={{ opacity: 0, scale: 0.95 }}
+              initial={hasMounted ? { opacity: 0, scale: 0.95 } : false}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.5, delay: 0.2 }}
               whileHover={{ scale: 1.01 }}
@@ -778,7 +822,7 @@ export default function Dashboard() {
             {/* Bar Chart */}
             <motion.div
               className="bg-white/70 backdrop-blur-sm border border-slate-100/50 rounded-2xl p-6 shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300 h-72"
-              initial={{ opacity: 0, scale: 0.95 }}
+              initial={hasMounted ? { opacity: 0, scale: 0.95 } : false}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.5, delay: 0.3 }}
               whileHover={{ scale: 1.01 }}

@@ -21,6 +21,7 @@ import {
   Award,
   HelpCircle,
   PieChartIcon,
+  RefreshCw,
 } from "lucide-react";
 import {
   PieChart,
@@ -43,6 +44,8 @@ const TaskManagementDashboard = () => {
   // 1. Load User (ORIGINAL LOGIC - UNCHANGED)
   const [user] = useState(() => JSON.parse(sessionStorage.getItem("user")));
   const [run, setRun] = useState(false);
+  const [hasMounted, setHasMounted] = useState(false);
+  useEffect(() => { setHasMounted(true); }, []);
   const [taskStats, setTaskStats] = useState({
     total: 0,
     myTasks: 0,
@@ -408,7 +411,7 @@ const TaskManagementDashboard = () => {
           id="dashboard-header"
           className="bg-white/80 backdrop-blur-md border border-slate-100/50 rounded-xl shadow-md mb-2 lg:mb-2 p-4 lg:p-5 !text-left"
           style={{ textAlign: "left", width: "100%", justifyContent: "flex-start", alignItems: "flex-start", justifyItems: "flex-start" }}
-          initial={{ opacity: 0, y: -15 }}
+          initial={hasMounted ? { opacity: 0, y: -15 } : false}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
         >
@@ -434,17 +437,36 @@ const TaskManagementDashboard = () => {
               </div>
             </div>
 
-            {/* RIGHT SIDE: BUTTON */}
-            <motion.button
-              className="px-5 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white text-sm font-semibold rounded-xl shadow-lg flex items-center gap-2"
-              onClick={() => {
-                setRun(false);
-                setTimeout(() => setRun(true), 100);
-              }}
-            >
-              <HelpCircle size={18} />
-              <span>Guide</span>
-            </motion.button>
+            {/* RIGHT SIDE: BUTTONS */}
+            <div className="flex items-center gap-3">
+              <span className={`text-xs font-bold px-3 py-1.5 rounded-full ${isAdmin ? "bg-blue-100 text-blue-700" : "bg-violet-100 text-violet-700"}`}>
+                {isAdmin ? "Admin" : "User"}
+              </span>
+              <span className="text-sm font-semibold text-slate-600">
+                {user?.name || "User"}
+              </span>
+              <motion.button
+                onClick={loadTaskStats}
+                title="Refresh"
+                className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 transition-colors border border-slate-200 flex items-center justify-center"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <RefreshCw size={15} className="text-slate-500" />
+              </motion.button>
+              <motion.button
+                className="px-5 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white text-sm font-semibold rounded-xl shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 flex items-center gap-2"
+                onClick={() => {
+                  setRun(false);
+                  setTimeout(() => setRun(true), 100);
+                }}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <HelpCircle size={18} />
+                <span>Guide</span>
+              </motion.button>
+            </div>
 
           </div>
         </motion.header>
@@ -456,7 +478,7 @@ const TaskManagementDashboard = () => {
             <motion.section
               id="stats-grid"
               className="grid grid-cols-2 md:grid-cols-3 gap-4"
-              initial={{ opacity: 0, y: 15 }}
+              initial={hasMounted ? { opacity: 0, y: 15 } : false}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.1 }}
             >
@@ -465,7 +487,7 @@ const TaskManagementDashboard = () => {
                   key={label}
                   className="group bg-white/70 backdrop-blur-sm border border-slate-100/50 rounded-lg p-4 lg:p-3.5 shadow-sm hover:shadow-md transition-all duration-300 cursor-pointer flex items-center gap-2 h-17 lg:h-17 hover:bg-white"
                   onClick={() => router.push("/task-management/tasks")}
-                  initial={{ opacity: 0, y: 20 }}
+                  initial={hasMounted ? { opacity: 0, y: 20 } : false}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.4, delay: 0.15 + i * 0.05 }}
                   whileHover={{ scale: 1.02 }}
@@ -494,7 +516,7 @@ const TaskManagementDashboard = () => {
             <motion.section
               id="action-cards"
               className="space-y-1"
-              initial={{ opacity: 0, y: 20 }}
+              initial={hasMounted ? { opacity: 0, y: 20 } : false}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.3 }}
             >
@@ -521,7 +543,7 @@ const TaskManagementDashboard = () => {
                         <motion.div
                           key={id}
                           className={`group bg-white/70 backdrop-blur-sm border border-slate-100/50 rounded-xl p-4 h-full flex flex-col justify-between shadow-sm hover:shadow-lg hover:-translate-y-1 hover:bg-white transition-all duration-300 cursor-pointer ${primary ? "ring-2 ring-emerald-200/50 bg-gradient-to-br " + color : ""}`}
-                          initial={{ opacity: 0, scale: 0.9 }}
+                          initial={hasMounted ? { opacity: 0, scale: 0.9 } : false}
                           animate={{ opacity: 1, scale: 1 }}
                           exit={{ opacity: 0, scale: 0.9 }}
                           transition={{
@@ -564,7 +586,7 @@ const TaskManagementDashboard = () => {
             {/* Pie Chart - Task Distribution */}
             <motion.div
               className="bg-white/70 backdrop-blur-sm border border-slate-100/50 rounded-2xl p-9 lg:p-8 shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-400 h-72 flex flex-col"
-              initial={{ opacity: 0, scale: 0.95 }}
+              initial={hasMounted ? { opacity: 0, scale: 0.95 } : false}
               animate={{ opacity: 1, scale: 1 }}
               whileHover={{ scale: 1.01 }}
             >
@@ -649,7 +671,7 @@ const TaskManagementDashboard = () => {
                 boxShadow: "0 8px 20px rgba(0,0,0,0.05)",
                 transition: "all 0.4s ease",
               }}
-              initial={{ opacity: 0, scale: 0.95 }}
+              initial={hasMounted ? { opacity: 0, scale: 0.95 } : false}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.5, delay: 0.3 }}
               whileHover={{ scale: 1.01 }}

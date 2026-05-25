@@ -1,4 +1,3 @@
-// app/layout.js
 import "../src/styles/GlobalStyles.css";
 import { UIProvider } from "@/context/UIContext";
 import { FrameworkProvider } from "@/context/FrameworkContex";
@@ -8,7 +7,6 @@ import SidebarWrapper from "@/components/SidebarWrapper";
 import MainContentWrapper from "@/components/MainContentWrapper";
 import { getPageMetadata } from '@/utils/getPageMetadata';
 
-// Global defaults only — pages override with their own generateMetadata()
 export async function generateMetadata() {
   return getPageMetadata('/', {
     title: {
@@ -22,9 +20,8 @@ export async function generateMetadata() {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
-      <body>
-        {/* SEOProvider and DynamicSEO removed */}
+    <html lang="en" suppressHydrationWarning>
+      <body suppressHydrationWarning>
         <UIProvider>
           <SessionProvider>
             <FrameworkProvider>

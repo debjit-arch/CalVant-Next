@@ -14,6 +14,7 @@ import {
   Users,
   Brain,
   ShieldCheck, // ✅ Added for KSA PDPL
+  RefreshCw,
 } from "lucide-react";
 import { PieChart, Pie, ResponsiveContainer, Tooltip, Cell } from "recharts";
 import { motion } from "framer-motion";
@@ -58,7 +59,7 @@ const CompactFrameworkChart = ({ frameworkObj, complianceData, isLoading }) => {
     <motion.div
       className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex flex-col justify-between"
       style={{ minHeight: 260 }}
-      initial={{ opacity: 0, y: 15 }}
+      initial={hasMounted ? { opacity: 0, y: 15 } : false}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
     >
@@ -150,7 +151,19 @@ const Compliances = () => {
   const router = useRouter();
   const [user] = useState(() => JSON.parse(sessionStorage.getItem("user")));
   const [run, setRun] = useState(false);
+  const [hasMounted, setHasMounted] = useState(false);
+  useEffect(() => { setHasMounted(true); }, []);
   const [tenantReady, setTenantReady] = useState(false);
+
+  const userRoles = Array.isArray(user?.role) ? user.role : [user?.role || ""];
+  const isRoot = userRoles.includes("root");
+
+  const handleRefresh = useCallback(() => {
+    if (!availableFrameworks || availableFrameworks.length === 0) return;
+    availableFrameworks.forEach((fw) => {
+      loadFramework(fw.code);
+    });
+  }, [availableFrameworks, loadFramework]);
 
 
   const emptyStats = {
@@ -364,7 +377,7 @@ const Compliances = () => {
         <motion.header
           id="dashboard-header"
           className="bg-white border rounded-xl p-5 shadow-sm flex justify-between items-center"
-          initial={{ opacity: 0 }}
+          initial={hasMounted ? { opacity: 0 } : false}
           animate={{ opacity: 1 }}
         >
           <div className="flex items-center gap-4">
@@ -381,20 +394,40 @@ const Compliances = () => {
               </p>
             </div>
           </div>
-          <button
-            className="flex items-center gap-2 text-sm bg-blue-600 text-white px-4 py-2 rounded-lg"
-            onClick={() => {
-              setRun(false);
-              setTimeout(() => setRun(true), 200);
-              logClick(
-                "Compliance · Start Tutorial",
-                {},
-                window.pathname,
-              );
-            }}
-          >
-            <HelpCircle size={16} /> Tutorial
-          </button>
+          <div className="flex items-center gap-3">
+            <span className={`text-xs font-bold px-3 py-1.5 rounded-full ${isRoot ? "bg-blue-100 text-blue-700" : "bg-violet-100 text-violet-700"}`}>
+              {isRoot ? "Root" : (userRoles[0] ? userRoles[0].replace("_", " ") : "User")}
+            </span>
+            <span className="text-sm font-semibold text-slate-600">
+              {user?.name || "User"}
+            </span>
+            <motion.button
+              onClick={handleRefresh}
+              title="Refresh"
+              className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 transition-colors border border-slate-200 flex items-center justify-center"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <RefreshCw size={15} className="text-slate-500" />
+            </motion.button>
+            <motion.button
+              className="px-5 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white text-sm font-semibold rounded-xl shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 flex items-center gap-2"
+              onClick={() => {
+                setRun(false);
+                setTimeout(() => setRun(true), 200);
+                logClick(
+                  "Compliance · Start Tutorial",
+                  {},
+                  window.pathname,
+                );
+              }}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <HelpCircle size={18} />
+              <span>Tutorial</span>
+            </motion.button>
+          </div>
         </motion.header>
 
         {/* Stat cards */}
@@ -406,7 +439,7 @@ const Compliances = () => {
             <motion.div
               key={label}
               className="group bg-white/70 backdrop-blur-sm border border-slate-100/50 rounded-lg p-4 shadow-sm hover:shadow-md transition-all duration-300 flex items-center gap-2"
-              initial={{ opacity: 0, y: 20 }}
+              initial={hasMounted ? { opacity: 0, y: 20 } : false}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: 0.1 + i * 0.05 }}
               whileHover={{ scale: 1.02 }}
@@ -436,7 +469,7 @@ const Compliances = () => {
           {Object.keys(filteredFrameworkData).length === 0 ? (
             <motion.div
               className="col-span-full bg-white border-2 border-dashed border-slate-200 rounded-xl p-12 text-center shadow-sm"
-              initial={{ opacity: 0, scale: 0.95 }}
+              initial={hasMounted ? { opacity: 0, scale: 0.95 } : false}
               animate={{ opacity: 1, scale: 1 }}
             >
               <div className="text-slate-400 mb-2">

@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useSession } from "@/context/SessionContext";
 import { usePathname } from "next/navigation";
 import { useLayout } from "@/context/LayoutContext";
@@ -8,6 +8,9 @@ export default function MainContentWrapper({ children }) {
   const { isAuthenticated } = useSession();
   const pathname = usePathname();
   const { isMobile, sidebarWidth } = useLayout();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -16,9 +19,16 @@ export default function MainContentWrapper({ children }) {
   const authRoutes = ["/login", "/register", "/forgot-password", "/auth-bridge"];
   const isAuthPage = authRoutes.includes(pathname);
 
-  // If not authenticated or on an auth page, we don't render the sidebar or navbar
   if (!isAuthenticated || isAuthPage) {
     return <>{children}</>;
+  }
+
+  if (!mounted) {
+    return (
+      <div className="pt-14 sm:pt-16 lg:pt-[72px] min-h-screen">
+        {children}
+      </div>
+    );
   }
 
   return (

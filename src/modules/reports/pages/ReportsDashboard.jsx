@@ -19,7 +19,9 @@ import {
   FileJson,
   FileSpreadsheet,
   Settings2,
+  HelpCircle,
 } from "lucide-react";
+import Joyride, { STATUS } from "react-joyride";
 
 import DashboardEngine from "../components/DashboardEngine";
 import {
@@ -104,6 +106,8 @@ function SidebarItem({ template, isActive, onClick }) {
 // ─── EXPORT DROPDOWN ─────────────────────────────────────────────────────────
 function ExportDropdown({ onConfig, onSnapshot, onCSV, onPDF }) {
   const [open, setOpen] = useState(false);
+  const [hasMounted, setHasMounted] = useState(false);
+  useEffect(() => { setHasMounted(true); }, []);
   const ref = useRef(null);
 
   // Close on outside click
@@ -130,7 +134,7 @@ function ExportDropdown({ onConfig, onSnapshot, onCSV, onPDF }) {
       <AnimatePresence>
         {open && (
           <motion.div
-            initial={{ opacity: 0, y: -6, scale: 0.97 }}
+            initial={hasMounted ? { opacity: 0, y: -6, scale: 0.97 } : false}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -6, scale: 0.97 }}
             transition={{ duration: 0.15 }}
@@ -240,6 +244,39 @@ export default function ReportsDashboard() {
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
 
+  const [user] = useState(() => {
+    try {
+      return JSON.parse(sessionStorage.getItem("user") || "{}");
+    } catch {
+      return {};
+    }
+  });
+  const userRoles = useMemo(() => {
+    if (!user) return [];
+    return Array.isArray(user.role) ? user.role : user.role ? [user.role] : [];
+  }, [user]);
+  const isRoot = userRoles.includes("root");
+
+  const [run, setRun] = useState(false);
+  const steps = [
+    {
+      target: "#dashboard-header",
+      content: "Welcome to your Reports Dashboard. Access detailed visual reports across different compliance modules.",
+    },
+    {
+      target: "#sidebar-navigation",
+      content: "Switch between different visual report templates using this sidebar menu.",
+    },
+    {
+      target: "#kpis-container",
+      content: "A quick snapshot of the key performance indicators for the active module.",
+    },
+    {
+      target: "#charts-container",
+      content: "Detailed charts and tables visualizing compliance data points.",
+    },
+  ];
+
   // ✅ 1. CREATE THE REF
   const exportAreaRef = useRef(null);
 
@@ -284,8 +321,21 @@ export default function ReportsDashboard() {
       className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/40 to-indigo-50/20 flex"
       style={{ fontFamily: "'Segoe UI', system-ui, sans-serif" }}
     >
+      <Joyride
+        steps={steps}
+        run={run}
+        continuous
+        showSkipButton
+        scrollToFirstStep
+        styles={{ options: { primaryColor: "#3b82f6", width: 300 } }}
+        callback={(data) => {
+          if ([STATUS.FINISHED, STATUS.SKIPPED].includes(data.status))
+            setRun(false);
+        }}
+      />
+
       {/* ── SIDEBAR (Remains exactly the same) ── */}
-      <aside className="w-56 flex-shrink-0 bg-white/60 backdrop-blur-md border-r border-slate-100/60 flex flex-col gap-2 p-3 sticky top-0 h-screen overflow-y-auto">
+      <aside id="sidebar-navigation" className="w-56 flex-shrink-0 bg-white/60 backdrop-blur-md border-r border-slate-100/60 flex flex-col gap-2 p-3 sticky top-0 h-screen overflow-y-auto">
         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-2 mb-1">
           Dashboards
         </p>
@@ -313,7 +363,7 @@ export default function ReportsDashboard() {
 
       {/* ── MAIN CONTENT ── */}
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-slate-100/60 px-6 py-4" style={{ textAlign: "left" }}>
+        <header id="dashboard-header" className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-slate-100/60 px-6 py-4" style={{ textAlign: "left" }}>
           <div className="flex items-center justify-between gap-4 flex-wrap" style={{ width: "100%", justifyContent: "space-between" }}>
             {/* Dashboard title */}
             <div className="flex items-center gap-3" style={{ justifyContent: "flex-start", textAlign: "left" }}>
@@ -369,7 +419,7 @@ export default function ReportsDashboard() {
                 disabled={loading}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 transition-colors border border-slate-200 disabled:opacity-60"
+                className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 transition-colors border border-slate-200 disabled:opacity-60 flex items-center justify-center"
               >
                 <RefreshCw
                   size={14}
@@ -407,6 +457,27 @@ export default function ReportsDashboard() {
                   </button>
                 ))}
               </div>
+
+              {/* User badge, Name, and Guide button */}
+              <span className={`text-xs font-bold px-3 py-1.5 rounded-full ${isRoot ? "bg-blue-100 text-blue-700" : "bg-violet-100 text-violet-700"}`}>
+                {isRoot ? "Root" : (userRoles[0] ? userRoles[0].replace("_", " ") : "User")}
+              </span>
+              <span className="text-sm font-semibold text-slate-600">
+                {user?.name || "User"}
+              </span>
+
+              <motion.button
+                className="px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white text-xs font-semibold rounded-xl shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 flex items-center gap-1.5"
+                onClick={() => {
+                  setRun(false);
+                  setTimeout(() => setRun(true), 100);
+                }}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <HelpCircle size={14} />
+                <span>Guide</span>
+              </motion.button>
             </div>
           </div>
 
@@ -416,7 +487,7 @@ export default function ReportsDashboard() {
           <AnimatePresence>
             {interval === "custom" && (
               <motion.div
-                initial={{ opacity: 0, height: 0 }}
+                initial={hasMounted ? { opacity: 0, height: 0 } : false}
                 animate={{ opacity: 1, height: "auto" }}
                 exit={{ opacity: 0, height: 0 }}
                 transition={{ duration: 0.2 }}
@@ -453,7 +524,7 @@ export default function ReportsDashboard() {
                     </div>
                     {customFrom && customTo && (
                       <motion.button
-                        initial={{ opacity: 0, scale: 0.9 }}
+                        initial={hasMounted ? { opacity: 0, scale: 0.9 } : false}
                         animate={{ opacity: 1, scale: 1 }}
                         onClick={() => {
                           setCustomFrom("");
@@ -479,7 +550,7 @@ export default function ReportsDashboard() {
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeDashboardId}
-                initial={{ opacity: 0, y: 12 }}
+                initial={hasMounted ? { opacity: 0, y: 12 } : false}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.3 }}

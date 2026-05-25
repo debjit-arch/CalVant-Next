@@ -1,3 +1,5 @@
+//app/security/page.js
+
 import dynamic from 'next/dynamic';
 import { getPageMetadata } from '@/utils/getPageMetadata';
 

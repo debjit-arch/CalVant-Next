@@ -26,6 +26,8 @@ const VendorSection = () => {
   const userName = user?.name || "Vendor";
 
   const [questionnaires, setQuestionnaires] = useState([]);
+  const [hasMounted, setHasMounted] = useState(false);
+  useEffect(() => { setHasMounted(true); }, []);
   const [loading,        setLoading]        = useState(true);
   const [activeForm,     setActiveForm]     = useState(null); // questionnaireId
   const [statusFilter,   setStatusFilter]   = useState("All");
@@ -127,7 +129,7 @@ const VendorSection = () => {
         {/* ── Header ─────────────────────────────────────────── */}
         <motion.header
           className="bg-white/80 backdrop-blur-md border border-slate-100 rounded-2xl shadow-md mb-6 p-5"
-          initial={{ opacity: 0, y: -15 }}
+          initial={hasMounted ? { opacity: 0, y: -15 } : false}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
@@ -169,7 +171,7 @@ const VendorSection = () => {
                 <motion.div
                   key={label}
                   className="bg-white/70 border border-slate-100 rounded-xl p-4 shadow-sm hover:shadow-md transition-all cursor-pointer hover:bg-white flex items-center gap-3"
-                  initial={{ opacity: 0, y: 20 }}
+                  initial={hasMounted ? { opacity: 0, y: 20 } : false}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.06 }}
                   whileHover={{ scale: 1.02 }}
@@ -189,7 +191,7 @@ const VendorSection = () => {
             {/* Assigned Assessments Card */}
             <motion.div
               className="bg-white/80 border border-slate-100 rounded-2xl shadow-sm overflow-hidden"
-              initial={{ opacity: 0, y: 10 }}
+              initial={hasMounted ? { opacity: 0, y: 10 } : false}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
             >
@@ -251,7 +253,7 @@ const VendorSection = () => {
                           key={q.id}
                           className={`flex items-center gap-4 px-5 py-4 transition-colors
                             ${canAnswer ? "hover:bg-indigo-50/50 cursor-pointer" : "hover:bg-slate-50/50"}`}
-                          initial={{ opacity: 0, x: -10 }}
+                          initial={hasMounted ? { opacity: 0, x: -10 } : false}
                           animate={{ opacity: 1, x: 0 }}
                           transition={{ delay: i * 0.04 }}
                           onClick={() => canAnswer && setActiveForm(q.id)}
@@ -316,7 +318,7 @@ const VendorSection = () => {
           <div className="space-y-6">
             <motion.div
               className="bg-white/70 border border-slate-100 rounded-2xl p-6 shadow-lg h-72 flex flex-col"
-              initial={{ opacity: 0, scale: 0.95 }}
+              initial={hasMounted ? { opacity: 0, scale: 0.95 } : false}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.2 }}
             >
@@ -359,7 +361,7 @@ const VendorSection = () => {
             {/* Legend */}
             <motion.div
               className="bg-white/70 border border-slate-100 rounded-xl p-4 shadow-sm"
-              initial={{ opacity: 0, y: 10 }}
+              initial={hasMounted ? { opacity: 0, y: 10 } : false}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.35 }}
             >

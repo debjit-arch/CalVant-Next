@@ -1,7 +1,13 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import ProtectedPage from "@/components/ProtectedPage";
-import RiskAssessment from "@/modules/riskAssesment/pages/RiskAssessment";
+
+const RiskAssessment = dynamic(
+  () => import("@/modules/riskAssesment/pages/RiskAssessment"),
+  { ssr: false }
+);
+
 export default function Page() {
   return (
     <ProtectedPage>

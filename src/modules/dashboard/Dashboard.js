@@ -29,26 +29,14 @@ import {
 } from "lucide-react";
 import ChangePasswordModal from "./ChangePasswordModal";
 import SprintoReplica from "./SprintoReplica";
+import { useIsMobile } from "@/hooks/useIsMobile";
 
 // ============================================
 // MEDIA QUERY HOOK FOR RESPONSIVE DESIGN
 // ============================================
 const useMediaQuery = () => {
-  const [isMobile, setIsMobile] = useState(false);
-  const [isSmallMobile, setIsSmallMobile] = useState(false);
-
-  useEffect(() => {
-    const handleResize = () => {
-      setIsMobile(window.innerWidth <= 768);
-      setIsSmallMobile(window.innerWidth <= 480);
-    };
-
-    handleResize(); // initial check
-
-    window.addEventListener("resize", handleResize);
-
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
+  const isMobile = useIsMobile();
+  const isSmallMobile = useIsMobile(480);
 
   return { isMobile, isSmallMobile };
 };
@@ -1540,9 +1528,7 @@ const Dashboard = () => {
               <li>
                 <Link href="/about">About</Link>
               </li>
-              <li>
-                <Link href="/blog">Blog</Link>
-              </li>
+             
               <li>
                 <Link href="/careers">Careers</Link>
               </li>
@@ -1559,6 +1545,20 @@ const Dashboard = () => {
               </li>
               <li>
                 <Link href="/security">Security</Link>
+              </li>
+            </ul>
+          </div>
+           <div className="dashboard-footer-section">
+            <h4>Resources</h4>
+            <ul>
+              <li>
+                <Link href="/blog">Blogs</Link>
+              </li>
+              <li>
+                <Link href="/datasheet">Datasheet</Link>
+              </li>
+              <li>
+                <Link href="   ">Whitepaper</Link>
               </li>
             </ul>
           </div>

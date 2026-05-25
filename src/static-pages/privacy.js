@@ -24,6 +24,7 @@ import {
   Clock,
 } from "lucide-react";
 import "./privacy.css";
+import { useIsMobile } from "@/hooks/useIsMobile";
 
 const PrivacyPage = () => {
   const [mounted, setMounted] = useState(false);
@@ -31,7 +32,9 @@ const PrivacyPage = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeSection, setActiveSection] = useState("overview");
   const [expandedFaq, setExpandedFaq] = useState(null);
+  const isMobile = useIsMobile();
 
+  
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -293,11 +296,32 @@ const PrivacyPage = () => {
       {/* HEADER */}
       <header className="privacy-header">
         <div className="privacy-header-content">
-          <div className="privacy-logo-section">
-            <img
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              flex: "10px 0 auto",
+            }}
+          >
+            <Image
               src="/CalVant Logo.svg"
               alt="CalVant"
-              style={{ height: "210px", width: "auto", cursor: "pointer" }}
+              width={180}
+              height={60}
+              style={{
+                height: isMobile ? "30px" : "60px",
+                width: "auto",
+                transform: isMobile ? "scale(3.9)" : "scale(2.9)",
+                transformOrigin: "center",
+                cursor: "pointer",
+                transition: "transform 0.25s ease",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = "scale(3.7)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = "scale(3.5)";
+              }}
               onClick={() => (window.location.href = "/")}
             />
           </div>

@@ -165,6 +165,10 @@ const PersistentSidebar = () => {
   } = useLayout();
   const { showDpia, showAiia } = useFramework();
   const [isHovered, setIsHovered] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   const router = useRouter();
   const pathname = usePathname();
   const [expandedModules, setExpandedModules] = useState([]);
@@ -217,12 +221,8 @@ const PersistentSidebar = () => {
     );
   };
 
-  // Determine if sidebar should be expanded
-  // On mobile, use sidebarExpanded directly (no hover)
-  // On desktop, use sidebarExpanded || isHovered
-  const isExpanded = isMobileScreen
-    ? sidebarExpanded
-    : sidebarExpanded || isHovered;
+  // Determine if sidebar should be expanded strictly by click-toggle (maintains single size without hover expansion jumps)
+  const isExpanded = sidebarExpanded;
 
   return (
     <>
@@ -295,7 +295,7 @@ const PersistentSidebar = () => {
       <nav
         aria-label="Main navigation"
         onMouseEnter={() =>
-          !sidebarExpanded && !isMobileScreen && setIsHovered(true)
+          mounted && !sidebarExpanded && !isMobileScreen && setIsHovered(true)
         }
         onMouseLeave={() => setIsHovered(false)}
         className={`
@@ -305,7 +305,7 @@ const PersistentSidebar = () => {
           shadow-[4px_0_24px_rgba(0,0,0,0.08)]
           flex flex-col
           overflow-hidden
-          transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]
+          ${mounted ? "transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]" : ""}
           border-r border-gray-100
         `}
         style={{

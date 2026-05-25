@@ -1,7 +1,13 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import ProtectedPage from "@/components/ProtectedPage";
-import Documentation from "@/modules/documentation/pages/Documentation";
+
+const Documentation = dynamic(
+  () => import("@/modules/documentation/pages/Documentation"),
+  { ssr: false }
+);
+
 export default function Page() {
   return (
     <ProtectedPage>

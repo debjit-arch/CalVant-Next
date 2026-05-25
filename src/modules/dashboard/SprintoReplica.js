@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState, useMemo } from "react";
 import { gsap } from "gsap";
 import { MotionPathPlugin } from "gsap/MotionPathPlugin";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import {
   ShieldCheck,
   FileText,

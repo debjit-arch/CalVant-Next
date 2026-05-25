@@ -19,6 +19,7 @@ import {
   CheckCircle2,
   Circle,
   XCircle,
+  RefreshCw,
 } from "lucide-react";
 
 import {
@@ -59,6 +60,8 @@ function riskMatchesFilter(risk, allowedRiskTypes) {
 const RiskAssessment = () => {
   const router = useRouter();
   const chartsContainerRef = useRef(null);
+  const [hasMounted, setHasMounted] = useState(false);
+useEffect(() => { setHasMounted(true); }, []);
 
   // ── Framework context ──────────────────────────────────────────────────────
   const { selectedFrameworks, isAllSelected, availableFrameworks } =
@@ -80,7 +83,6 @@ const RiskAssessment = () => {
     return allowed;
   }, [selectedFrameworks, isAllSelected, availableFrameworks]);
 
-  // 1. Initialize User and check for multi-role/multi-dept structure
   const [user] = useState(() => JSON.parse(sessionStorage.getItem("user")));
   const userRoles = Array.isArray(user?.role) ? user.role : [user?.role || ""];
   const isRoot = userRoles.includes("root");
@@ -90,7 +92,7 @@ const RiskAssessment = () => {
     : (user?.departments || []).map((d) => d.name).join(", ") || "Your";
 
   const [run, setRun] = useState(false);
-  const [departmentName, setDepartmentName] = useState(deptLabel);
+  const [departmentName, setDepartmentName] = useState("Your");
   const [allRisks, setAllRisks] = useState([]);
 
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
@@ -207,8 +209,14 @@ const RiskAssessment = () => {
   }, []);
 
   useEffect(() => {
-    if (!user) router.push("/");
+    if (!user) {
+      router.push("/");
+    }
   }, [user, router]);
+
+  // useEffect(() => {
+  //   collapseSidebar();
+  // }, [collapseSidebar]);
 
   // ── Load ALL org/dept risks (original logic unchanged) ────────────────────
   const loadRiskStats = useCallback(async () => {
@@ -509,24 +517,41 @@ const RiskAssessment = () => {
               </div>
             </div>
 
-            <motion.button
-              className="px-5 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white text-sm font-semibold rounded-xl shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 flex items-center gap-2"
-              onClick={() => {
-                setRun(false);
-                setTimeout(() => setRun(true), 100);
-              }}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              <HelpCircle size={18} />
-              <span>Guide</span>
-            </motion.button>
+            <div className="flex items-center gap-3">
+              <span className={`text-xs font-bold px-3 py-1.5 rounded-full ${isRoot ? "bg-blue-100 text-blue-700" : "bg-violet-100 text-violet-700"}`}>
+                {isRoot ? "Root" : (userRoles[0] ? userRoles[0].replace("_", " ") : "User")}
+              </span>
+              <span className="text-sm font-semibold text-slate-600">
+                {user?.name || "User"}
+              </span>
+              <motion.button
+                onClick={loadRiskStats}
+                title="Refresh"
+                className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 transition-colors border border-slate-200 flex items-center justify-center"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <RefreshCw size={15} className="text-slate-500" />
+              </motion.button>
+              <motion.button
+                className="px-5 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white text-sm font-semibold rounded-xl shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 flex items-center gap-2"
+                onClick={() => {
+                  setRun(false);
+                  setTimeout(() => setRun(true), 100);
+                }}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <HelpCircle size={18} />
+                <span>Guide</span>
+              </motion.button>
+            </div>
           </div>
         </motion.header>
 
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 lg:gap-10 h-full">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 lg:gap-10 w-full min-w-0">
           {/* Left: Stats + Actions */}
-          <div className="space-y-8 lg:space-y-10">
+          <div className="space-y-8 lg:space-y-10 w-full min-w-0">
             {/* Stats Grid */}
             <motion.section
               id="stats-grid"
@@ -671,11 +696,11 @@ const RiskAssessment = () => {
           <div
             ref={chartsContainerRef}
             id="charts-container"
-            className="space-y-4 lg:space-y-3"
+            className="space-y-4 lg:space-y-3 w-full min-w-0"
           >
             {/* Pie chart */}
             <motion.div
-              className="bg-white/70 backdrop-blur-sm border border-slate-100/50 rounded-2xl p-9 lg:p-8 shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-400 h-72 flex flex-col"
+              className="bg-white/70 backdrop-blur-sm border border-slate-100/50 rounded-2xl p-9 lg:p-8 shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-400 h-72 flex flex-col w-full min-w-0"
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               whileHover={{ scale: 1.01 }}
@@ -683,9 +708,9 @@ const RiskAssessment = () => {
               <h3 className="text-base lg:text-lg font-semibold text-slate-800 mb-6 px-1">
                 Risk Distribution
               </h3>
-              <div className="flex-1 flex items-center justify-center min-h-0">
+              <div className="flex-1 flex items-center justify-center min-h-0 w-full min-w-0">
                 {riskStats.total > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ResponsiveContainer width="100%" height="100%" debounce={50}>
                     <PieChart>
                       <Pie
                         data={pieData}
@@ -757,6 +782,8 @@ const RiskAssessment = () => {
                 transition: "all 0.4s ease",
                 display: "flex",
                 flexDirection: "column",
+                width: "100%",
+                minWidth: 0,
               }}
               whileHover={{ scale: 1.01 }}
             >
@@ -814,53 +841,53 @@ const RiskAssessment = () => {
                 </select>
               </div>
 
-              <div style={{ width: "100%", height: "100%" }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={monthlyRiskData}
-                    margin={{ top: 15, right: 15, left: -5, bottom: 10 }}
-                  >
-                    <defs>
-                      <linearGradient
-                        id="riskGradient"
-                        x1="0"
-                        y1="0"
-                        x2="0"
-                        y2="1"
-                      >
-                        <stop
-                          offset="5%"
-                          stopColor="#3b82f6"
-                          stopOpacity={0.9}
-                        />
-                        <stop
-                          offset="95%"
-                          stopColor="#93c5fd"
-                          stopOpacity={0.6}
-                        />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid
-                      vertical={false}
-                      stroke="#f1f5f9"
-                      strokeDasharray="3 3"
-                    />
-                    <XAxis
-                      dataKey="name"
-                      axisLine={false}
-                      tickLine={false}
-                      tick={{ fontSize: 12, fill: "#6b7280", fontWeight: 500 }}
-                    />
-                    <Tooltip content={<CustomBarTooltip />} />
-                    <Bar
-                      dataKey="value"
-                      fill="url(#riskGradient)"
-                      radius={[6, 6, 0, 0]}
-                      barSize={24}
-                      animationDuration={800}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
+              <div style={{ width: "100%", height: "100%", minWidth: 0 }}>
+                <ResponsiveContainer width="100%" height="100%" debounce={50}>
+                    <BarChart
+                      data={monthlyRiskData}
+                      margin={{ top: 15, right: 15, left: -5, bottom: 10 }}
+                    >
+                      <defs>
+                        <linearGradient
+                          id="riskGradient"
+                          x1="0"
+                          y1="0"
+                          x2="0"
+                          y2="1"
+                        >
+                          <stop
+                            offset="5%"
+                            stopColor="#3b82f6"
+                            stopOpacity={0.9}
+                          />
+                          <stop
+                            offset="95%"
+                            stopColor="#93c5fd"
+                            stopOpacity={0.6}
+                          />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid
+                        vertical={false}
+                        stroke="#f1f5f9"
+                        strokeDasharray="3 3"
+                      />
+                      <XAxis
+                        dataKey="name"
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fontSize: 12, fill: "#6b7280", fontWeight: 500 }}
+                      />
+                      <Tooltip content={<CustomBarTooltip />} />
+                      <Bar
+                        dataKey="value"
+                        fill="url(#riskGradient)"
+                        radius={[6, 6, 0, 0]}
+                        barSize={24}
+                        animationDuration={800}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
               </div>
             </motion.div>
           </div>

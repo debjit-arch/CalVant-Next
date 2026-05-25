@@ -36,6 +36,7 @@ import {
   DollarSign,
 } from "lucide-react";
 import "./careers.css";
+import { useIsMobile } from "@/hooks/useIsMobile";
 
 
 const CareersPage = () => {
@@ -43,7 +44,9 @@ const CareersPage = () => {
   const [isLoggedIn] = useState(typeof window !== "undefined" && !!sessionStorage.getItem("user"));
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeJobId, setActiveJobId] = useState(null);
+  const isMobile = useIsMobile();
 
+  
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -192,11 +195,32 @@ const CareersPage = () => {
       {/* HEADER */}
       <header className="careers-header">
         <div className="careers-header-content">
-          <div className="careers-logo-section">
-            <img
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              flex: "10px 0 auto",
+            }}
+          >
+            <Image
               src="/CalVant Logo.svg"
               alt="CalVant"
-              style={{ height: "210px", width: "auto", cursor: "pointer" }}
+              width={180}
+              height={60}
+              style={{
+                height: isMobile ? "30px" : "60px",
+                width: "auto",
+                transform: isMobile ? "scale(3.9)" : "scale(2.9)",
+                transformOrigin: "center",
+                cursor: "pointer",
+                transition: "transform 0.25s ease",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = "scale(3.7)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = "scale(3.5)";
+              }}
               onClick={() => (window.location.href = "/")}
             />
           </div>

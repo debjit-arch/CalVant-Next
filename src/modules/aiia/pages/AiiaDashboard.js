@@ -19,6 +19,7 @@ import {
   YAxis,
   CartesianGrid,
 } from "recharts";
+import Joyride, { STATUS } from "react-joyride";
 import {
   ShieldCheck,
   ClipboardList,
@@ -35,6 +36,7 @@ import {
   Eye,
   Layers,
   Brain,
+  HelpCircle,
 } from "lucide-react";
 import PlanAssessmentModal from "../components/PlanAssessmentModal";
 import MyAssignments from "../pages/MyAssignments";
@@ -165,11 +167,11 @@ function ChartsColumn({
   const legendItems = pieDataRaw.filter((d) => d.value > 0);
 
   return (
-    <div ref={chartsContainerRef} className="space-y-5">
+    <div id="charts-container" ref={chartsContainerRef} className="space-y-5">
       {/* Pie Chart */}
       <motion.div
         className="bg-white/70 backdrop-blur-sm border border-slate-100/50 rounded-2xl p-5 shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300 h-60 flex flex-col"
-        initial={{ opacity: 0, scale: 0.95 }}
+        initial={hasMounted ? { opacity: 0, scale: 0.95 } : false}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.5, delay: 0.2 }}
         whileHover={{ scale: 1.01 }}
@@ -256,7 +258,7 @@ function ChartsColumn({
       {/* Bar Chart */}
       <motion.div
         className="bg-white/70 backdrop-blur-sm border border-slate-100/50 rounded-2xl p-5 shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300 h-64"
-        initial={{ opacity: 0, scale: 0.95 }}
+        initial={hasMounted ? { opacity: 0, scale: 0.95 } : false}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.5, delay: 0.3 }}
         whileHover={{ scale: 1.01 }}
@@ -315,6 +317,8 @@ export default function AiiaDashboard() {
 
   // ── All hooks declared unconditionally at top level ───────────────────────
   const [user, setUser] = useState(null);
+  const [hasMounted, setHasMounted] = useState(false);
+  useEffect(() => { setHasMounted(true); }, []);
   // isAuthenticated:
   //   null  → still reading sessionStorage (initial render / hard reload)
   //   true  → user found in storage, stay on page
@@ -337,6 +341,25 @@ export default function AiiaDashboard() {
   const [showPlanModal, setShowPlanModal] = useState(false);
   const [showMyAssignments, setShowMyAssignments] = useState(false);
   const [showManageModal, setShowManageModal] = useState(false);
+  const [run, setRun] = useState(false);
+  const steps = [
+    {
+      target: "#dashboard-header",
+      content: "Welcome to your AI Impact Assessment (AIIA) dashboard. Assess and mitigate risks of AI models and systems.",
+    },
+    {
+      target: "#stats-grid",
+      content: "A comprehensive metrics summary showing total, approved, completed, and pending AI impact assessments.",
+    },
+    {
+      target: "#action-cards",
+      content: "Quick tools to plan new impact assessments, manage ongoing AIIAs, or browse assignment pipelines.",
+    },
+    {
+      target: "#charts-container",
+      content: "Visual charts for status distribution and monthly AI assessment trends.",
+    },
+  ];
 
   // ── Step 1: read sessionStorage once on mount ─────────────────────────────
   // isAuthenticated stays null until this effect runs, so the redirect effect
@@ -615,16 +638,30 @@ export default function AiiaDashboard() {
     >
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
 
+      <Joyride
+        steps={steps}
+        run={run}
+        continuous
+        showSkipButton
+        scrollToFirstStep
+        styles={{ options: { primaryColor: "#3b82f6", width: 300 } }}
+        callback={(data) => {
+          if ([STATUS.FINISHED, STATUS.SKIPPED].includes(data.status))
+            setRun(false);
+        }}
+      />
+
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 pb-24 lg:pb-28">
         {/* ── HEADER ── */}
         <motion.header
+          id="dashboard-header"
           className="bg-white/80 backdrop-blur-md border border-slate-100/50 rounded-xl shadow-md mb-6 p-6 !text-left"
           style={{ textAlign: "left" }}
-          initial={{ opacity: 0, y: -15 }}
+          initial={hasMounted ? { opacity: 0, y: -15 } : false}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
         >
-            <div className="flex flex-col lg:flex-row items-start lg:items-center gap-4 lg:gap-6" style={{ justifyContent: "flex-start", width: "100%", textAlign: "left", alignItems: "flex-start" }}>
+            <div className="flex items-center justify-between w-full">
             <div className="flex items-center gap-4 flex-1" style={{ justifyContent: "flex-start", textAlign: "left", alignItems: "flex-start" }}>
 
               <div className="w-14 h-14 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0">
@@ -657,7 +694,7 @@ export default function AiiaDashboard() {
               <motion.button
                 onClick={fetchDashboardData}
                 title="Refresh"
-                className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 transition-colors border border-slate-200"
+                className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 transition-colors border border-slate-200 flex items-center justify-center"
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
               >
@@ -668,6 +705,18 @@ export default function AiiaDashboard() {
                     loading ? { animation: "spin 1s linear infinite" } : {}
                   }
                 />
+              </motion.button>
+              <motion.button
+                className="px-5 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white text-sm font-semibold rounded-xl shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 flex items-center gap-2"
+                onClick={() => {
+                  setRun(false);
+                  setTimeout(() => setRun(true), 100);
+                }}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <HelpCircle size={18} />
+                <span>Guide</span>
               </motion.button>
             </div>
           </div>
@@ -689,8 +738,9 @@ export default function AiiaDashboard() {
               <>
                 {/* Stat Cards */}
                 <motion.section
+                  id="stats-grid"
                   className="grid grid-cols-2 sm:grid-cols-3 gap-4"
-                  initial={{ opacity: 0, y: 15 }}
+                  initial={hasMounted ? { opacity: 0, y: 15 } : false}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, delay: 0.1 }}
                 >
@@ -700,7 +750,7 @@ export default function AiiaDashboard() {
                       <motion.div
                         key={stat.label}
                         className="group bg-white/70 backdrop-blur-sm border border-slate-100/50 rounded-xl p-4 shadow-sm hover:shadow-md transition-all duration-300 flex items-center gap-3 h-20 hover:bg-white"
-                        initial={{ opacity: 0, y: 20 }}
+                        initial={hasMounted ? { opacity: 0, y: 20 } : false}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.4, delay: 0.15 + i * 0.05 }}
                         whileHover={{ scale: 1.02 }}
@@ -728,7 +778,8 @@ export default function AiiaDashboard() {
 
                 {/* Quick Actions — root/AIO */}
                 <motion.section
-                  initial={{ opacity: 0, y: 20 }}
+                  id="action-cards"
+                  initial={hasMounted ? { opacity: 0, y: 20 } : false}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, delay: 0.25 }}
                 >
@@ -743,7 +794,7 @@ export default function AiiaDashboard() {
                           <motion.div
                             key={action.key}
                             className="group bg-white/70 backdrop-blur-sm border border-slate-100/50 rounded-xl p-5 shadow-sm hover:shadow-lg hover:-translate-y-1 hover:bg-white transition-all duration-300 cursor-pointer"
-                            initial={{ opacity: 0, scale: 0.93 }}
+                            initial={hasMounted ? { opacity: 0, scale: 0.93 } : false}
                             animate={{ opacity: 1, scale: 1 }}
                             transition={{
                               duration: 0.4,
@@ -779,8 +830,9 @@ export default function AiiaDashboard() {
             {!canPlan && (
               <>
                 <motion.div
+                  id="stats-grid"
                   className="bg-white/70 backdrop-blur-sm border border-slate-100/50 rounded-xl p-5 shadow-sm"
-                  initial={{ opacity: 0, y: 15 }}
+                  initial={hasMounted ? { opacity: 0, y: 15 } : false}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, delay: 0.1 }}
                 >
@@ -800,7 +852,8 @@ export default function AiiaDashboard() {
                 </motion.div>
 
                 <motion.section
-                  initial={{ opacity: 0, y: 20 }}
+                  id="action-cards"
+                  initial={hasMounted ? { opacity: 0, y: 20 } : false}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, delay: 0.25 }}
                 >
@@ -815,7 +868,7 @@ export default function AiiaDashboard() {
                           <motion.div
                             key={action.key}
                             className="group bg-white/70 backdrop-blur-sm border border-slate-100/50 rounded-xl p-5 shadow-sm hover:shadow-lg hover:-translate-y-1 hover:bg-white transition-all duration-300 cursor-pointer"
-                            initial={{ opacity: 0, scale: 0.93 }}
+                            initial={hasMounted ? { opacity: 0, scale: 0.93 } : false}
                             animate={{ opacity: 1, scale: 1 }}
                             transition={{
                               duration: 0.4,
@@ -878,7 +931,7 @@ export default function AiiaDashboard() {
           <>
             <motion.div
               key="assignments-backdrop"
-              initial={{ opacity: 0 }}
+              initial={hasMounted ? { opacity: 0 } : false}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
@@ -907,7 +960,7 @@ export default function AiiaDashboard() {
             >
               <motion.div
                 key="assignments-panel"
-                initial={{ opacity: 0, y: 40, scale: 0.97 }}
+                initial={hasMounted ? { opacity: 0, y: 40, scale: 0.97 } : false}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 40, scale: 0.97 }}
                 transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}

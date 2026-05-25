@@ -229,6 +229,7 @@ export default function DashboardEngine({
     <div className="flex flex-col gap-4">
       {/* ── Tab bar + actions ───────────────────────────────────────────────── */}
       <div
+        id="kpis-container"
         data-html2canvas-ignore="true"
         className="flex items-center justify-between flex-wrap gap-2"
       >
@@ -260,6 +261,7 @@ export default function DashboardEngine({
       {/* ── Panel grid ──────────────────────────────────────────────────────── */}
       <AnimatePresence mode="wait">
         <motion.div
+          id="charts-container"
           key={activeViewId}
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}

@@ -46,7 +46,9 @@ const TPRMSection = () => {
     ["root", "super_admin", "admin", "ciso", "aio", "dpo"].includes(r),
   );
 
-  const [modal, setModal] = useState(null); // "questions" | "conduct" | "report"
+  const [modal, setModal] = useState(null);
+  const [hasMounted, setHasMounted] = useState(false);
+  useEffect(() => { setHasMounted(true); }, []); // "questions" | "conduct" | "report"
   const [run, setRun] = useState(false);
   const [stats, setStats] = useState({
     total: 0,
@@ -277,19 +279,11 @@ const TPRMSection = () => {
             justifyContent: "flex-start",
             alignItems: "flex-start",
           }}
-          initial={{ opacity: 0, y: -15 }}
+          initial={hasMounted ? { opacity: 0, y: -15 } : false}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
         >
-          <div
-            className="flex flex-col lg:flex-row items-start lg:items-center gap-4 lg:gap-6"
-            style={{
-              justifyContent: "flex-start",
-              width: "100%",
-              textAlign: "left",
-              alignItems: "flex-start",
-            }}
-          >
+          <div className="flex items-center justify-between w-full">
             <div
               className="flex items-center gap-4 flex-1"
               style={{
@@ -354,7 +348,7 @@ const TPRMSection = () => {
             <motion.section
               id="stats-grid"
               className="grid grid-cols-2 sm:grid-cols-3 gap-4"
-              initial={{ opacity: 0, y: 15 }}
+              initial={hasMounted ? { opacity: 0, y: 15 } : false}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.1 }}
             >
@@ -362,7 +356,7 @@ const TPRMSection = () => {
                 <motion.div
                   key={label}
                   className="group bg-white/70 backdrop-blur-sm border border-slate-100/50 rounded-xl p-4 shadow-sm hover:shadow-md transition-all duration-300 cursor-pointer flex items-center gap-3 h-20 hover:bg-white"
-                  initial={{ opacity: 0, y: 20 }}
+                  initial={hasMounted ? { opacity: 0, y: 20 } : false}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.4, delay: 0.15 + i * 0.05 }}
                   whileHover={{ scale: 1.02 }}
@@ -388,7 +382,7 @@ const TPRMSection = () => {
             {/* Quick Actions */}
             <motion.section
               id="action-cards"
-              initial={{ opacity: 0, y: 20 }}
+              initial={hasMounted ? { opacity: 0, y: 20 } : false}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.25 }}
             >
@@ -402,7 +396,7 @@ const TPRMSection = () => {
                       <motion.div
                         key={key}
                         className="group bg-white/70 backdrop-blur-sm border border-slate-100/50 rounded-xl p-5 shadow-sm hover:shadow-lg hover:-translate-y-1 hover:bg-white transition-all duration-300 cursor-pointer"
-                        initial={{ opacity: 0, scale: 0.93 }}
+                        initial={hasMounted ? { opacity: 0, scale: 0.93 } : false}
                         animate={{ opacity: 1, scale: 1 }}
                         transition={{ duration: 0.4, delay: 0.3 + i * 0.07 }}
                         whileHover={{ scale: 1.02 }}
@@ -433,7 +427,7 @@ const TPRMSection = () => {
             {/* Pie Chart */}
             <motion.div
               className="bg-white/70 backdrop-blur-sm border border-slate-100/50 rounded-2xl p-6 shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300 h-64 flex flex-col"
-              initial={{ opacity: 0, scale: 0.95 }}
+              initial={hasMounted ? { opacity: 0, scale: 0.95 } : false}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.5, delay: 0.2 }}
               whileHover={{ scale: 1.01 }}
@@ -511,7 +505,7 @@ const TPRMSection = () => {
             {/* Bar Chart */}
             <motion.div
               className="bg-white/70 backdrop-blur-sm border border-slate-100/50 rounded-2xl p-6 shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300 h-72"
-              initial={{ opacity: 0, scale: 0.95 }}
+              initial={hasMounted ? { opacity: 0, scale: 0.95 } : false}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.5, delay: 0.3 }}
               whileHover={{ scale: 1.01 }}
