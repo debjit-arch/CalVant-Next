@@ -15,6 +15,13 @@ export async function generateMetadata() {
     },
     description: 'Empower your organization with CalVant compliance platform.',
     verification: { google: '41e5318870c428ec' },
+    icons: {
+      icon: [
+        { url: '/favicon-light.png', media: '(prefers-color-scheme: light)' },
+        { url: '/favicon-dark.png', media: '(prefers-color-scheme: dark)' },
+      ],
+      apple: '/favicon-light.png',
+    },
   });
 }
 
