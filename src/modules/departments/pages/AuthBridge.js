@@ -1,9 +1,10 @@
+"use client";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 const AuthBridge = () => {
   const router = useRouter();
-  console.log("AuthBridge loaded");
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const token = params.get("token");
@@ -12,7 +13,7 @@ const AuthBridge = () => {
     if (token && userParam) {
       sessionStorage.setItem("token", token);
       sessionStorage.setItem("user", userParam);
-      
+
       const emailParam = params.get("email");
       if (emailParam) sessionStorage.setItem("email", emailParam);
 
@@ -21,8 +22,8 @@ const AuthBridge = () => {
         const email = emailParam || userObj.email || "unknown@example.com";
         const name = userObj.name || email;
         if (userObj.name) sessionStorage.setItem("uname", userObj.name);
-        
-        import('../../../services/activities').then(({ captureActivity }) => 
+
+        import('../../../services/activities').then(({ captureActivity }) =>
           captureActivity({
             action: 'LOGIN',
             name: name,
@@ -35,12 +36,13 @@ const AuthBridge = () => {
         console.warn('Login log failed in bridge:', err);
       }
 
-      window.router.replaceState({}, document.title, "/");
+      // ✅ Fixed: was window.router.replaceState (typo)
+      window.history.replaceState({}, document.title, "/");
       router.replace("/");
     } else {
       router.replace("/login");
     }
-  }, [history]);
+  }, []); // ✅ Fixed: removed `history` from deps, should be empty array
 
   return <div>Redirecting...</div>;
 };

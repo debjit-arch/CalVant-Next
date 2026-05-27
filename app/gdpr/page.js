@@ -5,7 +5,7 @@ export async function generateMetadata() {
   return getPageMetadata('/gdpr', {
     title: 'GDPR Compliance | CalVant',
     description: 'Achieve GDPR compliance with CalVant automated tools and frameworks.',
-    alternates: { canonical: 'https://main.d38cbxzpofbmee.amplifyapp.com/gdpr' },
+    alternates: { canonical: 'https://calvant.com/gdpr' },
   });
 }
 

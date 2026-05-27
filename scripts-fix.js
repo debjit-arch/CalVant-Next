@@ -106,7 +106,7 @@
 //   return getPageMetadata('${pagePath}', {
 //     title: '${title}',
 //     description: '${desc}',
-//     alternates: { canonical: 'https://main.d38cbxzpofbmee.amplifyapp.com${pagePath}' },
+//     alternates: { canonical: 'https://calvant.com${pagePath}' },
 //   });
 // }
 

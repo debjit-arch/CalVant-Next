@@ -222,7 +222,7 @@ const PersistentSidebar = () => {
   };
 
   // Determine if sidebar should be expanded strictly by click-toggle (maintains single size without hover expansion jumps)
-  const isExpanded = sidebarExpanded;
+  const isExpanded = sidebarExpanded || (!isMobileScreen && isHovered);
 
   return (
     <>

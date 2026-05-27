@@ -36,7 +36,7 @@ export async function getPageMetadata(path, fallback = {}) {
     const keywords = keywordData.split(" | ")[0] || "";
     const ogImage = advanced.og_img;
     const canonical =
-      advanced.canonical || `https://main.d38cbxzpofbmee.amplifyapp.com${normalizedPath}`;
+      advanced.canonical || `https://calvant.com${normalizedPath}`;
 
     return {
       title,

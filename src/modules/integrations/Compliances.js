@@ -172,6 +172,19 @@ const Compliances = () => {
   const userRoles = Array.isArray(user?.role) ? user.role : [user?.role || ""];
   const isRoot = userRoles.includes("root");
 
+  const loadFramework = useCallback(async (fw) => {
+    setLoadingFrameworks((p) => ({ ...p, [fw]: true }));
+    try {
+      const result = await getFrameworkCompliance(fw);
+      setFrameworkData((p) => ({ ...p, [fw]: result }));
+    } catch (err) {
+      console.error(`Failed to load ${fw} compliance`, err);
+      setFrameworkData((p) => ({ ...p, [fw]: emptyStats }));
+    } finally {
+      setLoadingFrameworks((p) => ({ ...p, [fw]: false }));
+    }
+  }, []);
+
   const handleRefresh = useCallback(() => {
     if (!availableFrameworks || availableFrameworks.length === 0) return;
     availableFrameworks.forEach((fw) => {
@@ -291,18 +304,6 @@ const Compliances = () => {
   }, []);
 
   // ── Step 2: Load each framework after cache is warmed ────────────────────
-  const loadFramework = useCallback(async (fw) => {
-    setLoadingFrameworks((p) => ({ ...p, [fw]: true }));
-    try {
-      const result = await getFrameworkCompliance(fw);
-      setFrameworkData((p) => ({ ...p, [fw]: result }));
-    } catch (err) {
-      console.error(`Failed to load ${fw} compliance`, err);
-      setFrameworkData((p) => ({ ...p, [fw]: emptyStats }));
-    } finally {
-      setLoadingFrameworks((p) => ({ ...p, [fw]: false }));
-    }
-  }, []);
 
   useEffect(() => {
     if (

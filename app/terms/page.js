@@ -5,7 +5,7 @@ export async function generateMetadata() {
   return getPageMetadata('/terms', {
     title: 'Terms of Service | CalVant',
     description: 'CalVant terms of service and usage policies.',
-    alternates: { canonical: 'https://main.d38cbxzpofbmee.amplifyapp.com/terms' },
+    alternates: { canonical: 'https://calvant.com/terms' },
   });
 }
 

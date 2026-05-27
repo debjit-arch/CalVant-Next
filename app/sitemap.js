@@ -1,5 +1,5 @@
 export default function sitemap() {
-  const baseUrl = 'https://main.d38cbxzpofbmee.amplifyapp.com';
+  const baseUrl = 'https://calvant.com';
   const lastModified = new Date();
 
   return [

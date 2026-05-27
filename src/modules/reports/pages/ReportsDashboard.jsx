@@ -244,6 +244,9 @@ export default function ReportsDashboard() {
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
 
+  const [hasMounted, setHasMounted] = useState(false);
+  useEffect(() => { setHasMounted(true); }, []);
+
   const [user] = useState(() => {
     try {
       return JSON.parse(sessionStorage.getItem("user") || "{}");

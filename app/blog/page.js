@@ -5,7 +5,7 @@ export async function generateMetadata() {
   return getPageMetadata('/blog', {
     title: 'Compliance & Security Blog | CalVant',
     description: 'Latest insights on compliance, security and data privacy from CalVant.',
-    alternates: { canonical: 'https://main.d38cbxzpofbmee.amplifyapp.com/blog' },
+    alternates: { canonical: 'https://calvant.com/blog' },
   });
 }
 

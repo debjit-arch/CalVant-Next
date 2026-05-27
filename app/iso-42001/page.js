@@ -5,7 +5,7 @@ export async function generateMetadata() {
   return getPageMetadata('/iso-42001', {
     title: 'ISO 42001 AI Management | CalVant',
     description: 'Manage AI risks and compliance with ISO 42001 using CalVant.',
-    alternates: { canonical: 'https://main.d38cbxzpofbmee.amplifyapp.com/iso-42001' },
+    alternates: { canonical: 'https://calvant.com/iso-42001' },
   });
 }
 

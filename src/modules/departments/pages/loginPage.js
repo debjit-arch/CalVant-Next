@@ -41,7 +41,6 @@ const LoginPage = () => {
     setLoading(true);
 
     try {
-      // STEP 1: AUTHENTICATE
       const loginRes = await axios.post(
         `${process.env.NEXT_PUBLIC_SP}/user-service/api/users/login`,
         { email, password },
@@ -49,9 +48,8 @@ const LoginPage = () => {
 
       const { token, organization } = loginRes.data;
       const currentHost = window.location.hostname;
-      console.log(organization);
       const organizationId = organization;
-      console.log(organizationId);
+
       // LOCALHOST/DEV BYPASS
       if (
         currentHost.includes("localhost") ||
@@ -70,19 +68,37 @@ const LoginPage = () => {
         { headers: { Authorization: `Bearer ${token}` } },
       );
 
-      console.log("Full tenant response:", tenantIdRes.data);
-      const tenantId = tenantIdRes.data; // e.g., "tenant-009"
+      const tenantId = tenantIdRes.data;
 
       // STEP 3: GET PRODUCTION DOMAIN FROM TENANT ID
       const domainLookupRes = await axios.get(
         `${process.env.NEXT_PUBLIC_SP}/compliance-brain/api/tenant-lookup/${tenantId}/domain`,
       );
 
-      const configuredDomain = domainLookupRes.data; // e.g., "consultantsfactory.com"
-      const subdomain = configuredDomain.split(".")[0];
-      const baseDomain = currentHost.split(".").slice(-2).join("."); // calvant.com
+      const configuredDomain = domainLookupRes.data; // e.g., "consultantsfactory.calvant.com" or "consultantsfactory.gharkhata.co.in"
 
-      // STEP 4: REDIRECT TO TENANT SUBDOMAIN
+      // STEP 4: DETERMINE BASE DOMAIN CORRECTLY
+      // Handle .co.in (3-part TLD) vs .com (2-part TLD)
+      const hostParts = currentHost.split(".");
+      let baseDomain;
+
+      // Check for country-code second-level domains like co.in, co.uk, com.au
+      const secondLevelTLDs = ["co.in", "co.uk", "com.au", "net.in", "org.in"];
+      const lastTwo = hostParts.slice(-2).join(".");
+      const lastThree = hostParts.slice(-3).join(".");
+
+      if (secondLevelTLDs.includes(lastTwo)) {
+        // e.g., gharkhata.co.in → baseDomain = gharkhata.co.in
+        baseDomain = hostParts.slice(-3).join(".");
+      } else {
+        // e.g., app.calvant.com or calvant.com → baseDomain = calvant.com
+        baseDomain = hostParts.slice(-2).join(".");
+      }
+
+      // Extract subdomain from configured domain (e.g., "consultantsfactory.calvant.com" → "consultantsfactory")
+      const subdomain = configuredDomain.split(".")[0];
+
+      // STEP 5: REDIRECT TO TENANT SUBDOMAIN
       window.location.href = `https://${subdomain}.${baseDomain}/auth-bridge?token=${token}&user=${encodeURIComponent(
         JSON.stringify(loginRes.data),
       )}&email=${encodeURIComponent(email)}`;
