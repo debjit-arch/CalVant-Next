@@ -7,52 +7,67 @@ export function useEffectiveOrg() {
   const [selectedChildOrg, setSelectedChildOrg] = useState(null);
   const [isPartnerOrg, setIsPartnerOrg] = useState(false);
 
+  // State for child orgs managed directly in the hook
+  const [childOrgs, setChildOrgs] = useState([]);
+  const [childOrgsLoading, setChildOrgsLoading] = useState(false);
+
+  // 1. Core initialization effect: Fetch authoritative profile data on mount
   useEffect(() => {
-    const loadOrg = async () => {
+    const initializeUserAndOrg = async () => {
       try {
-        const user = JSON.parse(sessionStorage.getItem("user") || "{}");
-
-        console.log("User from session:", user);
-
-        if (!user?.organization) return;
-
         const token = sessionStorage.getItem("token");
+        if (!token) {
+          setMounted(true);
+          return;
+        }
 
-        const res = await axios.get(
-          `${process.env.NEXT_PUBLIC_SP}/user-service/api/organizations/${user.organization}`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          },
-        );
+        // Fetch complete, authoritative profile data to catch managedOrgs fields
+        const profileRes = await axios
+          .get(
+            `${process.env.NEXT_PUBLIC_SP || "https://api.calvant.com"}/user-service/api/users/me`,
+            { headers: { Authorization: `Bearer ${token}` } },
+          )
+          .catch(() => {
+            // Fallback to session storage if custom /me profile route isn't deployed yet
+            const stored = sessionStorage.getItem("user");
+            return { data: stored ? JSON.parse(stored) : null };
+          });
 
-        console.log("Organization response:", res.data);
+        const currentUser = profileRes.data;
+        if (!currentUser) {
+          setMounted(true);
+          return;
+        }
 
-        setIsPartnerOrg(res.data.partner === true);
+        setUser(currentUser);
+
+        const orgId = currentUser.organization?._id || currentUser.organization;
+        if (orgId) {
+          const orgRes = await axios.get(
+            `${process.env.NEXT_PUBLIC_SP || "https://api.calvant.com"}/user-service/api/organizations/${orgId}`,
+            { headers: { Authorization: `Bearer ${token}` } },
+          );
+          setIsPartnerOrg(orgRes.data.partner === true);
+        }
       } catch (err) {
-        console.error("Failed to load org", err);
+        console.error("Initialization failed in useEffectiveOrg hook:", err);
+      } finally {
+        setMounted(true);
       }
     };
 
-    loadOrg();
+    initializeUserAndOrg();
   }, []);
 
+  // Sync selected child organization from session storage
   useEffect(() => {
-    setMounted(true);
-    try {
-      const stored = sessionStorage.getItem("user");
-      setUser(stored ? JSON.parse(stored) : null);
-    } catch {
-      setUser(null);
-    }
     try {
       const raw = sessionStorage.getItem("selectedChildOrg");
       setSelectedChildOrg(raw ? JSON.parse(raw) : null);
     } catch {
       setSelectedChildOrg(null);
     }
-  }, []);
+  }, [mounted]);
 
   useEffect(() => {
     if (!mounted) return;
@@ -69,7 +84,6 @@ export function useEffectiveOrg() {
   }, [mounted]);
 
   // ── role derivations ──────────────────────────────────────────────────────
-
   const isRoot = useMemo(
     () =>
       Array.isArray(user?.role)
@@ -77,7 +91,6 @@ export function useEffectiveOrg() {
         : user?.role === "root",
     [user],
   );
-
   const isSuperAdmin = useMemo(
     () =>
       Array.isArray(user?.role)
@@ -86,10 +99,8 @@ export function useEffectiveOrg() {
     [user],
   );
 
-  const isPartnerRoot = isPartnerOrg && user?.role?.includes("root");
-
+  const isPartnerRoot = isPartnerOrg && isRoot;
   const managedOrgs = useMemo(() => user?.managedOrgs || [], [user]);
-
   const isOrgManager = !isRoot && !isSuperAdmin && managedOrgs.length > 0;
 
   const isPrivilegedRole = useMemo(
@@ -103,40 +114,69 @@ export function useEffectiveOrg() {
   );
 
   const hasFullOrgAccess = isPrivilegedRole || isOrgManager;
-
-  // ── org / identity ────────────────────────────────────────────────────────
-
   const userOrgId = useMemo(
     () => user?.organization?._id || user?.organization || null,
     [user],
   );
 
-  // ── effectiveOrgId must come before isDepartmentScoped ───────────────────
+  // ── Fetch Child Orgs Internally ──────────────────────────────────────
+  useEffect(() => {
+    // If they aren't a partner root and aren't an org manager, don't fetch children
+    if (!mounted || (!isPartnerRoot && !isOrgManager)) return;
 
+    const token = sessionStorage.getItem("token");
+    setChildOrgsLoading(true);
+
+    if (isPartnerRoot) {
+      fetch(
+        `${process.env.NEXT_PUBLIC_SP || "https://api.calvant.com"}/user-service/api/organizations/children`,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      )
+        .then((r) => {
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          return r.json();
+        })
+        .then((orgs) => setChildOrgs(Array.isArray(orgs) ? orgs : []))
+        .catch(console.error)
+        .finally(() => setChildOrgsLoading(false));
+    } else if (isOrgManager) {
+      Promise.all(
+        managedOrgs.map((id) =>
+          fetch(
+            `${process.env.NEXT_PUBLIC_SP || "https://api.calvant.com"}/user-service/api/organizations/${id}`,
+            {
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+              },
+            },
+          ).then((r) => {
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+            return r.json();
+          }),
+        ),
+      )
+        .then((orgs) => setChildOrgs(orgs.filter(Boolean)))
+        .catch(console.error)
+        .finally(() => setChildOrgsLoading(false));
+    }
+  }, [mounted, isPartnerRoot, isOrgManager, managedOrgs]);
+
+  // ── org / identity ────────────────────────────────────────────────────────
   const effectiveOrgId = useMemo(() => {
     const candidateId = selectedChildOrg?._id || selectedChildOrg?.id || null;
+    if ((isPartnerRoot || isOrgManager) && candidateId) return candidateId;
 
-    if (isPartnerRoot && candidateId) return candidateId;
-
-    if (isOrgManager && candidateId) {
-      const allowed = managedOrgs.map(String);
-      // only honour the selection if it's an actually assigned org
-      return allowed.includes(String(candidateId)) ? candidateId : userOrgId;
-    }
+    // Consolidated: for org manager use first managed org as "primary"
+    if (isOrgManager && managedOrgs.length > 0) return String(managedOrgs[0]);
 
     return userOrgId;
-  }, [isPartnerRoot, isOrgManager, selectedChildOrg, managedOrgs, userOrgId]);
-
-  const partnerChildOrgIds = useMemo(() => {
-    try {
-      const raw = sessionStorage.getItem("partnerChildOrgs");
-      const orgs = raw ? JSON.parse(raw) : [];
-
-      return orgs.map((o) => String(o.id || o._id));
-    } catch {
-      return [];
-    }
-  }, []);
+  }, [isPartnerRoot, isOrgManager, selectedChildOrg, userOrgId, managedOrgs]);
 
   const isViewingManagedOrg = useMemo(() => {
     if (!isOrgManager) return false;
@@ -144,55 +184,46 @@ export function useEffectiveOrg() {
   }, [isOrgManager, managedOrgs, effectiveOrgId]);
 
   const effectiveOrgIds = useMemo(() => {
-    // Partner root viewing a specific child
-    if (isPartnerRoot && selectedChildOrg && effectiveOrgId) {
-      return new Set([String(effectiveOrgId)]);
-    }
-
-    // Partner root viewing ALL children
-    if (isPartnerRoot && !selectedChildOrg) {
-      try {
-        const raw = sessionStorage.getItem("partnerChildOrgs");
-        const orgs = raw ? JSON.parse(raw) : [];
-
-        return new Set(orgs.map((o) => String(o._id || o.id)));
-      } catch {
-        return new Set();
-      }
-    }
-
     const ids = new Set();
 
-    if (userOrgId) {
-      ids.add(String(userOrgId));
+    // Scenario A: Specific child selected
+    if ((isPartnerRoot || isOrgManager) && selectedChildOrg) {
+      ids.add(String(selectedChildOrg._id || selectedChildOrg.id));
+      return ids;
     }
 
-    if (isOrgManager) {
-      managedOrgs.forEach((id) => ids.add(String(id)));
+    // Scenario B: Consolidated view
+    if ((isPartnerRoot || isOrgManager) && !selectedChildOrg) {
+      if (isPartnerRoot) {
+        // While children are loading, fall back to userOrgId so data isn't empty
+        if (childOrgs.length > 0) {
+          childOrgs.forEach((o) => ids.add(String(o._id || o.id)));
+        } else if (userOrgId) {
+          ids.add(String(userOrgId)); // ← temporary fallback during load
+        }
+      } else if (isOrgManager) {
+        // managedOrgs is available immediately from user profile
+        managedOrgs.forEach((id) => ids.add(String(id)));
+      }
+      return ids;
+    }
+
+    // Scenario C: Standard fallback
+    if (userOrgId) {
+      ids.add(String(userOrgId));
     }
 
     return ids;
   }, [
     isPartnerRoot,
-    selectedChildOrg,
-    effectiveOrgId,
-    userOrgId,
     isOrgManager,
+    selectedChildOrg,
+    childOrgs,
     managedOrgs,
+    userOrgId,
   ]);
 
-  console.log("Effective Org Debug", {
-    isPartnerOrg,
-    isPartnerRoot,
-    isRoot,
-    userOrgId,
-    effectiveOrgId,
-    effectiveOrgIds: [...effectiveOrgIds],
-    selectedChildOrg,
-    managedOrgs,
-  });
   // ── department ────────────────────────────────────────────────────────────
-
   const userDepartmentIds = useMemo(() => {
     const depts = user?.department;
     if (!depts) return [];
@@ -200,17 +231,11 @@ export function useEffectiveOrg() {
     return arr.map((d) => String(d?._id || d)).filter(Boolean);
   }, [user]);
 
-  // Department scoping only applies when:
-  // - not a privileged role
-  // - not viewing one of their managed orgs (root-equivalent there)
-  // - has department assignments
   const isDepartmentScoped = useMemo(() => {
     if (isPrivilegedRole) return false;
-    if (isViewingManagedOrg) return false; // root-equivalent in managed org
-    return userDepartmentIds.length > 0; // dept-scoped in home org
+    if (isViewingManagedOrg) return false;
+    return userDepartmentIds.length > 0;
   }, [isPrivilegedRole, isViewingManagedOrg, userDepartmentIds]);
-
-  // ── data filter bag ───────────────────────────────────────────────────────
 
   const dataFilterParams = useMemo(() => {
     const base = { orgId: effectiveOrgId };
@@ -227,15 +252,18 @@ export function useEffectiveOrg() {
     selectedChildOrg,
     isRoot,
     isSuperAdmin,
+    isPartnerOrg,
     isPartnerRoot,
     isOrgManager,
-    isViewingManagedOrg, // ← new
+    isViewingManagedOrg,
     isPrivilegedRole,
     hasFullOrgAccess,
     userDepartmentIds,
     isDepartmentScoped,
     dataFilterParams,
     managedOrgs,
+    childOrgs,
+    childOrgsLoading,
     user,
     mounted,
   };

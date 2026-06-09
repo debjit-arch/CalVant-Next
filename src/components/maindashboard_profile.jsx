@@ -1007,7 +1007,7 @@ const Maindashboard_profile = () => {
                     >
                       {/* Label differs: root sees "All Orgs", manager sees "My Org" */}
                       <option value="">
-                        {isPartnerRoot
+                        {isPartnerRoot || isOrgManager
                           ? "— All Organizations —"
                           : "— My Organization —"}
                       </option>

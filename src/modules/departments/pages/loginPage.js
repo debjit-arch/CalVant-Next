@@ -5,6 +5,7 @@ import axios from "axios";
 import "./loginPage.css";
 import HamburgerMenu from "../../../components/navigations/HamburgerMenu";
 import { useSession } from "@/context/SessionContext";
+
 const LoginPage = () => {
   const [email, setEmail] = useState("");
   const [region, setRegion] = useState("");
@@ -24,7 +25,6 @@ const LoginPage = () => {
   });
 
   const [signupModalOpen, setSignupModalOpen] = useState(false);
-
   const router = useRouter();
 
   const openInfoModal = (title, message) => {
@@ -75,27 +75,21 @@ const LoginPage = () => {
         `${process.env.NEXT_PUBLIC_SP}/compliance-brain/api/tenant-lookup/${tenantId}/domain`,
       );
 
-      const configuredDomain = domainLookupRes.data; // e.g., "consultantsfactory.calvant.com" or "consultantsfactory.gharkhata.co.in"
+      const configuredDomain = domainLookupRes.data; 
 
       // STEP 4: DETERMINE BASE DOMAIN CORRECTLY
-      // Handle .co.in (3-part TLD) vs .com (2-part TLD)
       const hostParts = currentHost.split(".");
       let baseDomain;
 
-      // Check for country-code second-level domains like co.in, co.uk, com.au
       const secondLevelTLDs = ["co.in", "co.uk", "com.au", "net.in", "org.in"];
       const lastTwo = hostParts.slice(-2).join(".");
-      const lastThree = hostParts.slice(-3).join(".");
 
       if (secondLevelTLDs.includes(lastTwo)) {
-        // e.g., gharkhata.co.in → baseDomain = gharkhata.co.in
         baseDomain = hostParts.slice(-3).join(".");
       } else {
-        // e.g., app.calvant.com or calvant.com → baseDomain = calvant.com
         baseDomain = hostParts.slice(-2).join(".");
       }
 
-      // Extract subdomain from configured domain (e.g., "consultantsfactory.calvant.com" → "consultantsfactory")
       const subdomain = configuredDomain.split(".")[0];
 
       // STEP 5: REDIRECT TO TENANT SUBDOMAIN
@@ -150,8 +144,8 @@ const LoginPage = () => {
       return;
     }
 
-    const maxRetries = 5; // Maximum retry attempts
-    const retryDelay = 500; // 500ms delay between retries
+    const maxRetries = 5; 
+    const retryDelay = 500; 
 
     setLoading(true);
 
@@ -167,18 +161,15 @@ const LoginPage = () => {
           { withCredentials: true },
         );
 
-        // ✅ store reset token (short-lived)
         sessionStorage.setItem("resetToken", res.data.resetToken);
 
-        success = true; // mark success
+        success = true; 
         openInfoModal("Success", "OTP verified. Redirecting...");
         setTimeout(() => {
           router.push("/change-password");
         }, 1500);
       } catch (err) {
         lastError = err.response?.data?.error || "Invalid OTP.";
-
-        // wait before retrying
         await new Promise((resolve) => setTimeout(resolve, retryDelay));
         attempt++;
       }
@@ -187,13 +178,11 @@ const LoginPage = () => {
     if (!success) {
       openInfoModal("Error", lastError);
     }
-
     setLoading(false);
   };
 
   return (
     <div className="login-page">
-      {/* PERFECT HEADER - EXACT DemoPage style */}
       <header className="login-header">
         <div className="login-logo">CalVant</div>
         <nav className="login-nav">
@@ -210,7 +199,6 @@ const LoginPage = () => {
       </header>
 
       <main className="login-main">
-        {/* LEFT - LOGIN FORM WITH ORBIT */}
         <section className="login-left">
           <div className="login-left-inner">
             <div className="login-content">
@@ -238,28 +226,6 @@ const LoginPage = () => {
                     className="login-input"
                   />
                 </div>
-
-                {/* <div className="login-field-group">
-                  <label className="login-label">
-                    Region <span>*</span>
-                  </label>
-                  <input
-                    type="text"
-                    list="region-list"
-                    placeholder="Select or type your region"
-                    value={region}
-                    onChange={(e) => setRegion(e.target.value)}
-                    required
-                    disabled={loading}
-                    className="login-input"
-                  />
-                </div>
-
-                <datalist id="region-list">
-                  <option value="India" />
-                  <option value="EU" />
-                  <option value="US" />
-                </datalist> */}
 
                 <div className="login-field-group">
                   <label className="login-label">
@@ -341,7 +307,6 @@ const LoginPage = () => {
                 </div>
               )}
 
-              {/* ✅ YOUR ORIGINAL SIGNUP PROMPT */}
               <div className="login-signup-row">
                 <span>New to CalVant?</span>
                 <button
@@ -358,7 +323,6 @@ const LoginPage = () => {
                 </button>
               </div>
 
-              {/* ✅ YOUR ORIGINAL FOOTER LINKS */}
               <div className="login-footer-links">
                 <button className="login-footer-link">Terms of Service</button>
                 <span className="login-footer-separator">|</span>
@@ -367,21 +331,18 @@ const LoginPage = () => {
                 <button className="login-footer-link">Contact</button>
               </div>
 
-              {/* ✅ YOUR ORIGINAL COPYRIGHT */}
               <div className="login-footer-copy">
                 © CalVant 2025. All Rights Reserved.
               </div>
             </div>
           </div>
 
-          {/* LEFT ORBIT EFFECT */}
           <div className="login-orbit-left">
             <div className="login-orbit-sphere" />
             <div className="login-orbit-ring" />
           </div>
         </section>
 
-        {/* RIGHT - MARKETING WITH ORBIT */}
         <section className="login-right">
           <div className="login-right-inner">
             <div className="login-badge">#1 Compliance Automation Tool</div>
@@ -420,7 +381,6 @@ const LoginPage = () => {
             </div>
           </div>
 
-          {/* RIGHT ORBIT EFFECT */}
           <div className="login-orbit-right">
             <div className="login-orbit-sphere-right" />
             <div className="login-orbit-ring-right" />
@@ -428,7 +388,6 @@ const LoginPage = () => {
         </section>
       </main>
 
-      {/* INFO MODAL */}
       {infoModal.isOpen && (
         <div className="login-modal-backdrop">
           <div className="login-modal">
