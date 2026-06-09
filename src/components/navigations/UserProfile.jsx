@@ -9,6 +9,9 @@ const UserProfile = ({ user, handleLogout }) => {
   const modalRef = useRef(null);
   const [childOrgs, setChildOrgs] = useState([]);
 
+  const isPartnerRoot =
+    user?.role?.includes("root") && !user?.role?.includes("super_admin");
+
   useEffect(() => {
     if (!isPartnerRoot) return;
     const token = sessionStorage.getItem("token");
@@ -18,15 +21,16 @@ const UserProfile = ({ user, handleLogout }) => {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
     })
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`); // ✅ guard
+        return r.json();
+      })
       .then((orgs) => {
         if (Array.isArray(orgs)) setChildOrgs(orgs);
       })
       .catch(console.error);
   }, [isPartnerRoot]);
 
-  const isPartnerRoot =
-    user?.role?.includes("root") && !user?.role?.includes("super_admin");
   const [selectedChildOrg, setSelectedChildOrg] = useState(null);
   useEffect(() => {
     try {
