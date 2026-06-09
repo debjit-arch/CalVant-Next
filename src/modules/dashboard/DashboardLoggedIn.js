@@ -1,3 +1,4 @@
+"use client";
 import React, {
   useState,
   useEffect,
@@ -97,41 +98,16 @@ const isJwtExpired = (token) => {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const IDLE_TIMEOUT_MS = 15 * 60 * 1000;
+const CARD_H = 300;
 
-// All module cards share this exact height. Change here → everything updates.
-const CARD_H = 300; // px
-
-// Grid is always 4 equal columns. Compliance spans 2, 3, or 4 of them.
-const GRID_COLS = 4;
-
-// ─── Layout config based on visible framework count ───────────────────────────
-//
-//  ≤ 6  fw  → colSpan 2, tileCols 2
-//             Row 1: [Compliance×2] [Risk×1] [Task×1]
-//
-//  7–12 fw  → colSpan 3, tileCols 3
-//             Row 1: [Compliance×3] [Risk×1]
-//             Row 2: [Task] [Audits] …
-//
-//  12+  fw  → colSpan 4, tileCols 3  (full row)
-//             Row 1: [Compliance×4]
-//             Row 2: [Risk] [Task] [Audits] …
-//
 function getComplianceLayout(count) {
   if (count <= 6) return { colSpan: 2, tileCols: 2 };
   if (count <= 12) return { colSpan: 3, tileCols: 3 };
   return { colSpan: 4, tileCols: 3 };
 }
 
-// ─── Sub-components (defined OUTSIDE DashboardLoggedIn so they are stable) ───
+// ─── Sub-components ───────────────────────────────────────────────────────────
 
-/**
- * PieSection — renders the donut chart + colour legend used by every module card.
- * Props:
- *   data    – recharts data array  [{ name, value }]
- *   cells   – array of <Cell> elements (colours)
- *   legend  – array of [hexColor, value, label] tuples
- */
 const PieSection = ({ data, cells, legend }) => (
   <div
     style={{
@@ -207,19 +183,6 @@ const PieSection = ({ data, cells, legend }) => (
   </div>
 );
 
-/**
- * CardHeader — top section shared by all module cards.
- * Props:
- *   icon          – JSX icon element
- *   iconGradient  – CSS gradient string for icon background
- *   title         – card title string
- *   total         – big number shown top-right
- *   totalLabel    – small label below the number
- *   filterTags    – boolean; whether to render framework filter badges
- *   selectedFWs   – array of selected framework names (needed when filterTags=true)
- *   isAllSelected – boolean
- *   tagBg/tagColor/tagBorder – badge colours
- */
 const CardHeader = ({
   icon,
   iconGradient,
@@ -329,6 +292,198 @@ const CardHeader = ({
   </div>
 );
 
+// ─── Child Org Picker ─────────────────────────────────────────────────────────
+
+const ChildOrgPicker = ({ orgs, loading, onSelect, userName }) => {
+  const [search, setSearch] = useState("");
+
+  const filtered = orgs.filter((o) =>
+    (o.name || "").toLowerCase().includes(search.toLowerCase()),
+  );
+
+  const getInitials = (name = "") =>
+    name
+      .split(" ")
+      .slice(0, 2)
+      .map((w) => w[0]?.toUpperCase() || "")
+      .join("");
+
+  const avatarColors = [
+    { bg: "#e0f2fe", color: "#0369a1" },
+    { bg: "#dcfce7", color: "#15803d" },
+    { bg: "#fef9c3", color: "#a16207" },
+    { bg: "#fce7f3", color: "#be185d" },
+    { bg: "#ede9fe", color: "#6d28d9" },
+  ];
+
+  return (
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)",
+        display: "flex",
+        alignItems: "flex-start",
+        justifyContent: "center",
+        padding: "60px 24px",
+      }}
+    >
+      <div style={{ width: "100%", maxWidth: 560 }}>
+        <div style={{ marginBottom: 28 }}>
+          <p style={{ fontSize: 13, color: "#64748b", margin: "0 0 4px" }}>
+            Welcome back, {userName || "Admin"}
+          </p>
+          <h2
+            style={{
+              fontSize: 24,
+              fontWeight: 600,
+              color: "#0f172a",
+              margin: "0 0 6px",
+            }}
+          >
+            Select a child organization
+          </h2>
+          <p style={{ fontSize: 14, color: "#64748b", margin: 0 }}>
+            Choose which organization's dashboard you'd like to view.
+          </p>
+        </div>
+
+        <div style={{ position: "relative", marginBottom: 16 }}>
+          <input
+            type="text"
+            placeholder="Search organizations…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{
+              width: "100%",
+              boxSizing: "border-box",
+              padding: "10px 14px 10px 38px",
+              fontSize: 14,
+              border: "1px solid #e2e8f0",
+              borderRadius: 10,
+              outline: "none",
+              background: "white",
+              color: "#0f172a",
+            }}
+          />
+          <span
+            style={{
+              position: "absolute",
+              left: 12,
+              top: "50%",
+              transform: "translateY(-50%)",
+              color: "#94a3b8",
+              fontSize: 16,
+            }}
+          >
+            🔍
+          </span>
+        </div>
+
+        {loading ? (
+          <div
+            style={{
+              textAlign: "center",
+              padding: "40px 0",
+              color: "#64748b",
+              fontSize: 14,
+            }}
+          >
+            Loading organizations…
+          </div>
+        ) : filtered.length === 0 ? (
+          <div
+            style={{
+              textAlign: "center",
+              padding: "40px 0",
+              color: "#94a3b8",
+              fontSize: 14,
+            }}
+          >
+            No organizations found.
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {filtered.map((org, idx) => {
+              const av = avatarColors[idx % avatarColors.length];
+              const frameworks = org.frameworks?.join(" · ") || "—";
+              return (
+                <div
+                  key={org._id || org.id}
+                  onClick={() => onSelect(org)}
+                  style={{
+                    background: "white",
+                    border: "1px solid #e2e8f0",
+                    borderRadius: 12,
+                    padding: "14px 16px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 14,
+                    cursor: "pointer",
+                    transition: "border-color 0.15s, box-shadow 0.15s",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = "#94a3b8";
+                    e.currentTarget.style.boxShadow =
+                      "0 4px 12px rgba(0,0,0,0.06)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = "#e2e8f0";
+                    e.currentTarget.style.boxShadow = "none";
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 42,
+                      height: 42,
+                      borderRadius: 10,
+                      flexShrink: 0,
+                      background: av.bg,
+                      color: av.color,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: 14,
+                      fontWeight: 600,
+                    }}
+                  >
+                    {getInitials(org.name)}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p
+                      style={{
+                        margin: 0,
+                        fontSize: 15,
+                        fontWeight: 600,
+                        color: "#0f172a",
+                      }}
+                    >
+                      {org.name}
+                    </p>
+                    <p
+                      style={{
+                        margin: "2px 0 0",
+                        fontSize: 12,
+                        color: "#64748b",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {frameworks}
+                      {org.tenantId ? ` · ${org.tenantId}` : ""}
+                    </p>
+                  </div>
+                  <span style={{ color: "#94a3b8", fontSize: 18 }}>›</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 const DashboardLoggedIn = () => {
@@ -337,7 +492,6 @@ const DashboardLoggedIn = () => {
   const idleTimerRef = useRef(null);
   const lastActivityRef = useRef(Date.now());
 
-  // UI state
   const [showChangePassword] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [frameworkOpen, setFrameworkOpen] = useState(false);
@@ -354,14 +508,104 @@ const DashboardLoggedIn = () => {
   const { runTour, setRunTour } = useUI();
 
   // ── User ──────────────────────────────────────────────────────────────────
-  const user = useMemo(() => {
-    const stored = sessionStorage.getItem("user");
-    return stored ? JSON.parse(stored) : null;
+  const [user, setUser] = useState(null);
+  useEffect(() => {
+    try {
+      const stored = sessionStorage.getItem("user");
+      setUser(stored ? JSON.parse(stored) : null);
+    } catch {
+      setUser(null);
+    }
   }, []);
 
   useEffect(() => {
     if (!user) setSessionExpired(true);
   }, [user]);
+
+  // ── Partner Root / Child Org Selection ────────────────────────────────────
+  const isRoot =
+    user?.role?.includes("root") && !user?.role?.includes("super_admin");
+
+  const [userOrgData, setUserOrgData] = useState(null);
+  const [userOrgLoading, setUserOrgLoading] = useState(true);
+
+  useEffect(() => {
+    if (!isRoot || !user?.organization) {
+      setUserOrgLoading(false); // ← must set false here too
+      return;
+    }
+    const orgId = user?.organization?._id || user?.organization;
+    fetch(`https://api.calvant.com/user-service/api/organizations/${orgId}`)
+      .then((r) => r.json())
+      .then((org) => setUserOrgData(org))
+      .catch(console.error)
+      .finally(() => setUserOrgLoading(false)); // ← must be here
+  }, [isRoot, user]);
+
+  const isPartnerRoot = isRoot && userOrgData?.partner === true;
+
+  const [childOrgs, setChildOrgs] = useState([]);
+  const [childOrgsLoading, setChildOrgsLoading] = useState(false);
+  const [selectedChildOrg, setSelectedChildOrg] = useState(null);
+  useEffect(() => {
+    try {
+      const stored = sessionStorage.getItem("selectedChildOrg");
+      setSelectedChildOrg(stored ? JSON.parse(stored) : null);
+    } catch {
+      setSelectedChildOrg(null);
+    }
+  }, []);
+
+  // ✅ Replace the children fetch useEffect
+  useEffect(() => {
+    if (userOrgLoading) return; // ← wait until org data is resolved
+    if (!isPartnerRoot) return; // ← only partner roots need children
+    setChildOrgsLoading(true);
+    const token = sessionStorage.getItem("token");
+    fetch("https://api.calvant.com/user-service/api/organizations/children", {
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    })
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`); // ← Fix 2
+        return r.json();
+      })
+      .then((orgs) => {
+        if (Array.isArray(orgs)) setChildOrgs(orgs);
+      })
+      .catch(console.error)
+      .finally(() => setChildOrgsLoading(false));
+  }, [isPartnerRoot, userOrgLoading]); // ← depend on both
+
+  const handleSelectChildOrg = (org) => {
+    sessionStorage.setItem("selectedChildOrg", JSON.stringify(org));
+    setSelectedChildOrg(org);
+  };
+
+  const handleClearChildOrg = () => {
+    sessionStorage.removeItem("selectedChildOrg");
+    setSelectedChildOrg(null);
+  };
+
+  // The effective org ID used for all data loading
+  // Single org ID for endpoints that take one ID (DPIA, TPRM, audits)
+  const effectiveOrgId = useMemo(() => {
+    if (isPartnerRoot && selectedChildOrg) {
+      return selectedChildOrg._id || selectedChildOrg.id;
+    }
+    return user?.organization?._id || user?.organization;
+  }, [isPartnerRoot, selectedChildOrg, user]);
+
+  // Set of all org IDs to match against — used for client-side filtering
+  // When partner root has no child org selected → includes all child org IDs
+  const effectiveOrgIds = useMemo(() => {
+    if (isPartnerRoot && !selectedChildOrg && childOrgs.length > 0) {
+      return new Set(childOrgs.map((o) => String(o._id || o.id)));
+    }
+    return new Set([String(effectiveOrgId)]);
+  }, [isPartnerRoot, selectedChildOrg, childOrgs, effectiveOrgId]);
 
   // ── Idle / JWT timer ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -392,16 +636,16 @@ const DashboardLoggedIn = () => {
     };
   }, []);
 
+  // tprmEnabled fetch — uses effectiveOrgId
   useEffect(() => {
-    if (!user?.organization) return;
-    const orgId = String(user?.organization?._id || user?.organization);
+    if (!effectiveOrgId) return;
     fetch(`https://api.calvant.com/user-service/api/organizations`, {
       headers: { "Content-Type": "application/json" },
     })
       .then((r) => r.json())
       .then((orgs) => {
         const org = Array.isArray(orgs)
-          ? orgs.find((o) => String(o._id) === orgId)
+          ? orgs.find((o) => String(o._id) === String(effectiveOrgId))
           : null;
         if (org && typeof org.tprmEnabled === "boolean") {
           setShowTprm(org.tprmEnabled);
@@ -411,7 +655,7 @@ const DashboardLoggedIn = () => {
       .catch((err) =>
         console.error("Failed to fetch org for tprmEnabled:", err),
       );
-  }, [user]);
+  }, [effectiveOrgId]);
 
   // ── Click-outside handler ─────────────────────────────────────────────────
   useEffect(() => {
@@ -426,9 +670,6 @@ const DashboardLoggedIn = () => {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showChangePassword]);
-
-  // ── Loading ───────────────────────────────────────────────────────────────
-  // useEffect(() => { setTimeout(() => setLoading(false), 800); }, []);
 
   // ── Joyride ───────────────────────────────────────────────────────────────
   const tourSteps = [
@@ -473,18 +714,18 @@ const DashboardLoggedIn = () => {
   }, []);
 
   // ══════════════════════════════════════════════════════════════════════════
-  // DATA LOADING
+  // DATA LOADING — all use effectiveOrgId
   // ══════════════════════════════════════════════════════════════════════════
 
   // ── RISK ──────────────────────────────────────────────────────────────────
   const [allRisks, setAllRisks] = useState([]);
 
   const loadRiskStats = useCallback(async () => {
-    if (!user?.organization) return;
+    if (!effectiveOrgId) return;
     try {
       const risks = await riskService.getAllRisks();
       if (!Array.isArray(risks)) return;
-      const isRoot = user?.role?.some((r) => {
+      const isRootRole = user?.role?.some((r) => {
         const s = (typeof r === "string" ? r : r?.name || r?.roleName || "")
           .toLowerCase()
           .replace(/[\s_-]/g, "");
@@ -495,11 +736,11 @@ const DashboardLoggedIn = () => {
       );
       setAllRisks(
         risks.filter((risk) => {
-          const orgMatch =
-            String(risk.organization?._id || risk.organization) ===
-            String(user.organization?._id || user.organization);
+          const orgMatch = effectiveOrgIds.has(
+            String(risk.organization?._id || risk.organization),
+          );
           if (!orgMatch) return false;
-          if (isRoot) return true;
+          if (isRootRole) return true;
           return (
             risk.department &&
             userDepts.includes(risk.department.trim().toLowerCase())
@@ -509,7 +750,8 @@ const DashboardLoggedIn = () => {
     } catch (err) {
       handleApiError(err);
     }
-  }, [user, handleApiError]);
+  }, [user, handleApiError, effectiveOrgId, effectiveOrgIds]);
+
   useEffect(() => {
     loadRiskStats();
   }, [loadRiskStats]);
@@ -627,7 +869,7 @@ const DashboardLoggedIn = () => {
       });
 
       const orgDocs = (docs || [])
-        .filter((d) => d.organization === user?.organization)
+        .filter((d) => effectiveOrgIds.has(String(d.organization)))
         .map((doc) => ({
           ...doc,
           framework:
@@ -668,7 +910,9 @@ const DashboardLoggedIn = () => {
     availableFrameworks,
     getTotalFromBackendControls,
     handleApiError,
+    effectiveOrgId,
   ]);
+
   useEffect(() => {
     loadDocumentStats();
   }, [loadDocumentStats]);
@@ -679,31 +923,33 @@ const DashboardLoggedIn = () => {
   const [allControlsForGap, setAllControlsForGap] = useState([]);
 
   const loadGapStats = useCallback(async () => {
-    if (!user?.organization) return;
+    if (!effectiveOrgId) return;
     try {
-      const orgId = encodeURIComponent(
-        user?.organization?._id || user?.organization,
-      );
-      const [auditsRaw, gaps, ...controlResults] = await Promise.all([
-        fetch(
-          `https://api.calvant.com/audit/api/audits?organization=${orgId}`,
-          {
+      const orgIds =
+        isPartnerRoot && !selectedChildOrg && childOrgs.length > 0
+          ? childOrgs.map((o) => encodeURIComponent(o._id || o.id))
+          : [encodeURIComponent(effectiveOrgId)];
+
+      // ── fetch audits for all relevant orgs ────────────────────────────────
+      const auditArrays = await Promise.all(
+        orgIds.map((id) =>
+          fetch(`https://api.calvant.com/audit/api/audits?organization=${id}`, {
             headers: { "Content-Type": "application/json" },
-          },
-        )
-          .then((r) => r.json())
-          .catch(() => []),
+          })
+            .then((r) => r.json())
+            .catch(() => []),
+        ),
+      );
+      const auditsRaw = auditArrays.flat();
+
+      // ── fetch gaps and controls in parallel ───────────────────────────────
+      const [gaps, ...controlResults] = await Promise.all([
         gapService.getGaps().catch(() => []),
         ...availableFrameworks.map((fw) =>
           controlService.getControlsByFramework(fw.code).catch(() => []),
         ),
       ]);
 
-      console.log(
-        "[loadGapStats] audits:",
-        auditsRaw?.length,
-        auditsRaw?.slice(0, 2),
-      );
       setAllAudits(Array.isArray(auditsRaw) ? auditsRaw : []);
       setAllGaps(gaps);
       setAllControlsForGap(
@@ -717,7 +963,16 @@ const DashboardLoggedIn = () => {
     } catch (err) {
       handleApiError(err);
     }
-  }, [user, availableFrameworks, handleApiError]);
+  }, [
+    user,
+    availableFrameworks,
+    handleApiError,
+    effectiveOrgId,
+    isPartnerRoot,
+    selectedChildOrg,
+    childOrgs,
+  ]);
+
   useEffect(() => {
     loadGapStats();
   }, [loadGapStats]);
@@ -727,24 +982,14 @@ const DashboardLoggedIn = () => {
     const normalizedSelectedFW = selectedFrameworks.map(
       _normalizeFrameworkCode,
     );
-    console.log("[auditStats] normalizedSelectedFW:", normalizedSelectedFW);
-    console.log(
-      "[auditStats] audit fw samples:",
-      allAudits.slice(0, 5).map((a) => ({
-        frameworkCode: a.frameworkCode,
-        framework: a.framework,
-        normalized: _normalizeFrameworkCode(a.frameworkCode || a.framework),
-      })),
-    );
     const filtered = allAudits.filter((a) =>
       _auditMatchesFrameworks(a, normalizedSelectedFW),
     );
-    console.log("[auditStats] filtered:", filtered.length);
     return { total: filtered.length };
   }, [allAudits, selectedFrameworks, isAllSelected]);
 
   const gapStats = useMemo(() => {
-    const isRoot = user?.role?.some((r) => {
+    const isRootRole = user?.role?.some((r) => {
       const s = (typeof r === "string" ? r : r?.name || r?.roleName || "")
         .toLowerCase()
         .replace(/[\s_-]/g, "");
@@ -766,17 +1011,15 @@ const DashboardLoggedIn = () => {
       const itemDepts = (item.departmentIds || item.departments || []).map(
         (d) => (typeof d === "string" ? d : d.name || d).trim().toLowerCase(),
       );
-      const hasAccess = isRoot || itemDepts.some((d) => deptNames.includes(d));
+      const hasAccess =
+        isRootRole || itemDepts.some((d) => deptNames.includes(d));
       return hasAccess ? acc + (item.auditQuestions?.length || 1) : acc;
     }, 0);
 
     const filteredGaps = allGaps.filter((g) => {
-      if (
-        String(g.organization?._id || g.organization) !==
-        String(user?.organization?._id || user?.organization)
-      )
+      if (!effectiveOrgIds.has(String(g.organization?._id || g.organization)))
         return false;
-      if (isRoot) return true;
+      if (isRootRole) return true;
       return deptNames.includes(
         String(g.department || "")
           .trim()
@@ -802,6 +1045,7 @@ const DashboardLoggedIn = () => {
     selectedFrameworks,
     isAllSelected,
     availableFrameworks,
+    effectiveOrgIds,
   ]);
 
   // ── FRAMEWORK COMPLIANCE ──────────────────────────────────────────────────
@@ -905,18 +1149,16 @@ const DashboardLoggedIn = () => {
     try {
       const tasks = await taskService.getAllTasks();
       if (!Array.isArray(tasks) || !user) return;
-      const isRoot = user?.role?.some((r) => {
+      const isRootRole = user?.role?.some((r) => {
         const s = (typeof r === "string" ? r : r?.name || r?.roleName || "")
           .toLowerCase()
           .replace(/[\s_-]/g, "");
         return ["root", "ciso", "aio", "dpo"].some((role) => s.includes(role));
       });
-      const userOrgId = user.organization?._id || user.organization;
-      const orgTasks = tasks.filter(
-        (t) =>
-          String(t.organization?._id || t.organization) === String(userOrgId),
+      const orgTasks = tasks.filter((t) =>
+        effectiveOrgIds.has(String(t.organization?._id || t.organization)),
       );
-      const deptTasks = isRoot
+      const deptTasks = isRootRole
         ? orgTasks
         : orgTasks.filter((t) => {
             if (!t.department) return false;
@@ -937,7 +1179,8 @@ const DashboardLoggedIn = () => {
     } catch (err) {
       console.error("Error loading task stats:", err);
     }
-  }, [user]);
+  }, [user, effectiveOrgId]);
+
   useEffect(() => {
     loadTaskStats();
   }, [loadTaskStats]);
@@ -952,17 +1195,50 @@ const DashboardLoggedIn = () => {
     rejected: 0,
   });
   const loadTprmStats = useCallback(async () => {
-    if (!user?.organization) return;
+    if (!effectiveOrgId) return;
     try {
-      setTprmStats(
-        await tprmService.getStats(
-          user?.organization?._id || user?.organization,
-        ),
-      );
+      if (isPartnerRoot && !selectedChildOrg && childOrgs.length > 0) {
+        // fetch for all child orgs and sum
+        const results = await Promise.all(
+          childOrgs.map((o) =>
+            tprmService.getStats(o._id || o.id).catch(() => ({
+              total: 0,
+              draft: 0,
+              sent: 0,
+              submitted: 0,
+              approved: 0,
+              rejected: 0,
+            })),
+          ),
+        );
+        setTprmStats(
+          results.reduce(
+            (acc, r) => ({
+              total: acc.total + (r.total || 0),
+              draft: acc.draft + (r.draft || 0),
+              sent: acc.sent + (r.sent || 0),
+              submitted: acc.submitted + (r.submitted || 0),
+              approved: acc.approved + (r.approved || 0),
+              rejected: acc.rejected + (r.rejected || 0),
+            }),
+            {
+              total: 0,
+              draft: 0,
+              sent: 0,
+              submitted: 0,
+              approved: 0,
+              rejected: 0,
+            },
+          ),
+        );
+      } else {
+        setTprmStats(await tprmService.getStats(effectiveOrgId));
+      }
     } catch (err) {
       console.error(err);
     }
-  }, [user]);
+  }, [effectiveOrgId, isPartnerRoot, selectedChildOrg, childOrgs]);
+
   useEffect(() => {
     loadTprmStats();
   }, [loadTprmStats]);
@@ -975,24 +1251,33 @@ const DashboardLoggedIn = () => {
     draft: 0,
     highRisk: 0,
   });
+
   const loadDpiaStats = useCallback(async () => {
-    if (!user?.organization) return;
+    if (!effectiveOrgId) return;
     try {
-      const data = await getAllAssessments(
-        user?.organization?._id || user?.organization,
-      );
-      const dpias = Array.isArray(data) ? data : [];
+      const orgIds =
+        isPartnerRoot && !selectedChildOrg && childOrgs.length > 0
+          ? childOrgs.map((o) => o._id || o.id)
+          : [effectiveOrgId];
+
+      const allDpias = (
+        await Promise.all(
+          orgIds.map((id) => getAllAssessments(id).catch(() => [])),
+        )
+      ).flat();
+
       setDpiaStats({
-        total: dpias.length,
-        submitted: dpias.filter((d) => d.status === "SUBMITTED").length,
-        inProgress: dpias.filter((d) => d.status === "IN_PROGRESS").length,
-        draft: dpias.filter((d) => d.status === "DRAFT").length,
-        highRisk: dpias.filter((d) => d.overallRiskLevel === "HIGH").length,
+        total: allDpias.length,
+        submitted: allDpias.filter((d) => d.status === "SUBMITTED").length,
+        inProgress: allDpias.filter((d) => d.status === "IN_PROGRESS").length,
+        draft: allDpias.filter((d) => d.status === "DRAFT").length,
+        highRisk: allDpias.filter((d) => d.overallRiskLevel === "HIGH").length,
       });
     } catch (err) {
       console.error("Error loading DPIA stats:", err);
     }
-  }, [user]);
+  }, [effectiveOrgId, isPartnerRoot, selectedChildOrg, childOrgs]);
+
   useEffect(() => {
     loadDpiaStats();
   }, [loadDpiaStats]);
@@ -1005,6 +1290,7 @@ const DashboardLoggedIn = () => {
     draft: 0,
     pending: 0,
   });
+
   const loadAiiaStats = useCallback(async () => {
     try {
       const assessments = (await stage1Api.getAll())?.data?.data || [];
@@ -1021,21 +1307,31 @@ const DashboardLoggedIn = () => {
       console.error("Error loading AIIA stats:", err);
     }
   }, []);
+
   useEffect(() => {
     loadAiiaStats();
   }, [loadAiiaStats]);
 
+  // childOrgs arrives async — make sure loaders that use effectiveOrgIds re-run
+  useEffect(() => {
+    if (isPartnerRoot && childOrgs.length > 0 && !selectedChildOrg) {
+      loadRiskStats();
+      loadDocumentStats();
+      loadGapStats();
+      loadTaskStats();
+      loadTprmStats();
+      loadDpiaStats();
+    }
+  }, [childOrgs]); // eslint-disable-line
   // ══════════════════════════════════════════════════════════════════════════
   // DERIVED VALUES
   // ══════════════════════════════════════════════════════════════════════════
 
-  // Recharts helper — prevents empty-pie crash
   const getPieChartData = (data) =>
     data.every((d) => !d.value)
       ? [{ name: "No Data", value: 1, color: "#e2e8f0" }]
       : data;
 
-  // Visible framework list (respects the global selector)
   const visibleFwList = useMemo(
     () =>
       availableFrameworks.filter(
@@ -1044,7 +1340,6 @@ const DashboardLoggedIn = () => {
     [availableFrameworks, isAllSelected, selectedFrameworks],
   );
 
-  // Dynamic layout for the Compliance card
   const compColSpan = 2;
 
   const highlightedFwData = useMemo(() => {
@@ -1085,7 +1380,6 @@ const DashboardLoggedIn = () => {
     fwTotal,
   ]);
 
-  // Banner totals
   const overallTotal =
     riskStats.total +
     gapStats.total +
@@ -1114,7 +1408,6 @@ const DashboardLoggedIn = () => {
     aiiaStats.approved;
   const overallProgress = `${Math.round((overallCompleted / (overallTotal || 1)) * 100)}%`;
 
-  // ── Shared card style (identical for every module card) ───────────────────
   const cardStyle = {
     height: `${CARD_H}px`,
     overflow: "hidden",
@@ -1159,6 +1452,30 @@ const DashboardLoggedIn = () => {
   }
 
   // ──────────────────────────────────────────────────────────────────────────
+  if (isRoot && userOrgLoading && userOrgData === null) {
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <div
+          style={{
+            width: 40,
+            height: 40,
+            border: "3px solid #e2e8f0",
+            borderTop: "3px solid #3b82f6",
+            borderRadius: "50%",
+            animation: "spin 1s linear infinite",
+          }}
+        />
+        <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
+      </div>
+    );
+  }
   return (
     <div
       style={{
@@ -1169,7 +1486,7 @@ const DashboardLoggedIn = () => {
         width: "100%",
       }}
     >
-      {/* ── Floating background blobs ──────────────────────────────────────── */}
+      {/* Floating background blobs */}
       {[
         {
           top: "10%",
@@ -1209,7 +1526,6 @@ const DashboardLoggedIn = () => {
         />
       ))}
 
-      {/* ── Joyride tour ──────────────────────────────────────────────────── */}
       <Joyride
         steps={tourSteps}
         run={runTour}
@@ -1220,9 +1536,116 @@ const DashboardLoggedIn = () => {
       />
 
       <main className="w-full max-w-[1200px] mx-auto px-5 py-[10px] box-border overflow-x-visible lg:max-w-full lg:px-[14px] lg:pb-[50px] sm:px-3 sm:pb-[40px] 2xl:max-w-[1400px] 2xl:px-5 2xl:pt-8 2xl:pb-[70px]">
-        {/* ══════════════════════════════════════════════════════════════════
-         *  TOP STATS BANNER
-         * ══════════════════════════════════════════════════════════════════ */}
+        {/* ── Partner Root Org Switcher Banner ─────────────────────────────── */}
+        {/* {isPartnerRoot && (
+          <div
+            style={{
+              marginBottom: 12,
+              padding: "10px 16px",
+              background: "white",
+              borderRadius: 10,
+              border: "1px solid #e2e8f0",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 12,
+              flexWrap: "wrap",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 8,
+                  background: "linear-gradient(135deg, #667eea, #764ba2)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                }}
+              >
+                <ShieldCheck size={16} color="white" />
+              </div>
+              <div>
+                <div
+                  style={{ fontSize: 11, color: "#64748b", fontWeight: 500 }}
+                >
+                  {selectedChildOrg
+                    ? "Viewing organization"
+                    : "Viewing all organizations"}
+                </div>
+                <div
+                  style={{ fontSize: 14, fontWeight: 700, color: "#0f172a" }}
+                >
+                  {selectedChildOrg ? selectedChildOrg.name : "All Child Orgs"}
+                </div>
+              </div>
+              {selectedChildOrg && (
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 4,
+                    flexWrap: "wrap",
+                    marginLeft: 8,
+                  }}
+                >
+                  {(selectedChildOrg.frameworks || []).map((fw) => (
+                    <span
+                      key={fw}
+                      style={{
+                        fontSize: 10,
+                        fontWeight: 700,
+                        padding: "2px 7px",
+                        borderRadius: 8,
+                        background: "#f1f5f9",
+                        color: "#475569",
+                        border: "1px solid #e2e8f0",
+                      }}
+                    >
+                      {fw}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <select
+                value={selectedChildOrg?._id || selectedChildOrg?.id || ""}
+                onChange={(e) => {
+                  if (!e.target.value) {
+                    handleClearChildOrg();
+                    return;
+                  }
+                  const org = childOrgs.find(
+                    (o) => (o._id || o.id) === e.target.value,
+                  );
+                  if (org) handleSelectChildOrg(org);
+                }}
+                style={{
+                  fontSize: 12,
+                  padding: "5px 10px",
+                  borderRadius: 8,
+                  border: "1px solid #e2e8f0",
+                  background: "white",
+                  color: "#0f172a",
+                  cursor: "pointer",
+                  outline: "none",
+                }}
+              >
+                <option value="">— All Organizations —</option>
+                {childOrgs.map((org) => (
+                  <option key={org._id || org.id} value={org._id || org.id}>
+                    {org.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        )} */}
+
+        {/* ── TOP STATS BANNER ─────────────────────────────────────────────── */}
         <motion.div
           initial={hasMounted ? { opacity: 0, y: 20 } : false}
           animate={{ opacity: 1, y: 0 }}
@@ -1237,7 +1660,6 @@ const DashboardLoggedIn = () => {
             overflow: "visible",
           }}
         >
-          {/* decorative overlay */}
           <div
             style={{
               position: "absolute",
@@ -1248,7 +1670,6 @@ const DashboardLoggedIn = () => {
                 "radial-gradient(circle at 20% 80%, rgba(120,119,198,0.3) 0%, transparent 50%), radial-gradient(circle at 80% 20%, rgba(255,255,255,0.1) 0%, transparent 50%)",
             }}
           />
-
           <div
             style={{
               display: "grid",
@@ -1376,7 +1797,6 @@ const DashboardLoggedIn = () => {
                     {card.label}
                   </div>
                 </div>
-                {/* Tooltip */}
                 <div
                   className="tip"
                   style={{
@@ -1416,31 +1836,12 @@ const DashboardLoggedIn = () => {
           </div>
         </motion.div>
 
-        {/* ══════════════════════════════════════════════════════════════════
-         *  MODULE CARDS GRID
-         *
-         *  Layout rules
-         *  ────────────
-         *  • Always GRID_COLS (4) equal columns.
-         *  • gridAutoRows = CARD_H px  →  every row is identical height.
-         *  • Compliance card spans compColSpan cols (2 / 3 / 4).
-         *  • overflow:hidden on every card prevents content from escaping.
-         *  • Tile section inside Compliance is overflow-y:auto (scrolls
-         *    within fixed height when frameworks don't all fit).
-         *
-         *  Row examples
-         *  ────────────
-         *  ≤6  fw  [Compliance×2][Risk×1][Task×1]  /  [Audits]…
-         *  7-12 fw [Compliance×3][Risk×1]           /  [Task][Audits]…
-         *  12+ fw  [Compliance×4]                   /  [Risk][Task][Audits]…
-         * ══════════════════════════════════════════════════════════════════ */}
+        {/* ── MODULE CARDS GRID ─────────────────────────────────────────────── */}
         <div
           className="dashboard-grid max-w-[1400px] mx-auto 2xl:max-w-[1600px]"
-          style={{
-            gridAutoRows: `${CARD_H}px`,
-          }}
+          style={{ gridAutoRows: `${CARD_H}px` }}
         >
-          {/* ── FRAMEWORK COMPLIANCE ──────────────────────────────────────── */}
+          {/* FRAMEWORK COMPLIANCE */}
           <motion.div
             id="compliance-module"
             initial={hasMounted ? { opacity: 0, y: 20 } : false}
@@ -1454,7 +1855,6 @@ const DashboardLoggedIn = () => {
               cursor: "default",
             }}
           >
-            {/* Header */}
             <div
               style={{
                 display: "flex",
@@ -1521,7 +1921,6 @@ const DashboardLoggedIn = () => {
               </div>
             </div>
 
-            {/* Dynamic Content Modes */}
             {visibleFwList.length === 0 ? (
               <div
                 style={{
@@ -1546,9 +1945,6 @@ const DashboardLoggedIn = () => {
                 </div>
               </div>
             ) : visibleFwList.length === 1 ? (
-              /* ==========================================================
-                 MODE A: WIDESCREEN HERO MODE (Exactly 1 Framework Selected)
-                 ========================================================== */
               (() => {
                 const fw = visibleFwList[0];
                 const d = frameworkComplianceData[fw.code] ?? {
@@ -1562,7 +1958,6 @@ const DashboardLoggedIn = () => {
                     ? Math.round((d.fullyCompliant / d.totalControls) * 100)
                     : 0;
                 const tileColor = fw.color ?? "#f43f5e";
-
                 return (
                   <div
                     style={{
@@ -1574,7 +1969,6 @@ const DashboardLoggedIn = () => {
                       width: "100%",
                     }}
                   >
-                    {/* Left Column: Big ring + breathing status light */}
                     <div
                       style={{
                         display: "flex",
@@ -1641,18 +2035,14 @@ const DashboardLoggedIn = () => {
                         </span>
                       </div>
                     </div>
-
-                    {/* Vertical divider */}
                     <div
                       style={{
                         width: 1,
-                        background: "rgba(226, 232, 240, 0.5)",
+                        background: "rgba(226,232,240,0.5)",
                         flexShrink: 0,
                         alignSelf: "stretch",
                       }}
                     />
-
-                    {/* Right Column: Descriptions & dynamic progress bars */}
                     <div
                       style={{
                         display: "flex",
@@ -1701,8 +2091,6 @@ const DashboardLoggedIn = () => {
                           fw.sub ||
                           "Continuous security and compliance monitoring"}
                       </p>
-
-                      {/* Visual Bars */}
                       <div
                         style={{
                           display: "flex",
@@ -1736,7 +2124,6 @@ const DashboardLoggedIn = () => {
                             />
                           </div>
                         </div>
-
                         {d.partial > 0 && (
                           <div>
                             <div
@@ -1765,7 +2152,6 @@ const DashboardLoggedIn = () => {
                             </div>
                           </div>
                         )}
-
                         {d.nonCompliant > 0 && (
                           <div>
                             <div
@@ -1800,9 +2186,6 @@ const DashboardLoggedIn = () => {
                 );
               })()
             ) : (
-              /* ==========================================================
-                 DYNAMIC INTERACTIVE HUB & RING GRID (2+ Selected)
-                 ========================================================== */
               <div
                 style={{
                   display: "flex",
@@ -1813,7 +2196,6 @@ const DashboardLoggedIn = () => {
                   width: "100%",
                 }}
               >
-                {/* Left Column: Dynamic Detail Hub */}
                 <div
                   style={{
                     display: "flex",
@@ -1832,7 +2214,6 @@ const DashboardLoggedIn = () => {
                     size={110}
                     fontSize="16px"
                   />
-
                   <div
                     style={{
                       display: "flex",
@@ -1872,7 +2253,6 @@ const DashboardLoggedIn = () => {
                       {highlightedFwData.sub}
                     </div>
                   </div>
-
                   <div
                     style={{
                       display: "flex",
@@ -1885,32 +2265,29 @@ const DashboardLoggedIn = () => {
                       marginTop: "4px",
                     }}
                   >
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                      }}
-                    >
-                      <span
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 3,
-                        }}
-                      >
-                        <span
-                          className="breathing-status-dot"
-                          style={{ background: "#10b981", width: 5, height: 5 }}
-                        />
-                        Compliant
-                      </span>
-                      <span style={{ color: "#1e293b" }}>
-                        {highlightedFwData.fullyCompliant}
-                      </span>
-                    </div>
-                    {highlightedFwData.partial > 0 && (
+                    {[
+                      {
+                        color: "#10b981",
+                        label: "Compliant",
+                        val: highlightedFwData.fullyCompliant,
+                      },
+                      ...(highlightedFwData.partial > 0
+                        ? [
+                            {
+                              color: "#f59e0b",
+                              label: "Partial",
+                              val: highlightedFwData.partial,
+                            },
+                          ]
+                        : []),
+                      {
+                        color: "#ef4444",
+                        label: "Non-Compliant",
+                        val: highlightedFwData.nonCompliant,
+                      },
+                    ].map(({ color, label, val }) => (
                       <div
+                        key={label}
                         style={{
                           display: "flex",
                           alignItems: "center",
@@ -1926,57 +2303,23 @@ const DashboardLoggedIn = () => {
                         >
                           <span
                             className="breathing-status-dot"
-                            style={{
-                              background: "#f59e0b",
-                              width: 5,
-                              height: 5,
-                            }}
+                            style={{ background: color, width: 5, height: 5 }}
                           />
-                          Partial
+                          {label}
                         </span>
-                        <span style={{ color: "#1e293b" }}>
-                          {highlightedFwData.partial}
-                        </span>
+                        <span style={{ color: "#1e293b" }}>{val}</span>
                       </div>
-                    )}
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                      }}
-                    >
-                      <span
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 3,
-                        }}
-                      >
-                        <span
-                          className="breathing-status-dot"
-                          style={{ background: "#ef4444", width: 5, height: 5 }}
-                        />
-                        Non-Compliant
-                      </span>
-                      <span style={{ color: "#1e293b" }}>
-                        {highlightedFwData.nonCompliant}
-                      </span>
-                    </div>
+                    ))}
                   </div>
                 </div>
-
-                {/* Vertical divider */}
                 <div
                   style={{
                     width: 1,
-                    background: "rgba(226, 232, 240, 0.5)",
+                    background: "rgba(226,232,240,0.5)",
                     flexShrink: 0,
                     alignSelf: "stretch",
                   }}
                 />
-
-                {/* Right Column: Grid of compact mini-pie selector tiles */}
                 <div
                   className="custom-slim-scrollbar"
                   style={{
@@ -2011,8 +2354,7 @@ const DashboardLoggedIn = () => {
                               (d.fullyCompliant / d.totalControls) * 100,
                             )
                           : 0;
-                      const tileColor =
-                        fw.color ?? "#f43f5e";
+                      const tileColor = fw.color ?? "#f43f5e";
                       const glowClass =
                         fw.code.toLowerCase().replace(/[^a-z0-9]/g, "") +
                         "-glow";
@@ -2024,7 +2366,6 @@ const DashboardLoggedIn = () => {
                           : visibleFwList.length === 3
                             ? "56px"
                             : "auto";
-
                       return (
                         <div
                           key={fw.code}
@@ -2037,10 +2378,10 @@ const DashboardLoggedIn = () => {
                             boxSizing: "border-box",
                             borderColor: isHovered
                               ? tileColor
-                              : "rgba(226, 232, 240, 0.8)",
+                              : "rgba(226,232,240,0.8)",
                             background: isHovered
-                              ? "rgba(255, 255, 255, 0.95)"
-                              : "rgba(255, 255, 255, 0.7)",
+                              ? "rgba(255,255,255,0.95)"
+                              : "rgba(255,255,255,0.7)",
                             boxShadow: isHovered
                               ? `0 6px 14px -3px ${tileColor}18, 0 4px 6px -2px ${tileColor}10`
                               : "none",
@@ -2108,7 +2449,6 @@ const DashboardLoggedIn = () => {
                                 {fw.sub || fw.description}
                               </div>
                             </div>
-
                             {showInnerProgress ? (
                               <div style={{ marginTop: "4px" }}>
                                 <div
@@ -2193,7 +2533,7 @@ const DashboardLoggedIn = () => {
             )}
           </motion.div>
 
-          {/* ── RISK ──────────────────────────────────────────────────────── */}
+          {/* RISK */}
           <motion.div
             id="risk-module"
             initial={hasMounted ? { opacity: 0, y: 20 } : false}
@@ -2240,7 +2580,7 @@ const DashboardLoggedIn = () => {
             />
           </motion.div>
 
-          {/* ── TASK ──────────────────────────────────────────────────────── */}
+          {/* TASK */}
           <motion.div
             id="task-module"
             initial={hasMounted ? { opacity: 0, y: 20 } : false}
@@ -2289,7 +2629,7 @@ const DashboardLoggedIn = () => {
             />
           </motion.div>
 
-          {/* ── AUDITS ────────────────────────────────────────────────────── */}
+          {/* AUDITS */}
           <motion.div
             id="gap-module"
             initial={hasMounted ? { opacity: 0, y: 20 } : false}
@@ -2332,7 +2672,7 @@ const DashboardLoggedIn = () => {
             />
           </motion.div>
 
-          {/* ── POLICIES (DOCUMENTATION) ──────────────────────────────────── */}
+          {/* POLICIES */}
           <motion.div
             id="doc-module"
             initial={hasMounted ? { opacity: 0, y: 20 } : false}
@@ -2377,7 +2717,7 @@ const DashboardLoggedIn = () => {
             />
           </motion.div>
 
-          {/* ── DPIA ──────────────────────────────────────────────────────── */}
+          {/* DPIA */}
           {showDpia && (
             <motion.div
               id="dpia-module"
@@ -2415,7 +2755,7 @@ const DashboardLoggedIn = () => {
                   <Cell key={i} fill={e.color} />
                 ))}
                 legend={[
-                  ["#10b981", , dpiaStats.submitted, "Submitted"],
+                  ["#10b981", dpiaStats.submitted, "Submitted"],
                   ["#6366f1", dpiaStats.inProgress, "In Progress"],
                   ["#f59e0b", dpiaStats.draft, "Draft"],
                 ]}
@@ -2423,7 +2763,7 @@ const DashboardLoggedIn = () => {
             </motion.div>
           )}
 
-          {/* ── TPRM ──────────────────────────────────────────────────────── */}
+          {/* TPRM */}
           {showTprm && (
             <motion.div
               id="tprm-module"
@@ -2469,7 +2809,7 @@ const DashboardLoggedIn = () => {
             </motion.div>
           )}
 
-          {/* ── AIIA ──────────────────────────────────────────────────────── */}
+          {/* AIIA */}
           {showAiia && (
             <motion.div
               id="aiia-module"
@@ -2517,7 +2857,6 @@ const DashboardLoggedIn = () => {
         </div>
       </main>
 
-      {/* ── Footer ──────────────────────────────────────────────────────────── */}
       <footer className="w-full bg-white border-t border-gray-200 mt-auto px-4 py-5 sm:px-3 sm:py-4">
         <div className="w-full max-w-[1400px] mx-auto 2xl:max-w-[1600px]">
           <div className="flex justify-center items-center gap-3 mt-2">

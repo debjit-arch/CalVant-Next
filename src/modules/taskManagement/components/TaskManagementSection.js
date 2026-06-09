@@ -477,6 +477,28 @@ export default function TaskManagement({ riskFormData = {}, auditFormData = {} }
   const router = useRouter();
   const rawUser = sessionStorage.getItem("user");
   const user = rawUser ? JSON.parse(rawUser) : null;
+  // -- effectiveOrgId injected by migration script --
+  const __selectedChildOrg = (function() {
+    try { var s = sessionStorage.getItem('selectedChildOrg'); return s ? JSON.parse(s) : null; } catch(e) { return null; }
+  })();
+  const __userOrgId = user
+    ? (user.organization && user.organization._id
+        ? user.organization._id
+        : (user.organization || null))
+    : null;
+  const __isPartnerRoot = !!(user && Array.isArray(user.role) &&
+    user.role.some(function(r) {
+      var s = (typeof r === 'string' ? r : (r && (r.name || r.roleName)) || '').toLowerCase().replace(/[\s_-]/g,'');
+      return s.indexOf('root') !== -1;
+    }) && !user.role.some(function(r) {
+      var s = (typeof r === 'string' ? r : (r && (r.name || r.roleName)) || '').toLowerCase().replace(/[\s_-]/g,'');
+      return s.indexOf('super_admin') !== -1;
+    })
+  );
+  const effectiveOrgId = (__isPartnerRoot && __selectedChildOrg)
+    ? (__selectedChildOrg._id || __selectedChildOrg.id)
+    : __userOrgId;
+  // -- end effectiveOrgId --
   const today = new Date().toISOString().split("T")[0];
   const currentUserName = user?.name || user?.username || "System";
 
@@ -486,7 +508,7 @@ export default function TaskManagement({ riskFormData = {}, auditFormData = {} }
 
   const scopedRiskId  = riskFormData?.riskId  || null;
   const scopedAuditId = auditFormData?.auditId || null;
-  const userOrgId     = user?.organization?._id || user?.organization;
+  const userOrgId     = effectiveOrgId;
   const contextLabel  = scopedRiskId ? "Risk Assessment" : scopedAuditId ? "Audit" : "Task Management";
   const contextScopeId = scopedRiskId || scopedAuditId || null;
   const [audits, setAudits] = useState([]);
@@ -519,7 +541,7 @@ export default function TaskManagement({ riskFormData = {}, auditFormData = {} }
 
   const emptyForm = () => ({
     taskId: "", riskId: scopedRiskId || "", auditId: scopedAuditId || "",
-    organization: user?.organization || "", department: "",
+    organization: effectiveOrgId || "", department: "",
     employee: "", employeeName: "", employeeId: "",
     description: "", startDate: today, endDate: "",
     status: STATUS.TODO, priority: PRIORITY.MEDIUM, remarks: "",
@@ -539,19 +561,19 @@ export default function TaskManagement({ riskFormData = {}, auditFormData = {} }
     let m = true;
     setIsLoading(true);
     getDepartments()
-      .then((d) => m && setDepartments(Array.isArray(d) ? d.filter((dept) => dept.organization === user?.organization) : []))
+      .then((d) => m && setDepartments(Array.isArray(d) ? d.filter((dept) => dept.organization === effectiveOrgId) : []))
       .catch(console.error)
       .finally(() => m && setIsLoading(false));
     return () => (m = false);
-  }, [user?.organization]);
+  }, [effectiveOrgId]);
 
   useEffect(() => {
     let m = true;
     getAllUsers()
-      .then((r) => m && setUsers(Array.isArray(r) ? r.filter((u) => u.organization === user?.organization) : []))
+      .then((r) => m && setUsers(Array.isArray(r) ? r.filter((u) => u.organization === effectiveOrgId) : []))
       .catch(console.error);
     return () => (m = false);
-  }, [user?.organization]);
+  }, [effectiveOrgId]);
 
   const fetchTasks = useCallback(async () => {
     try {
@@ -613,7 +635,7 @@ export default function TaskManagement({ riskFormData = {}, auditFormData = {} }
     const matchedUser  = users.find((u) => u.name === resolvedName);
     setForm({
       taskId: task.taskId, riskId: task.riskId || "", auditId: task.auditId || "",
-      organization: task.organization || user?.organization || "",
+      organization: task.organization || effectiveOrgId || "",
       department: task.department || "",
       employee: resolvedName || "", employeeId: matchedUser?._id || "",
       employeeName: resolvedName || "", description: task.description || "",
@@ -657,7 +679,7 @@ export default function TaskManagement({ riskFormData = {}, auditFormData = {} }
     try {
       const payload = {
         taskId: fd.taskId, riskId: fd.riskId || undefined, auditId: fd.auditId || undefined,
-        organization: user?.organization, department: fd.department,
+        organization: effectiveOrgId, department: fd.department,
         employee: employeeName, employeeName, employeeEmail,
         description: fd.description, startDate: fd.startDate, endDate: fd.endDate,
         status: editingTaskId ? fd.status : STATUS.TODO,

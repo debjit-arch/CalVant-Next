@@ -1,19 +1,49 @@
 import React, { useState, useEffect, useRef } from "react";
 import { LogOut, ShieldCheck, ChevronDown } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-  useFramework,
-  ALL_FRAMEWORKS,
-} from "../../context/FrameworkContex"; // ✅ fixed typo
+import { useFramework, ALL_FRAMEWORKS } from "../../context/FrameworkContex"; // ✅ fixed typo
 import CompactFrameworkFilter from "../CompactFrameworkFilter";
 const UserProfile = ({ user, handleLogout }) => {
   const [open, setOpen] = useState(false);
   const [frameworkOpen, setFrameworkOpen] = useState(false);
   const modalRef = useRef(null);
+  const [childOrgs, setChildOrgs] = useState([]);
 
-const { selectedFrameworks, toggleFramework, isAllSelected, availableFrameworks, frameworkColorMap } = useFramework();
+  useEffect(() => {
+    if (!isPartnerRoot) return;
+    const token = sessionStorage.getItem("token");
+    fetch("https://api.calvant.com/user-service/api/organizations/children", {
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    })
+      .then((r) => r.json())
+      .then((orgs) => {
+        if (Array.isArray(orgs)) setChildOrgs(orgs);
+      })
+      .catch(console.error);
+  }, [isPartnerRoot]);
 
+  const isPartnerRoot =
+    user?.role?.includes("root") && !user?.role?.includes("super_admin");
+  const [selectedChildOrg, setSelectedChildOrg] = useState(null);
+  useEffect(() => {
+    try {
+      const stored = sessionStorage.getItem("selectedChildOrg");
+      setSelectedChildOrg(stored ? JSON.parse(stored) : null);
+    } catch {
+      setSelectedChildOrg(null);
+    }
+  }, []);
 
+  const {
+    selectedFrameworks,
+    toggleFramework,
+    isAllSelected,
+    availableFrameworks,
+    frameworkColorMap,
+  } = useFramework();
 
   // ✅ Close on outside click
   useEffect(() => {
@@ -53,13 +83,13 @@ const { selectedFrameworks, toggleFramework, isAllSelected, availableFrameworks,
   // ✅ Department label logic
   const getDepartmentLabel = () => {
     if (!user) return "";
-
     const hasGlobalAccess = user.role?.some((role) =>
-      ["root", "dpo", "ciso", "aio"].includes(role)
+      ["root", "dpo", "ciso", "aio"].includes(role),
     );
-
     if (hasGlobalAccess) return "All";
-
+    // Support both department (object) and departments (array)
+    if (user.departments?.length > 0)
+      return user.departments.map((d) => d.name).join(", ");
     return user.department?.name || "—";
   };
 
@@ -70,13 +100,7 @@ const { selectedFrameworks, toggleFramework, isAllSelected, availableFrameworks,
 
   // ─────────────────────────────────────
 
-  const AccordionRow = ({
-    icon: Icon,
-    label,
-    open,
-    onToggle,
-    children,
-  }) => (
+  const AccordionRow = ({ icon: Icon, label, open, onToggle, children }) => (
     <div>
       <button
         onClick={onToggle}
@@ -117,13 +141,17 @@ const { selectedFrameworks, toggleFramework, isAllSelected, availableFrameworks,
     </div>
   );
 
-
-
   // ─────────────────────────────────────
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 16, position: "relative" }}>
-      
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 16,
+        position: "relative",
+      }}
+    >
       {/* Avatar */}
       <div
         onClick={(e) => {
@@ -166,15 +194,11 @@ const { selectedFrameworks, toggleFramework, isAllSelected, availableFrameworks,
         >
           <strong>{user?.name}</strong>
 
-          <div style={{ marginTop: 6 }}>
-            Department: {getDepartmentLabel()}
-          </div>
+          <div style={{ marginTop: 6 }}>Department: {getDepartmentLabel()}</div>
 
           <div>
             Role:{" "}
-            {Array.isArray(user?.role)
-              ? user.role.join(", ")
-              : user?.role}
+            {Array.isArray(user?.role) ? user.role.join(", ") : user?.role}
           </div>
 
           <div style={{ marginTop: 12 }}>
@@ -182,13 +206,60 @@ const { selectedFrameworks, toggleFramework, isAllSelected, availableFrameworks,
               icon={ShieldCheck}
               label="Framework Filter"
               open={frameworkOpen}
-              onToggle={() =>
-                setFrameworkOpen((p) => !p)
-              }
+              onToggle={() => setFrameworkOpen((p) => !p)}
             >
               <CompactFrameworkFilter />
             </AccordionRow>
           </div>
+          <div
+            style={{
+              fontSize: 10,
+              color: "#94a3b8",
+              fontWeight: 600,
+              textTransform: "uppercase",
+              letterSpacing: "0.05em",
+              marginBottom: 6,
+            }}
+          >
+            Viewing Org
+          </div>
+          <select
+            value={selectedChildOrg?._id || selectedChildOrg?.id || ""}
+            onChange={(e) => {
+              if (!e.target.value) {
+                sessionStorage.removeItem("selectedChildOrg");
+                setSelectedChildOrg(null);
+                window.location.reload();
+                return;
+              }
+              const org = childOrgs.find(
+                (o) => (o._id || o.id) === e.target.value,
+              );
+              if (org) {
+                sessionStorage.setItem("selectedChildOrg", JSON.stringify(org));
+                setSelectedChildOrg(org);
+                window.location.reload();
+              }
+            }}
+            style={{
+              width: "100%",
+              fontSize: 12,
+              padding: "5px 8px",
+              borderRadius: 6,
+              border: "1px solid #e2e8f0",
+              background: "white",
+              color: "#0f172a",
+              cursor: "pointer",
+              outline: "none",
+            }}
+          >
+            <option value="">— My Organization —</option>
+            {childOrgs.map((org) => (
+              <option key={org._id || org.id} value={org._id || org.id}>
+                {org.name}
+              </option>
+            ))}
+          </select>
         </div>
       )}
 

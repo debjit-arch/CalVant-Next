@@ -902,6 +902,28 @@ const NewAssessment = () => {
   const [rows, setRows] = useState([]);
   const [selectedDoc, setSelectedDoc] = useState(null);
   const [user, setUser] = useState(null);
+  // -- effectiveOrgId injected by migration script --
+  const __selectedChildOrg = (function() {
+    try { var s = sessionStorage.getItem('selectedChildOrg'); return s ? JSON.parse(s) : null; } catch(e) { return null; }
+  })();
+  const __userOrgId = user
+    ? (user.organization && user.organization._id
+        ? user.organization._id
+        : (user.organization || null))
+    : null;
+  const __isPartnerRoot = !!(user && Array.isArray(user.role) &&
+    user.role.some(function(r) {
+      var s = (typeof r === 'string' ? r : (r && (r.name || r.roleName)) || '').toLowerCase().replace(/[\s_-]/g,'');
+      return s.indexOf('root') !== -1;
+    }) && !user.role.some(function(r) {
+      var s = (typeof r === 'string' ? r : (r && (r.name || r.roleName)) || '').toLowerCase().replace(/[\s_-]/g,'');
+      return s.indexOf('super_admin') !== -1;
+    })
+  );
+  const effectiveOrgId = (__isPartnerRoot && __selectedChildOrg)
+    ? (__selectedChildOrg._id || __selectedChildOrg.id)
+    : __userOrgId;
+  // -- end effectiveOrgId --
   const [userRole, setUserRole] = useState(false);
   const [savingAudit, setSavingAudit] = useState(false);
   const [auditSaveMsg, setAuditSaveMsg] = useState("");
@@ -914,7 +936,7 @@ const NewAssessment = () => {
     if (!user) return;
     const fetchComplianceEvidence = async () => {
       try {
-        const orgId = user?.organization?._id || user?.organization;
+        const orgId = effectiveOrgId;
         const tenantRes = await fetch(
           `https://api.calvant.com/user-service/api/organizations/${orgId}/tenant`,
           {
@@ -1297,10 +1319,10 @@ const NewAssessment = () => {
         ]);
 
         const orgDocs = allDocs.filter(
-          (d) => d.organization === user.organization && !d.deleted && d.url,
+          (d) => d.organization === effectiveOrgId && !d.deleted && d.url,
         );
         const orgSoas = soaEntries.filter(
-          (s) => s.organization === user.organization,
+          (s) => s.organization === effectiveOrgId,
         );
 
         // ── Build docsBySoaId ─────────────────────────────────────────────
@@ -1522,7 +1544,7 @@ const NewAssessment = () => {
       try {
         const gaps = await gapService.getGaps();
         const filteredGaps = gaps.filter((g) => {
-          if (g.organization !== user.organization) return false;
+          if (g.organization !== effectiveOrgId) return false;
           if (isAuditMode) return g.auditId === auditContext.auditId;
           else return !g.auditId;
         });
@@ -1678,7 +1700,7 @@ const NewAssessment = () => {
         practiceRemarks: newRow.practiceRemarks || "",
         createdBy: user?.id || "",
         department: getEffectiveDept(),
-        organization: user?.organization || "",
+        organization: effectiveOrgId || "",
       };
       const saved = await gapService.saveEntry(payload);
       handleInputChange(i, "gapId", saved._id);
@@ -1719,7 +1741,7 @@ const NewAssessment = () => {
         auditId: isAuditMode ? auditContext?.auditId || null : null,
         createdBy: user?.id,
         department: getEffectiveDept(),
-        organization: user?.organization || "",
+        organization: effectiveOrgId || "",
       });
       handleInputChange(i, "gapId", saved._id);
       markUnsaved();
@@ -1761,7 +1783,7 @@ const NewAssessment = () => {
           findings: updatedRow.findings || "",
           createdBy: user?.id || "",
           department: getEffectiveDept(),
-          organization: user?.organization || "",
+          organization: effectiveOrgId || "",
           overallFindings: updatedRow.overallFindings || "",
         });
         gapId = created._id;
@@ -1787,7 +1809,7 @@ const NewAssessment = () => {
           practiceRemarks: updatedRow.practiceRemarks || "",
           findings: updatedRow.findings || "",
           verifiedBy: user?.id || "",
-          organization: user?.organization || "",
+          organization: effectiveOrgId || "",
           overallFindings: updatedRow.overallFindings || "",
         });
       }

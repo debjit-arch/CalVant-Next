@@ -5,7 +5,7 @@ import React, { useState, useEffect } from "react";
 import "./ISO_27001.css";
 import "./ISO_27701.css";
 import {
-  UserCircle,
+  UserCircle2,
   Puzzle,
   User,
   Scale,

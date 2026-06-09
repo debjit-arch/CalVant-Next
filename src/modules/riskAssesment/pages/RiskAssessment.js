@@ -37,8 +37,8 @@ import {
 import Joyride from "react-joyride";
 import { motion, AnimatePresence } from "framer-motion";
 
-// ─── Framework filter helpers ─────────────────────────────────────────────────
-// ─── Framework filter helpers ─────────────────────────────────────────────────
+// â”€â”€â”€ Framework filter helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â”€â”€â”€ Framework filter helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function riskMatchesFilter(risk, allowedRiskTypes) {
   const types = Array.isArray(risk.riskType)
@@ -55,7 +55,7 @@ function riskMatchesFilter(risk, allowedRiskTypes) {
   );
   return types.some((t) => normalizedAllowed.has(t));
 }
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const RiskAssessment = () => {
   const router = useRouter();
@@ -63,7 +63,7 @@ const RiskAssessment = () => {
   const [hasMounted, setHasMounted] = useState(false);
 useEffect(() => { setHasMounted(true); }, []);
 
-  // ── Framework context ──────────────────────────────────────────────────────
+  // â”€â”€ Framework context â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const { selectedFrameworks, isAllSelected, availableFrameworks } =
     useFramework();
 
@@ -84,8 +84,31 @@ useEffect(() => { setHasMounted(true); }, []);
   }, [selectedFrameworks, isAllSelected, availableFrameworks]);
 
   const [user] = useState(() => JSON.parse(sessionStorage.getItem("user")));
+
+  // -- effectiveOrgId injected by migration script --
+  const __selectedChildOrg = (function() {
+    try { var s = sessionStorage.getItem('selectedChildOrg'); return s ? JSON.parse(s) : null; } catch(e) { return null; }
+  })();
+  const __userOrgId = user
+    ? (user.organization && user.organization._id
+        ? user.organization._id
+        : (user.organization || null))
+    : null;
+  const __isPartnerRoot = !!(user && Array.isArray(user.role) &&
+    user.role.some(function(r) {
+      var s = (typeof r === 'string' ? r : (r && (r.name || r.roleName)) || '').toLowerCase().replace(/[\s_-]/g,'');
+      return s.indexOf('root') !== -1;
+    }) && !user.role.some(function(r) {
+      var s = (typeof r === 'string' ? r : (r && (r.name || r.roleName)) || '').toLowerCase().replace(/[\s_-]/g,'');
+      return s.indexOf('super_admin') !== -1;
+    })
+  );
+  const effectiveOrgId = (__isPartnerRoot && __selectedChildOrg)
+    ? (__selectedChildOrg._id || __selectedChildOrg.id)
+    : __userOrgId;
+  // -- end effectiveOrgId --
   const userRoles = Array.isArray(user?.role) ? user.role : [user?.role || ""];
-  const isRoot = userRoles.includes("root");
+  const isRoot = userRoles.includes("root") || userRoles.includes("ciso") || userRoles.includes("dpo") || userRoles.includes("aio") ;
 
   const deptLabel = isRoot
     ? "All"
@@ -97,13 +120,13 @@ useEffect(() => { setHasMounted(true); }, []);
 
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 
-  // ── Framework-filtered view of risks ──────────────────────────────────────
+  // â”€â”€ Framework-filtered view of risks â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const filteredRisks = useMemo(() => {
     if (!allowedRiskTypes) return allRisks;
     return allRisks.filter((r) => riskMatchesFilter(r, allowedRiskTypes));
   }, [allRisks, allowedRiskTypes]);
 
-  // ── Available years (from filteredRisks) ──────────────────────────────────
+  // â”€â”€ Available years (from filteredRisks) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const availableYears = useMemo(
     () => [
       ...new Set(
@@ -118,7 +141,7 @@ useEffect(() => { setHasMounted(true); }, []);
     [filteredRisks],
   );
 
-  // ── Monthly risk data (from filteredRisks) ────────────────────────────────
+  // â”€â”€ Monthly risk data (from filteredRisks) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const monthlyRiskData = useMemo(() => {
     const months = [
       "Jan",
@@ -144,7 +167,7 @@ useEffect(() => { setHasMounted(true); }, []);
     return months;
   }, [filteredRisks, selectedYear]);
 
-  // ── Stats computed from filteredRisks ─────────────────────────────────────
+  // â”€â”€ Stats computed from filteredRisks â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const riskStats = useMemo(() => {
     return filteredRisks.reduce(
       (acc, risk) => {
@@ -190,7 +213,7 @@ useEffect(() => { setHasMounted(true); }, []);
     },
   ];
 
-  // ── ResizeObserver fix ────────────────────────────────────────────────────
+  // â”€â”€ ResizeObserver fix â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   useEffect(() => {
     const resizeObserver = new ResizeObserver(() => {
       clearTimeout(window.resizeTimeout);
@@ -218,14 +241,14 @@ useEffect(() => { setHasMounted(true); }, []);
   //   collapseSidebar();
   // }, [collapseSidebar]);
 
-  // ── Load ALL org/dept risks (original logic unchanged) ────────────────────
+  // â”€â”€ Load ALL org/dept risks (original logic unchanged) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const loadRiskStats = useCallback(async () => {
     if (!user) return;
     try {
       const risks = await riskService.getAllRisks();
       if (!Array.isArray(risks)) return;
 
-      const userOrgId = user.organization?._id || user.organization;
+      const userOrgId = effectiveOrgId;
       const userDeptNames = isRoot
         ? []
         : (user.departments || []).map((d) =>
@@ -257,7 +280,7 @@ useEffect(() => { setHasMounted(true); }, []);
 
   if (!user) return null;
 
-  // ── Chart data (from filteredRisks / riskStats) ───────────────────────────
+  // â”€â”€ Chart data (from filteredRisks / riskStats) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const pieData = [
     {
       name: "Low Risk",
@@ -421,7 +444,7 @@ useEffect(() => { setHasMounted(true); }, []);
           styles={{ options: { primaryColor: "#3b82f6", width: 300 } }}
         />
 
-        {/* ── Professional Header ── */}
+        {/* â”€â”€ Professional Header â”€â”€ */}
         <motion.header
           id="dashboard-header"
           className="bg-white/80 backdrop-blur-md border border-slate-100/50 rounded-xl shadow-md mb-2 lg:mb-2 p-4 lg:p-5 !text-left"
@@ -450,7 +473,7 @@ useEffect(() => { setHasMounted(true); }, []);
               </div>
 
               <div className="flex-1 min-w-0" style={{ textAlign: "left" }}>
-                {/* Title row — framework badges sit inline */}
+                {/* Title row â€” framework badges sit inline */}
                 <div
                   className="flex items-center justify-start gap-2 flex-wrap"
                   style={{ justifyContent: "flex-start" }}
@@ -459,7 +482,7 @@ useEffect(() => { setHasMounted(true); }, []);
                     Risks Dashboard
                   </h1>
 
-                  {/* Framework filter pills — only shown when a specific filter is active */}
+                  {/* Framework filter pills â€” only shown when a specific filter is active */}
                   {!isAllSelected &&
                     selectedFrameworks.map((fwId) => {
                       const fwObj = availableFrameworks?.find(
@@ -506,7 +529,7 @@ useEffect(() => { setHasMounted(true); }, []);
 
                 {/* Department + total row */}
                 <p className="text-sm lg:text-base text-slate-600 mt-0.5">
-                  {departmentName} •{" "}
+                  {departmentName} {" "}
                   <span className="font-bold text-lg text-slate-900">
                     {riskStats.total}{" "}
                   </span>{" "}
@@ -898,7 +921,7 @@ useEffect(() => { setHasMounted(true); }, []);
       <footer className="bg-white/90 backdrop-blur-md border-t border-slate-100/50 shadow-lg px-6 py-4 lg:px-8 lg:py-5 sticky bottom-0 z-50">
         <div className="max-w-7xl mx-auto text-center">
           <p className="text-sm lg:text-base text-slate-600 font-medium">
-            © {new Date().getFullYear()} CalVant. All rights reserved.
+            Â© {new Date().getFullYear()} CalVant. All rights reserved.
           </p>
         </div>
       </footer>

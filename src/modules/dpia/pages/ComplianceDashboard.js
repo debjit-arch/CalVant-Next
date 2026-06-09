@@ -260,7 +260,7 @@ async function generateRiskId(organization) {
 
 // ─── Build risk payload ───────────────────────────────────────────────────────
 async function buildRiskPayload(row, user, assessmentId) {
-  const org = user?.organization;
+  const org = effectiveOrgId;
   const riskId = await generateRiskId(org);
   const severity = (row.severity || "").toUpperCase();
   const riskLevel =
@@ -301,6 +301,28 @@ async function buildRiskPayload(row, user, assessmentId) {
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function ComplianceDashboard() {
   const user = useUser();
+  // -- effectiveOrgId injected by migration script --
+  const __selectedChildOrg = (function() {
+    try { var s = sessionStorage.getItem('selectedChildOrg'); return s ? JSON.parse(s) : null; } catch(e) { return null; }
+  })();
+  const __userOrgId = user
+    ? (user.organization && user.organization._id
+        ? user.organization._id
+        : (user.organization || null))
+    : null;
+  const __isPartnerRoot = !!(user && Array.isArray(user.role) &&
+    user.role.some(function(r) {
+      var s = (typeof r === 'string' ? r : (r && (r.name || r.roleName)) || '').toLowerCase().replace(/[\s_-]/g,'');
+      return s.indexOf('root') !== -1;
+    }) && !user.role.some(function(r) {
+      var s = (typeof r === 'string' ? r : (r && (r.name || r.roleName)) || '').toLowerCase().replace(/[\s_-]/g,'');
+      return s.indexOf('super_admin') !== -1;
+    })
+  );
+  const effectiveOrgId = (__isPartnerRoot && __selectedChildOrg)
+    ? (__selectedChildOrg._id || __selectedChildOrg.id)
+    : __userOrgId;
+  // -- end effectiveOrgId --
   const { id } = useParams();
   const router = useRouter();
 
@@ -386,8 +408,8 @@ export default function ComplianceDashboard() {
             <div>
               <div style={S.logoText}>Compliance Results</div>
               <div style={S.logoSub}>
-                {user?.organization?.name ??
-                  user?.organization ??
+                {effectiveOrgId?.name ??
+                  effectiveOrgId ??
                   "Organisation"}{" "}
                 · Assessment: {id}
               </div>

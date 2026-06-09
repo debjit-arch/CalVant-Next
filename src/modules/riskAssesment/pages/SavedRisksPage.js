@@ -171,6 +171,28 @@ const SavedRisksPage = () => {
   const [soaProgress, setSoaProgress] = useState({ current: 0, total: 0 });
 
   const user = JSON.parse(sessionStorage.getItem("user") || "{}");
+  // -- effectiveOrgId injected by migration script --
+  const __selectedChildOrg = (function() {
+    try { var s = sessionStorage.getItem('selectedChildOrg'); return s ? JSON.parse(s) : null; } catch(e) { return null; }
+  })();
+  const __userOrgId = user
+    ? (user.organization && user.organization._id
+        ? user.organization._id
+        : (user.organization || null))
+    : null;
+  const __isPartnerRoot = !!(user && Array.isArray(user.role) &&
+    user.role.some(function(r) {
+      var s = (typeof r === 'string' ? r : (r && (r.name || r.roleName)) || '').toLowerCase().replace(/[\s_-]/g,'');
+      return s.indexOf('root') !== -1;
+    }) && !user.role.some(function(r) {
+      var s = (typeof r === 'string' ? r : (r && (r.name || r.roleName)) || '').toLowerCase().replace(/[\s_-]/g,'');
+      return s.indexOf('super_admin') !== -1;
+    })
+  );
+  const effectiveOrgId = (__isPartnerRoot && __selectedChildOrg)
+    ? (__selectedChildOrg._id || __selectedChildOrg.id)
+    : __userOrgId;
+  // -- end effectiveOrgId --
   const userRoles = Array.isArray(user.role)
     ? user.role
     : [user.role].filter(Boolean);
@@ -243,12 +265,12 @@ const SavedRisksPage = () => {
       if (isSuperAdmin) {
         filteredRisks = risks;
       } else if (isRoot) {
-        const userOrg = (user.organization || "").toString().toLowerCase();
+        const userOrg = (effectiveOrgId || "").toString().toLowerCase();
         filteredRisks = risks.filter(
           (r) => (r.organization || "").toString().toLowerCase() === userOrg,
         );
       } else {
-        const userOrg = (user.organization || "").toString().toLowerCase();
+        const userOrg = (effectiveOrgId || "").toString().toLowerCase();
         const userDeptNames = (user.departments || []).map((d) =>
           (d.name || "").toString().toLowerCase(),
         );
@@ -322,7 +344,7 @@ const SavedRisksPage = () => {
     );
     if (!confirmed) return;
     const riskToDelete = savedRisks.find((r) => r.riskId === riskId);
-    const success = await riskService.deleteRisk(riskId, user.organization);
+    const success = await riskService.deleteRisk(riskId, effectiveOrgId);
     if (success) {
       captureActivity({
         action: ACTIONS.DELETE,
@@ -518,7 +540,7 @@ const SavedRisksPage = () => {
       });
       const existingSoas = await documentationService.getSoAEntries();
       const orgSoas = existingSoas.filter(
-        (e) => e.organization === user?.organization,
+        (e) => e.organization === effectiveOrgId,
       );
       const soaSet = new Set(
         orgSoas.map((e) => `${e.controlId}::${e.documentRef?.[0]}`),
@@ -534,20 +556,20 @@ const SavedRisksPage = () => {
             : [{ doc: "N/A", type: "", dept: "" }];
         const controlExistsForOrg = existingDocControls.some(
           (c) =>
-            c.category === controlCode && c.organization === user.organization,
+            c.category === controlCode && c.organization === effectiveOrgId,
         );
         let addedControl;
         if (!controlExistsForOrg) {
           addedControl = await documentationService.addControl({
             category: controlCode,
             description: backendCtrl?.title ?? "No description available",
-            organization: user.organization,
+            organization: effectiveOrgId,
           });
         } else {
           addedControl = existingDocControls.find(
             (c) =>
               c.category === controlCode &&
-              c.organization === user.organization,
+              c.organization === effectiveOrgId,
           );
         }
         for (const { doc, type, dept } of docs) {
@@ -563,7 +585,7 @@ const SavedRisksPage = () => {
             dept: dept || "",
             justification: "Risk Identified",
             createdAt: now,
-            organization: user.organization,
+            organization: effectiveOrgId,
             framework: backendCtrl?.frameworkCode ?? "",
           });
           soaSet.add(key);
@@ -578,7 +600,7 @@ const SavedRisksPage = () => {
         setRedirectMessage("⚠️ Redirecting to master list of documents...");
         setTimeout(() => {
           setRedirectMessage("");
-          router.push("/risk-assessment/mld");
+          router.push("/documentation/mld");
         }, 2000);
       }
     } catch (error) {

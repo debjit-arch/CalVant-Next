@@ -16,6 +16,7 @@ import {
   ShieldCheck,
   Brain,
   UserCheck2,
+  Settings
 } from "lucide-react";
 import UserProfile from "./UserProfile";
 import Maindashboard_profile from "../maindashboard_profile";
@@ -143,6 +144,15 @@ const NAV_ITEMS = [
     // ],
     expandable: true,
     moduleKey: "aiia",
+  },
+    {
+    // ── Admin Panel entry point — root only ──
+    icon: Settings,
+    label: "Admin Panel",
+    path: "/admin",
+    expandable: false,
+    roles: ["root"], // strictly root (client admin)
+    isAdminEntry: true, // used to apply distinct styling
   },
   // {
   //   path: "/trust-centre",
@@ -343,10 +353,10 @@ const PersistentSidebar = () => {
             if (item.moduleKey === "aiia" && !showAiia) return false;
             return true;
           }).map(
-            ({ icon: Icon, label, path, expandable, quickActions }) => {
+            ({ icon: Icon, label, path, expandable, quickActions, isAdminEntry }) => {
               const isActive =
-                pathname === path ||
-                (path !== "/*" && pathname.startsWith(path));
+                location.pathname === path ||
+                (path !== "/*" && location.pathname.startsWith(path));
 
               const isModuleExpanded = expandedModules.includes(path);
 
@@ -358,6 +368,30 @@ const PersistentSidebar = () => {
                   handleNavigation(path); // 🔥 Home redirect
                 }
               };
+
+                            // ── Admin Panel entry — rendered with accent divider ──
+              if (isAdminEntry) {
+                return (
+                  <div key={path}>
+                    {/* Visual separator */}
+                    <div className="mx-3 my-2 border-t border-gray-100" />
+                    <SidebarNavItem
+                      icon={
+                        <Icon
+                          size={18}
+                          className="sm:w-[20px] sm:h-[20px] md:w-5 md:h-5 flex-shrink-0 text-indigo-500"
+                        />
+                      }
+                      label={label}
+                      active={isActive}
+                      onClick={handleMainClick}
+                      isExpanded={isExpanded}
+                      hasDropdown={false}
+                      isModuleExpanded={false}
+                    />
+                  </div>
+                );
+              }
 
               return (
                 <div key={path} className="mb-0.5">

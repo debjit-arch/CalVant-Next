@@ -253,7 +253,7 @@ function AddTaskModal({ row, user, users, departments, onClose, onSuccess }) {
         policyName:     row?.docName || "",
 
         // standard task fields (unchanged from TaskManagement)
-        organization:   user?.organization,
+        organization:   effectiveOrgId,
         department:     form.department,
         employee:       employeeName,
         employeeName:   employeeName,
@@ -512,6 +512,28 @@ const selectStyle = {
 const MLD = () => {
   const router = useRouter();
 const [user, setUser] = useState(() => {
+  // -- effectiveOrgId injected by migration script --
+  const __selectedChildOrg = (function() {
+    try { var s = sessionStorage.getItem('selectedChildOrg'); return s ? JSON.parse(s) : null; } catch(e) { return null; }
+  })();
+  const __userOrgId = user
+    ? (user.organization && user.organization._id
+        ? user.organization._id
+        : (user.organization || null))
+    : null;
+  const __isPartnerRoot = !!(user && Array.isArray(user.role) &&
+    user.role.some(function(r) {
+      var s = (typeof r === 'string' ? r : (r && (r.name || r.roleName)) || '').toLowerCase().replace(/[\s_-]/g,'');
+      return s.indexOf('root') !== -1;
+    }) && !user.role.some(function(r) {
+      var s = (typeof r === 'string' ? r : (r && (r.name || r.roleName)) || '').toLowerCase().replace(/[\s_-]/g,'');
+      return s.indexOf('super_admin') !== -1;
+    })
+  );
+  const effectiveOrgId = (__isPartnerRoot && __selectedChildOrg)
+    ? (__selectedChildOrg._id || __selectedChildOrg.id)
+    : __userOrgId;
+  // -- end effectiveOrgId --
   if (typeof window === "undefined") return null;
 
   const storedUser = sessionStorage.getItem("user");
@@ -556,18 +578,18 @@ const [user, setUser] = useState(() => {
   // Load users + departments once (needed for AddTaskModal) — does NOT touch
   // any existing state; purely additive.
   useEffect(() => {
-    if (!user?.organization) return;
+    if (!effectiveOrgId) return;
     getAllUsers()
       .then((r) => Array.isArray(r)
-        ? setTaskUsers(r.filter((u) => u.organization === user.organization))
+        ? setTaskUsers(r.filter((u) => u.organization === effectiveOrgId))
         : [])
       .catch(console.error);
     getDepartments()
       .then((d) => Array.isArray(d)
-        ? setTaskDepartments(d.filter((dept) => dept.organization === user.organization))
+        ? setTaskDepartments(d.filter((dept) => dept.organization === effectiveOrgId))
         : [])
       .catch(console.error);
-  }, [user?.organization]); // eslint-disable-line
+  }, [effectiveOrgId]); // eslint-disable-line
 
   const fwLabelToCode = useMemo(
     () => Object.fromEntries(availableFrameworks.map((fw) => [fw.id, fw.code])),
@@ -716,10 +738,10 @@ const [user, setUser] = useState(() => {
   const refreshDocuments = async () => {
     try {
       const docs = (await documentationService.getDocuments()) || [];
-      const orgDocs = docs.filter((d) => d.organization === user?.organization);
+      const orgDocs = docs.filter((d) => d.organization === effectiveOrgId);
       setDocuments(orgDocs);
       const soaList = (await documentationService.getSoAEntries()) || [];
-      const orgSoas = soaList.filter((s) => s.organization === user?.organization);
+      const orgSoas = soaList.filter((s) => s.organization === effectiveOrgId);
       setSoas(orgSoas);
     } catch (err) {
       console.error("Docs error:", err);
@@ -994,7 +1016,7 @@ const [user, setUser] = useState(() => {
           file, soaId, controlId: "",
           uploaderName: user?.name ?? "Unknown",
           departmentName: user?.departments?.[0]?.name ?? "N/A",
-          organization: user?.organization,
+          organization: effectiveOrgId,
         });
         captureActivity({
           action: ACTIONS.CREATE,
@@ -1474,7 +1496,7 @@ const [user, setUser] = useState(() => {
                                   onClick={async () => {
                                     captureActivity({ action: ACTIONS.CLICK, item: "Documentation · Checked version history for document " + doc.id, url: "/documentation/mld" });
                                     const versions = await documentationService.getDocVersions(doc.id);
-                                    const safe = versions.filter((v) => v.organization === user?.organization);
+                                    const safe = versions.filter((v) => v.organization === effectiveOrgId);
                                     setDocVersions((prev) => ({ ...prev, [doc.id]: safe }));
                                     setModal({
                                       isOpen: true, title: "Version History",

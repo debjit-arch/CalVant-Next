@@ -536,6 +536,7 @@ const Maindashboard_profile = () => {
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [frameworkOpen, setFrameworkOpen] = useState(false);
+  const [frameworkFilterOpen, setFrameworkFilterOpen] = useState(false);
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const {
     selectedFrameworks,
@@ -546,15 +547,63 @@ const Maindashboard_profile = () => {
   } = useFramework();
   const { startTutorial } = useUI();
   const [, setSessionExpired] = useState(false);
+  const [childOrgs, setChildOrgs] = useState([]);
+// ✅ Move user and isPartnerRoot UP, before any useEffect that uses them
+
+  const user = React.useMemo(() => {
+    try {
+      const stored = sessionStorage.getItem("user");
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const isPartnerRoot =
+    user?.role?.includes("root") && !user?.role?.includes("super_admin");
+
+  // NOW the useEffect is safe
+  useEffect(() => {
+    if (!isPartnerRoot) return;
+    const token = sessionStorage.getItem("token");
+    fetch("https://api.calvant.com/user-service/api/organizations/children", {
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    })
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`); // ← ADD THIS
+        return r.json();
+      })
+      .then((orgs) => {
+        if (Array.isArray(orgs)) setChildOrgs(orgs);
+      })
+      .catch(console.error);
+  }, [isPartnerRoot]);
 
   const idleTimerRef = useRef(null);
   const lastActivityRef = useRef(Date.now());
   const IDLE_TIMEOUT_MS = 15 * 60 * 1000;
 
-  const user = React.useMemo(() => {
-    const stored = sessionStorage.getItem("user");
-    return stored ? JSON.parse(stored) : null;
+  const [selectedChildOrg, setSelectedChildOrg] = useState(null);
+  useEffect(() => {
+    try {
+      const stored = sessionStorage.getItem("selectedChildOrg");
+      setSelectedChildOrg(stored ? JSON.parse(stored) : null);
+    } catch {
+      setSelectedChildOrg(null);
+    }
   }, []);
+
+  useEffect(() => {
+    const stored = sessionStorage.getItem("selectedChildOrg");
+    if (stored) {
+      try {
+        setSelectedChildOrg(JSON.parse(stored));
+      } catch {}
+    }
+  }, [dropdownOpen]);
 
   const initials = user?.name
     ? user.name
@@ -613,6 +662,7 @@ const Maindashboard_profile = () => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
         setDropdownOpen(false);
         setFrameworkOpen(false);
+        setFrameworkFilterOpen(false);
         setTemplatesOpen(false);
       }
     };
@@ -623,6 +673,7 @@ const Maindashboard_profile = () => {
   const handleNavClick = (path) => {
     setDropdownOpen(false);
     setFrameworkOpen(false);
+    setFrameworkFilterOpen(false);
     setTemplatesOpen(false);
     if (path) router.push(path);
   };
@@ -882,12 +933,83 @@ const Maindashboard_profile = () => {
                   </p>
                 </div>
 
+                {/* ── Partner Root Org Switcher ── */}
+                {isPartnerRoot && (
+                  <div
+                    style={{
+                      padding: "8px 12px",
+                      margin: "4px 8px",
+                      background: "#f8fafc",
+                      borderRadius: 8,
+                      border: "1px solid #e2e8f0",
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: 10,
+                        color: "#94a3b8",
+                        fontWeight: 600,
+                        textTransform: "uppercase",
+                        letterSpacing: "0.05em",
+                        marginBottom: 6,
+                      }}
+                    >
+                      Viewing Org
+                    </div>
+                    <select
+                      value={
+                        selectedChildOrg?._id || selectedChildOrg?.id || ""
+                      }
+                      onChange={(e) => {
+                        if (!e.target.value) {
+                          sessionStorage.removeItem("selectedChildOrg");
+                          setSelectedChildOrg(null);
+                          window.location.reload();
+                          return;
+                        }
+                        const org = childOrgs.find(
+                          (o) => (o._id || o.id) === e.target.value,
+                        );
+                        if (org) {
+                          sessionStorage.setItem(
+                            "selectedChildOrg",
+                            JSON.stringify(org),
+                          );
+                          setSelectedChildOrg(org);
+                          window.location.reload();
+                        }
+                      }}
+                      style={{
+                        width: "100%",
+                        fontSize: 12,
+                        padding: "5px 8px",
+                        borderRadius: 6,
+                        border: "1px solid #e2e8f0",
+                        background: "white",
+                        color: "#0f172a",
+                        cursor: "pointer",
+                        outline: "none",
+                      }}
+                    >
+                      <option value="">— All Organizations —</option>
+                      {childOrgs.map((org) => (
+                        <option
+                          key={org._id || org.id}
+                          value={org._id || org.id}
+                        >
+                          {org.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
                 <div className="py-1.5 sm:py-2 px-1.5 sm:px-2">
                   <AccordionRow
                     icon={ShieldCheck}
                     label="Framework Filter"
-                    open={frameworkOpen}
-                    onToggle={() => setFrameworkOpen((p) => !p)}
+                    open={frameworkFilterOpen}
+                    onToggle={() => setFrameworkFilterOpen((p) => !p)}
                   >
                     <CompactFrameworkFilter />
                   </AccordionRow>

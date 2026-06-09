@@ -332,6 +332,28 @@ useEffect(() => {
       // Read user directly from sessionStorage (no hooks here)
       const storedUser = sessionStorage.getItem("user");
       const user = storedUser ? JSON.parse(storedUser) : null;
+  // -- effectiveOrgId injected by migration script --
+  const __selectedChildOrg = (function() {
+    try { var s = sessionStorage.getItem('selectedChildOrg'); return s ? JSON.parse(s) : null; } catch(e) { return null; }
+  })();
+  const __userOrgId = user
+    ? (user.organization && user.organization._id
+        ? user.organization._id
+        : (user.organization || null))
+    : null;
+  const __isPartnerRoot = !!(user && Array.isArray(user.role) &&
+    user.role.some(function(r) {
+      var s = (typeof r === 'string' ? r : (r && (r.name || r.roleName)) || '').toLowerCase().replace(/[\s_-]/g,'');
+      return s.indexOf('root') !== -1;
+    }) && !user.role.some(function(r) {
+      var s = (typeof r === 'string' ? r : (r && (r.name || r.roleName)) || '').toLowerCase().replace(/[\s_-]/g,'');
+      return s.indexOf('super_admin') !== -1;
+    })
+  );
+  const effectiveOrgId = (__isPartnerRoot && __selectedChildOrg)
+    ? (__selectedChildOrg._id || __selectedChildOrg.id)
+    : __userOrgId;
+  // -- end effectiveOrgId --
 
       const [savedControls, soaEntries, ...fwResults] = await Promise.all([
         documentationService.getControls(),
@@ -343,7 +365,7 @@ useEffect(() => {
 
       const soaByControlCode = {};
       soaEntries
-        .filter((e) => e.organization === user?.organization)
+        .filter((e) => e.organization === effectiveOrgId)
         .forEach((e) => {
           const fw = e.framework || "";
           const key = fw
@@ -357,7 +379,7 @@ useEffect(() => {
 
       const orgSavedByCategory = {};
       savedControls
-        .filter((c) => c.organization === user?.organization)
+        .filter((c) => c.organization === effectiveOrgId)
         .forEach((c) => {
           orgSavedByCategory[c.category] = c;
         });
@@ -518,7 +540,7 @@ useEffect(() => {
           justification: row.justification,
           documentRef:   [],
           updatedAt:     new Date().toISOString(),
-          organization:  user?.organization,
+          organization:  effectiveOrgId,
           category:      row.controlCode,
           framework:     row.framework,
         };
