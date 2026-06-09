@@ -838,6 +838,7 @@ import Link from 'next/link';
 
 import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { useEffectiveOrg } from "@/hooks/useEffectiveOrg";
 import Stage1Form from "../components/Stage1Form";
 import Stage2Form from "../components/Stage2Form";
 import Stage3Form from "../components/Stage3Form";
@@ -850,7 +851,6 @@ import {
   buildStage1Payload,
   buildStage2Payload,
 } from "../services/dpiaApi";
-import { useUser } from "../../../hooks/useUser";
 import { captureActivity, ACTIONS } from "../../../services/activities";
 import axios from "axios";
 import {
@@ -1131,29 +1131,16 @@ function Toast({ message, type, onDismiss }) {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function DpiaAssessment() {
-  const user = useUser();
-  // -- effectiveOrgId injected by migration script --
-  const __selectedChildOrg = (function() {
-    try { var s = sessionStorage.getItem('selectedChildOrg'); return s ? JSON.parse(s) : null; } catch(e) { return null; }
-  })();
-  const __userOrgId = user
-    ? (user.organization && user.organization._id
-        ? user.organization._id
-        : (user.organization || null))
-    : null;
-  const __isPartnerRoot = !!(user && Array.isArray(user.role) &&
-    user.role.some(function(r) {
-      var s = (typeof r === 'string' ? r : (r && (r.name || r.roleName)) || '').toLowerCase().replace(/[\s_-]/g,'');
-      return s.indexOf('root') !== -1;
-    }) && !user.role.some(function(r) {
-      var s = (typeof r === 'string' ? r : (r && (r.name || r.roleName)) || '').toLowerCase().replace(/[\s_-]/g,'');
-      return s.indexOf('super_admin') !== -1;
-    })
-  );
-  const effectiveOrgId = (__isPartnerRoot && __selectedChildOrg)
-    ? (__selectedChildOrg._id || __selectedChildOrg.id)
-    : __userOrgId;
-  // -- end effectiveOrgId --
+  const {
+    user,
+    mounted,
+    isRoot,
+    isPrivilegedRole,
+    isViewingManagedOrg,
+    effectiveOrgId,
+    effectiveOrgIds,
+    selectedChildOrg,
+  } = useEffectiveOrg();
   const organizationId = effectiveOrgId;
   const router = useRouter();
   const { id: routeId } = useParams();
@@ -1199,6 +1186,7 @@ export default function DpiaAssessment() {
 
   // ── Init (UNCHANGED) ──────────────────────────────────────────────────────
   useEffect(() => {
+    if (!mounted) return;
     let cancelled = false;
     (async () => {
       try {
@@ -1226,7 +1214,7 @@ export default function DpiaAssessment() {
       }
     })();
     return () => { cancelled = true; };
-  }, [routeId, isEditMode, organizationId, organizationName]);
+  }, [mounted, routeId, isEditMode, organizationId, organizationName]);
 
   useEffect(() => {
     if (dpiaId) {

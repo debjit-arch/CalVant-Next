@@ -6,6 +6,7 @@ import React, {
   useRef,
 } from "react";
 import { useRouter } from "next/navigation";
+import { useEffectiveOrg } from "@/hooks/useEffectiveOrg";
 import taskService from "../services/taskService";
 import Joyride, { STATUS } from "react-joyride";
 import {
@@ -41,30 +42,16 @@ const TaskManagementDashboard = () => {
   const router = useRouter();
   const chartsContainerRef = useRef(null);
 
-  // 1. Load User (ORIGINAL LOGIC - UNCHANGED)
-  const [user] = useState(() => JSON.parse(sessionStorage.getItem("user")));
-  // -- effectiveOrgId injected by migration script --
-  const __selectedChildOrg = (function() {
-    try { var s = sessionStorage.getItem('selectedChildOrg'); return s ? JSON.parse(s) : null; } catch(e) { return null; }
-  })();
-  const __userOrgId = user
-    ? (user.organization && user.organization._id
-        ? user.organization._id
-        : (user.organization || null))
-    : null;
-  const __isPartnerRoot = !!(user && Array.isArray(user.role) &&
-    user.role.some(function(r) {
-      var s = (typeof r === 'string' ? r : (r && (r.name || r.roleName)) || '').toLowerCase().replace(/[\s_-]/g,'');
-      return s.indexOf('root') !== -1;
-    }) && !user.role.some(function(r) {
-      var s = (typeof r === 'string' ? r : (r && (r.name || r.roleName)) || '').toLowerCase().replace(/[\s_-]/g,'');
-      return s.indexOf('super_admin') !== -1;
-    })
-  );
-  const effectiveOrgId = (__isPartnerRoot && __selectedChildOrg)
-    ? (__selectedChildOrg._id || __selectedChildOrg.id)
-    : __userOrgId;
-  // -- end effectiveOrgId --
+  const {
+    user,
+    mounted,
+    isRoot,
+    isPrivilegedRole,
+    isViewingManagedOrg,
+    effectiveOrgId,
+    effectiveOrgIds,
+    selectedChildOrg,
+  } = useEffectiveOrg();
   const [run, setRun] = useState(false);
   const [hasMounted, setHasMounted] = useState(false);
   useEffect(() => { setHasMounted(true); }, []);
@@ -81,29 +68,19 @@ const TaskManagementDashboard = () => {
     if (!user)
       return { isAdmin: false, userDeptNames: [], departmentLabel: "" };
 
-    const roles = Array.isArray(user?.role) ? user.role : [user?.role || ""];
     const depts = user?.departments || [];
     const names = depts.map((d) => d.name.trim().toLowerCase());
 
-    const isRoot = user?.role?.some((r) => {
-      const s = (typeof r === "string" ? r : r?.name || r?.roleName || "")
-        .toLowerCase()
-        .replace(/[\s_-]/g, "");
-
-      return ["root", "ciso", "aio", "dpo"].some((role) => s.includes(role));
-    });
-    const isSuperAdmin = roles.includes("super_admin");
-
     return {
-      isAdmin: isRoot || isSuperAdmin,
+      isAdmin: isPrivilegedRole,
       userDeptNames: names,
-      departmentLabel: isRoot
+      departmentLabel: isPrivilegedRole
         ? "All"
         : depts.map((d) => d.name).join(", ") ||
         user?.department?.name ||
         "General",
     };
-  }, [user]);
+  }, [user, isPrivilegedRole]);
 
   // 🔧 ALL useEffects at TOP LEVEL (ESLint fixed)
   useEffect(() => {
@@ -164,19 +141,19 @@ const TaskManagementDashboard = () => {
     } catch (error) {
       console.error("Error loading task stats:", error);
     }
-  }, [user, isAdmin, userDeptNames]);
+  }, [user, isAdmin, userDeptNames, effectiveOrgId]);
 
   useEffect(() => {
     loadTaskStats();
   }, [loadTaskStats]);
 
   useEffect(() => {
-    if (!user) {
+    if (mounted && !user) {
       router.push("/");
     }
-  }, [user, router]);
+  }, [mounted, user, router]);
 
-  if (!user) return null;
+  if (!mounted || !user) return null;
 
   // Charts Data Processing
   const getMonthFromDate = (dateString) => {

@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import gapService from "../services/gapService";
 import { useRouter } from "next/navigation";
+import { useEffectiveOrg } from "@/hooks/useEffectiveOrg";
 import {
   LineChart,
   Line,
@@ -14,6 +15,16 @@ import {
 import { History as HistoryIcon } from "lucide-react";
 
 const AssessmentHistory = () => {
+  const {
+    user,
+    mounted,
+    isRoot,
+    isPrivilegedRole,
+    isViewingManagedOrg,
+    effectiveOrgId,
+    effectiveOrgIds,
+    selectedChildOrg,
+  } = useEffectiveOrg();
   const [gaps, setGaps] = useState([]);
   const [windowSize, setWindowSize] = useState({ width: 0, height: 0 });
   const router = useRouter();
@@ -32,53 +43,25 @@ const AssessmentHistory = () => {
   }, []);
 
   /* Fetch gaps */
+  const fetchGaps = useCallback(async () => {
+    try {
+      const data = await gapService.getGaps();
+
+      const filtered = data.filter(
+        (g) => g.organization === effectiveOrgId,
+      );
+
+      setGaps(filtered || []);
+    } catch (err) {
+      console.error(err);
+    }
+  }, [effectiveOrgId]);
+
   useEffect(() => {
-    const fetchGaps = async () => {
-      try {
-        const [user, setUser] = useState(null);
-  // -- effectiveOrgId injected by migration script --
-  const __selectedChildOrg = (function() {
-    try { var s = sessionStorage.getItem('selectedChildOrg'); return s ? JSON.parse(s) : null; } catch(e) { return null; }
-  })();
-  const __userOrgId = user
-    ? (user.organization && user.organization._id
-        ? user.organization._id
-        : (user.organization || null))
-    : null;
-  const __isPartnerRoot = !!(user && Array.isArray(user.role) &&
-    user.role.some(function(r) {
-      var s = (typeof r === 'string' ? r : (r && (r.name || r.roleName)) || '').toLowerCase().replace(/[\s_-]/g,'');
-      return s.indexOf('root') !== -1;
-    }) && !user.role.some(function(r) {
-      var s = (typeof r === 'string' ? r : (r && (r.name || r.roleName)) || '').toLowerCase().replace(/[\s_-]/g,'');
-      return s.indexOf('super_admin') !== -1;
-    })
-  );
-  const effectiveOrgId = (__isPartnerRoot && __selectedChildOrg)
-    ? (__selectedChildOrg._id || __selectedChildOrg.id)
-    : __userOrgId;
-  // -- end effectiveOrgId --
-
-useEffect(() => {
-  const storedUser = sessionStorage.getItem("user");
-
-  if (storedUser) {
-    setUser(JSON.parse(storedUser));
-  }
-}, []);
-        const data = await gapService.getGaps();
-
-        const filtered = data.filter(
-          (g) => g.organization === effectiveOrgId,
-        );
-
-        setGaps(filtered || []);
-      } catch (err) {
-        console.error(err);
-      }
-    };
-    fetchGaps();
-  }, []);
+    if (mounted) {
+      fetchGaps();
+    }
+  }, [fetchGaps, mounted]);
 
   /* Group gaps by clause */
   const grouped = gaps.reduce((acc, g) => {

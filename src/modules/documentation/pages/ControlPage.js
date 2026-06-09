@@ -1,10 +1,22 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { useEffectiveOrg } from "@/hooks/useEffectiveOrg";
 import documentationService from "../services/documentationService";
 import { DOCUMENT_MAPPING } from "../constants";
 
 const ControlsPage = () => {
   const router = useRouter();
+  const {
+    user,
+    mounted,
+    isRoot,
+    isPrivilegedRole,
+    isViewingManagedOrg,
+    effectiveOrgId,
+    effectiveOrgIds,
+    selectedChildOrg,
+  } = useEffectiveOrg();
+
   const [controls, setControls] = useState([]);
   const [newControl, setNewControl] = useState({
     category: "",
@@ -36,44 +48,9 @@ const ControlsPage = () => {
     };
   }, [lastScrollY]);
 
-  useEffect(() => {
-    loadControls();
-  }, []);
-
-  const loadControls = async () => {
+  const loadControls = useCallback(async () => {
     try {
       const data = await documentationService.getControls();
-      const [user, setUser] = useState(null);
-  // -- effectiveOrgId injected by migration script --
-  const __selectedChildOrg = (function() {
-    try { var s = sessionStorage.getItem('selectedChildOrg'); return s ? JSON.parse(s) : null; } catch(e) { return null; }
-  })();
-  const __userOrgId = user
-    ? (user.organization && user.organization._id
-        ? user.organization._id
-        : (user.organization || null))
-    : null;
-  const __isPartnerRoot = !!(user && Array.isArray(user.role) &&
-    user.role.some(function(r) {
-      var s = (typeof r === 'string' ? r : (r && (r.name || r.roleName)) || '').toLowerCase().replace(/[\s_-]/g,'');
-      return s.indexOf('root') !== -1;
-    }) && !user.role.some(function(r) {
-      var s = (typeof r === 'string' ? r : (r && (r.name || r.roleName)) || '').toLowerCase().replace(/[\s_-]/g,'');
-      return s.indexOf('super_admin') !== -1;
-    })
-  );
-  const effectiveOrgId = (__isPartnerRoot && __selectedChildOrg)
-    ? (__selectedChildOrg._id || __selectedChildOrg.id)
-    : __userOrgId;
-  // -- end effectiveOrgId --
-
-useEffect(() => {
-  const storedUser = sessionStorage.getItem("user");
-
-  if (storedUser) {
-    setUser(JSON.parse(storedUser));
-  }
-}, []); // fix
       // filter controls by organization
       const orgControls = data.filter(
         (control) => control.organization === effectiveOrgId
@@ -82,20 +59,17 @@ useEffect(() => {
     } catch (error) {
       console.error("Error loading controls:", error);
     }
-  };
+  }, [effectiveOrgId]);
+
+  useEffect(() => {
+    if (mounted) {
+      loadControls();
+    }
+  }, [loadControls, mounted]);
 
   const handleAdd = async (e) => {
     e.preventDefault();
     if (!newControl.category || !newControl.description) return;
-    const [user, setUser] = useState(null);
-
-useEffect(() => {
-  const storedUser = sessionStorage.getItem("user");
-
-  if (storedUser) {
-    setUser(JSON.parse(storedUser));
-  }
-}, []);
     try {
       const addedControl = await documentationService.addControl({
         category: newControl.category,

@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { useEffectiveOrg } from "@/hooks/useEffectiveOrg";
 import documentationService from "../services/documentationService";
 import { Trash2, Archive, Search, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import Modal from "../../../components/navigations/Modal";
@@ -81,29 +82,16 @@ const StaticTh = ({ children }) => (
 // ─────────────────────────────────────────────────────────────────────────────
 const Archived = () => {
   const router = useRouter();
-  const user = useMemo(() => JSON.parse(sessionStorage.getItem("user")), []);
-  // -- effectiveOrgId injected by migration script --
-  const __selectedChildOrg = (function() {
-    try { var s = sessionStorage.getItem('selectedChildOrg'); return s ? JSON.parse(s) : null; } catch(e) { return null; }
-  })();
-  const __userOrgId = user
-    ? (user.organization && user.organization._id
-        ? user.organization._id
-        : (user.organization || null))
-    : null;
-  const __isPartnerRoot = !!(user && Array.isArray(user.role) &&
-    user.role.some(function(r) {
-      var s = (typeof r === 'string' ? r : (r && (r.name || r.roleName)) || '').toLowerCase().replace(/[\s_-]/g,'');
-      return s.indexOf('root') !== -1;
-    }) && !user.role.some(function(r) {
-      var s = (typeof r === 'string' ? r : (r && (r.name || r.roleName)) || '').toLowerCase().replace(/[\s_-]/g,'');
-      return s.indexOf('super_admin') !== -1;
-    })
-  );
-  const effectiveOrgId = (__isPartnerRoot && __selectedChildOrg)
-    ? (__selectedChildOrg._id || __selectedChildOrg.id)
-    : __userOrgId;
-  // -- end effectiveOrgId --
+  const {
+    user,
+    mounted,
+    isRoot,
+    isPrivilegedRole,
+    isViewingManagedOrg,
+    effectiveOrgId,
+    effectiveOrgIds,
+    selectedChildOrg,
+  } = useEffectiveOrg();
 
   const [allDocs, setAllDocs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -134,7 +122,7 @@ const Archived = () => {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [effectiveOrgId]);
 
   useEffect(() => {
     captureActivity({

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { useEffectiveOrg } from "@/hooks/useEffectiveOrg";
 import documentationService from "../services/documentationService";
 import controlService from "../services/controlService";
 import { useFramework, ALL_FRAMEWORKS } from "../../../context/FrameworkContex";
@@ -39,37 +40,19 @@ const Documentation = () => {
   const router = useRouter();
   const chartsContainerRef = useRef(null);
   // 
-  const [user] = useState(() => JSON.parse(sessionStorage.getItem("user")));
-  // -- effectiveOrgId injected by migration script --
-  const __selectedChildOrg = (function() {
-    try { var s = sessionStorage.getItem('selectedChildOrg'); return s ? JSON.parse(s) : null; } catch(e) { return null; }
-  })();
-  const __userOrgId = user
-    ? (user.organization && user.organization._id
-        ? user.organization._id
-        : (user.organization || null))
-    : null;
-  const __isPartnerRoot = !!(user && Array.isArray(user.role) &&
-    user.role.some(function(r) {
-      var s = (typeof r === 'string' ? r : (r && (r.name || r.roleName)) || '').toLowerCase().replace(/[\s_-]/g,'');
-      return s.indexOf('root') !== -1;
-    }) && !user.role.some(function(r) {
-      var s = (typeof r === 'string' ? r : (r && (r.name || r.roleName)) || '').toLowerCase().replace(/[\s_-]/g,'');
-      return s.indexOf('super_admin') !== -1;
-    })
-  );
-  const effectiveOrgId = (__isPartnerRoot && __selectedChildOrg)
-    ? (__selectedChildOrg._id || __selectedChildOrg.id)
-    : __userOrgId;
-  // -- end effectiveOrgId --
+  const {
+    user,
+    mounted,
+    isRoot,
+    isPrivilegedRole,
+    isViewingManagedOrg,
+    effectiveOrgId,
+    effectiveOrgIds,
+    selectedChildOrg,
+  } = useEffectiveOrg();
+
   const userRoles = Array.isArray(user?.role) ? user.role : [user?.role || ""];
-  const isRoot = user?.role?.some((r) => {
-    const s = (typeof r === "string" ? r : r?.name || r?.roleName || "")
-      .toLowerCase()
-      .replace(/[\s_-]/g, "");
-    return ["root", "ciso", "aio", "dpo"].some((role) => s.includes(role));
-  });
-  const deptLabel = isRoot
+  const deptLabel = isPrivilegedRole
     ? "All"
     : (user?.departments || []).map((d) => d.name).join(", ") || "Your";
 
@@ -136,10 +119,10 @@ const Documentation = () => {
   }, []);
 
   useEffect(() => {
-    if (!user) {
+    if (mounted && !user) {
       router.push("/");
     }
-  }, [user, router]);
+  }, [mounted, user, router]);
 
   // useEffect(() => {
   //   collapseSidebar();
@@ -224,7 +207,7 @@ const Documentation = () => {
       const totalRequired = getTotalFromBackendControls(
         frameworkControls,
         user,
-        isRoot,
+        isPrivilegedRole,
       );
 
       const uploaded = frameworkDocs.filter(
@@ -246,7 +229,7 @@ const Documentation = () => {
       console.error("Error loading document stats:", error);
       setDocumentStats({ total: 0, uploaded: 0, pending: 0, archived: 0 });
     }
-  }, [user, selectedFrameworks, isAllSelected, isRoot, availableFrameworks]);
+  }, [user, selectedFrameworks, isAllSelected, isPrivilegedRole, availableFrameworks, effectiveOrgId]);
 
   useEffect(() => {
     captureActivity({
@@ -257,7 +240,7 @@ const Documentation = () => {
     loadDocumentStats();
   }, [loadDocumentStats]);
 
-  if (!user) return null;
+  if (!mounted || !user) return null;
 
   // ── Chart data ─────────────────────────────────────────────────────────────
   const pieData = [
@@ -479,8 +462,8 @@ const Documentation = () => {
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <span className={`text-xs font-bold px-3 py-1.5 rounded-full ${isRoot ? "bg-blue-100 text-blue-700" : "bg-violet-100 text-violet-700"}`}>
-                {isRoot ? "Root" : (userRoles[0] ? userRoles[0].replace("_", " ") : "User")}
+              <span className={`text-xs font-bold px-3 py-1.5 rounded-full ${isPrivilegedRole ? "bg-blue-100 text-blue-700" : "bg-violet-100 text-violet-700"}`}>
+                {isPrivilegedRole ? "Root" : (userRoles[0] ? userRoles[0].replace("_", " ") : "User")}
               </span>
               <span className="text-sm font-semibold text-slate-600">
                 {user?.name || "User"}

@@ -21,6 +21,8 @@ import auditService from "../services/auditService";
 import { captureActivity, ACTIONS } from "../../../services/activities";
 import Evidence_Modal from "../../integrations/evidencemodal";
 
+import { useEffectiveOrg } from "@/hooks/useEffectiveOrg";
+
 const SOC2_EXCLUDED_FOR_3_CRITERIA = ["Privacy"];
 
 const buildCategoryTree = (rows) => {
@@ -901,30 +903,16 @@ const NewAssessment = () => {
   const [showSavedMessage, setShowSavedMessage] = useState(false);
   const [rows, setRows] = useState([]);
   const [selectedDoc, setSelectedDoc] = useState(null);
-  const [user, setUser] = useState(null);
-  // -- effectiveOrgId injected by migration script --
-  const __selectedChildOrg = (function() {
-    try { var s = sessionStorage.getItem('selectedChildOrg'); return s ? JSON.parse(s) : null; } catch(e) { return null; }
-  })();
-  const __userOrgId = user
-    ? (user.organization && user.organization._id
-        ? user.organization._id
-        : (user.organization || null))
-    : null;
-  const __isPartnerRoot = !!(user && Array.isArray(user.role) &&
-    user.role.some(function(r) {
-      var s = (typeof r === 'string' ? r : (r && (r.name || r.roleName)) || '').toLowerCase().replace(/[\s_-]/g,'');
-      return s.indexOf('root') !== -1;
-    }) && !user.role.some(function(r) {
-      var s = (typeof r === 'string' ? r : (r && (r.name || r.roleName)) || '').toLowerCase().replace(/[\s_-]/g,'');
-      return s.indexOf('super_admin') !== -1;
-    })
-  );
-  const effectiveOrgId = (__isPartnerRoot && __selectedChildOrg)
-    ? (__selectedChildOrg._id || __selectedChildOrg.id)
-    : __userOrgId;
-  // -- end effectiveOrgId --
-  const [userRole, setUserRole] = useState(false);
+  const {
+    user,
+    mounted,
+    isRoot,
+    isPrivilegedRole,
+    isViewingManagedOrg,
+    effectiveOrgId,
+    effectiveOrgIds,
+    selectedChildOrg,
+  } = useEffectiveOrg();
   const [savingAudit, setSavingAudit] = useState(false);
   const [auditSaveMsg, setAuditSaveMsg] = useState("");
   const [mldDocsByControlCode, setMldDocsByControlCode] = useState({});
@@ -933,7 +921,7 @@ const NewAssessment = () => {
 
   // ── Fetch compliance evidence ─────────────────────────────────────────────
   useEffect(() => {
-    if (!user) return;
+    if (!mounted || !user) return;
     const fetchComplianceEvidence = async () => {
       try {
         const orgId = effectiveOrgId;
@@ -1138,7 +1126,7 @@ const NewAssessment = () => {
       }
     };
     fetchComplianceEvidence();
-  }, [user]);
+  }, [mounted, user, effectiveOrgId]);
 
   const [selectedFramework, setSelectedFramework] = useState(
     isAuditMode ? auditContext.frameworkCode : "ISO27001",
@@ -1232,16 +1220,7 @@ const NewAssessment = () => {
     if (rows.length > 0 && user) setLastSaved(Date.now());
   }, [rows, user]);
 
-  useEffect(() => {
-    const rawUser = sessionStorage.getItem("user");
-    if (rawUser) {
-      const parsedUser = JSON.parse(rawUser);
-      setUser(parsedUser);
-      setUserRole(parsedUser.isAuditor || false);
-    }
-  }, []);
-
-  const isAuditor = userRole;
+  const isAuditor = user?.isAuditor || false;
 
   const getEffectiveDept = () => {
     if (Array.isArray(user?.departments) && user.departments.length > 0) {
@@ -1252,7 +1231,7 @@ const NewAssessment = () => {
   };
 
   useEffect(() => {
-    if (!isAuditor || !isAuditMode || !user || !selectedFramework) return;
+    if (!mounted || !isAuditor || !isAuditMode || !user || !selectedFramework) return;
     const fetchMldDocs = async () => {
       try {
         const [
@@ -1454,10 +1433,10 @@ const NewAssessment = () => {
       }
     };
     fetchMldDocs();
-  }, [isAuditor, isAuditMode, user, selectedFramework]);
+  }, [mounted, isAuditor, isAuditMode, user, selectedFramework, effectiveOrgId]);
 
   useEffect(() => {
-    if (!user || !selectedFramework) return;
+    if (!mounted || !user || !selectedFramework) return;
     if (isSoc2 && !isAuditMode && !soc2Confirmed) return;
     const fetchControls = async () => {
       try {
@@ -1536,10 +1515,10 @@ const NewAssessment = () => {
       }
     };
     fetchControls();
-  }, [user, selectedFramework, isAuditMode, soc2Confirmed]); // eslint-disable-line
+  }, [mounted, user, selectedFramework, isAuditMode, soc2Confirmed]); // eslint-disable-line
 
   useEffect(() => {
-    if (!user) return;
+    if (!mounted || !user) return;
     const fetchGaps = async () => {
       try {
         const gaps = await gapService.getGaps();
@@ -1584,7 +1563,7 @@ const NewAssessment = () => {
     };
     fetchGaps();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, rows.length === 0 ? 0 : 1]);
+  }, [mounted, user, effectiveOrgId, rows.length === 0 ? 0 : 1]);
 
   const handleSubmitAuditScores = async () => {
     const missingFindings = rows.filter(

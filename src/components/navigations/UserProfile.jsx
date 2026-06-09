@@ -1,45 +1,28 @@
 import React, { useState, useEffect, useRef } from "react";
 import { LogOut, ShieldCheck, ChevronDown } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useFramework, ALL_FRAMEWORKS } from "../../context/FrameworkContex"; // ✅ fixed typo
+import { useFramework, ALL_FRAMEWORKS } from "../../context/FrameworkContex";
 import CompactFrameworkFilter from "../CompactFrameworkFilter";
-const UserProfile = ({ user, handleLogout }) => {
+import { useEffectiveOrg } from "../../hooks/useEffectiveOrg"; // ← import hook
+
+const UserProfile = ({ handleLogout }) => {
+  // user prop no longer needed — comes from hook
   const [open, setOpen] = useState(false);
   const [frameworkOpen, setFrameworkOpen] = useState(false);
   const modalRef = useRef(null);
   const [childOrgs, setChildOrgs] = useState([]);
 
-  const isPartnerRoot =
-    user?.role?.includes("root") && !user?.role?.includes("super_admin");
+  const {
+    user,
+    mounted,
+    isPartnerRoot,
+    isOrgManager,
+    isViewingManagedOrg,
+    managedOrgs,
+    selectedChildOrg,
+  } = useEffectiveOrg();
 
-  useEffect(() => {
-    if (!isPartnerRoot) return;
-    const token = sessionStorage.getItem("token");
-    fetch("https://api.calvant.com/user-service/api/organizations/children", {
-      headers: {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-    })
-      .then((r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`); // ✅ guard
-        return r.json();
-      })
-      .then((orgs) => {
-        if (Array.isArray(orgs)) setChildOrgs(orgs);
-      })
-      .catch(console.error);
-  }, [isPartnerRoot]);
-
-  const [selectedChildOrg, setSelectedChildOrg] = useState(null);
-  useEffect(() => {
-    try {
-      const stored = sessionStorage.getItem("selectedChildOrg");
-      setSelectedChildOrg(stored ? JSON.parse(stored) : null);
-    } catch {
-      setSelectedChildOrg(null);
-    }
-  }, []);
+  const showOrgSwitcher = isPartnerRoot || isOrgManager;
 
   const {
     selectedFrameworks,
@@ -49,7 +32,65 @@ const UserProfile = ({ user, handleLogout }) => {
     frameworkColorMap,
   } = useFramework();
 
-  // ✅ Close on outside click
+  // ── Fetch orgs ────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!mounted || !showOrgSwitcher) return;
+    const token = sessionStorage.getItem("token");
+
+    if (isPartnerRoot) {
+      fetch("https://api.calvant.com/user-service/api/organizations/children", {
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      })
+        .then((r) => {
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          return r.json();
+        })
+        .then((orgs) => {
+          if (Array.isArray(orgs)) setChildOrgs(orgs);
+        })
+        .catch(console.error);
+    } else if (isOrgManager) {
+      Promise.all(
+        managedOrgs.map((id) =>
+          fetch(
+            `https://api.calvant.com/user-service/api/organizations/${id}`,
+            {
+              headers: {
+                "Content-Type": "application/json",
+                ...(token ? { Authorization: `Bearer ${token}` } : {}),
+              },
+            },
+          ).then((r) => {
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+            return r.json();
+          }),
+        ),
+      )
+        .then((orgs) => setChildOrgs(orgs.filter(Boolean)))
+        .catch(console.error);
+    }
+  }, [mounted, showOrgSwitcher, isPartnerRoot, isOrgManager, managedOrgs]);
+
+  // ── Org switcher handler ──────────────────────────────────────────────────
+  const handleOrgChange = (e) => {
+    if (!e.target.value) {
+      sessionStorage.removeItem("selectedChildOrg");
+      window.dispatchEvent(new Event("childOrgChanged"));
+      window.location.reload();
+      return;
+    }
+    const org = childOrgs.find((o) => (o._id || o.id) === e.target.value);
+    if (org) {
+      sessionStorage.setItem("selectedChildOrg", JSON.stringify(org));
+      window.dispatchEvent(new Event("childOrgChanged"));
+      window.location.reload();
+    }
+  };
+
+  // ── Outside click / Escape ────────────────────────────────────────────────
   useEffect(() => {
     const handler = (e) => {
       if (modalRef.current && !modalRef.current.contains(e.target)) {
@@ -57,76 +98,59 @@ const UserProfile = ({ user, handleLogout }) => {
         setFrameworkOpen(false);
       }
     };
-
     const escHandler = (e) => {
       if (e.key === "Escape") {
         setOpen(false);
         setFrameworkOpen(false);
       }
     };
-
     document.addEventListener("mousedown", handler);
     document.addEventListener("keydown", escHandler);
-
     return () => {
       document.removeEventListener("mousedown", handler);
       document.removeEventListener("keydown", escHandler);
     };
   }, []);
 
-  // ✅ Safe initials
+  // ── Derived display ───────────────────────────────────────────────────────
   const getInitials = () => {
     if (!user?.name) return "";
     const parts = user.name.trim().split(" ").filter(Boolean);
-    if (parts.length === 0) return "";
+    if (!parts.length) return "";
     return parts.length >= 2
       ? `${parts[0][0]}${parts[1][0]}`.toUpperCase()
       : parts[0][0].toUpperCase();
   };
 
-  // ✅ Department label logic
   const getDepartmentLabel = () => {
     if (!user) return "";
-    const hasGlobalAccess = user.role?.some((role) =>
-      ["root", "dpo", "ciso", "aio"].includes(role),
-    );
-    if (hasGlobalAccess) return "All";
-    // Support both department (object) and departments (array)
+    const isPrivileged = Array.isArray(user.role)
+      ? user.role.some((r) =>
+          ["root", "dpo", "ciso", "aio", "super_admin"].includes(r),
+        )
+      : ["root", "dpo", "ciso", "aio", "super_admin"].includes(user.role);
+    if (isPrivileged || isViewingManagedOrg) return "All";
     if (user.departments?.length > 0)
       return user.departments.map((d) => d.name).join(", ");
+    if (Array.isArray(user.department))
+      return user.department.map((d) => d?.name || d).join(", ");
     return user.department?.name || "—";
   };
 
-  // ✅ Framework toggle (no auto-close)
-  const handleFrameworkToggle = (fw) => {
-    toggleFramework(fw);
-  };
-
-  // ─────────────────────────────────────
-
+  // ── AccordionRow (unchanged) ──────────────────────────────────────────────
   const AccordionRow = ({ icon: Icon, label, open, onToggle, children }) => (
     <div>
       <button
         onClick={onToggle}
-        className="
-          w-full flex items-center gap-2.5
-          px-3 py-2.5
-          text-xs text-gray-700
-          hover:bg-slate-50
-          transition-colors duration-150 rounded-md
-          border-0 bg-transparent text-left
-        "
+        className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs text-gray-700 hover:bg-slate-50 transition-colors duration-150 rounded-md border-0 bg-transparent text-left"
       >
         <Icon size={15} className="text-gray-400 flex-shrink-0" />
         <span className="flex-1 font-medium">{label}</span>
         <ChevronDown
           size={14}
-          className={`text-gray-400 transition-transform ${
-            open ? "rotate-180" : ""
-          }`}
+          className={`text-gray-400 transition-transform ${open ? "rotate-180" : ""}`}
         />
       </button>
-
       <AnimatePresence initial={false}>
         {open && (
           <motion.div
@@ -145,8 +169,7 @@ const UserProfile = ({ user, handleLogout }) => {
     </div>
   );
 
-  // ─────────────────────────────────────
-
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div
       style={{
@@ -159,8 +182,8 @@ const UserProfile = ({ user, handleLogout }) => {
       {/* Avatar */}
       <div
         onClick={(e) => {
-          e.stopPropagation(); // ✅ fix bubbling
-          setOpen((prev) => !prev);
+          e.stopPropagation();
+          setOpen((p) => !p);
         }}
         title="Open profile"
         style={{
@@ -186,7 +209,7 @@ const UserProfile = ({ user, handleLogout }) => {
           style={{
             position: "absolute",
             top: 50,
-            right: 0, // ✅ fixed position
+            right: 0,
             width: 240,
             background: "#fff",
             borderRadius: 12,
@@ -197,13 +220,28 @@ const UserProfile = ({ user, handleLogout }) => {
           }}
         >
           <strong>{user?.name}</strong>
-
           <div style={{ marginTop: 6 }}>Department: {getDepartmentLabel()}</div>
-
           <div>
             Role:{" "}
             {Array.isArray(user?.role) ? user.role.join(", ") : user?.role}
           </div>
+
+          {isViewingManagedOrg && (
+            <div
+              style={{
+                marginTop: 6,
+                fontSize: 10,
+                fontWeight: 700,
+                color: "#7c3aed",
+                background: "#f5f3ff",
+                padding: "2px 8px",
+                borderRadius: 8,
+                display: "inline-block",
+              }}
+            >
+              Root access
+            </div>
+          )}
 
           <div style={{ marginTop: 12 }}>
             <AccordionRow
@@ -215,55 +253,52 @@ const UserProfile = ({ user, handleLogout }) => {
               <CompactFrameworkFilter />
             </AccordionRow>
           </div>
-          <div
-            style={{
-              fontSize: 10,
-              color: "#94a3b8",
-              fontWeight: 600,
-              textTransform: "uppercase",
-              letterSpacing: "0.05em",
-              marginBottom: 6,
-            }}
-          >
-            Viewing Org
-          </div>
-          <select
-            value={selectedChildOrg?._id || selectedChildOrg?.id || ""}
-            onChange={(e) => {
-              if (!e.target.value) {
-                sessionStorage.removeItem("selectedChildOrg");
-                setSelectedChildOrg(null);
-                window.location.reload();
-                return;
-              }
-              const org = childOrgs.find(
-                (o) => (o._id || o.id) === e.target.value,
-              );
-              if (org) {
-                sessionStorage.setItem("selectedChildOrg", JSON.stringify(org));
-                setSelectedChildOrg(org);
-                window.location.reload();
-              }
-            }}
-            style={{
-              width: "100%",
-              fontSize: 12,
-              padding: "5px 8px",
-              borderRadius: 6,
-              border: "1px solid #e2e8f0",
-              background: "white",
-              color: "#0f172a",
-              cursor: "pointer",
-              outline: "none",
-            }}
-          >
-            <option value="">— My Organization —</option>
-            {childOrgs.map((org) => (
-              <option key={org._id || org.id} value={org._id || org.id}>
-                {org.name}
-              </option>
-            ))}
-          </select>
+
+          {/* ── Org Switcher ── */}
+          {showOrgSwitcher && (
+            <>
+              <div
+                style={{
+                  fontSize: 10,
+                  color: "#94a3b8",
+                  fontWeight: 600,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
+                  marginTop: 12,
+                  marginBottom: 6,
+                }}
+              >
+                Viewing Org
+              </div>
+              <select
+                value={selectedChildOrg?._id || selectedChildOrg?.id || ""}
+                onChange={handleOrgChange}
+                style={{
+                  width: "100%",
+                  fontSize: 12,
+                  padding: "5px 8px",
+                  borderRadius: 6,
+                  border: "1px solid #e2e8f0",
+                  background: "white",
+                  color: "#0f172a",
+                  cursor: "pointer",
+                  outline: "none",
+                }}
+              >
+                <option value="">
+                  {isPartnerRoot
+                    ? "— All Organizations —"
+                    : "— My Organization —"}
+                </option>
+                {childOrgs.map((org) => (
+                  <option key={org._id || org.id} value={org._id || org.id}>
+                    {org.name}
+                    {isOrgManager ? " (delegated)" : ""}
+                  </option>
+                ))}
+              </select>
+            </>
+          )}
         </div>
       )}
 

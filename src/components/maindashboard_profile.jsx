@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   FileText,
@@ -20,12 +20,13 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import ChangePasswordModal from "../modules/dashboard/ChangePasswordModal";
 import { useSession } from "../context/SessionContext";
 import { useUI } from "../context/UIContext";
+import { useEffectiveOrg } from "../hooks/useEffectiveOrg"; // ← import hook
 
 // ─────────────────────────────────────────────
 // CONSTANTS
 // ─────────────────────────────────────────────
 
-const BASE_URL = "https://api.calvant.com/task-service"; // ← change to your backend URL
+const BASE_URL = "https://api.calvant.com/task-service";
 const POLL_INTERVAL_MS = 60_000;
 
 const TYPE_META = {
@@ -55,7 +56,7 @@ const timeAgo = (dateStr) => {
 };
 
 // ─────────────────────────────────────────────
-// NOTIFICATION BELL
+// NOTIFICATION BELL — unchanged
 // ─────────────────────────────────────────────
 
 const NotificationBell = ({ userId }) => {
@@ -538,6 +539,7 @@ const Maindashboard_profile = () => {
   const [frameworkOpen, setFrameworkOpen] = useState(false);
   const [frameworkFilterOpen, setFrameworkFilterOpen] = useState(false);
   const [templatesOpen, setTemplatesOpen] = useState(false);
+
   const {
     selectedFrameworks,
     toggleFramework,
@@ -547,64 +549,97 @@ const Maindashboard_profile = () => {
   } = useFramework();
   const { startTutorial } = useUI();
   const [, setSessionExpired] = useState(false);
+
+  // ── useEffectiveOrg replaces manual user/org derivations ─────────────────
+  const {
+    user,
+    mounted,
+    isPartnerRoot,
+    isOrgManager,
+    isViewingManagedOrg,
+    managedOrgs,
+    selectedChildOrg,
+    effectiveOrgId,
+  } = useEffectiveOrg();
+
+  // Show org switcher for both partner root AND org managers
+  const showOrgSwitcher = isPartnerRoot || isOrgManager;
+
+  // ── Fetch child orgs (partner root = all children, org manager = assigned only) ──
   const [childOrgs, setChildOrgs] = useState([]);
-// ✅ Move user and isPartnerRoot UP, before any useEffect that uses them
 
-  const user = React.useMemo(() => {
-    try {
-      const stored = sessionStorage.getItem("user");
-      return stored ? JSON.parse(stored) : null;
-    } catch {
-      return null;
-    }
-  }, []);
+  // Temporarily add after the hook destructure
+  console.log("useEffectiveOrg debug:", {
+    isPartnerRoot,
+    isOrgManager,
+    showOrgSwitcher,
+    childOrgs: childOrgs.length,
+    mounted,
+    userRole: user?.role,
+    isPartnerOrg: sessionStorage.getItem("isPartnerOrg"),
+    selectedChildOrg,
+  });
 
-  const isPartnerRoot =
-    user?.role?.includes("root") && !user?.role?.includes("super_admin");
-
-  // NOW the useEffect is safe
   useEffect(() => {
-    if (!isPartnerRoot) return;
+    if (!mounted || !showOrgSwitcher) return;
     const token = sessionStorage.getItem("token");
-    fetch("https://api.calvant.com/user-service/api/organizations/children", {
-      headers: {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-    })
-      .then((r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`); // ← ADD THIS
-        return r.json();
+
+    if (isPartnerRoot) {
+      // fetch all child orgs
+      fetch("https://api.calvant.com/user-service/api/organizations/children", {
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
       })
-      .then((orgs) => {
-        if (Array.isArray(orgs)) setChildOrgs(orgs);
-      })
-      .catch(console.error);
-  }, [isPartnerRoot]);
-
-  const idleTimerRef = useRef(null);
-  const lastActivityRef = useRef(Date.now());
-  const IDLE_TIMEOUT_MS = 15 * 60 * 1000;
-
-  const [selectedChildOrg, setSelectedChildOrg] = useState(null);
-  useEffect(() => {
-    try {
-      const stored = sessionStorage.getItem("selectedChildOrg");
-      setSelectedChildOrg(stored ? JSON.parse(stored) : null);
-    } catch {
-      setSelectedChildOrg(null);
+        .then((r) => {
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          return r.json();
+        })
+        .then((orgs) => {
+          if (Array.isArray(orgs)) setChildOrgs(orgs);
+        })
+        .catch(console.error);
+    } else if (isOrgManager) {
+      // fetch only managed orgs by their IDs
+      Promise.all(
+        managedOrgs.map((id) =>
+          fetch(
+            `https://api.calvant.com/user-service/api/organizations/${id}`,
+            {
+              headers: {
+                "Content-Type": "application/json",
+                ...(token ? { Authorization: `Bearer ${token}` } : {}),
+              },
+            },
+          ).then((r) => {
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+            return r.json();
+          }),
+        ),
+      )
+        .then((orgs) => setChildOrgs(orgs.filter(Boolean)))
+        .catch(console.error);
     }
-  }, []);
+  }, [mounted, showOrgSwitcher, isPartnerRoot, isOrgManager, managedOrgs]);
 
-  useEffect(() => {
-    const stored = sessionStorage.getItem("selectedChildOrg");
-    if (stored) {
-      try {
-        setSelectedChildOrg(JSON.parse(stored));
-      } catch {}
+  // ── Org switcher handler ──────────────────────────────────────────────────
+  const handleOrgChange = (e) => {
+    if (!e.target.value) {
+      sessionStorage.removeItem("selectedChildOrg");
+      window.dispatchEvent(new Event("childOrgChanged"));
+      window.location.reload();
+      return;
     }
-  }, [dropdownOpen]);
+    const org = childOrgs.find((o) => (o._id || o.id) === e.target.value);
+    if (org) {
+      sessionStorage.setItem("selectedChildOrg", JSON.stringify(org));
+      window.dispatchEvent(new Event("childOrgChanged"));
+      window.location.reload();
+    }
+  };
 
+  // ── Derived display values ────────────────────────────────────────────────
   const initials = user?.name
     ? user.name
         .split(" ")
@@ -614,8 +649,28 @@ const Maindashboard_profile = () => {
         .slice(0, 2)
     : "";
 
-  // userId passed to bell — use email if names are non-unique in your system
   const userId = user?.name ?? user?.email ?? "";
+
+  const departmentLabel = (() => {
+    if (!user) return "";
+    const isPrivileged = Array.isArray(user.role)
+      ? user.role.some((r) =>
+          ["root", "dpo", "ciso", "aio", "super_admin"].includes(r),
+        )
+      : ["root", "dpo", "ciso", "aio", "super_admin"].includes(user.role);
+    // Org manager viewing a managed org → root-level there
+    if (isPrivileged || isViewingManagedOrg) return "All";
+    if (user.departments?.length > 0)
+      return user.departments.map((d) => d.name).join(", ");
+    if (Array.isArray(user.department))
+      return user.department.map((d) => d?.name || d).join(", ");
+    return user.department?.name || "—";
+  })();
+
+  // ── Session / idle timer (unchanged) ─────────────────────────────────────
+  const idleTimerRef = useRef(null);
+  const lastActivityRef = useRef(Date.now());
+  const IDLE_TIMEOUT_MS = 15 * 60 * 1000;
 
   const isJwtExpired = (token) => {
     if (!token) return true;
@@ -645,8 +700,10 @@ const Maindashboard_profile = () => {
     ];
     events.forEach((e) => window.addEventListener(e, resetIdleTimer));
     idleTimerRef.current = setInterval(() => {
-      const idle = Date.now() - lastActivityRef.current;
-      if (idle >= IDLE_TIMEOUT_MS && isJwtExpired(token)) {
+      if (
+        Date.now() - lastActivityRef.current >= IDLE_TIMEOUT_MS &&
+        isJwtExpired(token)
+      ) {
         setSessionExpired(true);
         clearInterval(idleTimerRef.current);
       }
@@ -678,13 +735,10 @@ const Maindashboard_profile = () => {
     if (path) router.push(path);
   };
 
-  const handleFrameworkToggle = (fw) => {
-    toggleFramework(fw);
-  };
-  const handleLogout = () => {
-    logout();
-  };
+  const handleFrameworkToggle = (fw) => toggleFramework(fw);
+  const handleLogout = () => logout();
 
+  // ── Sub-components (unchanged) ────────────────────────────────────────────
   const AccordionRow = ({ icon: Icon, label, open, onToggle, children }) => (
     <div>
       <button
@@ -844,56 +898,28 @@ const Maindashboard_profile = () => {
     </button>
   );
 
-  // ── Return: NO <header> wrapper — just Tutorial + Bell + Avatar ──────────
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <>
       <div className="flex items-center gap-2 sm:gap-3">
-        {/* ── Start Tutorial button ── */}
         <motion.button
           whileHover={{ scale: 1.04 }}
           whileTap={{ scale: 0.95 }}
           onClick={startTutorial}
-          className="
-    flex items-center justify-center
-    min-w-[100px] sm:min-w-[120px] md:min-w-[130px]
-    h-9 sm:h-10 md:h-10
-    px-4 sm:px-5 md:px-6
-    flex-shrink-0
-    whitespace-nowrap
-
-    text-white font-semibold tracking-[0.3px]
-    text-[12px] sm:text-[13px] md:text-[14px]
-
-    rounded-xl sm:rounded-[14px]
-
-    bg-gradient-to-br from-[#667eea] to-[#764ba2]
-    shadow-[0_4px_15px_rgba(102,126,234,0.35)]
-    hover:shadow-[0_8px_22px_rgba(102,126,234,0.45)]
-    active:scale-95 transition-all duration-300
-  "
+          className="flex items-center justify-center min-w-[100px] sm:min-w-[120px] md:min-w-[130px] h-9 sm:h-10 md:h-10 px-4 sm:px-5 md:px-6 flex-shrink-0 whitespace-nowrap text-white font-semibold tracking-[0.3px] text-[12px] sm:text-[13px] md:text-[14px] rounded-xl sm:rounded-[14px] bg-gradient-to-br from-[#667eea] to-[#764ba2] shadow-[0_4px_15px_rgba(102,126,234,0.35)] hover:shadow-[0_8px_22px_rgba(102,126,234,0.45)] active:scale-95 transition-all duration-300"
         >
           Start Tutorial
         </motion.button>
-        {/* ── Notification Bell ── */}
+
         <NotificationBell userId={userId} />
 
-        {/* ── Avatar + Dropdown ── */}
         <div
           ref={dropdownRef}
           className="relative flex items-center flex-shrink-0"
         >
           <button
             onClick={() => setDropdownOpen((p) => !p)}
-            className="
-              w-8 h-8 sm:w-9 sm:h-9 md:w-[38px] md:h-[38px]
-              rounded-full
-              bg-gradient-to-br from-violet-500 to-violet-700
-              flex items-center justify-center
-              text-white font-bold text-[10px] sm:text-[11px] md:text-xs
-              cursor-pointer border-0
-              shadow-md hover:shadow-lg transition-all duration-200
-              ring-2 ring-violet-200 hover:ring-violet-400
-            "
+            className="w-8 h-8 sm:w-9 sm:h-9 md:w-[38px] md:h-[38px] rounded-full bg-gradient-to-br from-violet-500 to-violet-700 flex items-center justify-center text-white font-bold text-[10px] sm:text-[11px] md:text-xs cursor-pointer border-0 shadow-md hover:shadow-lg transition-all duration-200 ring-2 ring-violet-200 hover:ring-violet-400"
             aria-label="Open profile menu"
             aria-expanded={dropdownOpen}
           >
@@ -907,14 +933,7 @@ const Maindashboard_profile = () => {
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -8, scale: 0.97 }}
                 transition={{ duration: 0.18, ease: "easeOut" }}
-                className="
-                  absolute top-[calc(100%+10px)] right-0
-                  bg-white rounded-xl
-                  shadow-[0_10px_40px_rgba(0,0,0,0.14)]
-                  border border-slate-100
-                  min-w-[200px] sm:min-w-[220px] md:min-w-[240px]
-                  z-[2000] overflow-hidden
-                "
+                className="absolute top-[calc(100%+10px)] right-0 bg-white rounded-xl shadow-[0_10px_40px_rgba(0,0,0,0.14)] border border-slate-100 min-w-[200px] sm:min-w-[220px] md:min-w-[240px] z-[2000] overflow-hidden"
               >
                 {/* User info */}
                 <div className="px-3 sm:px-4 pt-3 sm:pt-4 pb-2.5 border-b border-slate-100">
@@ -922,19 +941,32 @@ const Maindashboard_profile = () => {
                     {user?.name}
                   </p>
                   <p className="text-[11px] sm:text-xs text-gray-500 mt-0.5 truncate">
-                    {user?.role?.includes("root")
-                      ? "All"
-                      : user?.departments?.length > 0
-                        ? user.departments.map((d) => d.name).join(", ")
-                        : "No Department Assigned"}
+                    {departmentLabel}
                   </p>
                   <p className="text-[11px] sm:text-xs text-gray-400 mt-0.5 truncate">
                     {user?.email}
                   </p>
+                  {/* Show which org they're currently viewing */}
+                  {isViewingManagedOrg && (
+                    <span
+                      style={{
+                        display: "inline-block",
+                        marginTop: 4,
+                        fontSize: 10,
+                        fontWeight: 700,
+                        color: "#7c3aed",
+                        background: "#f5f3ff",
+                        padding: "1px 8px",
+                        borderRadius: 8,
+                      }}
+                    >
+                      Root access
+                    </span>
+                  )}
                 </div>
 
-                {/* ── Partner Root Org Switcher ── */}
-                {isPartnerRoot && (
+                {/* ── Org Switcher (partner root OR org manager) ── */}
+                {showOrgSwitcher && (
                   <div
                     style={{
                       padding: "8px 12px",
@@ -960,25 +992,7 @@ const Maindashboard_profile = () => {
                       value={
                         selectedChildOrg?._id || selectedChildOrg?.id || ""
                       }
-                      onChange={(e) => {
-                        if (!e.target.value) {
-                          sessionStorage.removeItem("selectedChildOrg");
-                          setSelectedChildOrg(null);
-                          window.location.reload();
-                          return;
-                        }
-                        const org = childOrgs.find(
-                          (o) => (o._id || o.id) === e.target.value,
-                        );
-                        if (org) {
-                          sessionStorage.setItem(
-                            "selectedChildOrg",
-                            JSON.stringify(org),
-                          );
-                          setSelectedChildOrg(org);
-                          window.location.reload();
-                        }
-                      }}
+                      onChange={handleOrgChange}
                       style={{
                         width: "100%",
                         fontSize: 12,
@@ -991,13 +1005,20 @@ const Maindashboard_profile = () => {
                         outline: "none",
                       }}
                     >
-                      <option value="">— All Organizations —</option>
+                      {/* Label differs: root sees "All Orgs", manager sees "My Org" */}
+                      <option value="">
+                        {isPartnerRoot
+                          ? "— All Organizations —"
+                          : "— My Organization —"}
+                      </option>
                       {childOrgs.map((org) => (
                         <option
                           key={org._id || org.id}
                           value={org._id || org.id}
                         >
                           {org.name}
+                          {/* badge hint in label */}
+                          {isOrgManager ? " (delegated)" : ""}
                         </option>
                       ))}
                     </select>

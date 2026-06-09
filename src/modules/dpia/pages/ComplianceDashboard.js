@@ -1,8 +1,8 @@
 import Link from 'next/link';
 import React, { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
+import { useEffectiveOrg } from "@/hooks/useEffectiveOrg";
 import { getCompliance } from "../services/dpiaApi";
-import { useUser } from "../../../hooks/useUser";
 import riskService from "../../riskAssesment/services/riskService";
 
 const SEV = {
@@ -259,7 +259,7 @@ async function generateRiskId(organization) {
 }
 
 // ─── Build risk payload ───────────────────────────────────────────────────────
-async function buildRiskPayload(row, user, assessmentId) {
+async function buildRiskPayload(row, user, assessmentId, effectiveOrgId) {
   const org = effectiveOrgId;
   const riskId = await generateRiskId(org);
   const severity = (row.severity || "").toUpperCase();
@@ -300,29 +300,16 @@ async function buildRiskPayload(row, user, assessmentId) {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function ComplianceDashboard() {
-  const user = useUser();
-  // -- effectiveOrgId injected by migration script --
-  const __selectedChildOrg = (function() {
-    try { var s = sessionStorage.getItem('selectedChildOrg'); return s ? JSON.parse(s) : null; } catch(e) { return null; }
-  })();
-  const __userOrgId = user
-    ? (user.organization && user.organization._id
-        ? user.organization._id
-        : (user.organization || null))
-    : null;
-  const __isPartnerRoot = !!(user && Array.isArray(user.role) &&
-    user.role.some(function(r) {
-      var s = (typeof r === 'string' ? r : (r && (r.name || r.roleName)) || '').toLowerCase().replace(/[\s_-]/g,'');
-      return s.indexOf('root') !== -1;
-    }) && !user.role.some(function(r) {
-      var s = (typeof r === 'string' ? r : (r && (r.name || r.roleName)) || '').toLowerCase().replace(/[\s_-]/g,'');
-      return s.indexOf('super_admin') !== -1;
-    })
-  );
-  const effectiveOrgId = (__isPartnerRoot && __selectedChildOrg)
-    ? (__selectedChildOrg._id || __selectedChildOrg.id)
-    : __userOrgId;
-  // -- end effectiveOrgId --
+  const {
+    user,
+    mounted,
+    isRoot,
+    isPrivilegedRole,
+    isViewingManagedOrg,
+    effectiveOrgId,
+    effectiveOrgIds,
+    selectedChildOrg,
+  } = useEffectiveOrg();
   const { id } = useParams();
   const router = useRouter();
 
@@ -355,7 +342,7 @@ export default function ComplianceDashboard() {
     if (addState[rowKey] === "adding" || addState[rowKey] === "added") return;
     setAddState((p) => ({ ...p, [rowKey]: "adding" }));
     try {
-      const payload = await buildRiskPayload(row, user, id);
+      const payload = await buildRiskPayload(row, user, id, effectiveOrgId);
       await riskService.saveRisk(payload);
       setAddState((p) => ({ ...p, [rowKey]: "added" }));
       showToast(`✅ ${payload.riskId} added to risk register`);

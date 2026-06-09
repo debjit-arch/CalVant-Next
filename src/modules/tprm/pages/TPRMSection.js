@@ -1,6 +1,7 @@
 //WorkingModel
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { useEffectiveOrg } from "@/hooks/useEffectiveOrg";
 import { motion, AnimatePresence } from "framer-motion";
 import Joyride, { STATUS } from "react-joyride";
 import {
@@ -38,35 +39,23 @@ const TPRMSection = () => {
   const router = useRouter();
   const chartsContainerRef = useRef(null);
 
-  const [user] = useState(() => JSON.parse(sessionStorage.getItem("user")));
-  // -- effectiveOrgId injected by migration script --
-  const __selectedChildOrg = (function() {
-    try { var s = sessionStorage.getItem('selectedChildOrg'); return s ? JSON.parse(s) : null; } catch(e) { return null; }
-  })();
-  const __userOrgId = user
-    ? (user.organization && user.organization._id
-        ? user.organization._id
-        : (user.organization || null))
-    : null;
-  const __isPartnerRoot = !!(user && Array.isArray(user.role) &&
-    user.role.some(function(r) {
-      var s = (typeof r === 'string' ? r : (r && (r.name || r.roleName)) || '').toLowerCase().replace(/[\s_-]/g,'');
-      return s.indexOf('root') !== -1;
-    }) && !user.role.some(function(r) {
-      var s = (typeof r === 'string' ? r : (r && (r.name || r.roleName)) || '').toLowerCase().replace(/[\s_-]/g,'');
-      return s.indexOf('super_admin') !== -1;
-    })
-  );
-  const effectiveOrgId = (__isPartnerRoot && __selectedChildOrg)
-    ? (__selectedChildOrg._id || __selectedChildOrg.id)
-    : __userOrgId;
-  // -- end effectiveOrgId --
+  const {
+    user,
+    mounted,
+    isRoot,
+    isPrivilegedRole,
+    isViewingManagedOrg,
+    effectiveOrgId,
+    effectiveOrgIds,
+    selectedChildOrg,
+  } = useEffectiveOrg();
   const org = effectiveOrgId;
   const userName = user?.name || "Admin";
   const userRoles = Array.isArray(user?.role) ? user.role : [user?.role || ""];
-  const isAdmin = userRoles.some((r) =>
-    ["root", "super_admin", "admin", "ciso", "aio", "dpo"].includes(r),
-  );
+  const isAdmin = isPrivilegedRole || userRoles.some((r) => {
+    const s = (typeof r === 'string' ? r : (r && (r.name || r.roleName)) || '').toLowerCase().replace(/[\s_-]/g,'');
+    return s === 'admin';
+  });
 
   const [modal, setModal] = useState(null);
   const [hasMounted, setHasMounted] = useState(false);
@@ -103,8 +92,8 @@ const TPRMSection = () => {
   ];
 
   useEffect(() => {
-    if (!user) router.push("/");
-  }, [user, router]);
+    if (mounted && !user) router.push("/");
+  }, [mounted, user, router]);
 
   // Fix ResizeObserver
   useEffect(() => {
@@ -140,6 +129,8 @@ const TPRMSection = () => {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  if (!mounted || !user) return null;
 
   // ── Vendor view for non-admins ──────────────────────────
   if (!isAdmin) return <VendorSection />;

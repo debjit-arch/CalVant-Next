@@ -5,6 +5,7 @@ import React, {
   useRef,
   useMemo,
 } from "react";
+import { useEffectiveOrg } from "@/hooks/useEffectiveOrg";
 import { useRouter } from "next/navigation";
 import riskService from "../services/riskService";
 import { useFramework } from "../../../context/FrameworkContex";
@@ -83,32 +84,17 @@ useEffect(() => { setHasMounted(true); }, []);
     return allowed;
   }, [selectedFrameworks, isAllSelected, availableFrameworks]);
 
-  const [user] = useState(() => JSON.parse(sessionStorage.getItem("user")));
-
-  // -- effectiveOrgId injected by migration script --
-  const __selectedChildOrg = (function() {
-    try { var s = sessionStorage.getItem('selectedChildOrg'); return s ? JSON.parse(s) : null; } catch(e) { return null; }
-  })();
-  const __userOrgId = user
-    ? (user.organization && user.organization._id
-        ? user.organization._id
-        : (user.organization || null))
-    : null;
-  const __isPartnerRoot = !!(user && Array.isArray(user.role) &&
-    user.role.some(function(r) {
-      var s = (typeof r === 'string' ? r : (r && (r.name || r.roleName)) || '').toLowerCase().replace(/[\s_-]/g,'');
-      return s.indexOf('root') !== -1;
-    }) && !user.role.some(function(r) {
-      var s = (typeof r === 'string' ? r : (r && (r.name || r.roleName)) || '').toLowerCase().replace(/[\s_-]/g,'');
-      return s.indexOf('super_admin') !== -1;
-    })
-  );
-  const effectiveOrgId = (__isPartnerRoot && __selectedChildOrg)
-    ? (__selectedChildOrg._id || __selectedChildOrg.id)
-    : __userOrgId;
-  // -- end effectiveOrgId --
+  const {
+    user,
+    mounted,
+    isRoot,
+    isPrivilegedRole,
+    isViewingManagedOrg,
+    effectiveOrgId,
+    effectiveOrgIds,
+    selectedChildOrg,
+  } = useEffectiveOrg();
   const userRoles = Array.isArray(user?.role) ? user.role : [user?.role || ""];
-  const isRoot = userRoles.includes("root");
 
   const deptLabel = isRoot
     ? "All"
@@ -232,10 +218,10 @@ useEffect(() => { setHasMounted(true); }, []);
   }, []);
 
   useEffect(() => {
-    if (!user) {
+    if (mounted && !user) {
       router.push("/");
     }
-  }, [user, router]);
+  }, [mounted, user, router]);
 
   // useEffect(() => {
   //   collapseSidebar();
@@ -243,7 +229,7 @@ useEffect(() => { setHasMounted(true); }, []);
 
   // â”€â”€ Load ALL org/dept risks (original logic unchanged) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const loadRiskStats = useCallback(async () => {
-    if (!user) return;
+    if (!mounted || !user) return;
     try {
       const risks = await riskService.getAllRisks();
       if (!Array.isArray(risks)) return;
@@ -272,13 +258,13 @@ useEffect(() => { setHasMounted(true); }, []);
     } catch (error) {
       console.error("Error loading risk stats:", error);
     }
-  }, [user, isRoot]);
+  }, [mounted, user, isRoot, effectiveOrgId]);
 
   useEffect(() => {
     loadRiskStats();
   }, [loadRiskStats]);
 
-  if (!user) return null;
+  if (!mounted || !user) return null;
 
   // â”€â”€ Chart data (from filteredRisks / riskStats) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const pieData = [

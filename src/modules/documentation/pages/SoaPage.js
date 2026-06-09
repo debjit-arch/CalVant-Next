@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { useEffectiveOrg } from "@/hooks/useEffectiveOrg";
 import documentationService from "../services/documentationService";
 import controlService from "../services/controlService";
 import { useFramework, ALL_FRAMEWORKS } from "../../../context/FrameworkContex";
@@ -201,6 +202,16 @@ function applySort(list, sortKey, mappingsBySource, fwOrder) {
 // ── Main ───────────────────────────────────────────────────────────────────
 const SoaPage = () => {
   const router = useRouter();
+  const {
+    user,
+    mounted,
+    isRoot,
+    isPrivilegedRole,
+    isViewingManagedOrg,
+    effectiveOrgId,
+    effectiveOrgIds,
+    selectedChildOrg,
+  } = useEffectiveOrg();
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [validationError, setValidationError]   = useState("");
 
@@ -324,37 +335,9 @@ const SoaPage = () => {
   }, [availableFrameworks]);
 
   // ── Bootstrap controls ─────────────────────────────────────────────────
-useEffect(() => {
-  if (availableFrameworks.length === 0) return;
-
-  const fetchControls = async () => {
+  const fetchControls = useCallback(async () => {
+    if (availableFrameworks.length === 0) return;
     try {
-      // Read user directly from sessionStorage (no hooks here)
-      const storedUser = sessionStorage.getItem("user");
-      const user = storedUser ? JSON.parse(storedUser) : null;
-  // -- effectiveOrgId injected by migration script --
-  const __selectedChildOrg = (function() {
-    try { var s = sessionStorage.getItem('selectedChildOrg'); return s ? JSON.parse(s) : null; } catch(e) { return null; }
-  })();
-  const __userOrgId = user
-    ? (user.organization && user.organization._id
-        ? user.organization._id
-        : (user.organization || null))
-    : null;
-  const __isPartnerRoot = !!(user && Array.isArray(user.role) &&
-    user.role.some(function(r) {
-      var s = (typeof r === 'string' ? r : (r && (r.name || r.roleName)) || '').toLowerCase().replace(/[\s_-]/g,'');
-      return s.indexOf('root') !== -1;
-    }) && !user.role.some(function(r) {
-      var s = (typeof r === 'string' ? r : (r && (r.name || r.roleName)) || '').toLowerCase().replace(/[\s_-]/g,'');
-      return s.indexOf('super_admin') !== -1;
-    })
-  );
-  const effectiveOrgId = (__isPartnerRoot && __selectedChildOrg)
-    ? (__selectedChildOrg._id || __selectedChildOrg.id)
-    : __userOrgId;
-  // -- end effectiveOrgId --
-
       const [savedControls, soaEntries, ...fwResults] = await Promise.all([
         documentationService.getControls(),
         documentationService.getSoAEntries(),
@@ -434,10 +417,13 @@ useEffect(() => {
     } catch (error) {
       console.error("Error fetching controls:", error);
     }
-  };
+  }, [availableFrameworks, effectiveOrgId]);
 
-  fetchControls();
-}, [availableFrameworks]);
+  useEffect(() => {
+    if (mounted) {
+      fetchControls();
+    }
+  }, [fetchControls, mounted]);
   // ── Filtered + sorted rows ──────────────────────────────────────────────
   const filteredRows = useMemo(() => {
     let list = [...allRows];
@@ -528,7 +514,6 @@ useEffect(() => {
 
   const confirmSave = async () => {
     try {
-      const user        = JSON.parse(sessionStorage.getItem("user"));
       const rowsToSave  = allRows.filter((r) => editedRows.has(r.id));
 
       for (const row of rowsToSave) {

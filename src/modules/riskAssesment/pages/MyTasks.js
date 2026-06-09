@@ -5,6 +5,7 @@
 
 
 import React, { useEffect, useState, useMemo, useRef } from "react";
+import { useEffectiveOrg } from "@/hooks/useEffectiveOrg";
 import { useRouter } from "next/navigation";
 import {
   ClipboardList,
@@ -170,30 +171,16 @@ function buildGridCols(containerWidth) {
 // ─── Main Component ───────────────────────────────────────────
 const MyTasks = ({ riskId = null }) => {
   const router          = useRouter();
-  const rawUser         = sessionStorage.getItem("user");
-  const user            = rawUser ? JSON.parse(rawUser) : null;
-  // -- effectiveOrgId injected by migration script --
-  const __selectedChildOrg = (function() {
-    try { var s = sessionStorage.getItem('selectedChildOrg'); return s ? JSON.parse(s) : null; } catch(e) { return null; }
-  })();
-  const __userOrgId = user
-    ? (user.organization && user.organization._id
-        ? user.organization._id
-        : (user.organization || null))
-    : null;
-  const __isPartnerRoot = !!(user && Array.isArray(user.role) &&
-    user.role.some(function(r) {
-      var s = (typeof r === 'string' ? r : (r && (r.name || r.roleName)) || '').toLowerCase().replace(/[\s_-]/g,'');
-      return s.indexOf('root') !== -1;
-    }) && !user.role.some(function(r) {
-      var s = (typeof r === 'string' ? r : (r && (r.name || r.roleName)) || '').toLowerCase().replace(/[\s_-]/g,'');
-      return s.indexOf('super_admin') !== -1;
-    })
-  );
-  const effectiveOrgId = (__isPartnerRoot && __selectedChildOrg)
-    ? (__selectedChildOrg._id || __selectedChildOrg.id)
-    : __userOrgId;
-  // -- end effectiveOrgId --
+  const {
+    user,
+    mounted,
+    isRoot,
+    isPrivilegedRole,
+    isViewingManagedOrg,
+    effectiveOrgId,
+    effectiveOrgIds,
+    selectedChildOrg,
+  } = useEffectiveOrg();
   const currentUserName = user?.name || user?.username || "";
 
   const [tasks,        setTasks]        = useState([]);
@@ -220,7 +207,7 @@ const MyTasks = ({ riskId = null }) => {
   }, [riskId]);
 
   useEffect(() => {
-    if (!user || hasFetched.current) { setLoading(false); return; }
+    if (!mounted || !user || hasFetched.current) { setLoading(false); return; }
     hasFetched.current = true;
 
     const fetchTasks = async () => {
@@ -256,7 +243,7 @@ const MyTasks = ({ riskId = null }) => {
     };
 
     fetchTasks();
-  }, [riskId]);
+  }, [mounted, user, effectiveOrgId, riskId]);
 
   const toggleExpand = (taskId) =>
     setExpanded(p => ({ ...p, [taskId]: !p[taskId] }));
@@ -303,12 +290,8 @@ const MyTasks = ({ riskId = null }) => {
   const cellL   = (extra = {}) => ({ padding: "11px 10px", borderRight: "1px solid #f1f5f9", display: "flex", alignItems: "center", minWidth: 0, overflow: "hidden", ...extra });
   const cellEnd = ()            => ({ padding: "8px 10px",  display: "flex", alignItems: "center", minWidth: 0, overflow: "hidden" });
 
-  if (!user) {
-    return (
-      <div className="p-10 text-center text-slate-500">
-        Please log in to view your tasks.
-      </div>
-    );
+  if (!mounted || !user) {
+    return null;
   }
 
   return (

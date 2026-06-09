@@ -36,6 +36,7 @@ import {
 } from "recharts";
 import Joyride from "react-joyride";
 import { motion, AnimatePresence } from "framer-motion";
+import { useEffectiveOrg } from "@/hooks/useEffectiveOrg";
 
 // â”€â”€â”€ Framework filter helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // â”€â”€â”€ Framework filter helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -45,9 +46,9 @@ function riskMatchesFilter(risk, allowedRiskTypes) {
     ? risk.riskType.map((t) => t.trim().toLowerCase())
     : risk.riskType
       ? String(risk.riskType)
-        .split(",")
-        .map((s) => s.trim().toLowerCase())
-        .filter(Boolean)
+          .split(",")
+          .map((s) => s.trim().toLowerCase())
+          .filter(Boolean)
       : [];
   if (types.length === 0) return false;
   const normalizedAllowed = new Set(
@@ -61,7 +62,9 @@ const RiskAssessment = () => {
   const router = useRouter();
   const chartsContainerRef = useRef(null);
   const [hasMounted, setHasMounted] = useState(false);
-useEffect(() => { setHasMounted(true); }, []);
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
 
   // â”€â”€ Framework context â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const { selectedFrameworks, isAllSelected, availableFrameworks } =
@@ -83,36 +86,22 @@ useEffect(() => { setHasMounted(true); }, []);
     return allowed;
   }, [selectedFrameworks, isAllSelected, availableFrameworks]);
 
-  const [user] = useState(() => JSON.parse(sessionStorage.getItem("user")));
+  // Add isViewingManagedOrg to the destructure
+  const {
+    user,
+    mounted,
+    isRoot,
+    isPrivilegedRole,
+    isViewingManagedOrg, // ← add this
+    effectiveOrgId,
+  } = useEffectiveOrg();
 
-  // -- effectiveOrgId injected by migration script --
-  const __selectedChildOrg = (function() {
-    try { var s = sessionStorage.getItem('selectedChildOrg'); return s ? JSON.parse(s) : null; } catch(e) { return null; }
-  })();
-  const __userOrgId = user
-    ? (user.organization && user.organization._id
-        ? user.organization._id
-        : (user.organization || null))
-    : null;
-  const __isPartnerRoot = !!(user && Array.isArray(user.role) &&
-    user.role.some(function(r) {
-      var s = (typeof r === 'string' ? r : (r && (r.name || r.roleName)) || '').toLowerCase().replace(/[\s_-]/g,'');
-      return s.indexOf('root') !== -1;
-    }) && !user.role.some(function(r) {
-      var s = (typeof r === 'string' ? r : (r && (r.name || r.roleName)) || '').toLowerCase().replace(/[\s_-]/g,'');
-      return s.indexOf('super_admin') !== -1;
-    })
-  );
-  const effectiveOrgId = (__isPartnerRoot && __selectedChildOrg)
-    ? (__selectedChildOrg._id || __selectedChildOrg.id)
-    : __userOrgId;
-  // -- end effectiveOrgId --
   const userRoles = Array.isArray(user?.role) ? user.role : [user?.role || ""];
-  const isRoot = userRoles.includes("root") || userRoles.includes("ciso") || userRoles.includes("dpo") || userRoles.includes("aio") ;
 
-  const deptLabel = isRoot
-    ? "All"
-    : (user?.departments || []).map((d) => d.name).join(", ") || "Your";
+  const deptLabel =
+    isPrivilegedRole || isViewingManagedOrg
+      ? "All"
+      : (user?.departments || []).map((d) => d.name).join(", ") || "Your";
 
   const [run, setRun] = useState(false);
   const [departmentName, setDepartmentName] = useState("Your");
@@ -232,10 +221,10 @@ useEffect(() => { setHasMounted(true); }, []);
   }, []);
 
   useEffect(() => {
-    if (!user) {
+    if (mounted && !user) {
       router.push("/");
     }
-  }, [user, router]);
+  }, [mounted, user, router]);
 
   // useEffect(() => {
   //   collapseSidebar();
@@ -243,42 +232,44 @@ useEffect(() => { setHasMounted(true); }, []);
 
   // â”€â”€ Load ALL org/dept risks (original logic unchanged) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const loadRiskStats = useCallback(async () => {
-    if (!user) return;
+    if (!user || !effectiveOrgId) return;
     try {
       const risks = await riskService.getAllRisks();
       if (!Array.isArray(risks)) return;
 
-      const userOrgId = effectiveOrgId;
-      const userDeptNames = isRoot
+      // seeAll = privileged role OR viewing a delegated/managed org
+      const seeAll = isPrivilegedRole || isViewingManagedOrg;
+
+      const userDeptNames = seeAll
         ? []
         : (user.departments || []).map((d) =>
-          (d.name || "").trim().toLowerCase(),
-        );
+            (d.name || "").trim().toLowerCase(),
+          );
 
       const departmentRisks = risks.filter((risk) => {
         const riskOrgId = risk.organization?._id || risk.organization;
-        if (String(riskOrgId) !== String(userOrgId)) return false;
-        if (isRoot) return true;
+        if (String(riskOrgId) !== String(effectiveOrgId)) return false;
+        if (seeAll) return true;
         if (!risk.department) return false;
         return userDeptNames.includes(risk.department.trim().toLowerCase());
       });
 
       setAllRisks(departmentRisks);
       setDepartmentName(
-        isRoot
+        seeAll
           ? "All"
           : (user?.departments || []).map((d) => d.name).join(", "),
       );
     } catch (error) {
       console.error("Error loading risk stats:", error);
     }
-  }, [user, isRoot]);
+  }, [user, isRoot, isPrivilegedRole, isViewingManagedOrg, effectiveOrgId]);
 
   useEffect(() => {
     loadRiskStats();
   }, [loadRiskStats]);
 
-  if (!user) return null;
+  if (!mounted || !user) return null;
 
   // â”€â”€ Chart data (from filteredRisks / riskStats) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const pieData = [
@@ -459,7 +450,6 @@ useEffect(() => { setHasMounted(true); }, []);
           transition={{ duration: 0.6 }}
         >
           <div className="flex items-center justify-between w-full">
-
             <div
               className="flex items-center gap-4 flex-1"
               style={{
@@ -529,7 +519,7 @@ useEffect(() => { setHasMounted(true); }, []);
 
                 {/* Department + total row */}
                 <p className="text-sm lg:text-base text-slate-600 mt-0.5">
-                  {departmentName} {" "}
+                  {departmentName}{" "}
                   <span className="font-bold text-lg text-slate-900">
                     {riskStats.total}{" "}
                   </span>{" "}
@@ -541,8 +531,14 @@ useEffect(() => { setHasMounted(true); }, []);
             </div>
 
             <div className="flex items-center gap-3">
-              <span className={`text-xs font-bold px-3 py-1.5 rounded-full ${isRoot ? "bg-blue-100 text-blue-700" : "bg-violet-100 text-violet-700"}`}>
-                {isRoot ? "Root" : (userRoles[0] ? userRoles[0].replace("_", " ") : "User")}
+              <span
+                className={`text-xs font-bold px-3 py-1.5 rounded-full ${isRoot ? "bg-blue-100 text-blue-700" : "bg-violet-100 text-violet-700"}`}
+              >
+                {isRoot
+                  ? "Root"
+                  : userRoles[0]
+                    ? userRoles[0].replace("_", " ")
+                    : "User"}
               </span>
               <span className="text-sm font-semibold text-slate-600">
                 {user?.name || "User"}
@@ -866,51 +862,51 @@ useEffect(() => { setHasMounted(true); }, []);
 
               <div style={{ width: "100%", height: "100%", minWidth: 0 }}>
                 <ResponsiveContainer width="100%" height="100%" debounce={50}>
-                    <BarChart
-                      data={monthlyRiskData}
-                      margin={{ top: 15, right: 15, left: -5, bottom: 10 }}
-                    >
-                      <defs>
-                        <linearGradient
-                          id="riskGradient"
-                          x1="0"
-                          y1="0"
-                          x2="0"
-                          y2="1"
-                        >
-                          <stop
-                            offset="5%"
-                            stopColor="#3b82f6"
-                            stopOpacity={0.9}
-                          />
-                          <stop
-                            offset="95%"
-                            stopColor="#93c5fd"
-                            stopOpacity={0.6}
-                          />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid
-                        vertical={false}
-                        stroke="#f1f5f9"
-                        strokeDasharray="3 3"
-                      />
-                      <XAxis
-                        dataKey="name"
-                        axisLine={false}
-                        tickLine={false}
-                        tick={{ fontSize: 12, fill: "#6b7280", fontWeight: 500 }}
-                      />
-                      <Tooltip content={<CustomBarTooltip />} />
-                      <Bar
-                        dataKey="value"
-                        fill="url(#riskGradient)"
-                        radius={[6, 6, 0, 0]}
-                        barSize={24}
-                        animationDuration={800}
-                      />
-                    </BarChart>
-                  </ResponsiveContainer>
+                  <BarChart
+                    data={monthlyRiskData}
+                    margin={{ top: 15, right: 15, left: -5, bottom: 10 }}
+                  >
+                    <defs>
+                      <linearGradient
+                        id="riskGradient"
+                        x1="0"
+                        y1="0"
+                        x2="0"
+                        y2="1"
+                      >
+                        <stop
+                          offset="5%"
+                          stopColor="#3b82f6"
+                          stopOpacity={0.9}
+                        />
+                        <stop
+                          offset="95%"
+                          stopColor="#93c5fd"
+                          stopOpacity={0.6}
+                        />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid
+                      vertical={false}
+                      stroke="#f1f5f9"
+                      strokeDasharray="3 3"
+                    />
+                    <XAxis
+                      dataKey="name"
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fontSize: 12, fill: "#6b7280", fontWeight: 500 }}
+                    />
+                    <Tooltip content={<CustomBarTooltip />} />
+                    <Bar
+                      dataKey="value"
+                      fill="url(#riskGradient)"
+                      radius={[6, 6, 0, 0]}
+                      barSize={24}
+                      animationDuration={800}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
             </motion.div>
           </div>

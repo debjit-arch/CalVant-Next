@@ -1,6 +1,7 @@
 // MLD = Master List of Policies
 import React, { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { useEffectiveOrg } from "@/hooks/useEffectiveOrg";
 import documentationService from "../services/documentationService";
 import controlService from "../services/controlService";
 import taskService from "../../taskManagement/services/taskService";          // ← NEW
@@ -176,7 +177,7 @@ const PRIORITY_CFG = {
   Critical: { color: "#c92a2a", bg: "#fff5f5", icon: "⚑" },
 };
 
-function AddTaskModal({ row, user, users, departments, onClose, onSuccess }) {
+function AddTaskModal({ row, user, users, departments, onClose, onSuccess, effectiveOrgId }) {
   const today = new Date().toISOString().split("T")[0];
   const currentUserName = user?.name || user?.username || "System";
 
@@ -511,40 +512,16 @@ const selectStyle = {
 // ─────────────────────────────────────────────────────────────────────────────
 const MLD = () => {
   const router = useRouter();
-const [user, setUser] = useState(() => {
-  // -- effectiveOrgId injected by migration script --
-  const __selectedChildOrg = (function() {
-    try { var s = sessionStorage.getItem('selectedChildOrg'); return s ? JSON.parse(s) : null; } catch(e) { return null; }
-  })();
-  const __userOrgId = user
-    ? (user.organization && user.organization._id
-        ? user.organization._id
-        : (user.organization || null))
-    : null;
-  const __isPartnerRoot = !!(user && Array.isArray(user.role) &&
-    user.role.some(function(r) {
-      var s = (typeof r === 'string' ? r : (r && (r.name || r.roleName)) || '').toLowerCase().replace(/[\s_-]/g,'');
-      return s.indexOf('root') !== -1;
-    }) && !user.role.some(function(r) {
-      var s = (typeof r === 'string' ? r : (r && (r.name || r.roleName)) || '').toLowerCase().replace(/[\s_-]/g,'');
-      return s.indexOf('super_admin') !== -1;
-    })
-  );
-  const effectiveOrgId = (__isPartnerRoot && __selectedChildOrg)
-    ? (__selectedChildOrg._id || __selectedChildOrg.id)
-    : __userOrgId;
-  // -- end effectiveOrgId --
-  if (typeof window === "undefined") return null;
-
-  const storedUser = sessionStorage.getItem("user");
-
-  try {
-    return storedUser ? JSON.parse(storedUser) : null;
-  } catch (error) {
-    console.error("Failed to parse user from sessionStorage:", error);
-    return null;
-  }
-});
+  const {
+    user,
+    mounted,
+    isRoot,
+    isPrivilegedRole,
+    isViewingManagedOrg,
+    effectiveOrgId,
+    effectiveOrgIds,
+    selectedChildOrg,
+  } = useEffectiveOrg();
   const { selectedFrameworks, toggleFramework, isAllSelected, availableFrameworks } = useFramework();
   const fwColorMap = useMemo(
     () => Object.fromEntries(availableFrameworks.map((fw) => [fw.code, fw.color])),
@@ -735,7 +712,7 @@ const [user, setUser] = useState(() => {
     })();
   }, [availableFrameworks]);
 
-  const refreshDocuments = async () => {
+  const refreshDocuments = useCallback(async () => {
     try {
       const docs = (await documentationService.getDocuments()) || [];
       const orgDocs = docs.filter((d) => d.organization === effectiveOrgId);
@@ -748,11 +725,13 @@ const [user, setUser] = useState(() => {
       setDocuments([]);
       setSoas([]);
     }
-  };
+  }, [effectiveOrgId]);
 
   useEffect(() => {
-    refreshDocuments();
-  }, []); // eslint-disable-line
+    if (mounted) {
+      refreshDocuments();
+    }
+  }, [refreshDocuments, mounted]);
 
   // Build rows
   const allDocRows = useMemo(() => {
@@ -1634,6 +1613,7 @@ const [user, setUser] = useState(() => {
           user={user}
           users={taskUsers}
           departments={taskDepartments}
+          effectiveOrgId={effectiveOrgId}
           onClose={() => setAddTaskModal({ open: false, row: null })}
           onSuccess={() => {
             const name = addTaskModal.row?.docName || addTaskModal.row?.cId || "control";

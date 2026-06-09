@@ -1029,6 +1029,7 @@
 //C:\Users\ak192\Downloads\CalVant-Next-main\CalVant-Next-main\src\modules\taskManagement\components\MyTasksSection.js
 "use client";
 import React, { useEffect, useState, useMemo, useRef } from "react";
+import { useEffectiveOrg } from "@/hooks/useEffectiveOrg";
 import { useRouter } from "next/navigation";
 import {
   ClipboardList,
@@ -1190,30 +1191,16 @@ function resolveSubEndDate(sub) {
 // ALL LOGIC UNCHANGED — only UI/styling updated to match TemplatesPage
 const MyTasks = () => {
   const router = useRouter();
-  const rawUser = sessionStorage.getItem("user");
-  const user = rawUser ? JSON.parse(rawUser) : null;
-  // -- effectiveOrgId injected by migration script --
-  const __selectedChildOrg = (function() {
-    try { var s = sessionStorage.getItem('selectedChildOrg'); return s ? JSON.parse(s) : null; } catch(e) { return null; }
-  })();
-  const __userOrgId = user
-    ? (user.organization && user.organization._id
-        ? user.organization._id
-        : (user.organization || null))
-    : null;
-  const __isPartnerRoot = !!(user && Array.isArray(user.role) &&
-    user.role.some(function(r) {
-      var s = (typeof r === 'string' ? r : (r && (r.name || r.roleName)) || '').toLowerCase().replace(/[\s_-]/g,'');
-      return s.indexOf('root') !== -1;
-    }) && !user.role.some(function(r) {
-      var s = (typeof r === 'string' ? r : (r && (r.name || r.roleName)) || '').toLowerCase().replace(/[\s_-]/g,'');
-      return s.indexOf('super_admin') !== -1;
-    })
-  );
-  const effectiveOrgId = (__isPartnerRoot && __selectedChildOrg)
-    ? (__selectedChildOrg._id || __selectedChildOrg.id)
-    : __userOrgId;
-  // -- end effectiveOrgId --
+  const {
+    user,
+    mounted,
+    isRoot,
+    isPrivilegedRole,
+    isViewingManagedOrg,
+    effectiveOrgId,
+    effectiveOrgIds,
+    selectedChildOrg,
+  } = useEffectiveOrg();
   const currentUserName = user?.name || user?.username || "";
 
   // ── State (LOGIC UNCHANGED) ────────────────────────────────
@@ -1229,7 +1216,7 @@ const MyTasks = () => {
 
   // ── Data fetching (LOGIC UNCHANGED) ───────────────────────
   useEffect(() => {
-    if (!user || hasFetched.current) { setLoading(false); return; }
+    if (!mounted || !user || hasFetched.current) { setLoading(false); return; }
     hasFetched.current = true;
     const fetchTasks = async () => {
       try {
@@ -1256,7 +1243,7 @@ const MyTasks = () => {
       finally { setLoading(false); }
     };
     fetchTasks();
-  }, []);
+  }, [mounted, user, effectiveOrgId]);
 
   const toggleExpand = (taskId) =>
     setExpanded((p) => ({ ...p, [taskId]: !p[taskId] }));
@@ -1298,12 +1285,8 @@ const MyTasks = () => {
     return [...pages].sort((a, b) => a - b);
   };
 
-  if (!user) {
-    return (
-      <div style={{ padding: 80, textAlign: "center", color: "#64748b", fontSize: 14 }}>
-        Please log in to view your tasks.
-      </div>
-    );
+  if (!mounted || !user) {
+    return null;
   }
 
   const statsData = [

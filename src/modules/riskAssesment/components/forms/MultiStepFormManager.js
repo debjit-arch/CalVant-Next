@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { useEffectiveOrg } from "@/hooks/useEffectiveOrg";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import RiskDetailsForm from "./RiskDetailsForm";
 import TreatmentPlanForm from "./TreatmentPlanForm";
@@ -166,39 +167,19 @@ const MultiStepFormManager = ({ onSubmit, focusArea = "risk" }) => {
 
   const [departments, setDepartments] = useState([]);
 
-  // 1. Normalize User Data
-  const [user] = useState(() => JSON.parse(sessionStorage.getItem("user")));
-  // -- effectiveOrgId injected by migration script --
-  const __selectedChildOrg = (function() {
-    try { var s = sessionStorage.getItem('selectedChildOrg'); return s ? JSON.parse(s) : null; } catch(e) { return null; }
-  })();
-  const __userOrgId = user
-    ? (user.organization && user.organization._id
-        ? user.organization._id
-        : (user.organization || null))
-    : null;
-  const __isPartnerRoot = !!(user && Array.isArray(user.role) &&
-    user.role.some(function(r) {
-      var s = (typeof r === 'string' ? r : (r && (r.name || r.roleName)) || '').toLowerCase().replace(/[\s_-]/g,'');
-      return s.indexOf('root') !== -1;
-    }) && !user.role.some(function(r) {
-      var s = (typeof r === 'string' ? r : (r && (r.name || r.roleName)) || '').toLowerCase().replace(/[\s_-]/g,'');
-      return s.indexOf('super_admin') !== -1;
-    })
-  );
-  const effectiveOrgId = (__isPartnerRoot && __selectedChildOrg)
-    ? (__selectedChildOrg._id || __selectedChildOrg.id)
-    : __userOrgId;
-  // -- end effectiveOrgId --
+  // 1. Normalize User Data using useEffectiveOrg hook
+  const {
+    user,
+    mounted,
+    isRoot,
+    isPrivilegedRole,
+    isViewingManagedOrg,
+    effectiveOrgId,
+    effectiveOrgIds,
+    selectedChildOrg,
+  } = useEffectiveOrg();
   const userRoles = Array.isArray(user?.role) ? user.role : [user?.role || ""];
-  const isRoot = user?.role?.some((r) => {
-    const s = (typeof r === "string" ? r : r?.name || r?.roleName || "")
-      .toLowerCase()
-      .replace(/[\s_-]/g, "");
-
-    return ["root", "ciso", "aio", "dpo"].some((role) => s.includes(role));
-  });
-  const isRiskIdentifier = userRoles.includes("risk_manager") && !isRoot;
+  const isRiskIdentifier = userRoles.includes("risk_manager") && !isPrivilegedRole;
 
   const [tasks, setTasks] = useState([]);
   const [currentStep, setCurrentStep] = useState(1);
@@ -227,6 +208,13 @@ const MultiStepFormManager = ({ onSubmit, focusArea = "risk" }) => {
     organization: effectiveOrgId,
   });
 
+  // Sync effectiveOrgId into formData when loaded
+  useEffect(() => {
+    if (mounted && effectiveOrgId && !formData.organization) {
+      setFormData((prev) => ({ ...prev, organization: effectiveOrgId }));
+    }
+  }, [mounted, effectiveOrgId, formData.organization]);
+
   // Load Departments
   useEffect(() => {
     async function loadDepartments() {
@@ -250,8 +238,8 @@ const MultiStepFormManager = ({ onSubmit, focusArea = "risk" }) => {
         console.error("Error fetching departments:", err);
       }
     }
-    if (user) loadDepartments();
-  }, [user]);
+    if (mounted && user) loadDepartments();
+  }, [mounted, user, effectiveOrgId]);
 
   const [existingRiskIds, setExistingRiskIds] = useState([]);
 
@@ -280,8 +268,8 @@ const MultiStepFormManager = ({ onSubmit, focusArea = "risk" }) => {
         generateRiskId(orgRiskIds);
       }
     }
-    if (user) loadRisks();
-  }, [isEditing, existingRiskId, user]);
+    if (mounted && user) loadRisks();
+  }, [mounted, isEditing, existingRiskId, user, effectiveOrgId]);
 
   const generateRiskId = (excludeIds = []) => {
     const currentYear = new Date().getFullYear();

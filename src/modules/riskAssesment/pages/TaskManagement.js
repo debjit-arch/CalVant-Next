@@ -1,6 +1,7 @@
 //C:\Users\ak192\Downloads\CV_Beta_v1.0.0-Calvant_migration\CV_Beta_v1.0.0-Calvant_migration\src\modules\riskAssesment\pages\TaskManagement.js
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useEffectiveOrg } from "@/hooks/useEffectiveOrg";
 import { useRouter, usePathname } from "next/navigation";
 import InputField from "../components/inputs/InputField";
 import SelectField from "../components/inputs/SelectField";
@@ -15,33 +16,16 @@ import {
 export default function RiskTaskManagement({ riskFormData = {} }) {
   const router   = useRouter();
   const pathname = usePathname();
-  const rawUser  =
-    typeof window !== "undefined"
-      ? sessionStorage.getItem("user")
-      : null;
-  const user     = rawUser ? JSON.parse(rawUser) : null;
-  // -- effectiveOrgId injected by migration script --
-  const __selectedChildOrg = (function() {
-    try { var s = sessionStorage.getItem('selectedChildOrg'); return s ? JSON.parse(s) : null; } catch(e) { return null; }
-  })();
-  const __userOrgId = user
-    ? (user.organization && user.organization._id
-        ? user.organization._id
-        : (user.organization || null))
-    : null;
-  const __isPartnerRoot = !!(user && Array.isArray(user.role) &&
-    user.role.some(function(r) {
-      var s = (typeof r === 'string' ? r : (r && (r.name || r.roleName)) || '').toLowerCase().replace(/[\s_-]/g,'');
-      return s.indexOf('root') !== -1;
-    }) && !user.role.some(function(r) {
-      var s = (typeof r === 'string' ? r : (r && (r.name || r.roleName)) || '').toLowerCase().replace(/[\s_-]/g,'');
-      return s.indexOf('super_admin') !== -1;
-    })
-  );
-  const effectiveOrgId = (__isPartnerRoot && __selectedChildOrg)
-    ? (__selectedChildOrg._id || __selectedChildOrg.id)
-    : __userOrgId;
-  // -- end effectiveOrgId --
+  const {
+    user,
+    mounted: isHookMounted,
+    isRoot,
+    isPrivilegedRole,
+    isViewingManagedOrg,
+    effectiveOrgId,
+    effectiveOrgIds,
+    selectedChildOrg,
+  } = useEffectiveOrg();
   const today    = new Date().toISOString().split("T")[0];
 
   // ✅ FIX 1: always derive roles as array
@@ -97,6 +81,7 @@ export default function RiskTaskManagement({ riskFormData = {} }) {
 
   // ── Fetch Departments ──────────────────────────────────────────────────────
   useEffect(() => {
+    if (!isHookMounted) return;
     let mounted = true;
     setIsLoading(true);
     getDepartments()
@@ -113,10 +98,11 @@ export default function RiskTaskManagement({ riskFormData = {} }) {
       .catch(console.error)
       .finally(() => mounted && setIsLoading(false));
     return () => { mounted = false; };
-  }, [orgId]);
+  }, [isHookMounted, orgId]);
 
   // ── Fetch Users ────────────────────────────────────────────────────────────
   useEffect(() => {
+    if (!isHookMounted) return;
     let mounted = true;
     getAllUsers()
       .then((res) => {
@@ -131,10 +117,11 @@ export default function RiskTaskManagement({ riskFormData = {} }) {
       })
       .catch((err) => { console.error(err); setUsers([]); });
     return () => { mounted = false; };
-  }, [orgId]);
+  }, [isHookMounted, orgId]);
 
   // ── Fetch Risks ────────────────────────────────────────────────────────────
   useEffect(() => {
+    if (!isHookMounted || !user) return;
     let mounted = true;
     const fetchRisks = async () => {
       try {
@@ -168,7 +155,7 @@ export default function RiskTaskManagement({ riskFormData = {} }) {
     };
     fetchRisks();
     return () => { mounted = false; };
-  }, [orgId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isHookMounted, user, orgId]);
 
   // ── Fetch Tasks ────────────────────────────────────────────────────────────
   // ✅ FIX 5: useCallback so it can be safely called anywhere
@@ -195,8 +182,8 @@ export default function RiskTaskManagement({ riskFormData = {} }) {
   }, [riskFormData.riskId, orgId]); // ✅ FIX 6: correct deps
 
   useEffect(() => {
-    if (orgId) fetchTasks();
-  }, [fetchTasks, orgId]);
+    if (isHookMounted && orgId) fetchTasks();
+  }, [isHookMounted, fetchTasks, orgId]);
 
   // ── Form handlers ──────────────────────────────────────────────────────────
   const handleInputChange = (e) => {

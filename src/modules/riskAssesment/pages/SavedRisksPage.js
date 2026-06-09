@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useEffectiveOrg } from "@/hooks/useEffectiveOrg";
 import { useRouter } from "next/navigation";
 import {
   ClipboardList,
@@ -170,34 +171,20 @@ const SavedRisksPage = () => {
   const [generatingSoA, setGeneratingSoA] = useState(false);
   const [soaProgress, setSoaProgress] = useState({ current: 0, total: 0 });
 
-  const user = JSON.parse(sessionStorage.getItem("user") || "{}");
-  // -- effectiveOrgId injected by migration script --
-  const __selectedChildOrg = (function() {
-    try { var s = sessionStorage.getItem('selectedChildOrg'); return s ? JSON.parse(s) : null; } catch(e) { return null; }
-  })();
-  const __userOrgId = user
-    ? (user.organization && user.organization._id
-        ? user.organization._id
-        : (user.organization || null))
-    : null;
-  const __isPartnerRoot = !!(user && Array.isArray(user.role) &&
-    user.role.some(function(r) {
-      var s = (typeof r === 'string' ? r : (r && (r.name || r.roleName)) || '').toLowerCase().replace(/[\s_-]/g,'');
-      return s.indexOf('root') !== -1;
-    }) && !user.role.some(function(r) {
-      var s = (typeof r === 'string' ? r : (r && (r.name || r.roleName)) || '').toLowerCase().replace(/[\s_-]/g,'');
-      return s.indexOf('super_admin') !== -1;
-    })
-  );
-  const effectiveOrgId = (__isPartnerRoot && __selectedChildOrg)
-    ? (__selectedChildOrg._id || __selectedChildOrg.id)
-    : __userOrgId;
-  // -- end effectiveOrgId --
-  const userRoles = Array.isArray(user.role)
+  const {
+    user,
+    mounted,
+    isRoot,
+    isPrivilegedRole,
+    isViewingManagedOrg,
+    effectiveOrgId,
+    effectiveOrgIds,
+    selectedChildOrg,
+  } = useEffectiveOrg();
+  const userRoles = Array.isArray(user?.role)
     ? user.role
-    : [user.role].filter(Boolean);
+    : [user?.role].filter(Boolean);
   const isSuperAdmin = userRoles.includes("super_admin");
-  const isRoot = userRoles.includes("root");
 
   // ── Framework-filtered view ───────────────────────────────────────────────
   const displayedRisks = React.useMemo(() => {
@@ -239,8 +226,10 @@ const SavedRisksPage = () => {
 
   // ── Load risks (original) ─────────────────────────────────────────────────
   useEffect(() => {
-    loadSavedRisks();
-  }, []); // eslint-disable-line
+    if (mounted && user) {
+      loadSavedRisks();
+    }
+  }, [mounted, user, effectiveOrgId]); // eslint-disable-line
 
   useEffect(() => {
     const storedEdits = JSON.parse(localStorage.getItem("editedRisks")) || [];

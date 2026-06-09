@@ -611,7 +611,7 @@ import Link from 'next/link';
 
 import React, { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { useUser } from "../../../hooks/useUser";
+import { useEffectiveOrg } from "@/hooks/useEffectiveOrg";
 import { getAllAssessments } from "../services/dpiaApi";
 import {
   ArrowLeft,
@@ -781,40 +781,22 @@ function RiskLevelPill({ level }) {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function ViewAssessments() {
-  const user = useUser();
-  // -- effectiveOrgId injected by migration script --
-  const __selectedChildOrg = (function() {
-    try { var s = sessionStorage.getItem('selectedChildOrg'); return s ? JSON.parse(s) : null; } catch(e) { return null; }
-  })();
-  const __userOrgId = user
-    ? (user.organization && user.organization._id
-        ? user.organization._id
-        : (user.organization || null))
-    : null;
-  const __isPartnerRoot = !!(user && Array.isArray(user.role) &&
-    user.role.some(function(r) {
-      var s = (typeof r === 'string' ? r : (r && (r.name || r.roleName)) || '').toLowerCase().replace(/[\s_-]/g,'');
-      return s.indexOf('root') !== -1;
-    }) && !user.role.some(function(r) {
-      var s = (typeof r === 'string' ? r : (r && (r.name || r.roleName)) || '').toLowerCase().replace(/[\s_-]/g,'');
-      return s.indexOf('super_admin') !== -1;
-    })
-  );
-  const effectiveOrgId = (__isPartnerRoot && __selectedChildOrg)
-    ? (__selectedChildOrg._id || __selectedChildOrg.id)
-    : __userOrgId;
-  // -- end effectiveOrgId --
+  const {
+    user,
+    mounted,
+    isRoot: hookIsRoot,
+    isPrivilegedRole,
+    isViewingManagedOrg,
+    effectiveOrgId,
+    effectiveOrgIds,
+    selectedChildOrg,
+  } = useEffectiveOrg();
   const organizationId = effectiveOrgId;
   const router = useRouter();
 
   // ── Role detection (UNCHANGED) ────────────────────────────────────────────
   const userRoles = Array.isArray(user?.role) ? user.role : [user?.role || ""];
-  const isRoot = user?.role?.some((r) => {
-    const s = (typeof r === "string" ? r : r?.name || r?.roleName || "")
-      .toLowerCase()
-      .replace(/[\s_-]/g, "");
-    return ["root","ciso", "dpo"].some((role) => s.includes(role));
-  });
+  const isRoot = isPrivilegedRole;
   const isRiskOwner =
     userRoles.includes("risk_owner") || userRoles.includes("risk_manager");
   const userDepartment = user?.department;
@@ -839,8 +821,10 @@ export default function ViewAssessments() {
   }, [organizationId]);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    if (mounted) {
+      loadData();
+    }
+  }, [loadData, mounted]);
 
   // ── Scope (UNCHANGED) ────────────────────────────────────────────────────
   const baseDpias =

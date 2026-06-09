@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { useUser } from "../../../hooks/useUser";
+import { useEffectiveOrg } from "@/hooks/useEffectiveOrg";
 import { getAllAssessments } from "../services/dpiaApi";
 import { captureActivity, ACTIONS } from "../../../services/activities";
 import { motion, AnimatePresence } from "framer-motion";
@@ -123,29 +123,17 @@ function BarTooltip({ active, payload }) {
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 export default function Dashboard() {
-  const user = useUser();
-  // -- effectiveOrgId injected by migration script --
-  const __selectedChildOrg = (function() {
-    try { var s = sessionStorage.getItem('selectedChildOrg'); return s ? JSON.parse(s) : null; } catch(e) { return null; }
-  })();
-  const __userOrgId = user
-    ? (user.organization && user.organization._id
-        ? user.organization._id
-        : (user.organization || null))
-    : null;
-  const __isPartnerRoot = !!(user && Array.isArray(user.role) &&
-    user.role.some(function(r) {
-      var s = (typeof r === 'string' ? r : (r && (r.name || r.roleName)) || '').toLowerCase().replace(/[\s_-]/g,'');
-      return s.indexOf('root') !== -1;
-    }) && !user.role.some(function(r) {
-      var s = (typeof r === 'string' ? r : (r && (r.name || r.roleName)) || '').toLowerCase().replace(/[\s_-]/g,'');
-      return s.indexOf('super_admin') !== -1;
-    })
-  );
-  const effectiveOrgId = (__isPartnerRoot && __selectedChildOrg)
-    ? (__selectedChildOrg._id || __selectedChildOrg.id)
-    : __userOrgId;
-  // -- end effectiveOrgId --
+  const {
+    user,
+    mounted,
+    isRoot: hookIsRoot,
+    isPrivilegedRole,
+    isViewingManagedOrg,
+    effectiveOrgId,
+    effectiveOrgIds,
+    selectedChildOrg,
+  } = useEffectiveOrg();
+  const isRoot = isPrivilegedRole;
   const organizationId = effectiveOrgId;
   const router = useRouter();
   const chartsContainerRef = useRef(null);
@@ -154,49 +142,8 @@ export default function Dashboard() {
   const [hasMounted, setHasMounted] = useState(false);
   useEffect(() => { setHasMounted(true); }, []);
 
-  // ── Auth loading guard ────────────────────────────────────────────────────
-  // useUser() returns null on the very first render (before its internal
-  // effect/context has resolved), which is identical to "not logged in".
-  // We track whether the hook has settled so we can distinguish:
-  //   isUserLoaded === false → still resolving, do NOT redirect yet
-  //   isUserLoaded === true  → settled; user is the real value (object or null)
-  //
-  // Strategy: watch the `user` value across renders. The moment it transitions
-  // from null to something (or we know it has had time to settle), mark loaded.
-  // We use a small timeout as a fallback so we don't hang forever if the hook
-  // never resolves to a truthy value (i.e. the user is genuinely not logged in).
-  const [isUserLoaded, setIsUserLoaded] = useState(false);
-
-  useEffect(() => {
-    if (user !== null && user !== undefined) {
-      // Hook returned a real user — settle immediately
-      setIsUserLoaded(true);
-      return;
-    }
-
-    // user is null/undefined: give the hook one tick to resolve before we
-    // consider it "settled as unauthenticated". A single rAF is enough for
-    // hooks backed by context/sessionStorage to complete their effect.
-    // We use a short timeout (0 ms via rAF) so we don't flash a redirect.
-    const id = requestAnimationFrame(() => {
-      setIsUserLoaded(true);
-    });
-    return () => cancelAnimationFrame(id);
-  }, [user]);
-
-  // ── Auth state is used for data fetching gate ──────────────────────────
-  // We no longer perform manual redirects here because this component
-  // is wrapped in ProtectedPage at the route level.
-  // We just wait for user to be available before fetching data.
-
   // ── Role detection ────────────────────────────────────────────────────────
   const userRoles = Array.isArray(user?.role) ? user.role : [user?.role || ""];
-  const isRoot = user?.role?.some((r) => {
-    const s = (typeof r === "string" ? r : r?.name || r?.roleName || "")
-      .toLowerCase()
-      .replace(/[\s_-]/g, "");
-    return ["root", "dpo"].some((role) => s.includes(role));
-  });
   const isRiskOwner =
     userRoles.includes("risk_owner") || userRoles.includes("risk_manager");
 
@@ -276,7 +223,7 @@ export default function Dashboard() {
 
   // Load data only after the user is confirmed present to avoid unauthenticated requests
   useEffect(() => {
-    if (!isUserLoaded || !user?.id || !organizationId) return;
+    if (!mounted || !user || !organizationId) return;
 
     // Load dashboard data
     loadData();
@@ -291,7 +238,7 @@ export default function Dashboard() {
         url: window.location.pathname,
       });
     }
-  }, [isUserLoaded, user?.id, organizationId, loadData]);
+  }, [mounted, user, organizationId, loadData]);
   // Fix recharts in flex containers
   useEffect(() => {
     const roTimer = { current: null };
@@ -512,9 +459,8 @@ export default function Dashboard() {
       : null;
 
   // ── Loading gate ──────────────────────────────────────────────────────────
-  // Show spinner while the useUser hook is resolving on hard reload.
-  // This prevents the redirect from firing before the hook has settled.
-  if (!isUserLoaded) {
+  // Show spinner while the useEffectiveOrg hook is resolving on hard reload.
+  if (!mounted) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-slate-500 text-sm">Loading dashboard...</div>
@@ -522,7 +468,7 @@ export default function Dashboard() {
     );
   }
 
-  // Confirmed unauthenticated — render nothing while redirect is in-flight
+  // Confirmed unauthenticated — render nothing
   if (!user) return null;
 
   return (

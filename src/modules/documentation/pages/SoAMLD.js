@@ -1,5 +1,6 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { useEffectiveOrg } from "@/hooks/useEffectiveOrg";
 import documentationService from "../services/documentationService";
 import { Trash2, UploadCloud, Calendar, Check } from "lucide-react";
 import { DOCUMENT_MAPPING } from "../constants";
@@ -9,37 +10,16 @@ import Joyride, { STATUS } from "react-joyride";
 
 const MLD = () => {
   const router = useRouter();
-  const [user, setUser] = useState(null);
-  // -- effectiveOrgId injected by migration script --
-  const __selectedChildOrg = (function() {
-    try { var s = sessionStorage.getItem('selectedChildOrg'); return s ? JSON.parse(s) : null; } catch(e) { return null; }
-  })();
-  const __userOrgId = user
-    ? (user.organization && user.organization._id
-        ? user.organization._id
-        : (user.organization || null))
-    : null;
-  const __isPartnerRoot = !!(user && Array.isArray(user.role) &&
-    user.role.some(function(r) {
-      var s = (typeof r === 'string' ? r : (r && (r.name || r.roleName)) || '').toLowerCase().replace(/[\s_-]/g,'');
-      return s.indexOf('root') !== -1;
-    }) && !user.role.some(function(r) {
-      var s = (typeof r === 'string' ? r : (r && (r.name || r.roleName)) || '').toLowerCase().replace(/[\s_-]/g,'');
-      return s.indexOf('super_admin') !== -1;
-    })
-  );
-  const effectiveOrgId = (__isPartnerRoot && __selectedChildOrg)
-    ? (__selectedChildOrg._id || __selectedChildOrg.id)
-    : __userOrgId;
-  // -- end effectiveOrgId --
-
-useEffect(() => {
-  const storedUser = sessionStorage.getItem("user");
-
-  if (storedUser) {
-    setUser(JSON.parse(storedUser));
-  }
-}, []);
+  const {
+    user,
+    mounted,
+    isRoot,
+    isPrivilegedRole,
+    isViewingManagedOrg,
+    effectiveOrgId,
+    effectiveOrgIds,
+    selectedChildOrg,
+  } = useEffectiveOrg();
 
   // Global modal state
   const [modal, setModal] = useState({
@@ -136,55 +116,47 @@ useEffect(() => {
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
   const [previewUrl, setPreviewUrl] = useState("");
 
+  const fetchData = useCallback(async () => {
+    try {
+      // Fetch all documents and filter by organization
+      const docs = (await documentationService.getDocuments()) || [];
+      const orgDocs = docs.filter(
+        (d) => d.organization === effectiveOrgId,
+      );
+      setDocuments(orgDocs);
+      console.log("📄 Documents fetched from API (org filtered):", orgDocs);
+
+      // Fetch all SoA entries and filter by organization
+      const soaList = (await documentationService.getSoAEntries()) || [];
+      const orgSoas = soaList.filter(
+        (s) => s.organization === effectiveOrgId,
+      );
+      setSoas(orgSoas);
+      console.log("📘 SoA entries fetched (org filtered):", orgSoas);
+
+      // Compute counts per SoA
+      const counts = {};
+      orgSoas.forEach((s) => {
+        counts[s.id] = 0;
+      });
+      orgDocs.forEach((d) => {
+        const sid = d.soaId ?? d.soa?.id ?? d.soaIdString ?? null;
+        if (sid != null) counts[sid] = (counts[sid] ?? 0) + 1;
+      });
+      setUploadedCounts(counts);
+    } catch (error) {
+      console.error("Error loading data:", error);
+      setDocuments([]);
+      setSoas([]);
+      setUploadedCounts({});
+    }
+  }, [effectiveOrgId]);
+
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [user, setUser] = useState(null);
-
-useEffect(() => {
-  const storedUser = sessionStorage.getItem("user");
-
-  if (storedUser) {
-    setUser(JSON.parse(storedUser));
-  }
-}, []);
-
-        // Fetch all documents and filter by organization
-        const docs = (await documentationService.getDocuments()) || [];
-        const orgDocs = docs.filter(
-          (d) => d.organization === effectiveOrgId,
-        );
-        setDocuments(orgDocs);
-        console.log("📄 Documents fetched from API (org filtered):", orgDocs);
-
-        // Fetch all SoA entries and filter by organization
-        const soaList = (await documentationService.getSoAEntries()) || [];
-        const orgSoas = soaList.filter(
-          (s) => s.organization === effectiveOrgId,
-        );
-        setSoas(orgSoas);
-        console.log("📘 SoA entries fetched (org filtered):", orgSoas);
-
-        // Compute counts per SoA
-        const counts = {};
-        orgSoas.forEach((s) => {
-          counts[s.id] = 0;
-        });
-        orgDocs.forEach((d) => {
-          const sid = d.soaId ?? d.soa?.id ?? d.soaIdString ?? null;
-          if (sid != null) counts[sid] = (counts[sid] ?? 0) + 1;
-        });
-        setUploadedCounts(counts);
-      } catch (error) {
-        console.error("Error loading data:", error);
-        setDocuments([]);
-        setSoas([]);
-        setUploadedCounts({});
-      }
-    };
-
-    fetchData();
-  }, []);
+    if (mounted) {
+      fetchData();
+    }
+  }, [fetchData, mounted]);
 
   const handlePreviewClick = (soa) => {
     const doc = documents.find((d) => String(d.soaId) === String(soa.id));

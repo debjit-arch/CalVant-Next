@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import React, {
   useState,
   useEffect,
@@ -36,6 +36,7 @@ import "./DashboardLoggedIn.css";
 import { useFramework } from "../../context/FrameworkContex";
 import { getFrameworkCompliance } from "../integrations/complianceData";
 import { useUI } from "../../context/UIContext";
+import { useEffectiveOrg } from "@/hooks/useEffectiveOrg";
 
 // ─── Framework filter helpers ─────────────────────────────────────────────────
 
@@ -508,104 +509,80 @@ const DashboardLoggedIn = () => {
   const { runTour, setRunTour } = useUI();
 
   // ── User ──────────────────────────────────────────────────────────────────
-  const [user, setUser] = useState(null);
-  useEffect(() => {
-    try {
-      const stored = sessionStorage.getItem("user");
-      setUser(stored ? JSON.parse(stored) : null);
-    } catch {
-      setUser(null);
-    }
-  }, []);
+  // ── useEffectiveOrg ───────────────────────────────────────────────────────
+  const {
+    user,
+    mounted,
+    isRoot,
+    isPartnerRoot,
+    isOrgManager,
+    isViewingManagedOrg,
+    isPrivilegedRole,
+    managedOrgs,
+    effectiveOrgId,
+    effectiveOrgIds,
+    selectedChildOrg,
+  } = useEffectiveOrg();
 
   useEffect(() => {
-    if (!user) setSessionExpired(true);
-  }, [user]);
-
-  // ── Partner Root / Child Org Selection ────────────────────────────────────
-  const isRoot =
-    user?.role?.includes("root") && !user?.role?.includes("super_admin");
-
-  const [userOrgData, setUserOrgData] = useState(null);
-  const [userOrgLoading, setUserOrgLoading] = useState(true);
-
-  useEffect(() => {
-    if (!isRoot || !user?.organization) {
-      setUserOrgLoading(false); // ← must set false here too
-      return;
-    }
-    const orgId = user?.organization?._id || user?.organization;
-    fetch(`https://api.calvant.com/user-service/api/organizations/${orgId}`)
-      .then((r) => r.json())
-      .then((org) => setUserOrgData(org))
-      .catch(console.error)
-      .finally(() => setUserOrgLoading(false)); // ← must be here
-  }, [isRoot, user]);
-
-  const isPartnerRoot = isRoot && userOrgData?.partner === true;
+    if (mounted && !user) setSessionExpired(true);
+  }, [mounted, user]);
 
   const [childOrgs, setChildOrgs] = useState([]);
   const [childOrgsLoading, setChildOrgsLoading] = useState(false);
-  const [selectedChildOrg, setSelectedChildOrg] = useState(null);
-  useEffect(() => {
-    try {
-      const stored = sessionStorage.getItem("selectedChildOrg");
-      setSelectedChildOrg(stored ? JSON.parse(stored) : null);
-    } catch {
-      setSelectedChildOrg(null);
-    }
-  }, []);
 
-  // ✅ Replace the children fetch useEffect
+  sessionStorage.setItem("partnerChildOrgs", JSON.stringify(childOrgs));
+
   useEffect(() => {
-    if (userOrgLoading) return; // ← wait until org data is resolved
-    if (!isPartnerRoot) return; // ← only partner roots need children
-    setChildOrgsLoading(true);
+    if (!mounted) return;
     const token = sessionStorage.getItem("token");
-    fetch("https://api.calvant.com/user-service/api/organizations/children", {
-      headers: {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-    })
-      .then((r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`); // ← Fix 2
-        return r.json();
+
+    if (isPartnerRoot) {
+      setChildOrgsLoading(true);
+      fetch("https://api.calvant.com/user-service/api/organizations/children", {
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
       })
-      .then((orgs) => {
-        if (Array.isArray(orgs)) setChildOrgs(orgs);
-      })
-      .catch(console.error)
-      .finally(() => setChildOrgsLoading(false));
-  }, [isPartnerRoot, userOrgLoading]); // ← depend on both
+        .then((r) => {
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          return r.json();
+        })
+        .then((orgs) => {
+          if (Array.isArray(orgs)) setChildOrgs(orgs);
+        })
+        .catch(console.error)
+        .finally(() => setChildOrgsLoading(false));
+    } else if (isOrgManager && managedOrgs.length > 0) {
+      setChildOrgsLoading(true);
+      Promise.all(
+        managedOrgs.map((id) =>
+          fetch(
+            `https://api.calvant.com/user-service/api/organizations/${id}`,
+            {
+              headers: {
+                "Content-Type": "application/json",
+                ...(token ? { Authorization: `Bearer ${token}` } : {}),
+              },
+            },
+          ).then((r) => {
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+            return r.json();
+          }),
+        ),
+      )
+        .then((orgs) => setChildOrgs(orgs.filter(Boolean)))
+        .catch(console.error)
+        .finally(() => setChildOrgsLoading(false));
+    }
+  }, [mounted, isPartnerRoot, isOrgManager, managedOrgs]);
 
   const handleSelectChildOrg = (org) => {
     sessionStorage.setItem("selectedChildOrg", JSON.stringify(org));
-    setSelectedChildOrg(org);
+    window.dispatchEvent(new Event("childOrgChanged"));
+    window.location.reload();
   };
-
-  const handleClearChildOrg = () => {
-    sessionStorage.removeItem("selectedChildOrg");
-    setSelectedChildOrg(null);
-  };
-
-  // The effective org ID used for all data loading
-  // Single org ID for endpoints that take one ID (DPIA, TPRM, audits)
-  const effectiveOrgId = useMemo(() => {
-    if (isPartnerRoot && selectedChildOrg) {
-      return selectedChildOrg._id || selectedChildOrg.id;
-    }
-    return user?.organization?._id || user?.organization;
-  }, [isPartnerRoot, selectedChildOrg, user]);
-
-  // Set of all org IDs to match against — used for client-side filtering
-  // When partner root has no child org selected → includes all child org IDs
-  const effectiveOrgIds = useMemo(() => {
-    if (isPartnerRoot && !selectedChildOrg && childOrgs.length > 0) {
-      return new Set(childOrgs.map((o) => String(o._id || o.id)));
-    }
-    return new Set([String(effectiveOrgId)]);
-  }, [isPartnerRoot, selectedChildOrg, childOrgs, effectiveOrgId]);
 
   // ── Idle / JWT timer ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -725,12 +702,7 @@ const DashboardLoggedIn = () => {
     try {
       const risks = await riskService.getAllRisks();
       if (!Array.isArray(risks)) return;
-      const isRootRole = user?.role?.some((r) => {
-        const s = (typeof r === "string" ? r : r?.name || r?.roleName || "")
-          .toLowerCase()
-          .replace(/[\s_-]/g, "");
-        return ["root", "ciso", "aio", "dpo"].some((role) => s.includes(role));
-      });
+      const seeAll = isPrivilegedRole || isViewingManagedOrg;
       const userDepts = (user.departments || []).map((d) =>
         (d.name || "").trim().toLowerCase(),
       );
@@ -740,7 +712,7 @@ const DashboardLoggedIn = () => {
             String(risk.organization?._id || risk.organization),
           );
           if (!orgMatch) return false;
-          if (isRootRole) return true;
+          if (seeAll) return true;
           return (
             risk.department &&
             userDepts.includes(risk.department.trim().toLowerCase())
@@ -989,12 +961,7 @@ const DashboardLoggedIn = () => {
   }, [allAudits, selectedFrameworks, isAllSelected]);
 
   const gapStats = useMemo(() => {
-    const isRootRole = user?.role?.some((r) => {
-      const s = (typeof r === "string" ? r : r?.name || r?.roleName || "")
-        .toLowerCase()
-        .replace(/[\s_-]/g, "");
-      return ["root", "ciso", "aio", "dpo"].some((role) => s.includes(role));
-    });
+    const seeAll = isPrivilegedRole || isViewingManagedOrg;
     const deptNames = (user?.departments || []).map((d) =>
       (d.name || "").trim().toLowerCase(),
     );
@@ -1012,14 +979,14 @@ const DashboardLoggedIn = () => {
         (d) => (typeof d === "string" ? d : d.name || d).trim().toLowerCase(),
       );
       const hasAccess =
-        isRootRole || itemDepts.some((d) => deptNames.includes(d));
+        isPrivilegedRole || itemDepts.some((d) => deptNames.includes(d));
       return hasAccess ? acc + (item.auditQuestions?.length || 1) : acc;
     }, 0);
 
     const filteredGaps = allGaps.filter((g) => {
       if (!effectiveOrgIds.has(String(g.organization?._id || g.organization)))
         return false;
-      if (isRootRole) return true;
+      if (seeAll) return true;
       return deptNames.includes(
         String(g.department || "")
           .trim()
@@ -1149,23 +1116,22 @@ const DashboardLoggedIn = () => {
     try {
       const tasks = await taskService.getAllTasks();
       if (!Array.isArray(tasks) || !user) return;
-      const isRootRole = user?.role?.some((r) => {
-        const s = (typeof r === "string" ? r : r?.name || r?.roleName || "")
-          .toLowerCase()
-          .replace(/[\s_-]/g, "");
-        return ["root", "ciso", "aio", "dpo"].some((role) => s.includes(role));
-      });
+      const seeAll = isPrivilegedRole || isViewingManagedOrg;
+
       const orgTasks = tasks.filter((t) =>
         effectiveOrgIds.has(String(t.organization?._id || t.organization)),
       );
-      const deptTasks = isRootRole
+
+      // deptTasks must be an array, not a boolean
+      const deptNames = (user.departments || []).map((d) =>
+        (d.name || "").trim().toLowerCase(),
+      );
+      const deptTasks = seeAll
         ? orgTasks
-        : orgTasks.filter((t) => {
-            if (!t.department) return false;
-            return (user.departments || [])
-              .map((d) => (d.name || "").trim().toLowerCase())
-              .includes(t.department.trim().toLowerCase());
-          });
+        : orgTasks.filter((t) =>
+            deptNames.includes((t.department || "").trim().toLowerCase()),
+          );
+
       setTaskStats({
         total: orgTasks.length,
         myTasks: deptTasks.length,
@@ -1179,7 +1145,13 @@ const DashboardLoggedIn = () => {
     } catch (err) {
       console.error("Error loading task stats:", err);
     }
-  }, [user, effectiveOrgId]);
+  }, [
+    user,
+    effectiveOrgId,
+    effectiveOrgIds,
+    isPrivilegedRole,
+    isViewingManagedOrg,
+  ]);
 
   useEffect(() => {
     loadTaskStats();
@@ -1314,7 +1286,11 @@ const DashboardLoggedIn = () => {
 
   // childOrgs arrives async — make sure loaders that use effectiveOrgIds re-run
   useEffect(() => {
-    if (isPartnerRoot && childOrgs.length > 0 && !selectedChildOrg) {
+    if (
+      (isPartnerRoot || isOrgManager) &&
+      childOrgs.length > 0 &&
+      !selectedChildOrg
+    ) {
       loadRiskStats();
       loadDocumentStats();
       loadGapStats();
@@ -1452,7 +1428,9 @@ const DashboardLoggedIn = () => {
   }
 
   // ──────────────────────────────────────────────────────────────────────────
-  if (isRoot && userOrgLoading && userOrgData === null) {
+  if (!mounted) return null;
+
+  if (isPartnerRoot && childOrgsLoading) {
     return (
       <div
         style={{
@@ -1476,6 +1454,17 @@ const DashboardLoggedIn = () => {
       </div>
     );
   }
+
+  // if (isPartnerRoot && !selectedChildOrg && childOrgs.length > 0) {
+  //   return (
+  //     <ChildOrgPicker
+  //       orgs={childOrgs}
+  //       loading={childOrgsLoading}
+  //       onSelect={handleSelectChildOrg}
+  //       userName={user?.name}
+  //     />
+  //   );
+  // }
   return (
     <div
       style={{
