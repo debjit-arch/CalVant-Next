@@ -1,4 +1,4 @@
-'use client'
+"use client";
 
 import React, { useState, useEffect, useCallback } from "react";
 import adminAxios from "../../api/adminAxios";
@@ -29,6 +29,7 @@ import {
   X,
   AlertCircle,
 } from "lucide-react";
+import { jwtDecode } from "jwt-decode";
 
 const API = "https://api.calvant.com/user-service";
 
@@ -358,12 +359,14 @@ export default function OnboardingModule() {
   const [newDeptName, setNewDeptName] = useState("");
   const [deptSaving, setDeptSaving] = useState(false);
   const [users, setUsers] = useState([]);
+  // ── State: add modules field ──────────────────────────────────────────────
   const [newUser, setNewUser] = useState({
     name: "",
     email: "",
-    role: "",
+    role: "", // single string from <Select>
     department: "",
     password: "",
+    modules: [], // ← add this
   });
   const [userSaving, setUserSaving] = useState(false);
   const [step2Saving, setStep2Saving] = useState(false);
@@ -492,7 +495,6 @@ export default function OnboardingModule() {
     }
   };
 
-  // ── Create user (step 2) ───────────────────────────────────────────────────
   const createUser = async () => {
     const req = ["name", "email", "role", "password"];
     for (const f of req) {
@@ -504,11 +506,51 @@ export default function OnboardingModule() {
     try {
       setUserSaving(true);
       setError(null);
+
+      const roleArr = newUser.role ? [newUser.role] : [];
+      const deptArr = newUser.department ? [newUser.department] : [];
+
+      // Mirror UserForm exactly: org comes from session/JWT, NOT from the onboarding
+      // API response object (org?.id may be a different format than the JWT claim)
+      const token =
+        sessionStorage.getItem("token") || localStorage.getItem("token");
+      const decoded = (() => {
+        try {
+          return token ? jwtDecode(token) : null;
+        } catch {
+          return null;
+        }
+      })();
+      const sessionUser = (() => {
+        try {
+          return JSON.parse(
+            sessionStorage.getItem("user") ||
+              localStorage.getItem("myObject") ||
+              "{}",
+          );
+        } catch {
+          return {};
+        }
+      })();
+
+      // Priority: session user object → JWT claim → onboarding API org id (last resort)
+      const orgId =
+        sessionUser?.organization || decoded?.organization || org?.id || "";
+
       const res = await ax.post(`${API}/api/users/register`, {
-        ...newUser,
-        username: newUser.email,
-        role: Array.isArray(newUser.role) ? newUser.role[0] : newUser.role, // ← unwrap if array
+        name: newUser.name,
+        email: newUser.email.toLowerCase(),
+        username: newUser.email.toLowerCase(),
+        password: newUser.password,
+        role: roleArr,
+        department: deptArr,
+        organization: orgId,
+        modules: [],
+        vendors: [],
+        isAuditor:
+          roleArr.includes("auditor") || roleArr.includes("audit_manager"),
       });
+
       setUsers((u) => [...u, res.data]);
       setNewUser({
         name: "",
@@ -516,6 +558,7 @@ export default function OnboardingModule() {
         role: "",
         department: "",
         password: "",
+        modules: [],
       });
     } catch (e) {
       setError(e.response?.data?.message || "Failed to create user.");

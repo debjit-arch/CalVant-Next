@@ -23,6 +23,19 @@ function useIsPartnerRoot() {
   }
 }
 
+function useIsSuperAdmin() {
+  try {
+    const token = sessionStorage.getItem("token");
+    const decoded = token ? jwtDecode(token) : null;
+    const role = Array.isArray(decoded?.role) ? decoded.role[0] : decoded?.role;
+    return role === "super_admin";
+  } catch {
+    return false;
+  }
+}
+
+const SUPER_ADMIN_ONLY_GROUPS = new Set(["frameworks", "gap", "seo", "sampledocs"]);
+
 const NAV_BASE = [
   { label: "Onboarding", icon: Rocket, path: "/admin/onboarding" },
   { label: "Dashboard",  icon: LayoutDashboard, path: "/admin/dashboard", exact: true },
@@ -99,9 +112,9 @@ const NAV_BASE = [
 const ORG_ITEM = {
   label: "Organizations", icon: Landmark, group: "organizations",
   children: [
-    { label: "Org List",   icon: List,       path: "/admin/organization" },
-    { label: "Create Org", icon: PlusCircle, path: "/admin/organization/create" },
-    { label: "Approvals", icon: CheckCircle2, path: "/admin/organization/approvals" },
+    { label: "Org List",   icon: List,        path: "/admin/organization" },
+    { label: "Create Org", icon: PlusCircle,  path: "/admin/organization/create" },
+    { label: "Approvals",  icon: CheckCircle2, path: "/admin/organization/approvals" },
   ],
 };
 
@@ -110,14 +123,18 @@ const COLLAPSED_W = 100;
 
 export default function AdminLayout({ children }) {
   const isPartnerRoot = useIsPartnerRoot();
+  const isSuperAdmin  = useIsSuperAdmin();
 
-  const NAV = isPartnerRoot
+  const NAV = (isPartnerRoot
     ? [
         ...NAV_BASE.slice(0, NAV_BASE.findIndex(i => i.group === "departments") + 1),
         ORG_ITEM,
         ...NAV_BASE.slice(NAV_BASE.findIndex(i => i.group === "departments") + 1),
       ]
-    : NAV_BASE;
+    : NAV_BASE
+  ).filter(item =>
+    !item.group || !SUPER_ADMIN_ONLY_GROUPS.has(item.group) || isSuperAdmin
+  );
 
   const [collapsed, setCollapsed]   = useState(false);
   const [openGroups, setOpenGroups] = useState({
@@ -168,8 +185,8 @@ export default function AdminLayout({ children }) {
         <nav className="flex-1 overflow-y-auto py-4 px-2">
           {NAV.map((item) => {
             if (item.children) {
-              const active   = isGroupActive(item.children);
-              const open     = openGroups[item.group];
+              const active    = isGroupActive(item.children);
+              const open      = openGroups[item.group];
               const isOrgItem = item.group === "organizations";
 
               return (
