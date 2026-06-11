@@ -16,7 +16,7 @@ import {
   ShieldCheck,
   Brain,
   UserCheck2,
-  Settings
+  Settings,
 } from "lucide-react";
 import UserProfile from "./UserProfile";
 import Maindashboard_profile from "../maindashboard_profile";
@@ -145,7 +145,7 @@ const NAV_ITEMS = [
     expandable: true,
     moduleKey: "aiia",
   },
-    {
+  {
     // ── Admin Panel entry point — root only ──
     icon: Settings,
     label: "Admin Panel",
@@ -353,10 +353,17 @@ const PersistentSidebar = () => {
             if (item.moduleKey === "aiia" && !showAiia) return false;
             return true;
           }).map(
-            ({ icon: Icon, label, path, expandable, quickActions, isAdminEntry }) => {
+            ({
+              icon: Icon,
+              label,
+              path,
+              expandable,
+              quickActions,
+              isAdminEntry,
+            }) => {
               const isActive =
-                location.pathname === path ||
-                (path !== "/*" && location.pathname.startsWith(path));
+                pathname === path ||
+                (path !== "/*" && pathname.startsWith(path));
 
               const isModuleExpanded = expandedModules.includes(path);
 
@@ -369,7 +376,7 @@ const PersistentSidebar = () => {
                 }
               };
 
-                            // ── Admin Panel entry — rendered with accent divider ──
+              // ── Admin Panel entry — rendered with accent divider ──
               if (isAdminEntry) {
                 return (
                   <div key={path}>
