@@ -1078,16 +1078,7 @@ export default function CalVantAIPanel() {
     if (messages.length === 0) setChatMode("welcome");
   }, [messages]);
 
-  const openPanel          = useCallback(() => setPhase("tunnel"), []);
-  const handleTunnelComplete = useCallback(() => { setPhase("chat"); loadSessions(); }, [loadSessions]);
-  const closePanel         = useCallback(() => {
-    setPhase("idle");
-    setChatMode("welcome");
-    setMessages([]);
-    setSessionId(null);
-  }, []);
-
-  // ── Load session list ──────────────────────────────────────────────────────
+    // ── Load session list ──────────────────────────────────────────────────────
   const loadSessions = useCallback(async () => {
     try {
       const r = await fetch(
@@ -1098,6 +1089,15 @@ export default function CalVantAIPanel() {
       setSessions(await r.json());
     } catch (_) {}
   }, [orgId, userId, authHeaders]);
+
+  const openPanel          = useCallback(() => setPhase("tunnel"), []);
+  const handleTunnelComplete = useCallback(() => { setPhase("chat"); loadSessions(); }, [loadSessions]);
+  const closePanel         = useCallback(() => {
+    setPhase("idle");
+    setChatMode("welcome");
+    setMessages([]);
+    setSessionId(null);
+  }, []);
 
   // ── Open an existing session ───────────────────────────────────────────────
   const openSession = useCallback(async (id) => {
