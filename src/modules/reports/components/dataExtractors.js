@@ -1,10 +1,13 @@
 /**
  * ─────────────────────────────────────────────────────────────────────────────
- * DATA EXTRACTORS  (rewritten to match real API shape)
+ * DATA EXTRACTORS  (v2 — dimension-aware)
  * ─────────────────────────────────────────────────────────────────────────────
+ * All public API is unchanged. The dimension filter is applied transparently
+ * inside resolveMapValue and resolveTrendSeries when a `filters` arg is passed.
+ *
  * Real API shape (one result entry):
  *   result.data = {
- *     risks:     { total, avgScore, maxScore, byStatus: {Open,Closed,...}, byDepartment: {...} }
+ *     risks:     { total, avgScore, maxScore, byStatus:{…}, byDepartment:{…} }
  *     audit:     { total, totalFindings, byStatus, byDepartment }
  *     tasks:     { total, overdue, byStatus, byDepartment }
  *     dpia:      { total, avgCompletion, byStatus, byDepartment }
@@ -12,14 +15,10 @@
  *     aiia:      { stage1Total, stage1Draft, stage1Completed,
  *                  stage2Total, stage2Assigned, stage2Completed }
  *   }
- *   result._series = [ ...allFilteredResults sorted oldest→newest ]
- *
- * MongoDB $numberLong values are unwrapped via safeNum().
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
-// ─── safeNum ─────────────────────────────────────────────────────────────────
-
+// ─── safeNum ──────────────────────────────────────────────────────────────────
 function safeNum(v) {
   if (v == null) return 0;
   if (typeof v === "object" && "$numberLong" in v) return Number(v.$numberLong);
@@ -27,18 +26,12 @@ function safeNum(v) {
 }
 
 // ─── resolveByPath ────────────────────────────────────────────────────────────
-
-/**
- * Walk a dotpath into obj. Returns undefined if any segment is missing.
- * Handles MongoDB $numberLong at the leaf.
- */
 export function resolveByPath(obj, path) {
   if (!path || obj == null) return undefined;
   const val = path.split(".").reduce((acc, key) => {
     if (acc == null) return undefined;
     return acc[key];
   }, obj);
-  // unwrap $numberLong at leaf
   if (val != null && typeof val === "object" && "$numberLong" in val) {
     return Number(val.$numberLong);
   }
@@ -46,13 +39,6 @@ export function resolveByPath(obj, path) {
 }
 
 // ─── resolveSingleValue ───────────────────────────────────────────────────────
-
-/**
- * Scalar value for StatCard / ScoreGauge.
- * Reads from the latest snapshot: result.data.<dotpath>
- *
- * @returns {{ value: number|string|null, delta: number|null }}
- */
 export function resolveSingleValue(result, path) {
   const data = result?.data;
   if (!data || !path) return { value: null, delta: null };
@@ -60,52 +46,32 @@ export function resolveSingleValue(result, path) {
   const raw = resolveByPath(data, path);
   if (raw == null) return { value: null, delta: null };
 
-  // unwrapped object with explicit value field
   if (typeof raw === "object" && !Array.isArray(raw) && "value" in raw) {
     return { value: safeNum(raw.value), delta: raw.delta ?? null };
   }
 
-  // plain scalar
   return { value: typeof raw === "number" ? raw : safeNum(raw), delta: null };
 }
 
 // ─── resolveTrendSeries ───────────────────────────────────────────────────────
-
-/**
- * Multi-series trend data for TrendLine/Bar/AreaChart.
- *
- * Uses result._series (the full sorted time-series array from useDashboardData)
- * to build one data point per report entry.
- *
- * series config: [{ key, label, color, extractor }]
- *   extractor — dotpath into entry.data, e.g. "risks.total"
- *
- * @returns {{ points: Array<{ name, ...seriesKeys }> }}
- */
 export function resolveTrendSeries(result, seriesConfigs, _labelExtractor) {
   const series_ = result?._series;
   if (!series_?.length || !seriesConfigs?.length) return { points: [] };
 
-  // First pass — detect any map-type extractors and expand them into sub-keys
   const expandedSeries = [];
   for (const s of seriesConfigs) {
     const extractor = s.extractor ?? s.key;
     const sampleVal = resolveByPath(
       series_[series_.length - 1]?.data,
-      extractor,
+      extractor
     );
-    if (
-      sampleVal &&
-      typeof sampleVal === "object" &&
-      !Array.isArray(sampleVal)
-    ) {
-      // It's a map (e.g. byDepartment) — expand into one series per key
+    if (sampleVal && typeof sampleVal === "object" && !Array.isArray(sampleVal)) {
       Object.keys(sampleVal).forEach((dept, i) => {
         expandedSeries.push({
           key: `${extractor.replace(/\./g, "_")}_${dept.replace(/\s+/g, "_")}`,
           label: dept,
           extractor: `${extractor}.${dept}`,
-          color: s.color, // will be overridden below with auto-colors
+          color: s.color,
           _autoColorIndex: i,
         });
       });
@@ -115,16 +81,8 @@ export function resolveTrendSeries(result, seriesConfigs, _labelExtractor) {
   }
 
   const AUTO_COLORS = [
-    "#6366f1",
-    "#ef4444",
-    "#10b981",
-    "#f59e0b",
-    "#3b82f6",
-    "#a855f7",
-    "#06b6d4",
-    "#f97316",
-    "#84cc16",
-    "#ec4899",
+    "#6366f1","#ef4444","#10b981","#f59e0b","#3b82f6",
+    "#a855f7","#06b6d4","#f97316","#84cc16","#ec4899",
   ];
 
   const points = series_.map((entry) => {
@@ -137,8 +95,7 @@ export function resolveTrendSeries(result, seriesConfigs, _labelExtractor) {
     return point;
   });
 
-  // Attach auto-colors to expanded series
-  const coloredSeries = expandedSeries.map((s, i) => ({
+  const coloredSeries = expandedSeries.map((s) => ({
     ...s,
     color:
       s._autoColorIndex !== undefined
@@ -158,13 +115,6 @@ function fmtDate(iso) {
 }
 
 // ─── resolveMapValue ──────────────────────────────────────────────────────────
-
-/**
- * Key→value map for DonutStatusChart.
- * e.g. "risks.byStatus" → { Open: 5, Closed: 7 } → { map: { Open: 5, Closed: 7 } }
- *
- * @returns {{ map?: object, slices?: Array<{name,value}> }}
- */
 export function resolveMapValue(result, path) {
   const data = result?.data;
   if (!data || !path) return {};
@@ -172,7 +122,6 @@ export function resolveMapValue(result, path) {
   const raw = resolveByPath(data, path);
   if (raw == null) return {};
 
-  // array of { name, value } objects
   if (Array.isArray(raw) && raw.length > 0 && typeof raw[0] === "object") {
     const slices = raw
       .map((item) => ({
@@ -183,11 +132,9 @@ export function resolveMapValue(result, path) {
     return { slices };
   }
 
-  // plain object map { key: number }
   if (typeof raw === "object" && !Array.isArray(raw)) {
-    // normalise all values through safeNum
     const map = Object.fromEntries(
-      Object.entries(raw).map(([k, v]) => [k, safeNum(v)]),
+      Object.entries(raw).map(([k, v]) => [k, safeNum(v)])
     );
     return { map };
   }
@@ -196,14 +143,6 @@ export function resolveMapValue(result, path) {
 }
 
 // ─── resolveTableRows ─────────────────────────────────────────────────────────
-
-/**
- * Array of row objects for TableWidget / DepartmentBreakdown.
- * e.g. "risks.byDepartment" → { IT: 4, HR: 2 }
- *      converted to [{ department: "IT", value: 4 }, ...]
- *
- * @returns {{ rows: Array<object> }}
- */
 export function resolveTableRows(result, path) {
   const data = result?.data;
   if (!data || !path) return { rows: [] };
@@ -211,15 +150,12 @@ export function resolveTableRows(result, path) {
   const raw = resolveByPath(data, path);
   if (raw == null) return { rows: [] };
 
-  // already an array
   if (Array.isArray(raw)) return { rows: raw };
 
-  // object map → convert to rows
   if (typeof raw === "object") {
     const rows = Object.entries(raw)
       .map(([department, value]) => ({ department, value: safeNum(value) }))
       .filter((r) => r.value > 0);
-    // also expose as map so DepartmentBreakdown can read it
     const map = Object.fromEntries(rows.map((r) => [r.department, r.value]));
     return { rows, map };
   }

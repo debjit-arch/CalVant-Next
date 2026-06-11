@@ -1,66 +1,78 @@
 /**
  * ─────────────────────────────────────────────────────────────────────────────
- * DASHBOARD ENGINE  (fixed)
+ * DashboardEngine.jsx  (v2)
  * ─────────────────────────────────────────────────────────────────────────────
- * Fixes:
- *   1. KpiWrapper data resolution — trend/series extractors now correctly
- *      produce { points: [...] } instead of { value, delta }
- *   2. Custom Dashboard button opens a real config modal; saved configs are
- *      stored in localStorage and rendered as extra views.
+ * Changes from v1:
+ *   1. localStorage shape: calvant_custom_views  [{ id, label, panels[] }]
+ *      (old calvant_custom_panels flat list is migrated automatically on mount)
+ *   2. Custom views: full CRUD via ViewManagerModal
+ *   3. Custom panels: edit (reopens modal pre-filled) + delete per-panel
+ *   4. Comparison data passed from parent → KpiWrapper → StatCard delta
+ *   5. "Custom Panel" button opens updated modal with view placement step
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
 import React, {
-  Suspense,
-  memo,
-  useCallback,
-  useMemo,
-  useState,
-  useEffect,
+  Suspense, memo, useCallback, useMemo, useState, useEffect,
 } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { Settings2, Pencil, Trash2 } from "lucide-react";
 import { resolveComponent } from "./kpiRegistry";
 import {
-  resolveSingleValue,
-  resolveTrendSeries,
-  resolveMapValue,
-  resolveTableRows,
+  resolveSingleValue, resolveTrendSeries, resolveMapValue, resolveTableRows,
 } from "./dataExtractors";
-import { useDashboardData } from "../../../hooks/useDashboardData";
-import { useDashboardExport } from "../../../hooks/useDashboardExport";
 import CustomDashboardModal from "./customDashboardModal";
+import ViewManagerModal from "./ViewManagerModal";
 
-// ─── helpers ──────────────────────────────────────────────────────────────────
+// ─── storage keys ─────────────────────────────────────────────────────────────
+const VIEWS_KEY   = "calvant_custom_views";
+const LEGACY_KEY  = "calvant_custom_panels"; // migrated on first load
 
-/**
- * Decide how to resolve extractor string based on what the KPI needs.
- * componentType is the ground truth — not the leaf value heuristic.
- */
+// ─── migration ────────────────────────────────────────────────────────────────
+function loadCustomViews() {
+  try {
+    const stored = localStorage.getItem(VIEWS_KEY);
+    if (stored) return JSON.parse(stored);
+
+    // migrate legacy flat list
+    const legacy = localStorage.getItem(LEGACY_KEY);
+    if (legacy) {
+      const panels = JSON.parse(legacy);
+      if (panels.length > 0) {
+        const migrated = [{ id: "custom_view_migrated", label: "Custom", panels }];
+        localStorage.setItem(VIEWS_KEY, JSON.stringify(migrated));
+        localStorage.removeItem(LEGACY_KEY);
+        return migrated;
+      }
+    }
+  } catch {}
+  return [];
+}
+
+function saveCustomViews(views) {
+  localStorage.setItem(VIEWS_KEY, JSON.stringify(views));
+}
+
+// ─── data resolution ──────────────────────────────────────────────────────────
 function resolveKpiData(kpiConfig, result) {
   const { componentType, props = {} } = kpiConfig;
-
   switch (componentType) {
     case "StatCard":
     case "ScoreGauge": {
       const extractor = props.extractor ?? kpiConfig.extractor ?? "";
       return resolveSingleValue(result, extractor);
     }
-
     case "TrendLineChart":
     case "TrendAreaChart":
     case "TrendBarChart": {
-      // props.series = [{ key, label, color, extractor }]
-      // props.labelExtractor = path to x-axis label array
       const series = props.series ?? [];
       return resolveTrendSeries(result, series, props.labelExtractor);
     }
-
     case "DonutStatusChart": {
       const extractor = props.extractor ?? kpiConfig.extractor ?? "";
       if (props.staticSlices) return { slices: props.staticSlices };
       return resolveMapValue(result, extractor);
     }
-
     case "DepartmentBreakdown": {
       const extractor = props.extractor ?? kpiConfig.extractor ?? "";
       return resolveMapValue(result, extractor);
@@ -69,60 +81,61 @@ function resolveKpiData(kpiConfig, result) {
       const extractor = props.extractor ?? kpiConfig.extractor ?? "";
       return resolveTableRows(result, extractor);
     }
-
     default:
       return {};
   }
 }
 
 // ─── KpiWrapper ───────────────────────────────────────────────────────────────
-
-const KpiWrapper = memo(function KpiWrapper({ kpiConfig, results, loading }) {
+const KpiWrapper = memo(function KpiWrapper({
+  kpiConfig, results, comparisonResults, loading,
+}) {
   const Component = useMemo(
     () => resolveComponent(kpiConfig.componentType),
-    [kpiConfig.componentType],
+    [kpiConfig.componentType]
   );
 
-  // Find the correct result object for this KPI's reportId
   const result = useMemo(() => {
-    if (!results || results.length === 0) return null;
+    if (!results?.length) return null;
     const reportId = kpiConfig.reportId;
     if (!reportId) return results[0] ?? null;
     return results.find((r) => r?.reportId === reportId) ?? results[0] ?? null;
   }, [results, kpiConfig.reportId]);
 
+  const compResult = useMemo(
+    () => comparisonResults?.[0] ?? null,
+    [comparisonResults]
+  );
+
   const resolvedData = useMemo(() => {
     if (!result) return null;
-    try {
-      return resolveKpiData(kpiConfig, result);
-    } catch (err) {
-      console.error("[KpiWrapper] resolution error", kpiConfig.id, err);
-      return null;
-    }
+    try { return resolveKpiData(kpiConfig, result); } catch { return null; }
   }, [result, kpiConfig]);
+
+  // Compute comparison delta for StatCard
+  const comparisonData = useMemo(() => {
+    if (!compResult) return null;
+    try { return resolveKpiData(kpiConfig, compResult); } catch { return null; }
+  }, [compResult, kpiConfig]);
 
   return (
     <Suspense fallback={<SkeletonCard />}>
       <Component
         kpiConfig={kpiConfig}
         resolvedData={resolvedData}
+        comparisonData={comparisonData}
         loading={loading || !result}
       />
     </Suspense>
   );
 });
 
-// ─── PanelGrid ────────────────────────────────────────────────────────────────
-
-function PanelGrid({ panels, results, loading, columns = 3 }) {
-  // Use the view's declared column count so colSpan values work correctly.
-  // auto-fill would ignore span N because it doesn't know total column count.
+// ─── PanelGrid (standard templates) ──────────────────────────────────────────
+function PanelGrid({ panels, results, comparisonResults, loading, columns = 3 }) {
   const gridCols = `repeat(${columns}, minmax(0, 1fr))`;
   return (
     <div className="grid gap-4" style={{ gridTemplateColumns: gridCols }}>
       {panels.map((panel) => {
-        // Schema: panel.kpis[] holds actual KPI configs.
-        // Custom panels (added via modal) are flat — componentType lives on the panel directly.
         const kpiList = panel.kpis?.length ? panel.kpis : [panel];
         const colSpan = Math.min(panel.colSpan ?? 1, columns);
         return (
@@ -136,6 +149,7 @@ function PanelGrid({ panels, results, loading, columns = 3 }) {
                 key={kpiConfig.id}
                 kpiConfig={kpiConfig}
                 results={results}
+                comparisonResults={comparisonResults}
                 loading={loading}
               />
             ))}
@@ -146,10 +160,7 @@ function PanelGrid({ panels, results, loading, columns = 3 }) {
   );
 }
 
-// CustomDashboardModal is now in ./CustomDashboardModal.jsx (dropdown-driven)
-
 // ─── SkeletonCard ─────────────────────────────────────────────────────────────
-
 function SkeletonCard() {
   return (
     <div className="h-48 rounded-2xl bg-slate-50 animate-pulse flex flex-col gap-3 p-5">
@@ -159,63 +170,69 @@ function SkeletonCard() {
   );
 }
 
-// ─── DashboardEngine (main) ───────────────────────────────────────────────────
-
-const CUSTOM_PANELS_KEY = "calvant_custom_panels";
-
+// ─── DashboardEngine ──────────────────────────────────────────────────────────
 export default function DashboardEngine({
   config,
-  results, // 👈 Receive data from parent
-  loading, // 👈 Receive loading state from parent
-  error, // 👈 Receive error state from parent
+  results,
+  comparisonResults = [],
+  loading,
+  error,
 }) {
-  // ── custom panels (persisted) ──────────────────────────────────────────────
-  const [customPanels, setCustomPanels] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem(CUSTOM_PANELS_KEY) ?? "[]");
-    } catch {
-      return [];
-    }
-  });
+  // ── custom views (persisted) ──────────────────────────────────────────────
+  const [customViews, setCustomViews] = useState(loadCustomViews);
 
-  const [showModal, setShowModal] = useState(false);
+  const persistViews = useCallback((views) => {
+    setCustomViews(views);
+    saveCustomViews(views);
+  }, []);
 
-  const savePanel = useCallback((panel) => {
-    setCustomPanels((prev) => {
-      const updated = [...prev, panel];
-      localStorage.setItem(CUSTOM_PANELS_KEY, JSON.stringify(updated));
+  // ── modals ────────────────────────────────────────────────────────────────
+  const [showPanelModal, setShowPanelModal] = useState(false);
+  const [showViewManager, setShowViewManager] = useState(false);
+  const [editingPanel, setEditingPanel] = useState(null); // panel to pre-fill
+
+  // ── save panel from modal ─────────────────────────────────────────────────
+  const savePanel = useCallback(({ viewId, viewLabel, panel }) => {
+    setCustomViews((prev) => {
+      const exists = prev.find((v) => v.id === viewId);
+      let updated;
+      if (exists) {
+        updated = prev.map((v) =>
+          v.id === viewId ? { ...v, panels: [...v.panels, panel] } : v
+        );
+      } else {
+        updated = [...prev, { id: viewId, label: viewLabel, panels: [panel] }];
+      }
+      saveCustomViews(updated);
       return updated;
     });
   }, []);
 
-  const removeCustomPanel = useCallback((id) => {
-    setCustomPanels((prev) => {
-      const updated = prev.filter((p) => p.id !== id);
-      localStorage.setItem(CUSTOM_PANELS_KEY, JSON.stringify(updated));
+  // ── delete panel from custom view ─────────────────────────────────────────
+  const deletePanel = useCallback((viewId, panelId) => {
+    setCustomViews((prev) => {
+      const updated = prev.map((v) =>
+        v.id === viewId
+          ? { ...v, panels: v.panels.filter((p) => p.id !== panelId) }
+          : v
+      );
+      saveCustomViews(updated);
       return updated;
     });
   }, []);
 
-  // ── active view tab ────────────────────────────────────────────────────────
-  // ── active view tab ────────────────────────────────────────────────────────
-  const views = config?.views ?? [];
-  const [activeViewId, setActiveViewId] = useState(views[0]?.id ?? null);
+  // ── view tab state ────────────────────────────────────────────────────────
+  const templateViews = config?.views ?? [];
 
-  // 1. allViews MUST be defined BEFORE activeView so it knows about the Custom tab
   const allViews = useMemo(() => {
-    if (customPanels.length === 0) return views;
-    return [
-      ...views,
-      {
-        id: "custom",
-        label: "Custom",
-        panels: customPanels,
-      },
-    ];
-  }, [views, customPanels]);
+    if (customViews.length === 0) return templateViews;
+    return [...templateViews, ...customViews];
+  }, [templateViews, customViews]);
 
-  // 2. activeView MUST search allViews (not 'views')
+  const [activeViewId, setActiveViewId] = useState(allViews[0]?.id ?? null);
+
   const activeView = allViews.find((v) => v.id === activeViewId) ?? allViews[0];
+  const isCustomView = customViews.some((v) => v.id === activeView?.id);
 
   if (error) {
     return (
@@ -225,24 +242,26 @@ export default function DashboardEngine({
     );
   }
 
+  // ── existing custom views list for modal step 0 ───────────────────────────
+  const existingViewsForModal = customViews.map((v) => ({ id: v.id, label: v.label }));
+
   return (
     <div className="flex flex-col gap-4">
-      {/* ── Tab bar + actions ───────────────────────────────────────────────── */}
+      {/* ── Tab bar + actions ─────────────────────────────────────────────── */}
       <div
         id="kpis-container"
         data-html2canvas-ignore="true"
         className="flex items-center justify-between flex-wrap gap-2"
       >
-        <div className="flex items-center gap-1 bg-slate-100 rounded-xl p-1">
+        <div className="flex items-center gap-1 bg-slate-100 rounded-xl p-1 flex-wrap">
           {allViews.map((view) => (
             <button
               key={view.id}
               onClick={() => setActiveViewId(view.id)}
               className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all
-                ${
-                  (activeViewId ?? views[0]?.id) === view.id
-                    ? "bg-white shadow text-slate-800"
-                    : "text-slate-500 hover:text-slate-700"
+                ${activeViewId === view.id
+                  ? "bg-white shadow text-slate-800"
+                  : "text-slate-500 hover:text-slate-700"
                 }`}
             >
               {view.label ?? view.id}
@@ -250,15 +269,33 @@ export default function DashboardEngine({
           ))}
         </div>
 
-        <button
-          onClick={() => setShowModal(true)}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 active:scale-95 transition-all shadow-sm"
-        >
-          <span className="text-base leading-none">＋</span> Custom Panel
-        </button>
+        <div className="flex items-center gap-2">
+          {/* manage views (only shown when ≥1 custom view exists) */}
+          {customViews.length > 0 && (
+            <button
+              onClick={() => setShowViewManager(true)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100
+                text-slate-500 text-sm font-semibold hover:bg-slate-200
+                active:scale-95 transition-all border border-slate-200"
+              title="Manage views"
+            >
+              <Settings2 size={14} />
+              Views
+            </button>
+          )}
+
+          <button
+            onClick={() => { setEditingPanel(null); setShowPanelModal(true); }}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600
+              text-white text-sm font-semibold hover:bg-indigo-700
+              active:scale-95 transition-all shadow-sm"
+          >
+            <span className="text-base leading-none">＋</span> Custom Panel
+          </button>
+        </div>
       </div>
 
-      {/* ── Panel grid ──────────────────────────────────────────────────────── */}
+      {/* ── Panel grid ──────────────────────────────────────────────────── */}
       <AnimatePresence mode="wait">
         <motion.div
           id="charts-container"
@@ -268,40 +305,71 @@ export default function DashboardEngine({
           exit={{ opacity: 0, y: -8 }}
           transition={{ duration: 0.18 }}
         >
-          {/* ✅ Render standard template panels ONLY if not on Custom tab */}
-          {activeView && activeView.id !== "custom" && (
+          {/* template view */}
+          {activeView && !isCustomView && (
             <PanelGrid
               panels={activeView.panels ?? []}
               results={results}
+              comparisonResults={comparisonResults}
               loading={loading}
               columns={activeView.layout?.columns ?? 3}
             />
           )}
 
-          {/* ✅ Render custom view panels explicitly with the remove button */}
-          {activeView?.id === "custom" && (
+          {/* custom view — editable panels */}
+          {isCustomView && (
             <div
               className="mt-2 grid gap-4"
-              style={{
-                gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-              }}
+              style={{ gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))" }}
             >
-              {customPanels.map((panel) => (
+              {activeView.panels?.length === 0 && (
+                <div className="col-span-full flex flex-col items-center justify-center py-16 gap-3">
+                  <p className="text-sm text-slate-400 italic">No panels in this view yet.</p>
+                  <button
+                    onClick={() => setShowPanelModal(true)}
+                    className="px-4 py-2 rounded-xl bg-indigo-600 text-white text-xs font-semibold
+                      hover:bg-indigo-700 transition-colors"
+                  >
+                    + Add first panel
+                  </button>
+                </div>
+              )}
+
+              {(activeView.panels ?? []).map((panel) => (
                 <div
                   key={panel.id}
                   className="relative rounded-2xl bg-white shadow-sm border border-slate-100 overflow-hidden group"
                 >
-                  <button
-                    onClick={() => removeCustomPanel(panel.id)}
-                    title="Remove panel"
-                    className="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity
-                      w-6 h-6 rounded-full bg-rose-100 text-rose-500 hover:bg-rose-200 text-xs font-bold flex items-center justify-center"
-                  >
-                    ×
-                  </button>
+                  {/* edit / delete controls */}
+                  <div className="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100
+                    transition-opacity flex items-center gap-1">
+                    <button
+                      onClick={() => {
+                        setEditingPanel({ panel, viewId: activeView.id });
+                        setShowPanelModal(true);
+                      }}
+                      title="Edit panel"
+                      className="w-6 h-6 rounded-full bg-slate-100 text-slate-500
+                        hover:bg-indigo-100 hover:text-indigo-600 flex items-center justify-center
+                        transition-colors"
+                    >
+                      <Pencil size={11} />
+                    </button>
+                    <button
+                      onClick={() => deletePanel(activeView.id, panel.id)}
+                      title="Remove panel"
+                      className="w-6 h-6 rounded-full bg-slate-100 text-slate-500
+                        hover:bg-rose-100 hover:text-rose-600 flex items-center justify-center
+                        transition-colors"
+                    >
+                      <Trash2 size={11} />
+                    </button>
+                  </div>
+
                   <KpiWrapper
                     kpiConfig={panel}
                     results={results}
+                    comparisonResults={comparisonResults}
                     loading={loading}
                   />
                 </div>
@@ -311,12 +379,30 @@ export default function DashboardEngine({
         </motion.div>
       </AnimatePresence>
 
-      {/* ── Custom panel modal ───────────────────────────────────────────────── */}
+      {/* ── Custom panel modal ─────────────────────────────────────────────── */}
       <AnimatePresence>
-        {showModal && (
+        {showPanelModal && (
           <CustomDashboardModal
-            onClose={() => setShowModal(false)}
+            existingViews={existingViewsForModal}
+            onClose={() => { setShowPanelModal(false); setEditingPanel(null); }}
             onSave={savePanel}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* ── View manager modal ─────────────────────────────────────────────── */}
+      <AnimatePresence>
+        {showViewManager && (
+          <ViewManagerModal
+            views={customViews}
+            onSave={(updatedViews) => {
+              persistViews(updatedViews);
+              // if active view was deleted, switch to first available
+              if (!updatedViews.find((v) => v.id === activeViewId)) {
+                setActiveViewId(allViews[0]?.id ?? null);
+              }
+            }}
+            onClose={() => setShowViewManager(false)}
           />
         )}
       </AnimatePresence>
