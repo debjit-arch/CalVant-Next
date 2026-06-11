@@ -143,15 +143,10 @@ function FullPageAurora() {
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     let t = 0;
-
-    const resize = () => {
-      canvas.width = canvas.offsetWidth;
-      canvas.height = canvas.offsetHeight;
-    };
+    const resize = () => { canvas.width = canvas.offsetWidth; canvas.height = canvas.offsetHeight; };
     resize();
     const ro = new ResizeObserver(resize);
     ro.observe(canvas);
-
     const orbs = [
       { h: 185, s: 72, l: 78, sx: 0.18, sy: 0.12, px: 0,   py: 0,   rx: 0.75, ry: 0.55 },
       { h: 200, s: 65, l: 80, sx: 0.11, sy: 0.20, px: 2.0, py: 1.4, rx: 0.65, ry: 0.60 },
@@ -159,56 +154,35 @@ function FullPageAurora() {
       { h: 210, s: 55, l: 83, sx: 0.14, sy: 0.17, px: 1.1, py: 3.9, rx: 0.60, ry: 0.65 },
       { h: 172, s: 68, l: 79, sx: 0.19, sy: 0.13, px: 3.2, py: 0.7, rx: 0.72, ry: 0.48 },
     ];
-
     const draw = () => {
-      const W = canvas.width;
-      const H = canvas.height;
+      const W = canvas.width; const H = canvas.height;
       ctx.clearRect(0, 0, W, H);
       ctx.fillStyle = "#f0f8f6";
       ctx.fillRect(0, 0, W, H);
       orbs.forEach((o) => {
         const cx = W * (0.5 + 0.42 * Math.sin(t * o.sx + o.px));
         const cy = H * (0.5 + 0.35 * Math.cos(t * o.sy + o.py));
-        const rx = W * o.rx;
-        const ry = H * o.ry;
+        const rx = W * o.rx; const ry = H * o.ry;
         const maxR = Math.max(rx, ry);
         const grd = ctx.createRadialGradient(cx, cy, 0, cx, cy, maxR);
-        grd.addColorStop(0,   `hsla(${o.h},${o.s}%,${o.l}%,0.55)`);
-        grd.addColorStop(0.45,`hsla(${o.h},${o.s}%,${o.l}%,0.20)`);
-        grd.addColorStop(1,   `hsla(${o.h},${o.s}%,${o.l}%,0)`);
+        grd.addColorStop(0,    `hsla(${o.h},${o.s}%,${o.l}%,0.55)`);
+        grd.addColorStop(0.45, `hsla(${o.h},${o.s}%,${o.l}%,0.20)`);
+        grd.addColorStop(1,    `hsla(${o.h},${o.s}%,${o.l}%,0)`);
         ctx.save();
-        ctx.translate(cx, cy);
-        ctx.scale(rx / maxR, ry / maxR);
-        ctx.translate(-cx, -cy);
+        ctx.translate(cx, cy); ctx.scale(rx / maxR, ry / maxR); ctx.translate(-cx, -cy);
         ctx.fillStyle = grd;
-        ctx.beginPath();
-        ctx.arc(cx, cy, maxR, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.beginPath(); ctx.arc(cx, cy, maxR, 0, Math.PI * 2); ctx.fill();
         ctx.restore();
       });
       t += 0.003;
       rafRef.current = requestAnimationFrame(draw);
     };
-
     rafRef.current = requestAnimationFrame(draw);
-    return () => {
-      cancelAnimationFrame(rafRef.current);
-      ro.disconnect();
-    };
+    return () => { cancelAnimationFrame(rafRef.current); ro.disconnect(); };
   }, []);
 
   return (
-    <canvas
-      ref={canvasRef}
-      style={{
-        position: "absolute",
-        inset: 0,
-        width: "100%",
-        height: "100%",
-        pointerEvents: "none",
-        zIndex: 0,
-      }}
-    />
+    <canvas ref={canvasRef} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none", zIndex: 0 }} />
   );
 }
 
@@ -217,30 +191,23 @@ export default function CalVantAIPanel() {
   const BASE_URL = "https://api.calvant.com/rag-service";
   const { isAuthenticated } = useSession();
 
-  const [orgId, setOrgId]   = useState("");
-  const [userId, setUserId] = useState("");
-  const [token, setToken]   = useState(""); // ← JWT token for Authorization header
+  // ── 1. ALL STATE ──────────────────────────────────────────────────────────
+  const [orgId,       setOrgId]       = useState("");
+  const [userId,      setUserId]      = useState("");
+  const [token,       setToken]       = useState("");
+  const [phase,       setPhase]       = useState("idle");
+  const [chatMode,    setChatMode]    = useState("welcome");
+  const [sessionId,   setSessionId]   = useState(null);
+  const [busy,        setBusy]        = useState(false);
+  const [messages,    setMessages]    = useState([]);
+  const [inputVal,    setInputVal]    = useState("");
+  const [sessions,    setSessions]    = useState([]);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const msgsEndRef = useRef(null);
+  const inputRef   = useRef(null);
 
-  // Read user info + token from sessionStorage on mount
-useEffect(() => {
-  try {
-    const stored = sessionStorage.getItem("user");
-    if (stored) {
-      const u = JSON.parse(stored);
-      const oid = String(u?.organization || u?.organization?.id || "");
-      const uid = String(u?._id || u?.id || u?.userId || u?.email || "");
-      const tok = String(u?.token || "");
-      setOrgId(oid);
-      setUserId(uid);
-      setToken(tok);
-      // ← call immediately with fresh values, don't wait for state
-      if (oid) loadSessions(oid, uid);
-    }
-  } catch (_) {}
-}, []);  // loadSessions intentionally omitted to avoid re-run loop
+  // ── 2. ALL CALLBACKS (no useEffect references above these) ───────────────
 
-  // ── Centralised auth headers builder ──────────────────────────────────────
-  // All JSON API calls go through this so the Bearer token is never forgotten.
   const authHeaders = useCallback(
     (extra = {}) => ({
       "Content-Type": "application/json",
@@ -250,77 +217,45 @@ useEffect(() => {
     [token]
   );
 
-  // ── For multipart/form-data uploads we must NOT set Content-Type
-  //    (the browser sets it with the correct boundary automatically).
   const uploadHeaders = useCallback(
     () => (token ? { Authorization: `Bearer ${token}` } : {}),
     [token]
   );
 
-  const [phase, setPhase]           = useState("idle");
-  const [chatMode, setChatMode]     = useState("welcome");
-  const [sessionId, setSessionId]   = useState(null);
-  const [busy, setBusy]             = useState(false);
-  const [messages, setMessages]     = useState([]);
-  const [inputVal, setInputVal]     = useState("");
-  const [sessions, setSessions]     = useState([]);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const msgsEndRef = useRef(null);
-  const inputRef   = useRef(null);
+  // loadSessions MUST be declared before any useEffect that calls it
+  const loadSessions = useCallback(async (overrideOrgId, overrideUserId) => {
+    const oid = overrideOrgId || orgId;
+    const uid = overrideUserId || userId;
+    if (!oid) return;
+    try {
+      const r = await fetch(
+        `${BASE_URL}/api/chat/sessions?organizationId=${encodeURIComponent(oid)}&userId=${encodeURIComponent(uid)}`,
+        { headers: authHeaders() }
+      );
+      if (!r.ok) return;
+      setSessions(await r.json());
+    } catch (_) {}
+  }, [orgId, userId, authHeaders]);
 
-  useEffect(() => {
-    msgsEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  const openPanel = useCallback(() => setPhase("tunnel"), []);
 
-  useEffect(() => {
-    if (phase === "chat") {
-      setTimeout(() => inputRef.current?.focus(), 300);
-    }
-  }, [phase]);
+  const handleTunnelComplete = useCallback(() => {
+    setPhase("chat");
+    loadSessions();
+  }, [loadSessions]);
 
-      // ── Load session list ──────────────────────────────────────────────────────
-const loadSessions = useCallback(async (overrideOrgId, overrideUserId) => {
-  const oid = overrideOrgId || orgId;
-  const uid = overrideUserId || userId;
-  if (!oid) return;
-  try {
-    const r = await fetch(
-      `${BASE_URL}/api/chat/sessions?organizationId=${encodeURIComponent(oid)}&userId=${encodeURIComponent(uid)}`,
-      { headers: authHeaders() }
-    );
-    if (!r.ok) return;
-    setSessions(await r.json());
-  } catch (_) {}
-}, [orgId, userId, authHeaders]);
-
-  // Effect 2: load sessions when orgId is ready AND panel is open
-  useEffect(() => {
-    if (phase === "chat" && orgId) {
-      loadSessions();
-    }
-  }, [phase, orgId, loadSessions]);
-
-  useEffect(() => {
-    if (messages.length > 0 && chatMode === "welcome") setChatMode("chatting");
-    if (messages.length === 0) setChatMode("welcome");
-  }, [messages]);
-
-
-  const openPanel          = useCallback(() => setPhase("tunnel"), []);
-  const handleTunnelComplete = useCallback(() => { setPhase("chat"); loadSessions(); }, [loadSessions]);
-  const closePanel         = useCallback(() => {
+  const closePanel = useCallback(() => {
     setPhase("idle");
     setChatMode("welcome");
     setMessages([]);
     setSessionId(null);
   }, []);
 
-  // ── Open an existing session ───────────────────────────────────────────────
   const openSession = useCallback(async (id) => {
     try {
       const r = await fetch(
         `${BASE_URL}/api/chat/session/${id}?organizationId=${encodeURIComponent(orgId)}`,
-        { headers: authHeaders() }   // ← token attached
+        { headers: authHeaders() }
       );
       if (!r.ok) return;
       const data = await r.json();
@@ -335,12 +270,11 @@ const loadSessions = useCallback(async (overrideOrgId, overrideUserId) => {
     } catch (_) {}
   }, [orgId, authHeaders]);
 
-  // ── Create a new session ───────────────────────────────────────────────────
   const newSession = useCallback(async () => {
     try {
       const r = await fetch(`${BASE_URL}/api/chat/session/new`, {
         method: "POST",
-        headers: authHeaders(),      // ← token attached
+        headers: authHeaders(),
         body: JSON.stringify({ organizationId: orgId, userId }),
       });
       const data = await r.json();
@@ -353,7 +287,6 @@ const loadSessions = useCallback(async (overrideOrgId, overrideUserId) => {
     } catch (_) {}
   }, [orgId, userId, authHeaders, loadSessions]);
 
-  // ── Send a chat message ────────────────────────────────────────────────────
   const send = useCallback(async () => {
     const text = inputVal.trim();
     if (!text || busy) return;
@@ -364,7 +297,7 @@ const loadSessions = useCallback(async (overrideOrgId, overrideUserId) => {
     try {
       const r = await fetch(`${BASE_URL}/api/chat`, {
         method: "POST",
-        headers: authHeaders(),      // ← token attached (fixes the 400)
+        headers: authHeaders(),
         body: JSON.stringify({
           message: text,
           organizationId: orgId,
@@ -391,7 +324,6 @@ const loadSessions = useCallback(async (overrideOrgId, overrideUserId) => {
     setTimeout(() => inputRef.current?.focus(), 50);
   }, [inputVal, busy, orgId, userId, sessionId, authHeaders, loadSessions]);
 
-  // ── Upload a file ──────────────────────────────────────────────────────────
   const handleFileUpload = useCallback(async (file) => {
     if (!file) return;
     setMessages((prev) => [...prev, { role: "user", content: `📎 Uploading: ${file.name}` }]);
@@ -403,7 +335,7 @@ const loadSessions = useCallback(async (overrideOrgId, overrideUserId) => {
     try {
       const r = await fetch(`${BASE_URL}/api/chat/upload`, {
         method: "POST",
-        headers: uploadHeaders(), // ← token attached; Content-Type left to browser
+        headers: uploadHeaders(),
         body: fd,
       });
       const data = await r.json();
@@ -423,6 +355,44 @@ const loadSessions = useCallback(async (overrideOrgId, overrideUserId) => {
     }
   }, [orgId, sessionId, uploadHeaders]);
 
+  // ── 3. ALL useEFFECTS (after all callbacks) ───────────────────────────────
+
+  // Read user from sessionStorage on mount — call loadSessions immediately with fresh values
+  useEffect(() => {
+    try {
+      const stored = sessionStorage.getItem("user");
+      if (stored) {
+        const u = JSON.parse(stored);
+        const oid = String(u?.organization || u?.organization?.id || "");
+        const uid = String(u?._id || u?.id || u?.userId || u?.email || "");
+        const tok = String(u?.token || "");
+        setOrgId(oid);
+        setUserId(uid);
+        setToken(tok);
+        if (oid) loadSessions(oid, uid);
+      }
+    } catch (_) {}
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    msgsEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  useEffect(() => {
+    if (phase === "chat") setTimeout(() => inputRef.current?.focus(), 300);
+  }, [phase]);
+
+  useEffect(() => {
+    if (phase === "chat" && orgId) loadSessions();
+  }, [phase, orgId, loadSessions]);
+
+  useEffect(() => {
+    if (messages.length > 0 && chatMode === "welcome") setChatMode("chatting");
+    if (messages.length === 0) setChatMode("welcome");
+  }, [messages]);
+
+  // ── 4. NON-HOOK HELPERS ───────────────────────────────────────────────────
+
   const useSuggestion = (text) => {
     setInputVal(text);
     setTimeout(() => inputRef.current?.focus(), 50);
@@ -433,7 +403,6 @@ const loadSessions = useCallback(async (overrideOrgId, overrideUserId) => {
     if (e.key === "Escape") closePanel();
   };
 
-  // ── Shared input box ───────────────────────────────────────────────────────
   const InputBox = (
     <div className="cvai-inputbox">
       <div className="cvai-inputbox-inner">
@@ -441,18 +410,10 @@ const loadSessions = useCallback(async (overrideOrgId, overrideUserId) => {
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
           </svg>
-          <input
-            type="file"
-            accept=".pdf,.docx,.xlsx,.csv"
-            style={{ display: "none" }}
-            onChange={(e) => { handleFileUpload(e.target.files[0]); e.target.value = ""; }}
-          />
+          <input type="file" accept=".pdf,.docx,.xlsx,.csv" style={{ display: "none" }}
+            onChange={(e) => { handleFileUpload(e.target.files[0]); e.target.value = ""; }} />
         </label>
-        <textarea
-          ref={inputRef}
-          className="cvai-textarea"
-          rows={1}
-          placeholder="Ask anything…"
+        <textarea ref={inputRef} className="cvai-textarea" rows={1} placeholder="Ask anything…"
           value={inputVal}
           onChange={(e) => {
             setInputVal(e.target.value);
@@ -461,20 +422,14 @@ const loadSessions = useCallback(async (overrideOrgId, overrideUserId) => {
           }}
           onKeyDown={handleKeyDown}
         />
-        <button
-          className="cvai-send-btn"
-          onClick={send}
-          disabled={busy || !inputVal.trim()}
-          aria-label="Send"
-        >
+        <button className="cvai-send-btn" onClick={send} disabled={busy || !inputVal.trim()} aria-label="Send">
           {busy ? (
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round">
               <circle cx="12" cy="12" r="9" strokeDasharray="28 28" style={{ animation: "cvai-spin 1s linear infinite" }}/>
             </svg>
           ) : (
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="22" y1="2" x2="11" y2="13"/>
-              <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+              <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
             </svg>
           )}
         </button>
@@ -483,22 +438,13 @@ const loadSessions = useCallback(async (overrideOrgId, overrideUserId) => {
     </div>
   );
 
+  // ── 5. RENDER ─────────────────────────────────────────────────────────────
   return (
     <>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;600&family=Google+Sans+Text:wght@400;500&display=swap');
 
-        /* ── FAB ── */
-        .cvai-fab {
-          position:fixed;bottom:28px;right:28px;z-index:9997;
-          display:flex;align-items:center;gap:10px;padding:0 22px;
-          height:52px;border-radius:26px;border:none;cursor:pointer;
-          background:linear-gradient(135deg,#0f766e 0%,#065f46 60%,#064e3b 100%);
-          box-shadow:0 4px 24px rgba(16,185,129,0.45);
-          animation:cvai-pulse 3s ease-in-out infinite;
-          transition:transform 0.2s,box-shadow 0.2s;
-          font-family:'Google Sans',-apple-system,sans-serif;
-        }
+        .cvai-fab{position:fixed;bottom:28px;right:28px;z-index:9997;display:flex;align-items:center;gap:10px;padding:0 22px;height:52px;border-radius:26px;border:none;cursor:pointer;background:linear-gradient(135deg,#0f766e 0%,#065f46 60%,#064e3b 100%);box-shadow:0 4px 24px rgba(16,185,129,0.45);animation:cvai-pulse 3s ease-in-out infinite;transition:transform 0.2s,box-shadow 0.2s;font-family:'Google Sans',-apple-system,sans-serif;}
         .cvai-fab:hover{transform:translateY(-3px) scale(1.04);box-shadow:0 8px 32px rgba(16,185,129,0.6);animation:none;}
         @keyframes cvai-pulse{0%,100%{box-shadow:0 4px 24px rgba(16,185,129,0.4),0 0 0 0 rgba(16,185,129,0.35);}50%{box-shadow:0 4px 24px rgba(16,185,129,0.4),0 0 0 10px rgba(16,185,129,0);}}
         .cvai-fab-label{font-size:13.5px;font-weight:700;color:#fff;letter-spacing:0.3px;white-space:nowrap;}
@@ -506,30 +452,12 @@ const loadSessions = useCallback(async (overrideOrgId, overrideUserId) => {
         @keyframes cvai-blink{0%,100%{opacity:1}50%{opacity:0.4}}
         @keyframes cvai-spin{to{transform:rotate(360deg)}}
 
-        /* ── OVERLAY ── */
-        .cvai-overlay{
-          position:fixed;inset:0;z-index:99999;
-          display:flex;
-          font-family:'Google Sans Text','Google Sans',-apple-system,sans-serif;
-          animation:cvai-fadein 0.35s ease;
-          overflow:hidden;
-        }
+        .cvai-overlay{position:fixed;inset:0;z-index:99999;display:flex;font-family:'Google Sans Text','Google Sans',-apple-system,sans-serif;animation:cvai-fadein 0.35s ease;overflow:hidden;}
         @keyframes cvai-fadein{from{opacity:0;transform:scale(1.015)}to{opacity:1;transform:scale(1)}}
 
-        /* ── SIDEBAR ── */
-        .cvai-sidebar{
-          width:260px;background:rgba(255,255,255,0.75);backdrop-filter:blur(16px);
-          border-right:1px solid rgba(0,0,0,0.07);
-          display:flex;flex-direction:column;flex-shrink:0;position:relative;z-index:2;
-          transition:transform 0.25s ease;
-        }
+        .cvai-sidebar{width:260px;background:rgba(255,255,255,0.75);backdrop-filter:blur(16px);border-right:1px solid rgba(0,0,0,0.07);display:flex;flex-direction:column;flex-shrink:0;position:relative;z-index:2;transition:transform 0.25s ease;}
         .cvai-sidebar-head{padding:18px 14px 14px;border-bottom:1px solid rgba(0,0,0,0.07);display:flex;align-items:center;gap:10px;}
-        .cvai-new-btn{
-          flex:1;padding:9px 14px;border:none;border-radius:24px;
-          background:#e8f5e9;color:#0d6b52;font-size:13.5px;font-weight:600;
-          cursor:pointer;transition:background 0.15s;font-family:'Google Sans',sans-serif;
-          display:flex;align-items:center;gap:7px;
-        }
+        .cvai-new-btn{flex:1;padding:9px 14px;border:none;border-radius:24px;background:#e8f5e9;color:#0d6b52;font-size:13.5px;font-weight:600;cursor:pointer;transition:background 0.15s;font-family:'Google Sans',sans-serif;display:flex;align-items:center;gap:7px;}
         .cvai-new-btn:hover{background:#c8e6c9;}
         .cvai-session-list{flex:1;overflow-y:auto;padding:8px 0;}
         .cvai-session-item{padding:10px 16px;cursor:pointer;transition:background 0.1s;border-radius:0 24px 24px 0;margin-right:12px;}
@@ -538,24 +466,11 @@ const loadSessions = useCallback(async (overrideOrgId, overrideUserId) => {
         .cvai-session-title{font-size:13px;color:#3c4043;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500;}
         .cvai-session-date{font-size:11px;color:#9aa0a6;margin-top:2px;}
 
-        /* ── MAIN AREA ── */
         .cvai-main{flex:1;display:flex;flex-direction:column;min-width:0;position:relative;}
-
-        /* ── Aurora fills entire main panel ── */
         .cvai-aurora-fill{position:absolute;inset:0;z-index:0;}
 
-        /* ── HEADER ── */
-        .cvai-header{
-          position:relative;z-index:2;
-          padding:12px 20px;border-bottom:1px solid rgba(0,0,0,0.07);
-          display:flex;align-items:center;gap:12px;flex-shrink:0;
-          background:rgba(255,255,255,0.65);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
-        }
-        .cvai-header-logo{
-          width:32px;height:32px;border-radius:50%;
-          background:linear-gradient(135deg,#1a9e7f 0%,#0d6b52 100%);
-          display:flex;align-items:center;justify-content:center;flex-shrink:0;
-        }
+        .cvai-header{position:relative;z-index:2;padding:12px 20px;border-bottom:1px solid rgba(0,0,0,0.07);display:flex;align-items:center;gap:12px;flex-shrink:0;background:rgba(255,255,255,0.65);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);}
+        .cvai-header-logo{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#1a9e7f 0%,#0d6b52 100%);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
         .cvai-header-title{font-size:17px;font-weight:600;color:#202124;font-family:'Google Sans',sans-serif;letter-spacing:-0.2px;}
         .cvai-header-sub{margin-left:auto;font-size:12px;color:#5f6368;display:flex;align-items:center;gap:6px;}
         .cvai-status-dot{width:7px;height:7px;border-radius:50%;background:#34a853;box-shadow:0 0 0 2px rgba(52,168,83,0.2);}
@@ -563,55 +478,24 @@ const loadSessions = useCallback(async (overrideOrgId, overrideUserId) => {
         .cvai-close-btn{margin-left:12px;width:36px;height:36px;border-radius:50%;border:none;background:transparent;color:#5f6368;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;transition:background 0.15s;}
         .cvai-close-btn:hover{background:rgba(0,0,0,0.06);color:#202124;}
 
-        /* ── CONFIG + SESSION ── */
-        .cvai-cfg{
-          position:relative;z-index:2;
-          padding:6px 20px;border-bottom:1px solid rgba(0,0,0,0.06);
-          display:flex;align-items:center;gap:8px;flex-shrink:0;
-          background:rgba(255,255,255,0.5);backdrop-filter:blur(10px);flex-wrap:wrap;
-        }
+        .cvai-cfg{position:relative;z-index:2;padding:6px 20px;border-bottom:1px solid rgba(0,0,0,0.06);display:flex;align-items:center;gap:8px;flex-shrink:0;background:rgba(255,255,255,0.5);backdrop-filter:blur(10px);flex-wrap:wrap;}
         .cvai-cfg-chip{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;border:1px solid rgba(0,0,0,0.1);background:rgba(255,255,255,0.8);font-size:11px;}
         .cvai-cfg-lbl{font-weight:700;color:#9aa0a6;text-transform:uppercase;font-size:9px;letter-spacing:0.06em;}
         .cvai-cfg-val{color:#3c4043;font-weight:600;font-family:monospace;font-size:11px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
         .cvai-sess-strip{position:relative;z-index:2;padding:4px 20px;border-bottom:1px solid rgba(0,0,0,0.06);font-size:11px;color:#9aa0a6;display:flex;gap:6px;flex-shrink:0;background:rgba(255,255,255,0.45);backdrop-filter:blur(10px);}
         .cvai-sess-id{font-family:monospace;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 
-        /* ── WELCOME MODE ── */
-        .cvai-welcome-screen{
-          position:relative;z-index:1;flex:1;
-          display:flex;flex-direction:column;align-items:center;justify-content:center;
-          padding:40px 24px 60px;
-          animation:cvai-fadein 0.4s ease;
-        }
-        .cvai-welcome-greeting{
-          font-size:36px;font-weight:500;font-family:'Google Sans',sans-serif;
-          color:#1a3a2f;letter-spacing:-0.5px;margin-bottom:14px;text-align:center;
-          text-shadow:0 1px 20px rgba(255,255,255,0.8);
-        }
+        .cvai-welcome-screen{position:relative;z-index:1;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 24px 60px;animation:cvai-fadein 0.4s ease;}
+        .cvai-welcome-greeting{font-size:36px;font-weight:500;font-family:'Google Sans',sans-serif;color:#1a3a2f;letter-spacing:-0.5px;margin-bottom:14px;text-align:center;text-shadow:0 1px 20px rgba(255,255,255,0.8);}
         .cvai-welcome-sub{font-size:15px;color:#4a6741;max-width:460px;line-height:1.65;text-align:center;margin-bottom:32px;text-shadow:0 1px 10px rgba(255,255,255,0.7);}
         .cvai-starters{display:flex;flex-wrap:wrap;gap:9px;justify-content:center;max-width:620px;margin-bottom:36px;}
-        .cvai-starter{
-          font-size:13px;padding:9px 18px;border-radius:22px;
-          border:1px solid rgba(13,107,82,0.25);background:rgba(255,255,255,0.72);
-          color:#1a3a2f;cursor:pointer;transition:all 0.18s;
-          box-shadow:0 2px 8px rgba(0,0,0,0.06);backdrop-filter:blur(8px);
-          font-family:'Google Sans',sans-serif;
-        }
+        .cvai-starter{font-size:13px;padding:9px 18px;border-radius:22px;border:1px solid rgba(13,107,82,0.25);background:rgba(255,255,255,0.72);color:#1a3a2f;cursor:pointer;transition:all 0.18s;box-shadow:0 2px 8px rgba(0,0,0,0.06);backdrop-filter:blur(8px);font-family:'Google Sans',sans-serif;}
         .cvai-starter:hover{background:rgba(255,255,255,0.92);border-color:rgba(13,107,82,0.5);transform:translateY(-2px);box-shadow:0 4px 14px rgba(0,0,0,0.1);}
         .cvai-welcome-screen .cvai-inputbox{width:100%;max-width:680px;}
 
-        /* ── CHATTING MODE ── */
-        .cvai-chat-screen{
-          position:relative;z-index:1;flex:1;
-          display:flex;flex-direction:column;min-height:0;
-        }
+        .cvai-chat-screen{position:relative;z-index:1;flex:1;display:flex;flex-direction:column;min-height:0;}
 
-        /* ── MESSAGES ── */
-        .cvai-msgs{
-          flex:1;overflow-y:auto;padding:24px 20px;
-          display:flex;flex-direction:column;gap:16px;
-          background:transparent;
-        }
+        .cvai-msgs{flex:1;overflow-y:auto;padding:24px 20px;display:flex;flex-direction:column;gap:16px;background:transparent;}
         .cvai-msgs::-webkit-scrollbar{width:6px;}
         .cvai-msgs::-webkit-scrollbar-thumb{background:rgba(0,0,0,0.15);border-radius:6px;}
         .cvai-msg{display:flex;flex-direction:column;max-width:80%;animation:cvai-msg-in 0.25s ease;}
@@ -637,23 +521,19 @@ const loadSessions = useCallback(async (overrideOrgId, overrideUserId) => {
         .cv-dl-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;margin-top:8px;background:#0d6b52;color:#fff;border-radius:20px;text-decoration:none;font-size:13px;font-weight:600;transition:background 0.15s;font-family:'Google Sans',sans-serif;}
         .cv-dl-btn:hover{background:#0f766e;}
 
-        /* Typing dots */
         .cvai-typing{display:flex;gap:5px;align-items:center;padding:4px 2px;}
         .cvai-typing span{width:7px;height:7px;border-radius:50%;background:#9aa0a6;animation:cvai-bounce 1.4s ease infinite;}
         .cvai-typing span:nth-child(2){animation-delay:0.18s;}
         .cvai-typing span:nth-child(3){animation-delay:0.36s;}
         @keyframes cvai-bounce{0%,80%,100%{transform:scale(1);opacity:0.5}40%{transform:scale(1.35);opacity:1}}
 
-        /* Suggestion pills */
         .cvai-sug-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
         .cvai-sug-btn{font-size:12px;padding:5px 13px;border-radius:16px;border:1px solid #ceead6;color:#0d6b52;background:rgba(230,244,234,0.9);cursor:pointer;transition:all 0.15s;font-family:'Google Sans',sans-serif;}
         .cvai-sug-btn:hover{background:#c8e6c9;border-color:#0d6b52;}
 
-        /* Source chips */
         .cvai-src-chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;}
         .cvai-src-chip{font-size:11px;padding:3px 9px;border-radius:12px;background:rgba(241,243,244,0.9);border:1px solid #e8eaed;color:#5f6368;}
 
-        /* Badges */
         .cvai-badge{padding:2px 9px;border-radius:12px;font-size:10px;font-weight:700;font-family:'Google Sans',sans-serif;}
         .cvai-b-doc{background:#e6f4ea;color:#137333;border:1px solid #ceead6;}
         .cvai-b-tool{background:#e8f0fe;color:#1a73e8;border:1px solid #c5d4fb;}
@@ -662,16 +542,8 @@ const loadSessions = useCallback(async (overrideOrgId, overrideUserId) => {
         .cvai-b-sys{background:#fef7e0;color:#b06000;border:1px solid #fce8b2;}
         .cvai-meta{display:flex;align-items:center;gap:6px;margin-top:5px;font-size:10.5px;color:#9aa0a6;}
 
-        /* ── SHARED INPUT BOX ── */
         .cvai-inputbox{padding:0 0 4px;}
-        .cvai-inputbox-inner{
-          display:flex;align-items:flex-end;gap:8px;
-          background:rgba(255,255,255,0.82);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
-          border:1px solid rgba(0,0,0,0.1);border-radius:28px;
-          padding:10px 12px 10px 16px;
-          box-shadow:0 4px 24px rgba(0,0,0,0.08),0 1px 4px rgba(0,0,0,0.05);
-          transition:box-shadow 0.2s;
-        }
+        .cvai-inputbox-inner{display:flex;align-items:flex-end;gap:8px;background:rgba(255,255,255,0.82);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid rgba(0,0,0,0.1);border-radius:28px;padding:10px 12px 10px 16px;box-shadow:0 4px 24px rgba(0,0,0,0.08),0 1px 4px rgba(0,0,0,0.05);transition:box-shadow 0.2s;}
         .cvai-inputbox-inner:focus-within{box-shadow:0 4px 28px rgba(13,107,82,0.18),0 1px 6px rgba(0,0,0,0.08);border-color:rgba(13,107,82,0.35);}
         .cvai-attach-btn{width:36px;height:36px;border-radius:50%;background:transparent;border:1px solid rgba(0,0,0,0.1);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.15s;color:#5f6368;}
         .cvai-attach-btn:hover{background:rgba(0,0,0,0.05);border-color:rgba(0,0,0,0.2);}
@@ -681,20 +553,12 @@ const loadSessions = useCallback(async (overrideOrgId, overrideUserId) => {
         .cvai-send-btn:hover{background:#0f766e;transform:scale(1.07);}
         .cvai-send-btn:disabled{background:#dadce0;cursor:not-allowed;box-shadow:none;transform:none;}
 
-        /* Bottom bar (chatting mode) */
-        .cvai-bottom-bar{
-          position:relative;z-index:2;
-          padding:12px 20px 18px;
-          background:rgba(255,255,255,0.35);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
-          border-top:1px solid rgba(0,0,0,0.06);
-        }
+        .cvai-bottom-bar{position:relative;z-index:2;padding:12px 20px 18px;background:rgba(255,255,255,0.35);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid rgba(0,0,0,0.06);}
         .cvai-hint{font-size:11px;color:rgba(0,0,0,0.35);margin-top:7px;text-align:center;letter-spacing:0.2px;}
 
-        /* Upload progress bar */
         .cvai-upload-bar{height:3px;border-radius:2px;background:linear-gradient(90deg,#1a9e7f,#1a73e8);animation:cvai-progress 2s ease-in-out infinite;margin-top:10px;}
         @keyframes cvai-progress{0%{width:10%}50%{width:80%}100%{width:90%}}
 
-        /* Action cards */
         .cvai-action-card{margin-top:10px;background:rgba(255,255,255,0.9);border:1px solid #e8eaed;border-radius:16px;padding:14px 16px;max-width:400px;box-shadow:0 2px 8px rgba(0,0,0,0.06);}
         .cvai-action-card h4{font-size:12px;color:#5f6368;margin-bottom:10px;font-weight:600;font-family:'Google Sans',sans-serif;}
         .cvai-tpl-list{display:flex;flex-direction:column;gap:5px;margin-bottom:8px;max-height:160px;overflow-y:auto;}
@@ -702,7 +566,6 @@ const loadSessions = useCallback(async (overrideOrgId, overrideUserId) => {
         .cvai-tpl-item:hover{border-color:#0d6b52;color:#0d6b52;background:#e6f4ea;}
         .cvai-tpl-type{font-size:9.5px;padding:2px 7px;border-radius:10px;font-family:'Google Sans',sans-serif;background:#e8f0fe;color:#1a73e8;flex-shrink:0;}
 
-        /* Mobile */
         .cvai-menu-btn{display:none;width:32px;height:32px;border-radius:8px;border:1px solid rgba(0,0,0,0.1);background:transparent;color:#5f6368;cursor:pointer;font-size:18px;align-items:center;justify-content:center;}
         @media(max-width:680px){
           .cvai-sidebar{position:absolute;left:0;top:0;bottom:0;z-index:10;transform:translateX(-100%);box-shadow:4px 0 24px rgba(0,0,0,0.12);}
@@ -712,7 +575,6 @@ const loadSessions = useCallback(async (overrideOrgId, overrideUserId) => {
         }
       `}</style>
 
-      {/* ── Floating Action Button ── */}
       {phase === "idle" && isAuthenticated && (
         <button className="cvai-fab" onClick={openPanel} aria-label="Open CalVant AI">
           <span className="cvai-fab-label">CalVant AI</span>
@@ -720,31 +582,25 @@ const loadSessions = useCallback(async (overrideOrgId, overrideUserId) => {
         </button>
       )}
 
-      {/* ── Tunnel Animation ── */}
       {phase === "tunnel" && <TunnelAnimation onComplete={handleTunnelComplete} />}
 
-      {/* ── Full-screen Chat ── */}
       {phase === "chat" && (
         <div className="cvai-overlay">
 
-          {/* Sidebar */}
           <div className={`cvai-sidebar ${sidebarOpen ? "open" : ""}`}>
             <div className="cvai-sidebar-head">
               <button className="cvai-new-btn" onClick={newSession}>
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                  <line x1="12" y1="5" x2="12" y2="19"/>
-                  <line x1="5" y1="12" x2="19" y2="12"/>
+                  <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
                 </svg>
                 New chat
               </button>
             </div>
             <div className="cvai-session-list">
               {sessions.map((s) => (
-                <div
-                  key={s.sessionId}
+                <div key={s.sessionId}
                   className={`cvai-session-item ${s.sessionId === sessionId ? "active" : ""}`}
-                  onClick={() => openSession(s.sessionId)}
-                >
+                  onClick={() => openSession(s.sessionId)}>
                   <div className="cvai-session-title">{s.title || s.preview || "New Chat"}</div>
                   <div className="cvai-session-date">{new Date(s.updatedAt).toLocaleDateString()}</div>
                 </div>
@@ -752,15 +608,9 @@ const loadSessions = useCallback(async (overrideOrgId, overrideUserId) => {
             </div>
           </div>
 
-          {/* Main panel */}
           <div className="cvai-main">
+            <div className="cvai-aurora-fill"><FullPageAurora /></div>
 
-            {/* Aurora fills the entire main panel */}
-            <div className="cvai-aurora-fill">
-              <FullPageAurora />
-            </div>
-
-            {/* Header */}
             <div className="cvai-header">
               <button className="cvai-menu-btn" onClick={() => setSidebarOpen((v) => !v)}>☰</button>
               <div className="cvai-header-logo">
@@ -776,7 +626,6 @@ const loadSessions = useCallback(async (overrideOrgId, overrideUserId) => {
               <button className="cvai-close-btn" onClick={closePanel} aria-label="Close">✕</button>
             </div>
 
-            {/* Config */}
             <div className="cvai-cfg">
               <span className="cvai-cfg-chip">
                 <span className="cvai-cfg-lbl">Org</span>
@@ -792,7 +641,6 @@ const loadSessions = useCallback(async (overrideOrgId, overrideUserId) => {
               <span className="cvai-sess-id">{sessionId || "none — first message will create one"}</span>
             </div>
 
-            {/* ── WELCOME MODE ── */}
             {chatMode === "welcome" && (
               <div className="cvai-welcome-screen">
                 <div className="cvai-welcome-greeting">Hello, how can I help?</div>
@@ -801,59 +649,36 @@ const loadSessions = useCallback(async (overrideOrgId, overrideUserId) => {
                   I can also generate policies and procedures.
                 </p>
                 <div className="cvai-starters">
-                  {[
-                    "How do I log a risk?",
-                    "What are the key requirements of GDPR?",
-                    "Generate an Information Security Policy",
-                    "What is ISO 27001?",
-                    "Summarise this document",
-                  ].map((s) => (
-                    <button
-                      key={s}
-                      className="cvai-starter"
-                      onClick={() => { setInputVal(s); setTimeout(() => send(), 0); }}
-                    >
-                      {s}
-                    </button>
+                  {["How do I log a risk?","What are the key requirements of GDPR?","Generate an Information Security Policy","What is ISO 27001?","Summarise this document"].map((s) => (
+                    <button key={s} className="cvai-starter"
+                      onClick={() => { setInputVal(s); setTimeout(() => send(), 0); }}>{s}</button>
                   ))}
                 </div>
                 {InputBox}
               </div>
             )}
 
-            {/* ── CHATTING MODE ── */}
             {chatMode === "chatting" && (
               <div className="cvai-chat-screen">
                 <div className="cvai-msgs">
                   {messages.map((msg, i) => {
                     if (msg.role === "user") return (
-                      <div key={i} className="cvai-msg user">
-                        <div className="cvai-bubble">{msg.content}</div>
-                      </div>
+                      <div key={i} className="cvai-msg user"><div className="cvai-bubble">{msg.content}</div></div>
                     );
-
                     if (msg.role === "typing") return (
-                      <div key={i} className="cvai-msg ai">
-                        <div className="cvai-bubble">
-                          <div className="cvai-typing"><span/><span/><span/></div>
-                        </div>
-                      </div>
+                      <div key={i} className="cvai-msg ai"><div className="cvai-bubble"><div className="cvai-typing"><span/><span/><span/></div></div></div>
                     );
-
                     if (msg.role === "uploading") return (
-                      <div key={i} className="cvai-msg ai">
-                        <div className="cvai-bubble">
-                          <div style={{ fontSize: 12, color: "#5f6368", marginBottom: 4 }}>Uploading and indexing…</div>
-                          <div className="cvai-upload-bar" style={{ width: "100%" }}/>
-                        </div>
-                      </div>
+                      <div key={i} className="cvai-msg ai"><div className="cvai-bubble">
+                        <div style={{ fontSize: 12, color: "#5f6368", marginBottom: 4 }}>Uploading and indexing…</div>
+                        <div className="cvai-upload-bar" style={{ width: "100%" }}/>
+                      </div></div>
                     );
-
                     if (msg.role === "upload-ok") return (
                       <div key={i} className="cvai-msg ai">
                         <div className="cvai-bubble ok">✅ {msg.content}</div>
                         <div className="cvai-sug-row">
-                          {["Summarise this document", "What are the key risks?", "List the compliance requirements"].map((s) => (
+                          {["Summarise this document","What are the key risks?","List the compliance requirements"].map((s) => (
                             <button key={s} className="cvai-sug-btn" onClick={() => useSuggestion(s)}>{s}</button>
                           ))}
                         </div>
@@ -863,35 +688,26 @@ const loadSessions = useCallback(async (overrideOrgId, overrideUserId) => {
                         </div>
                       </div>
                     );
-
                     if (msg.role === "error") return (
-                      <div key={i} className="cvai-msg ai">
-                        <div className="cvai-bubble err">⚠ {msg.content}</div>
-                      </div>
+                      <div key={i} className="cvai-msg ai"><div className="cvai-bubble err">⚠ {msg.content}</div></div>
                     );
 
-                    // ── AI message ──
                     const d = msg.data || {};
                     const rendered = renderMarkdown(msg.content, BASE_URL);
                     const badgeCls =
-                      d.mode === "DOC"    ? "cvai-b-doc"   :
-                      d.mode === "TOOL"   ? "cvai-b-tool"  :
-                      d.mode === "DOCGEN" ? "cvai-b-docgen":
-                      d.mode === "SYSTEM" ? "cvai-b-sys"   : "cvai-b-gen";
+                      d.mode === "DOC"    ? "cvai-b-doc"    :
+                      d.mode === "TOOL"   ? "cvai-b-tool"   :
+                      d.mode === "DOCGEN" ? "cvai-b-docgen" :
+                      d.mode === "SYSTEM" ? "cvai-b-sys"    : "cvai-b-gen";
 
                     return (
                       <div key={i} className="cvai-msg ai">
-                        <div
-                          className="cvai-bubble"
-                          style={{ whiteSpace: "normal" }}
-                          dangerouslySetInnerHTML={{ __html: rendered }}
-                        />
+                        <div className="cvai-bubble" style={{ whiteSpace: "normal" }}
+                          dangerouslySetInnerHTML={{ __html: rendered }} />
 
                         {d.sources?.length > 0 && (
                           <div className="cvai-src-chips">
-                            {d.sources.map((s) => (
-                              <span key={s} className="cvai-src-chip">📎 {s}</span>
-                            ))}
+                            {d.sources.map((s) => <span key={s} className="cvai-src-chip">📎 {s}</span>)}
                           </div>
                         )}
 
@@ -900,13 +716,9 @@ const loadSessions = useCallback(async (overrideOrgId, overrideUserId) => {
                             <h4>📋 Pick a template</h4>
                             <div className="cvai-tpl-list">
                               {d.actionPayload.templates.slice(0, 6).map((t) => (
-                                <div
-                                  key={t.id}
-                                  className="cvai-tpl-item"
-                                  onClick={() => { setInputVal("Generate a " + t.name); setTimeout(() => send(), 0); }}
-                                >
-                                  <span className="cvai-tpl-type">{t.documentType}</span>
-                                  {t.name}
+                                <div key={t.id} className="cvai-tpl-item"
+                                  onClick={() => { setInputVal("Generate a " + t.name); setTimeout(() => send(), 0); }}>
+                                  <span className="cvai-tpl-type">{t.documentType}</span>{t.name}
                                 </div>
                               ))}
                             </div>
@@ -922,14 +734,8 @@ const loadSessions = useCallback(async (overrideOrgId, overrideUserId) => {
                               <div style={{ fontSize: 14, fontWeight: 600, color: "#202124", margin: "6px 0 2px", fontFamily: "'Google Sans',sans-serif" }}>
                                 {p.title || "Generated Document"}
                               </div>
-                              {p.templateName && (
-                                <div style={{ fontSize: 12, color: "#9aa0a6", marginBottom: 12 }}>{p.templateName}</div>
-                              )}
-                              <a
-                                href={dlUrl}
-                                download={`${(p.title || "document").replaceAll(" ", "_")}.pdf`}
-                                className="cv-dl-btn"
-                              >
+                              {p.templateName && <div style={{ fontSize: 12, color: "#9aa0a6", marginBottom: 12 }}>{p.templateName}</div>}
+                              <a href={dlUrl} download={`${(p.title || "document").replaceAll(" ", "_")}.pdf`} className="cv-dl-btn">
                                 ⬇ Download PDF
                               </a>
                             </div>
@@ -959,14 +765,9 @@ const loadSessions = useCallback(async (overrideOrgId, overrideUserId) => {
                   })}
                   <div ref={msgsEndRef}/>
                 </div>
-
-                {/* Input bar at the bottom when chatting */}
-                <div className="cvai-bottom-bar">
-                  {InputBox}
-                </div>
+                <div className="cvai-bottom-bar">{InputBox}</div>
               </div>
             )}
-
           </div>
         </div>
       )}
