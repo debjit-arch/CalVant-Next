@@ -222,17 +222,22 @@ export default function CalVantAIPanel() {
   const [token, setToken]   = useState(""); // ← JWT token for Authorization header
 
   // Read user info + token from sessionStorage on mount
-  useEffect(() => {
-    try {
-      const stored = sessionStorage.getItem("user");
-      if (stored) {
-        const u = JSON.parse(stored);
-        setOrgId(String( u?.organization ||u?.organization?.id || ""));
-        setUserId(String(u?._id || u?.id || u?.userId || u?.email || ""));
-        setToken(String(u?.token || "")); // ← extract JWT token
-      }
-    } catch (_) {}
-  }, []);
+useEffect(() => {
+  try {
+    const stored = sessionStorage.getItem("user");
+    if (stored) {
+      const u = JSON.parse(stored);
+      const oid = String(u?.organization || u?.organization?.id || "");
+      const uid = String(u?._id || u?.id || u?.userId || u?.email || "");
+      const tok = String(u?.token || "");
+      setOrgId(oid);
+      setUserId(uid);
+      setToken(tok);
+      // ← call immediately with fresh values, don't wait for state
+      if (oid) loadSessions(oid, uid);
+    }
+  } catch (_) {}
+}, []);  // loadSessions intentionally omitted to avoid re-run loop
 
   // ── Centralised auth headers builder ──────────────────────────────────────
   // All JSON API calls go through this so the Bearer token is never forgotten.
@@ -274,16 +279,19 @@ export default function CalVantAIPanel() {
   }, [phase]);
 
       // ── Load session list ──────────────────────────────────────────────────────
-  const loadSessions = useCallback(async () => {
-    try {
-      const r = await fetch(
-        `${BASE_URL}/api/chat/sessions?organizationId=${encodeURIComponent(orgId)}&userId=${encodeURIComponent(userId)}`,
-        { headers: authHeaders() }   // ← token attached
-      );
-      if (!r.ok) return;
-      setSessions(await r.json());
-    } catch (_) {}
-  }, [orgId, userId, authHeaders]);
+const loadSessions = useCallback(async (overrideOrgId, overrideUserId) => {
+  const oid = overrideOrgId || orgId;
+  const uid = overrideUserId || userId;
+  if (!oid) return;
+  try {
+    const r = await fetch(
+      `${BASE_URL}/api/chat/sessions?organizationId=${encodeURIComponent(oid)}&userId=${encodeURIComponent(uid)}`,
+      { headers: authHeaders() }
+    );
+    if (!r.ok) return;
+    setSessions(await r.json());
+  } catch (_) {}
+}, [orgId, userId, authHeaders]);
 
   // Effect 2: load sessions when orgId is ready AND panel is open
   useEffect(() => {
