@@ -71,7 +71,7 @@ const WARN    = "#f59e0b";
 // In your real app, import these from ../../api/trustCentreApi
 const getToken = () => sessionStorage.getItem("token");
 const authHeaders = () => ({ Authorization: `Bearer ${getToken()}` });
-const BASE_URL = process.env.NEXT_PUBLIC_SP || "";
+const BASE_URL = "https://api.calvant.com"
 
 const api = {
   toggleShare: (enabled) =>
