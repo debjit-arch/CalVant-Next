@@ -60,22 +60,22 @@ function applyDimensionFilters(rawResults, dimensionFilters) {
       if (department.length > 0 && prunedMod.byDepartment) {
         prunedMod.byDepartment = Object.fromEntries(
           Object.entries(prunedMod.byDepartment).filter(([k]) =>
-            department.includes(k)
-          )
+            department.includes(k),
+          ),
         );
       }
       if (client.length > 0 && prunedMod.byClient) {
         prunedMod.byClient = Object.fromEntries(
           Object.entries(prunedMod.byClient).filter(([k]) =>
-            client.includes(k)
-          )
+            client.includes(k),
+          ),
         );
       }
       if (branch.length > 0 && prunedMod.byBranch) {
         prunedMod.byBranch = Object.fromEntries(
           Object.entries(prunedMod.byBranch).filter(([k]) =>
-            branch.includes(k)
-          )
+            branch.includes(k),
+          ),
         );
       }
       filteredData[moduleKey] = prunedMod;
@@ -107,15 +107,23 @@ function applyDateWindow(rawResults, filters) {
 }
 
 // ─── shape into results array ────────────────────────────────────────────────
-function toResultsShape(filtered) {
+function toResultsShape(filtered, dimensionFilters) {
   if (filtered.length === 0) return [];
-  const latest = filtered[filtered.length - 1];
+  const dimFiltered = dimensionFilters
+    ? filtered.map((entry) => ({
+        ...entry,
+        data:
+          applyDimensionFilters([entry], dimensionFilters)[0]?.data ??
+          entry.data,
+      }))
+    : filtered;
+  const latest = dimFiltered[dimFiltered.length - 1];
   return [
     {
       reportId: "snapshot",
       generatedAt: latest.generatedAt,
       data: latest.data,
-      _series: filtered,
+      _series: dimFiltered,
     },
   ];
 }
@@ -152,7 +160,7 @@ export function useDashboardData(
   orgIdProp,
   filters,
   comparisonFilters,
-  dimensionFilters
+  dimensionFilters,
 ) {
   const orgId = useMemo(() => getOrgId(orgIdProp), [orgIdProp]);
 
@@ -186,13 +194,13 @@ export function useDashboardData(
             "Content-Type": "application/json",
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
-        }
+        },
       );
       if (!res.ok) throw new Error(`HTTP ${res.status} — ${res.statusText}`);
       const json = await res.json();
       const arr = Array.isArray(json.data) ? json.data : [];
       const sorted = [...arr].sort(
-        (a, b) => new Date(a.generatedAt) - new Date(b.generatedAt)
+        (a, b) => new Date(a.generatedAt) - new Date(b.generatedAt),
       );
       setRawResults(sorted);
       bumpLastFetched();
@@ -222,11 +230,11 @@ export function useDashboardData(
         const payload = JSON.parse(e.data);
         setRawResults((prev) => {
           const alreadyExists = prev.some(
-            (r) => r.generatedAt === payload.generatedAt
+            (r) => r.generatedAt === payload.generatedAt,
           );
           if (alreadyExists) return prev;
           return [...prev, payload].sort(
-            (a, b) => new Date(a.generatedAt) - new Date(b.generatedAt)
+            (a, b) => new Date(a.generatedAt) - new Date(b.generatedAt),
           );
         });
         bumpLastFetched();
@@ -255,17 +263,17 @@ export function useDashboardData(
   // ── Primary results (date window + dimension filter) ─────────────────────
   const filteredResults = useMemo(
     () => applyDateWindow(rawResults, filters),
-    [rawResults, filters]
+    [rawResults, filters],
   );
 
   const dimensionFiltered = useMemo(
     () => applyDimensionFilters(filteredResults, dimensionFilters),
-    [filteredResults, dimensionFilters]
+    [filteredResults, dimensionFilters],
   );
 
   const results = useMemo(
-    () => toResultsShape(dimensionFiltered),
-    [dimensionFiltered]
+    () => toResultsShape(dimensionFiltered, dimensionFilters),
+    [dimensionFiltered, dimensionFilters],
   );
 
   // ── Comparison results (separate date window, same dimension filter) ──────
@@ -286,13 +294,14 @@ export function useDashboardData(
     });
 
     const dimFiltered = applyDimensionFilters(windowedRaw, dimensionFilters);
-    return toResultsShape(dimFiltered);
+    // REPLACE WITH:
+    return toResultsShape(dimFiltered, dimensionFilters);
   }, [rawResults, comparisonFilters, dimensionFilters]);
 
   // ── Available dimension options for FilterBar dropdowns ──────────────────
   const dimensionOptions = useMemo(
     () => extractDimensionOptions(rawResults),
-    [rawResults]
+    [rawResults],
   );
 
   return {

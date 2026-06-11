@@ -22,22 +22,54 @@ import { AVAILABLE_EXTRACTORS } from "./dashboardSchema";
 
 // ─── removed from builder (still in registry for templates) ──────────────────
 const AVAILABLE_COMPONENTS = [
-  { type: "StatCard",         label: "Stat Card",   icon: "🔢", hint: "Single number with optional trend" },
-  { type: "TrendLineChart",   label: "Line Chart",  icon: "📈", hint: "Multi-series line over time" },
-  { type: "TrendBarChart",    label: "Bar Chart",   icon: "📊", hint: "Grouped bars for comparisons" },
-  { type: "DonutStatusChart", label: "Donut Chart", icon: "🍩", hint: "Status / category breakdown" },
+  {
+    type: "StatCard",
+    label: "Stat Card",
+    icon: "🔢",
+    hint: "Single number with optional trend",
+  },
+  {
+    type: "TrendLineChart",
+    label: "Line Chart",
+    icon: "📈",
+    hint: "Multi-series line over time",
+  },
+  {
+    type: "TrendBarChart",
+    label: "Bar Chart",
+    icon: "📊",
+    hint: "Grouped bars for comparisons",
+  },
+  {
+    type: "DonutStatusChart",
+    label: "Donut Chart",
+    icon: "🍩",
+    hint: "Status / category breakdown",
+  },
 ];
 
 const TREND_TYPES = new Set(["TrendLineChart", "TrendBarChart"]);
 
 const SERIES_COLORS = [
-  "#6366f1","#ef4444","#10b981","#f59e0b",
-  "#3b82f6","#a855f7","#06b6d4","#f97316",
+  "#6366f1",
+  "#ef4444",
+  "#10b981",
+  "#f59e0b",
+  "#3b82f6",
+  "#a855f7",
+  "#06b6d4",
+  "#f97316",
 ];
 
 const MAP_EXTRACTORS = new Set([
-  "risks.byStatus","risks.byDepartment","audit.byStatus","audit.byDepartment",
-  "tasks.byStatus","tasks.byDepartment","dpia.byStatus","dpia.byDepartment",
+  "risks.byStatus",
+  "risks.byDepartment",
+  "audit.byStatus",
+  "audit.byDepartment",
+  "tasks.byStatus",
+  "tasks.byDepartment",
+  "dpia.byStatus",
+  "dpia.byDepartment",
 ]);
 
 // ─── sub-components ───────────────────────────────────────────────────────────
@@ -70,7 +102,12 @@ function Steps({ current, total }) {
   );
 }
 
-function ExtractorSelect({ value, onChange, placeholder = "Select a data field…", scalarOnly = false }) {
+function ExtractorSelect({
+  value,
+  onChange,
+  placeholder = "Select a data field…",
+  scalarOnly = false,
+}) {
   const filtered = scalarOnly
     ? AVAILABLE_EXTRACTORS.filter((e) => !MAP_EXTRACTORS.has(e.extractor))
     : AVAILABLE_EXTRACTORS;
@@ -96,11 +133,15 @@ function ExtractorSelect({ value, onChange, placeholder = "Select a data field�
         bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22 fill%3D%22none%22 viewBox%3D%220 0 20 20%22%3E%3Cpath stroke%3D%22%236b7280%22 stroke-linecap%3D%22round%22 stroke-linejoin%3D%22round%22 stroke-width%3D%221.5%22 d%3D%22m6 8 4 4 4-4%22%2F%3E%3C%2Fsvg%3E')]
         bg-[position:right_0.5rem_center] bg-[size:1.25rem] pr-8"
     >
-      <option value="" disabled>{placeholder}</option>
+      <option value="" disabled>
+        {placeholder}
+      </option>
       {Object.entries(groups).map(([mod, items]) => (
         <optgroup key={mod} label={`── ${mod}`}>
           {items.map((e) => (
-            <option key={e.extractor} value={e.extractor}>{e.label}</option>
+            <option key={e.extractor} value={e.extractor}>
+              {e.label}
+            </option>
           ))}
         </optgroup>
       ))}
@@ -167,7 +208,9 @@ function ReviewRow({ label, value, mono }) {
       <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide flex-shrink-0">
         {label}
       </span>
-      <span className={`text-xs text-slate-700 text-right ${mono ? "font-mono" : "font-medium"}`}>
+      <span
+        className={`text-xs text-slate-700 text-right ${mono ? "font-mono" : "font-medium"}`}
+      >
         {value}
       </span>
     </div>
@@ -175,24 +218,45 @@ function ReviewRow({ label, value, mono }) {
 }
 
 // ─── main modal ───────────────────────────────────────────────────────────────
-export default function CustomDashboardModal({ existingViews = [], onClose, onSave }) {
+export default function CustomDashboardModal({
+  existingViews = [],
+  editingPanel = null,
+  onClose,
+  onSave,
+}) {
+  const isEdit = !!editingPanel;
+  const ep = editingPanel?.panel ?? null;
+
   // step 0 = view placement, 1 = chart type+name, 2 = data, 3 = review
-  const [step, setStep] = useState(0);
+  // when editing, skip step 0 (view is fixed) and start at step 1
+  const [step, setStep] = useState(isEdit ? 1 : 0);
 
   // step 0 — view
-  const [viewMode, setViewMode] = useState("existing"); // "existing" | "new"
-  const [selectedViewId, setSelectedViewId] = useState(existingViews[0]?.id ?? "");
+  const [viewMode, setViewMode] = useState("existing");
+  const [selectedViewId, setSelectedViewId] = useState(
+    isEdit ? editingPanel.viewId : (existingViews[0]?.id ?? ""),
+  );
   const [newViewLabel, setNewViewLabel] = useState("");
 
   // step 1
-  const [title, setTitle] = useState("");
-  const [chartType, setChart] = useState("");
+  const [title, setTitle] = useState(ep?.title ?? "");
+  const [chartType, setChart] = useState(ep?.componentType ?? "");
 
-  // step 2
-  const [series, setSeries] = useState([
-    { key: "series1", label: "Series 1", extractor: "", color: SERIES_COLORS[0] },
-  ]);
-  const [singleExtractor, setSingleExtractor] = useState("");
+  // step 2 — pre-fill from existing panel props
+  const [series, setSeries] = useState(() => {
+    if (ep?.props?.series?.length) return ep.props.series;
+    return [
+      {
+        key: "series1",
+        label: "Series 1",
+        extractor: "",
+        color: SERIES_COLORS[0],
+      },
+    ];
+  });
+  const [singleExtractor, setSingleExtractor] = useState(
+    ep?.props?.extractor ?? "",
+  );
 
   const isTrend = TREND_TYPES.has(chartType);
   const isDonut = chartType === "DonutStatusChart";
@@ -210,8 +274,11 @@ export default function CustomDashboardModal({ existingViews = [], onClose, onSa
     ]);
 
   const updateSeries = (i, field, value) =>
-    setSeries((prev) => prev.map((s, idx) => (idx === i ? { ...s, [field]: value } : s)));
-  const removeSeries = (i) => setSeries((prev) => prev.filter((_, idx) => idx !== i));
+    setSeries((prev) =>
+      prev.map((s, idx) => (idx === i ? { ...s, [field]: value } : s)),
+    );
+  const removeSeries = (i) =>
+    setSeries((prev) => prev.filter((_, idx) => idx !== i));
 
   // ── step validation ───────────────────────────────────────────────────────
   const step0Valid =
@@ -221,19 +288,17 @@ export default function CustomDashboardModal({ existingViews = [], onClose, onSa
     ? series.some((s) => s.extractor)
     : singleExtractor !== "";
 
-  const totalSteps = 4;
+  const totalSteps = isEdit ? 3 : 4;
 
   const resolvedViewId =
-    viewMode === "new"
-      ? `custom_view_${Date.now()}`
-      : selectedViewId;
+    viewMode === "new" ? `custom_view_${Date.now()}` : selectedViewId;
   const resolvedViewLabel =
     viewMode === "new"
       ? newViewLabel.trim()
-      : existingViews.find((v) => v.id === selectedViewId)?.label ?? "Custom";
+      : (existingViews.find((v) => v.id === selectedViewId)?.label ?? "Custom");
 
   const handleSave = () => {
-    const panelId = `custom_panel_${Date.now()}`;
+    const panelId = isEdit ? ep.id : `custom_panel_${Date.now()}`;
     const panel = {
       id: panelId,
       componentType: chartType,
@@ -242,13 +307,21 @@ export default function CustomDashboardModal({ existingViews = [], onClose, onSa
         ? { series: series.filter((s) => s.extractor && s.key) }
         : { extractor: singleExtractor },
     };
-    onSave({ viewId: resolvedViewId, viewLabel: resolvedViewLabel, panel });
+    onSave({
+      viewId: resolvedViewId,
+      viewLabel: resolvedViewLabel,
+      panel,
+      isEdit,
+      originalPanelId: ep?.id,
+    });
     onClose();
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center
-      bg-black/40 backdrop-blur-sm p-4">
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center
+      bg-black/40 backdrop-blur-sm p-4"
+    >
       <motion.div
         initial={{ y: 40, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
@@ -260,7 +333,9 @@ export default function CustomDashboardModal({ existingViews = [], onClose, onSa
         <div className="px-6 pt-5 pb-4 border-b border-slate-100">
           <div className="flex items-start justify-between mb-3">
             <div>
-              <h2 className="text-base font-semibold text-slate-800">Custom Panel</h2>
+              <h2 className="text-base font-semibold text-slate-800">
+                {isEdit ? "Edit Panel" : "Custom Panel"}
+              </h2>
               <p className="text-xs text-slate-400 mt-0.5">
                 {step === 0 && "Choose which view to add this panel to"}
                 {step === 1 && "Give it a name and pick a chart type"}
@@ -268,7 +343,12 @@ export default function CustomDashboardModal({ existingViews = [], onClose, onSa
                 {step === 3 && "Review and add to your dashboard"}
               </p>
             </div>
-            <button onClick={onClose} className="text-slate-300 hover:text-slate-500 text-2xl leading-none mt-0.5">×</button>
+            <button
+              onClick={onClose}
+              className="text-slate-300 hover:text-slate-500 text-2xl leading-none mt-0.5"
+            >
+              ×
+            </button>
           </div>
           <Steps current={step} total={totalSteps} />
         </div>
@@ -276,11 +356,16 @@ export default function CustomDashboardModal({ existingViews = [], onClose, onSa
         {/* body */}
         <div className="px-6 py-5 max-h-[60vh] overflow-y-auto space-y-5">
           <AnimatePresence mode="wait">
-
             {/* STEP 0 — view placement */}
             {step === 0 && (
-              <motion.div key="step0" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.15 }} className="space-y-4">
+              <motion.div
+                key="step0"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.15 }}
+                className="space-y-4"
+              >
                 <div>
                   <Label>Add to</Label>
                   <div className="flex gap-2">
@@ -288,9 +373,11 @@ export default function CustomDashboardModal({ existingViews = [], onClose, onSa
                       <button
                         onClick={() => setViewMode("existing")}
                         className={`flex-1 py-2.5 rounded-xl border-2 text-xs font-semibold transition-all
-                          ${viewMode === "existing"
-                            ? "border-indigo-400 bg-indigo-50 text-indigo-700"
-                            : "border-slate-150 bg-slate-50 text-slate-600 hover:border-slate-200"}`}
+                          ${
+                            viewMode === "existing"
+                              ? "border-indigo-400 bg-indigo-50 text-indigo-700"
+                              : "border-slate-150 bg-slate-50 text-slate-600 hover:border-slate-200"
+                          }`}
                       >
                         Existing view
                       </button>
@@ -298,9 +385,11 @@ export default function CustomDashboardModal({ existingViews = [], onClose, onSa
                     <button
                       onClick={() => setViewMode("new")}
                       className={`flex-1 py-2.5 rounded-xl border-2 text-xs font-semibold transition-all
-                        ${viewMode === "new"
-                          ? "border-indigo-400 bg-indigo-50 text-indigo-700"
-                          : "border-slate-150 bg-slate-50 text-slate-600 hover:border-slate-200"}`}
+                        ${
+                          viewMode === "new"
+                            ? "border-indigo-400 bg-indigo-50 text-indigo-700"
+                            : "border-slate-150 bg-slate-50 text-slate-600 hover:border-slate-200"
+                        }`}
                     >
                       New view
                     </button>
@@ -318,7 +407,9 @@ export default function CustomDashboardModal({ existingViews = [], onClose, onSa
                         focus:border-indigo-400 transition-all cursor-pointer"
                     >
                       {existingViews.map((v) => (
-                        <option key={v.id} value={v.id}>{v.label}</option>
+                        <option key={v.id} value={v.id}>
+                          {v.label}
+                        </option>
                       ))}
                     </select>
                   </div>
@@ -342,8 +433,14 @@ export default function CustomDashboardModal({ existingViews = [], onClose, onSa
 
             {/* STEP 1 — chart type + name */}
             {step === 1 && (
-              <motion.div key="step1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.15 }} className="space-y-5">
+              <motion.div
+                key="step1"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.15 }}
+                className="space-y-5"
+              >
                 <div>
                   <Label>Panel title</Label>
                   <input
@@ -363,17 +460,23 @@ export default function CustomDashboardModal({ existingViews = [], onClose, onSa
                         key={c.type}
                         onClick={() => setChart(c.type)}
                         className={`rounded-xl border-2 p-3 text-left transition-all
-                          ${chartType === c.type
-                            ? "border-indigo-500 bg-indigo-50"
-                            : "border-slate-150 bg-slate-50 hover:border-indigo-200 hover:bg-indigo-50/40"}`}
+                          ${
+                            chartType === c.type
+                              ? "border-indigo-500 bg-indigo-50"
+                              : "border-slate-150 bg-slate-50 hover:border-indigo-200 hover:bg-indigo-50/40"
+                          }`}
                       >
                         <div className="flex items-center gap-2 mb-0.5">
                           <span className="text-lg">{c.icon}</span>
-                          <span className={`text-xs font-semibold ${chartType === c.type ? "text-indigo-700" : "text-slate-700"}`}>
+                          <span
+                            className={`text-xs font-semibold ${chartType === c.type ? "text-indigo-700" : "text-slate-700"}`}
+                          >
                             {c.label}
                           </span>
                         </div>
-                        <p className="text-[10px] text-slate-400 leading-tight pl-7">{c.hint}</p>
+                        <p className="text-[10px] text-slate-400 leading-tight pl-7">
+                          {c.hint}
+                        </p>
                       </button>
                     ))}
                   </div>
@@ -383,22 +486,38 @@ export default function CustomDashboardModal({ existingViews = [], onClose, onSa
 
             {/* STEP 2 — data */}
             {step === 2 && (
-              <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.15 }} className="space-y-4">
+              <motion.div
+                key="step2"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.15 }}
+                className="space-y-4"
+              >
                 {isTrend && (
                   <div>
                     <div className="flex items-center justify-between mb-2">
-                      <Label hint="each series = one line/bar">Data Series</Label>
-                      <button onClick={addSeries}
-                        className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 flex items-center gap-1">
-                        <span className="text-base leading-none">+</span> Add Series
+                      <Label hint="each series = one line/bar">
+                        Data Series
+                      </Label>
+                      <button
+                        onClick={addSeries}
+                        className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
+                      >
+                        <span className="text-base leading-none">+</span> Add
+                        Series
                       </button>
                     </div>
                     <AnimatePresence>
                       {series.map((s, i) => (
                         <div key={i} className="mb-2">
-                          <SeriesRow series={s} index={i} onChange={updateSeries}
-                            onRemove={removeSeries} canRemove={series.length > 1} />
+                          <SeriesRow
+                            series={s}
+                            index={i}
+                            onChange={updateSeries}
+                            onRemove={removeSeries}
+                            canRemove={series.length > 1}
+                          />
                         </div>
                       ))}
                     </AnimatePresence>
@@ -406,7 +525,13 @@ export default function CustomDashboardModal({ existingViews = [], onClose, onSa
                 )}
                 {(isSingle || isDonut) && (
                   <div>
-                    <Label hint={isDonut ? "object map like risks.byStatus" : "scalar e.g. risks.total"}>
+                    <Label
+                      hint={
+                        isDonut
+                          ? "object map like risks.byStatus"
+                          : "scalar e.g. risks.total"
+                      }
+                    >
                       Data field
                     </Label>
                     <ExtractorSelect
@@ -421,29 +546,53 @@ export default function CustomDashboardModal({ existingViews = [], onClose, onSa
 
             {/* STEP 3 — review */}
             {step === 3 && (
-              <motion.div key="step3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.15 }} className="space-y-3">
+              <motion.div
+                key="step3"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.15 }}
+                className="space-y-3"
+              >
                 <div className="rounded-xl bg-slate-50 border border-slate-100 divide-y divide-slate-100">
                   <ReviewRow label="View" value={resolvedViewLabel} />
                   <ReviewRow label="Panel title" value={title} />
                   <ReviewRow label="Chart type" value={chartType} />
                   {isTrend ? (
                     <div className="px-4 py-3">
-                      <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-2">Series</p>
-                      {series.filter((s) => s.extractor).map((s, i) => (
-                        <div key={i} className="flex items-center gap-2 mb-1.5">
-                          <div className="w-3 h-3 rounded-sm flex-shrink-0" style={{ backgroundColor: s.color }} />
-                          <span className="text-xs font-medium text-slate-700">{s.label}</span>
-                          <span className="text-xs text-slate-400 ml-auto font-mono">{s.extractor}</span>
-                        </div>
-                      ))}
+                      <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-2">
+                        Series
+                      </p>
+                      {series
+                        .filter((s) => s.extractor)
+                        .map((s, i) => (
+                          <div
+                            key={i}
+                            className="flex items-center gap-2 mb-1.5"
+                          >
+                            <div
+                              className="w-3 h-3 rounded-sm flex-shrink-0"
+                              style={{ backgroundColor: s.color }}
+                            />
+                            <span className="text-xs font-medium text-slate-700">
+                              {s.label}
+                            </span>
+                            <span className="text-xs text-slate-400 ml-auto font-mono">
+                              {s.extractor}
+                            </span>
+                          </div>
+                        ))}
                     </div>
                   ) : (
                     <ReviewRow label="Extractor" value={singleExtractor} mono />
                   )}
                 </div>
                 <p className="text-xs text-slate-400 text-center">
-                  This panel will be saved to <strong className="text-slate-600">{resolvedViewLabel}</strong>.
+                  This panel will be saved to{" "}
+                  <strong className="text-slate-600">
+                    {resolvedViewLabel}
+                  </strong>
+                  .
                 </p>
               </motion.div>
             )}

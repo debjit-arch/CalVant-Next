@@ -13,20 +13,28 @@
  */
 
 import React, {
-  Suspense, memo, useCallback, useMemo, useState, useEffect,
+  Suspense,
+  memo,
+  useCallback,
+  useMemo,
+  useState,
+  useEffect,
 } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Settings2, Pencil, Trash2 } from "lucide-react";
 import { resolveComponent } from "./kpiRegistry";
 import {
-  resolveSingleValue, resolveTrendSeries, resolveMapValue, resolveTableRows,
+  resolveSingleValue,
+  resolveTrendSeries,
+  resolveMapValue,
+  resolveTableRows,
 } from "./dataExtractors";
 import CustomDashboardModal from "./customDashboardModal";
 import ViewManagerModal from "./ViewManagerModal";
 
 // ─── storage keys ─────────────────────────────────────────────────────────────
-const VIEWS_KEY   = "calvant_custom_views";
-const LEGACY_KEY  = "calvant_custom_panels"; // migrated on first load
+const VIEWS_KEY = "calvant_custom_views";
+const LEGACY_KEY = "calvant_custom_panels"; // migrated on first load
 
 // ─── migration ────────────────────────────────────────────────────────────────
 function loadCustomViews() {
@@ -39,7 +47,9 @@ function loadCustomViews() {
     if (legacy) {
       const panels = JSON.parse(legacy);
       if (panels.length > 0) {
-        const migrated = [{ id: "custom_view_migrated", label: "Custom", panels }];
+        const migrated = [
+          { id: "custom_view_migrated", label: "Custom", panels },
+        ];
         localStorage.setItem(VIEWS_KEY, JSON.stringify(migrated));
         localStorage.removeItem(LEGACY_KEY);
         return migrated;
@@ -88,11 +98,14 @@ function resolveKpiData(kpiConfig, result) {
 
 // ─── KpiWrapper ───────────────────────────────────────────────────────────────
 const KpiWrapper = memo(function KpiWrapper({
-  kpiConfig, results, comparisonResults, loading,
+  kpiConfig,
+  results,
+  comparisonResults,
+  loading,
 }) {
   const Component = useMemo(
     () => resolveComponent(kpiConfig.componentType),
-    [kpiConfig.componentType]
+    [kpiConfig.componentType],
   );
 
   const result = useMemo(() => {
@@ -104,18 +117,26 @@ const KpiWrapper = memo(function KpiWrapper({
 
   const compResult = useMemo(
     () => comparisonResults?.[0] ?? null,
-    [comparisonResults]
+    [comparisonResults],
   );
 
   const resolvedData = useMemo(() => {
     if (!result) return null;
-    try { return resolveKpiData(kpiConfig, result); } catch { return null; }
+    try {
+      return resolveKpiData(kpiConfig, result);
+    } catch {
+      return null;
+    }
   }, [result, kpiConfig]);
 
   // Compute comparison delta for StatCard
   const comparisonData = useMemo(() => {
     if (!compResult) return null;
-    try { return resolveKpiData(kpiConfig, compResult); } catch { return null; }
+    try {
+      return resolveKpiData(kpiConfig, compResult);
+    } catch {
+      return null;
+    }
   }, [compResult, kpiConfig]);
 
   return (
@@ -131,7 +152,13 @@ const KpiWrapper = memo(function KpiWrapper({
 });
 
 // ─── PanelGrid (standard templates) ──────────────────────────────────────────
-function PanelGrid({ panels, results, comparisonResults, loading, columns = 3 }) {
+function PanelGrid({
+  panels,
+  results,
+  comparisonResults,
+  loading,
+  columns = 3,
+}) {
   const gridCols = `repeat(${columns}, minmax(0, 1fr))`;
   return (
     <div className="grid gap-4" style={{ gridTemplateColumns: gridCols }}>
@@ -192,21 +219,37 @@ export default function DashboardEngine({
   const [editingPanel, setEditingPanel] = useState(null); // panel to pre-fill
 
   // ── save panel from modal ─────────────────────────────────────────────────
-  const savePanel = useCallback(({ viewId, viewLabel, panel }) => {
-    setCustomViews((prev) => {
-      const exists = prev.find((v) => v.id === viewId);
-      let updated;
-      if (exists) {
-        updated = prev.map((v) =>
-          v.id === viewId ? { ...v, panels: [...v.panels, panel] } : v
-        );
-      } else {
-        updated = [...prev, { id: viewId, label: viewLabel, panels: [panel] }];
-      }
-      saveCustomViews(updated);
-      return updated;
-    });
-  }, []);
+  const savePanel = useCallback(
+    ({ viewId, viewLabel, panel, isEdit, originalPanelId }) => {
+      setCustomViews((prev) => {
+        const exists = prev.find((v) => v.id === viewId);
+        let updated;
+        if (exists) {
+          updated = prev.map((v) => {
+            if (v.id !== viewId) return v;
+            if (isEdit && originalPanelId) {
+              // replace existing panel in-place
+              return {
+                ...v,
+                panels: v.panels.map((p) =>
+                  p.id === originalPanelId ? panel : p,
+                ),
+              };
+            }
+            return { ...v, panels: [...v.panels, panel] };
+          });
+        } else {
+          updated = [
+            ...prev,
+            { id: viewId, label: viewLabel, panels: [panel] },
+          ];
+        }
+        saveCustomViews(updated);
+        return updated;
+      });
+    },
+    [],
+  );
 
   // ── delete panel from custom view ─────────────────────────────────────────
   const deletePanel = useCallback((viewId, panelId) => {
@@ -214,7 +257,7 @@ export default function DashboardEngine({
       const updated = prev.map((v) =>
         v.id === viewId
           ? { ...v, panels: v.panels.filter((p) => p.id !== panelId) }
-          : v
+          : v,
       );
       saveCustomViews(updated);
       return updated;
@@ -243,7 +286,10 @@ export default function DashboardEngine({
   }
 
   // ── existing custom views list for modal step 0 ───────────────────────────
-  const existingViewsForModal = customViews.map((v) => ({ id: v.id, label: v.label }));
+  const existingViewsForModal = customViews.map((v) => ({
+    id: v.id,
+    label: v.label,
+  }));
 
   return (
     <div className="flex flex-col gap-4">
@@ -253,15 +299,16 @@ export default function DashboardEngine({
         data-html2canvas-ignore="true"
         className="flex items-center justify-between flex-wrap gap-2"
       >
-        <div className="flex items-center gap-1 bg-slate-100 rounded-xl p-1 flex-wrap">
+        <div className="flex items-center gap-1 bg-slate-100 rounded-xl p-1 flex-wrap overflow-x-auto max-w-full">
           {allViews.map((view) => (
             <button
               key={view.id}
               onClick={() => setActiveViewId(view.id)}
               className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all
-                ${activeViewId === view.id
-                  ? "bg-white shadow text-slate-800"
-                  : "text-slate-500 hover:text-slate-700"
+                ${
+                  activeViewId === view.id
+                    ? "bg-white shadow text-slate-800"
+                    : "text-slate-500 hover:text-slate-700"
                 }`}
             >
               {view.label ?? view.id}
@@ -285,12 +332,16 @@ export default function DashboardEngine({
           )}
 
           <button
-            onClick={() => { setEditingPanel(null); setShowPanelModal(true); }}
+            onClick={() => {
+              setEditingPanel(null);
+              setShowPanelModal(true);
+            }}
             className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600
               text-white text-sm font-semibold hover:bg-indigo-700
               active:scale-95 transition-all shadow-sm"
           >
-            <span className="text-base leading-none">＋</span> Custom Panel
+            <span className="text-base leading-none">＋</span>{" "}
+            <span className="whitespace-nowrap">Custom Panel</span>
           </button>
         </div>
       </div>
@@ -320,11 +371,15 @@ export default function DashboardEngine({
           {isCustomView && (
             <div
               className="mt-2 grid gap-4"
-              style={{ gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))" }}
+              style={{
+                gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+              }}
             >
               {activeView.panels?.length === 0 && (
                 <div className="col-span-full flex flex-col items-center justify-center py-16 gap-3">
-                  <p className="text-sm text-slate-400 italic">No panels in this view yet.</p>
+                  <p className="text-sm text-slate-400 italic">
+                    No panels in this view yet.
+                  </p>
                   <button
                     onClick={() => setShowPanelModal(true)}
                     className="px-4 py-2 rounded-xl bg-indigo-600 text-white text-xs font-semibold
@@ -341,8 +396,10 @@ export default function DashboardEngine({
                   className="relative rounded-2xl bg-white shadow-sm border border-slate-100 overflow-hidden group"
                 >
                   {/* edit / delete controls */}
-                  <div className="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100
-                    transition-opacity flex items-center gap-1">
+                  <div
+                    className="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100
+                    transition-opacity flex items-center gap-1"
+                  >
                     <button
                       onClick={() => {
                         setEditingPanel({ panel, viewId: activeView.id });
@@ -384,7 +441,11 @@ export default function DashboardEngine({
         {showPanelModal && (
           <CustomDashboardModal
             existingViews={existingViewsForModal}
-            onClose={() => { setShowPanelModal(false); setEditingPanel(null); }}
+            editingPanel={editingPanel} // ← add this
+            onClose={() => {
+              setShowPanelModal(false);
+              setEditingPanel(null);
+            }}
             onSave={savePanel}
           />
         )}

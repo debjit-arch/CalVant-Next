@@ -17,7 +17,14 @@ import { motion, AnimatePresence } from "framer-motion";
 import { SlidersHorizontal, ChevronDown, X } from "lucide-react";
 
 // ─── chip row ─────────────────────────────────────────────────────────────────
-function ChipGroup({ label, options, selected, onToggle, onClearGroup, accent }) {
+function ChipGroup({
+  label,
+  options,
+  selected,
+  onToggle,
+  onClearGroup,
+  accent,
+}) {
   if (!options?.length) return null;
 
   return (
@@ -36,9 +43,10 @@ function ChipGroup({ label, options, selected, onToggle, onClearGroup, accent })
               key={opt}
               onClick={() => onToggle(opt)}
               className={`px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-all
-                ${active
-                  ? "border-transparent text-white shadow-sm"
-                  : "bg-white border-slate-200 text-slate-600 hover:border-slate-300"
+                ${
+                  active
+                    ? "border-transparent text-white shadow-sm"
+                    : "bg-white border-slate-200 text-slate-600 hover:border-slate-300"
                 }`}
               style={active ? { background: accent } : {}}
             >
@@ -64,8 +72,13 @@ function ChipGroup({ label, options, selected, onToggle, onClearGroup, accent })
 export default function FilterBar({ dimensionOptions, value, onChange }) {
   const [open, setOpen] = useState(false);
 
-  const { departments = [], clients = [], branches = [] } = dimensionOptions ?? {};
-  const hasAnyOptions = departments.length > 0 || clients.length > 0 || branches.length > 0;
+  const {
+    departments = [],
+    clients = [],
+    branches = [],
+  } = dimensionOptions ?? {};
+  const hasAnyOptions =
+    departments.length > 0 || clients.length > 0 || branches.length > 0;
 
   if (!hasAnyOptions) return null;
 
@@ -89,22 +102,25 @@ export default function FilterBar({ dimensionOptions, value, onChange }) {
   const clearAll = () => onChange({ department: [], client: [], branch: [] });
 
   return (
-    <div className="relative">
+    <div className="relative self-start">
       {/* trigger */}
       <button
         onClick={() => setOpen((v) => !v)}
         className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold
           border transition-all duration-200
-          ${open || totalActive > 0
-            ? "bg-indigo-50 border-indigo-200 text-indigo-700"
-            : "bg-slate-100 text-slate-500 border-slate-200 hover:bg-slate-200"
+          ${
+            open || totalActive > 0
+              ? "bg-indigo-50 border-indigo-200 text-indigo-700"
+              : "bg-slate-100 text-slate-500 border-slate-200 hover:bg-slate-200"
           }`}
       >
         <SlidersHorizontal size={12} />
         Filters
         {totalActive > 0 && (
-          <span className="ml-0.5 bg-indigo-600 text-white rounded-full w-4 h-4
-            flex items-center justify-center text-[10px] font-bold">
+          <span
+            className="ml-0.5 bg-indigo-600 text-white rounded-full w-4 h-4
+            flex items-center justify-center text-[10px] font-bold"
+          >
             {totalActive}
           </span>
         )}
@@ -133,8 +149,9 @@ export default function FilterBar({ dimensionOptions, value, onChange }) {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -6, scale: 0.98 }}
             transition={{ duration: 0.15 }}
-            className="absolute left-0 top-full mt-2 z-50 bg-white rounded-2xl shadow-xl
-              border border-slate-100 p-4 min-w-[320px] max-w-[480px] space-y-3"
+            className="fixed right-6 z-[200] bg-white rounded-2xl shadow-2xl
+  border border-slate-100 p-4 min-w-[320px] max-w-[420px] space-y-3
+  max-h-[70vh] overflow-y-auto"
           >
             <div className="flex items-center justify-between mb-1">
               <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">
