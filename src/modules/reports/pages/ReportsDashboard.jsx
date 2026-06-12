@@ -54,19 +54,38 @@ const INTERVAL_TYPE_TO_KEY = {
   CUSTOM_YEARS:  "custom",
 };
 
-// ─── PER-SCHEDULE CUSTOM VIEWS  (localStorage) ───────────────────────────────
-// Key format: calvant_schedule_views_<scheduleId>
-function loadScheduleViews(scheduleId) {
+// ─── PER-SCHEDULE CUSTOM VIEWS  (backend — report_views collection) ──────────
+async function fetchScheduleViews(scheduleId, token) {
   if (!scheduleId) return [];
   try {
-    const raw = localStorage.getItem(`calvant_schedule_views_${scheduleId}`);
-    return raw ? JSON.parse(raw) : [];
-  } catch { return []; }
+    const res = await fetch(`${BASE_URL}/config/${scheduleId}/views`, {
+      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    });
+    if (!res.ok) return [];
+    const json = await res.json();
+    return Array.isArray(json?.data) ? json.data : [];
+  } catch {
+    return [];
+  }
 }
 
-function saveScheduleViews(scheduleId, views) {
+async function saveScheduleViewsRemote(scheduleId, organization, views, token) {
   if (!scheduleId) return;
-  localStorage.setItem(`calvant_schedule_views_${scheduleId}`, JSON.stringify(views));
+  try {
+    await fetch(
+      `${BASE_URL}/config/${scheduleId}/views?organization=${encodeURIComponent(organization)}`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(views),
+      },
+    );
+  } catch {
+    // best-effort; UI already has the optimistic update
+  }
 }
 
 // ─── ORG / TOKEN HELPERS ──────────────────────────────────────────────────────
@@ -211,13 +230,14 @@ export default function ReportsDashboard() {
   // ── active schedule ───────────────────────────────────────────────────────
   const [activeScheduleId, setActiveScheduleId] = useState(null);
 
-  // ── per-schedule custom views (owned here, passed into DashboardEngine) ───
+  // ── per-schedule custom views (owned here, persisted to backend) ─────────
   const [customViews, setCustomViews] = useState([]);
+  const [viewsLoading, setViewsLoading] = useState(false);
 
   const handleCustomViewsChange = useCallback((views) => {
     setCustomViews(views);
-    saveScheduleViews(activeScheduleId, views);
-  }, [activeScheduleId]);
+    saveScheduleViewsRemote(activeScheduleId, organization, views, getToken());
+  }, [activeScheduleId, organization]);
 
   // ── date window filter ────────────────────────────────────────────────────
   const [interval, setIntervalKey] = useState("7d");
@@ -227,6 +247,7 @@ export default function ReportsDashboard() {
   const resetDashboardState = useCallback(() => {
     setActiveScheduleId(null);
     setCustomViews([]);
+    setViewsLoading(false);
     setIntervalKey("7d");
     setCustomFrom("");
     setCustomTo("");
@@ -237,8 +258,13 @@ export default function ReportsDashboard() {
       if (activeScheduleId === cfg.id) { resetDashboardState(); return; }
 
       setActiveScheduleId(cfg.id);
-      // Load this schedule's persisted custom views
-      setCustomViews(loadScheduleViews(cfg.id));
+      // Load this schedule's persisted custom views from the backend
+      setCustomViews([]);
+      setViewsLoading(true);
+      fetchScheduleViews(cfg.id, getToken()).then((views) => {
+        setCustomViews(views);
+        setViewsLoading(false);
+      });
 
       // Set interval from schedule config
       const mappedInterval = INTERVAL_TYPE_TO_KEY[cfg.intervalType] ?? "7d";
@@ -344,7 +370,8 @@ export default function ReportsDashboard() {
       );
       if (!res.ok) return;
       const json = await res.json();
-      const configs = Array.isArray(json?.data) ? json.data : Array.isArray(json) ? json : [];
+      const raw = Array.isArray(json?.data) ? json.data : Array.isArray(json) ? json : [];
+      const configs = raw.map((c) => ({ ...c, id: c.id ?? c._id }));
       setReportConfigs(configs);
     } catch {}
   }, [organization]);
