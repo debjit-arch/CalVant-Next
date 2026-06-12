@@ -43,38 +43,41 @@ const PRIORITY = {
   CRITICAL: "Critical",
 };
 const STATUS_CONFIG = {
-  "To-Do":       { bg: "#f1f3f5", color: "#495057", dot: "#868e96" },
+  "To-Do": { bg: "#f1f3f5", color: "#495057", dot: "#868e96" },
   "In Progress": { bg: "#e7f5ff", color: "#1971c2", dot: "#339af0" },
-  Done:          { bg: "#ebfbee", color: "#2f9e44", dot: "#40c057" },
-  "On Hold":     { bg: "#fff5f5", color: "#c92a2a", dot: "#fa5252" },
+  Done: { bg: "#ebfbee", color: "#2f9e44", dot: "#40c057" },
+  "On Hold": { bg: "#fff5f5", color: "#c92a2a", dot: "#fa5252" },
 };
 const PRIORITY_CONFIG = {
-  Low:      { color: "#2f9e44", bg: "#ebfbee",  icon: "▼" },
-  Medium:   { color: "#f59f00", bg: "#fff9db",  icon: "■" },
-  High:     { color: "#e8590c", bg: "#fff4e6",  icon: "▲" },
-  Critical: { color: "#c92a2a", bg: "#fff5f5",  icon: "⚑" },
+  Low: { color: "#2f9e44", bg: "#ebfbee", icon: "▼" },
+  Medium: { color: "#f59f00", bg: "#fff9db", icon: "■" },
+  High: { color: "#e8590c", bg: "#fff4e6", icon: "▲" },
+  Critical: { color: "#c92a2a", bg: "#fff5f5", icon: "⚑" },
 };
+// AFTER
 function getSourceModule(task) {
   if (task.source === "Policy")
-    return { label: "Policy",     bg: "#fdf4ff", color: "#7e22ce" };
+    return { label: "Policy", bg: "#fdf4ff", color: "#7e22ce" };
   if (task.source === "Compliance" || task.controlId)
     return { label: "Compliance", bg: "#f0fdf4", color: "#166534" };
   if (task.riskId)
-    return { label: "Risk",       bg: "#e7f5ff", color: "#1971c2" };
+    return { label: "Risk", bg: "#e7f5ff", color: "#1971c2" };
   if (task.auditId)
-    return { label: "Audit",      bg: "#fff9db", color: "#e67700" };
-  return   { label: "General",   bg: "#f1f3f5", color: "#868e96" };
+    return { label: "Audit", bg: "#fff9db", color: "#e67700" };
+  if (task.dpiaId || task.source === "DPIA")
+    return { label: "DPIA", bg: "#fdf4ff", color: "#7c3aed" }; // ✅ NEW
+  return { label: "General", bg: "#f1f3f5", color: "#868e96" };
 }
-const statusOptions   = Object.values(STATUS);
+const statusOptions = Object.values(STATUS);
 const priorityOptions = Object.values(PRIORITY);
 
 // ─── Stat Card (matching TemplatesPage exactly) ───────────────
 const STAT_CONFIG = {
-  Total:       { gradient: "linear-gradient(135deg,#4f8ef7,#2563eb)",  Icon: ClipboardList },
-  "In Progress":{ gradient: "linear-gradient(135deg,#339af0,#1971c2)", Icon: Zap },
-  Done:        { gradient: "linear-gradient(135deg,#10b981,#059669)",  Icon: CheckCircle2 },
-  "On Hold":   { gradient: "linear-gradient(135deg,#f59e0b,#d97706)",  Icon: PauseCircle },
-  Critical:    { gradient: "linear-gradient(135deg,#ef4444,#dc2626)",  Icon: AlertOctagon },
+  Total: { gradient: "linear-gradient(135deg,#4f8ef7,#2563eb)", Icon: ClipboardList },
+  "In Progress": { gradient: "linear-gradient(135deg,#339af0,#1971c2)", Icon: Zap },
+  Done: { gradient: "linear-gradient(135deg,#10b981,#059669)", Icon: CheckCircle2 },
+  "On Hold": { gradient: "linear-gradient(135deg,#f59e0b,#d97706)", Icon: PauseCircle },
+  Critical: { gradient: "linear-gradient(135deg,#ef4444,#dc2626)", Icon: AlertOctagon },
 };
 
 function StatCard({ value, label, index }) {
@@ -205,7 +208,7 @@ function formatDateTime(d) {
 function initials(name) {
   return (name || "?").split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
 }
-const AV_COLORS = ["#7950f2","#1971c2","#0ca678","#e8590c","#c2255c","#f59f00","#364fc7"];
+const AV_COLORS = ["#7950f2", "#1971c2", "#0ca678", "#e8590c", "#c2255c", "#f59f00", "#364fc7"];
 function avColor(name) {
   return AV_COLORS[(name || "").charCodeAt(0) % AV_COLORS.length];
 }
@@ -493,10 +496,10 @@ export default function TaskManagement({ riskFormData = {}, auditFormData = {} }
   const hasAnyRole = (...roles) => roles.some((r) => userRoles.includes(r));
   const canEdit = hasAnyRole("risk_owner", "root", "super_admin");
 
-  const scopedRiskId  = riskFormData?.riskId  || null;
+  const scopedRiskId = riskFormData?.riskId || null;
   const scopedAuditId = auditFormData?.auditId || null;
-  const userOrgId     = effectiveOrgId;
-  const contextLabel  = scopedRiskId ? "Risk Assessment" : scopedAuditId ? "Audit" : "Task Management";
+  const userOrgId = effectiveOrgId;
+  const contextLabel = scopedRiskId ? "Risk Assessment" : scopedAuditId ? "Audit" : "Task Management";
   const contextScopeId = scopedRiskId || scopedAuditId || null;
   const [audits, setAudits] = useState([]);
 
@@ -504,13 +507,15 @@ export default function TaskManagement({ riskFormData = {}, auditFormData = {} }
     auditService.getAudits().then((data) => setAudits(Array.isArray(data) ? data : []));
   }, []);
 
-  const [tasks,       setTasks]       = useState([]);
+  const [tasks, setTasks] = useState([]);
+
+  
   const [departments, setDepartments] = useState([]);
-  const [users,       setUsers]       = useState([]);
+  const [users, setUsers] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTaskId, setEditingTaskId] = useState(null);
-  const [isLoading, setIsLoading]     = useState(false);
-  const [isSaving,  setIsSaving]      = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const TASKS_PER_PAGE = 15;
@@ -567,7 +572,7 @@ export default function TaskManagement({ riskFormData = {}, auditFormData = {} }
       const all = await taskService.getAllTasks();
       const orgTasks = all.filter((t) => String(t.organization) === String(userOrgId));
       let scoped;
-      if (scopedRiskId)  scoped = orgTasks.filter((t) => t.riskId  === scopedRiskId);
+      if (scopedRiskId) scoped = orgTasks.filter((t) => t.riskId === scopedRiskId);
       else if (scopedAuditId) scoped = orgTasks.filter((t) => t.auditId === scopedAuditId);
       else scoped = orgTasks;
       setTasks(scoped);
@@ -619,7 +624,7 @@ export default function TaskManagement({ riskFormData = {}, auditFormData = {} }
   const editTask = (task) => {
     setEditingTaskId(task.taskId);
     const resolvedName = resolveEmployeeName(task.employee, users);
-    const matchedUser  = users.find((u) => u.name === resolvedName);
+    const matchedUser = users.find((u) => u.name === resolvedName);
     setForm({
       taskId: task.taskId, riskId: task.riskId || "", auditId: task.auditId || "",
       organization: task.organization || effectiveOrgId || "",
@@ -660,7 +665,7 @@ export default function TaskManagement({ riskFormData = {}, auditFormData = {} }
     }
     const assigneeUser = users.find((u) => u.name === employeeName);
     const employeeEmail = assigneeUser?.email || assigneeUser?.emailAddress || "";
-    const reporterUser  = users.find((u) => u.name === currentUserName);
+    const reporterUser = users.find((u) => u.name === currentUserName);
     const reporterEmail = reporterUser?.email || reporterUser?.emailAddress || user?.email || "";
     setIsSaving(true);
     try {
@@ -700,7 +705,7 @@ export default function TaskManagement({ riskFormData = {}, auditFormData = {} }
   const filteredTasks = useMemo(() => {
     const s = (filters.search || "").toLowerCase();
     return tasks.filter((t) => {
-      if (filters.status   && t.status   !== filters.status)   return false;
+      if (filters.status && t.status !== filters.status) return false;
       if (filters.priority && t.priority !== filters.priority) return false;
       if (filters.assignee) {
         const r = resolveEmployeeName(t.employee, users);
@@ -730,11 +735,11 @@ export default function TaskManagement({ riskFormData = {}, auditFormData = {} }
   }, [filteredTasks]);
 
   const statsData = [
-    { label: "Total",       value: tasks.length },
+    { label: "Total", value: tasks.length },
     { label: "In Progress", value: statusCount["In Progress"] || 0 },
-    { label: "Done",        value: statusCount["Done"] || 0 },
-    { label: "On Hold",     value: statusCount["On Hold"] || 0 },
-    { label: "Critical",    value: tasks.filter((t) => t.priority === "Critical").length },
+    { label: "Done", value: statusCount["Done"] || 0 },
+    { label: "On Hold", value: statusCount["On Hold"] || 0 },
+    { label: "Critical", value: tasks.filter((t) => t.priority === "Critical").length },
   ];
 
   const getVisiblePages = (current, total) => {
@@ -1015,16 +1020,16 @@ export default function TaskManagement({ riskFormData = {}, auditFormData = {} }
                   <thead>
                     <tr style={{ background: "#f8fafc", borderBottom: "2px solid #e2e8f0" }}>
                       {[
-                        { label: "#",          align: "center", width: 60 },
-                        { label: "Task",       align: "left",   minWidth: 240 },
-                        { label: "Source",     align: "center", width: 100 },
-                        { label: "Source ID",  align: "center", width: 120 },
-                        { label: "Assignee",   align: "left",   width: 160 },
-                        { label: "Reporter",   align: "left",   width: 140 },
-                        { label: "Priority",   align: "center", width: 110 },
-                        { label: "Status",     align: "center", width: 130 },
-                        { label: "Due Date",   align: "center", width: 110 },
-                        { label: "Actions",    align: "center", width: 120, accent: true },
+                        { label: "#", align: "center", width: 60 },
+                        { label: "Task", align: "left", minWidth: 240 },
+                        { label: "Source", align: "center", width: 100 },
+                        { label: "Source ID", align: "center", width: 120 },
+                        { label: "Assignee", align: "left", width: 160 },
+                        { label: "Reporter", align: "left", width: 140 },
+                        { label: "Priority", align: "center", width: 110 },
+                        { label: "Status", align: "center", width: 130 },
+                        { label: "Due Date", align: "center", width: 110 },
+                        { label: "Actions", align: "center", width: 120, accent: true },
                       ].map(({ label, align, width, minWidth, accent }) => (
                         <th
                           key={label}
@@ -1076,8 +1081,8 @@ export default function TaskManagement({ riskFormData = {}, auditFormData = {} }
                       paginatedTasks.map((task, displayIndex) => {
                         const serialNo = (currentPage - 1) * TASKS_PER_PAGE + displayIndex + 1;
                         const isOverdue = task.endDate && new Date(task.endDate) < new Date() && task.status !== STATUS.DONE;
-                        const source   = getSourceModule(task);
-                        const sourceId = task.riskId || (task.auditId ? (audits.find((a) => a.id === task.auditId)?.auditId || task.auditId) : null);
+                        const source = getSourceModule(task);
+                        const sourceId = task.riskId || (task.auditId ? (audits.find((a) => a.id === task.auditId)?.auditId || task.auditId) : null) ||task.dpiaRefId || task.dpiaId || null;
                         const isReporter = !canEdit;
                         const isSelected = selectedTask?.taskId === task.taskId;
 
@@ -1490,7 +1495,7 @@ export default function TaskManagement({ riskFormData = {}, auditFormData = {} }
                 </label>
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                   {priorityOptions.map((p) => {
-                    const c   = PRIORITY_CONFIG[p];
+                    const c = PRIORITY_CONFIG[p];
                     const sel = formData.priority === p;
                     return (
                       <button
