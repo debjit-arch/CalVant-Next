@@ -577,7 +577,7 @@ export default function CalVantAIPanel() {
 
       {phase === "idle" && isAuthenticated && (
         <button className="cvai-fab" onClick={openPanel} aria-label="Open CalVant AI">
-          <span className="cvai-fab-label">CalVant AI</span>
+          <span className="cvai-fab-label">AI Copilot</span>
           <span className="cvai-fab-dot" />
         </button>
       )}
@@ -618,7 +618,7 @@ export default function CalVantAIPanel() {
                   <path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z"/>
                 </svg>
               </div>
-              <span className="cvai-header-title">CalVant AI</span>
+              <span className="cvai-header-title">AI Copilot</span>
               <span className="cvai-header-sub">
                 <span className={`cvai-status-dot ${busy ? "thinking" : ""}`} />
                 {busy ? "Thinking…" : "Ready"}

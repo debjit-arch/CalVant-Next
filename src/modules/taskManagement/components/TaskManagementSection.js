@@ -508,6 +508,8 @@ export default function TaskManagement({ riskFormData = {}, auditFormData = {} }
   }, []);
 
   const [tasks, setTasks] = useState([]);
+
+  
   const [departments, setDepartments] = useState([]);
   const [users, setUsers] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -1080,7 +1082,7 @@ export default function TaskManagement({ riskFormData = {}, auditFormData = {} }
                         const serialNo = (currentPage - 1) * TASKS_PER_PAGE + displayIndex + 1;
                         const isOverdue = task.endDate && new Date(task.endDate) < new Date() && task.status !== STATUS.DONE;
                         const source = getSourceModule(task);
-                        const sourceId = task.riskId || (task.auditId ? (audits.find((a) => a.id === task.auditId)?.auditId || task.auditId) : null)  || task.dpiaId || null;
+                        const sourceId = task.riskId || (task.auditId ? (audits.find((a) => a.id === task.auditId)?.auditId || task.auditId) : null) ||task.dpiaRefId || task.dpiaId || null;
                         const isReporter = !canEdit;
                         const isSelected = selectedTask?.taskId === task.taskId;
 

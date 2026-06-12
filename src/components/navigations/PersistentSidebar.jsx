@@ -28,6 +28,7 @@ import {
 import DualLogo from "../DualLogo";
 import { useSession } from "../../context/SessionContext";
 import { useFramework } from "../../context/FrameworkContex";
+import { Report } from "@material-ui/icons";
 
 /* ─────────────────────────────────────────────
    Custom hook for media query
@@ -144,6 +145,17 @@ const NAV_ITEMS = [
     // ],
     expandable: true,
     moduleKey: "aiia",
+  },
+  {
+    icon: Report,
+    label: "Reports",
+    path: "/reports",
+    // quickActions: [
+    //   { label: "   Detailed View", path: "/compliances/detailed" },
+    //   { label: "   Reports", path: "/compliances/reports" },
+    // ],
+    expandable: true,
+    moduleKey: "",
   },
   {
     // ── Admin Panel entry point — root only ──
