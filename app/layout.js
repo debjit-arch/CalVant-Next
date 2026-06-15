@@ -6,7 +6,12 @@ import { SessionProvider } from "@/context/SessionContext";
 import SidebarWrapper from "@/components/SidebarWrapper";
 import MainContentWrapper from "@/components/MainContentWrapper";
 import { getPageMetadata } from '@/utils/getPageMetadata';
-import CalVantAIPanel from "@/components/calvantaipanel";
+import dynamic from "next/dynamic";
+
+const CalVantAIPanel = dynamic(
+  () => import("@/components/calvantaipanel"),
+  { ssr: false }
+);
 
 export async function generateMetadata() {
   return getPageMetadata('/', {
