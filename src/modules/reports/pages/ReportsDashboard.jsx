@@ -355,6 +355,11 @@ export default function ReportsDashboard() {
     loading, error, refetch, lastFetched, online,
   } = useDashboardData(syntheticConfig, organization, filters, comparisonFilters, dimensionFilters);
 
+  console.log("[Dashboard] results:", results.length,
+  "| comparisonResults:", comparisonResults.length,
+  "| comparisonResults[0]?._series:", comparisonResults[0]?._series?.length
+);
+
   // ── export hook ───────────────────────────────────────────────────────────
   const { exportConfig, exportSnapshot, exportCSV, exportComparison, exportPDF } =
     useDashboardExport({ config: syntheticConfig, results, comparisonResults });
