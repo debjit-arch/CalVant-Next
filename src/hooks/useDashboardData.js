@@ -282,15 +282,26 @@ export function useDashboardData(
     [rawResults, filters],
   );
 
+  function bucketByDay(results) {
+  const map = new Map();
+  for (const r of results) {
+    const day = new Date(r.generatedAt).toISOString().slice(0, 10); // "2026-06-08"
+    map.set(day, r); // last write wins — most recent snapshot of that day
+  }
+  return [...map.values()].sort(
+    (a, b) => new Date(a.generatedAt) - new Date(b.generatedAt)
+  );
+}
+
   const dimensionFiltered = useMemo(
     () => applyDimensionFilters(filteredResults, dimensionFilters),
     [filteredResults, dimensionFilters],
   );
 
-  const results = useMemo(
-    () => toResultsShape(dimensionFiltered, dimensionFilters),
-    [dimensionFiltered, dimensionFilters],
-  );
+const results = useMemo(
+  () => toResultsShape(bucketByDay(dimensionFiltered), dimensionFilters),
+  [dimensionFiltered, dimensionFilters],
+);
 
   // ── Comparison results (separate date window, same dimension filter) ──────
   const comparisonResults = useMemo(() => {
@@ -298,6 +309,7 @@ export function useDashboardData(
 
     const { from, to } = comparisonFilters;
     if (!from) return [];
+
 
     const fromDate = new Date(from);
     fromDate.setHours(0, 0, 0, 0);
@@ -310,7 +322,8 @@ export function useDashboardData(
     });
 
     const dimFiltered = applyDimensionFilters(windowedRaw, dimensionFilters);
-    return toResultsShape(dimFiltered, dimensionFilters);
+
+    return toResultsShape(bucketByDay(dimFiltered), dimensionFilters);
   }, [rawResults, comparisonFilters, dimensionFilters]);
 
   // ── Available dimension options for FilterBar dropdowns ──────────────────
