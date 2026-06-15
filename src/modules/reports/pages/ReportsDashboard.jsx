@@ -393,6 +393,16 @@ export default function ReportsDashboard() {
   }, []);
 
   useEffect(() => {
+    // One-time cleanup: remove any old localStorage view keys from the previous
+    // localStorage-based persistence so stale data doesn't interfere.
+    try {
+      Object.keys(localStorage)
+        .filter((k) => k.startsWith("calvant_schedule_views_"))
+        .forEach((k) => localStorage.removeItem(k));
+    } catch {}
+  }, []);
+
+  useEffect(() => {
     if (!configsLoaded && organization) {
       setConfigsLoaded(true);
       fetchConfigs();
@@ -660,6 +670,7 @@ export default function ReportsDashboard() {
                     results={results}
                     comparisonResults={comparisonResults}
                     loading={loading}
+                    viewsLoading={viewsLoading}
                     error={error}
                   />
                 </motion.div>

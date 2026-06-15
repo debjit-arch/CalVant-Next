@@ -7,6 +7,7 @@
  *   2. Accepts `customViews` and `onCustomViewsChange` props
  *   3. Template views (config?.views) are NOT rendered — only custom views
  *   4. Empty state guides user to create their first panel
+ *   5. viewsLoading prop — shows skeleton while backend views fetch
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
@@ -149,10 +150,11 @@ function EmptyCanvas({ onAddPanel }) {
 /**
  * Props:
  *   customViews        [{ id, label, panels[] }]  — owned + persisted by parent
- *   onCustomViewsChange (views) => void            — parent saves to localStorage
+ *   onCustomViewsChange (views) => void            — parent saves to backend
  *   results            — from useDashboardData
  *   comparisonResults  — from useDashboardData
- *   loading            — bool
+ *   loading            — bool (data fetching)
+ *   viewsLoading       — bool (custom views fetching from backend)
  *   error              — string | null
  */
 export default function DashboardEngine({
@@ -161,6 +163,7 @@ export default function DashboardEngine({
   results,
   comparisonResults = [],
   loading,
+  viewsLoading = false,
   error,
 }) {
   // ── modals ────────────────────────────────────────────────────────────────
@@ -195,7 +198,6 @@ export default function DashboardEngine({
         });
       } else {
         updated = [...customViews, { id: viewId, label: viewLabel, panels: [panel] }];
-        // auto-switch to new view
         setActiveViewId(viewId);
       }
       onCustomViewsChange?.(updated);
@@ -245,7 +247,12 @@ export default function DashboardEngine({
         className="flex items-center justify-between flex-wrap gap-2"
       >
         <div className="flex items-center gap-1 bg-slate-100 rounded-xl p-1 flex-wrap overflow-x-auto max-w-full">
-          {customViews.length === 0 ? (
+          {viewsLoading ? (
+            <span className="px-4 py-1.5 text-sm text-slate-400 flex items-center gap-2">
+              <span className="inline-block w-3 h-3 rounded-full border-2 border-slate-300 border-t-indigo-400 animate-spin" />
+              Loading views…
+            </span>
+          ) : customViews.length === 0 ? (
             <span className="px-4 py-1.5 text-sm text-slate-400 italic">No views yet</span>
           ) : (
             customViews.map((view) => (
@@ -294,13 +301,24 @@ export default function DashboardEngine({
       <AnimatePresence mode="wait">
         <motion.div
           id="charts-container"
-          key={activeViewId ?? "empty"}
+          key={viewsLoading ? "views-loading" : (activeViewId ?? "empty")}
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -8 }}
           transition={{ duration: 0.18 }}
         >
-          {!activeView || activeView.panels?.length === 0 ? (
+          {viewsLoading ? (
+            /* skeleton while backend views are fetching */
+            <div className="mt-2 grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))" }}>
+              {[1, 2].map((i) => (
+                <div key={i} className="rounded-2xl bg-white border border-slate-100 shadow-sm p-5 flex flex-col gap-3 animate-pulse">
+                  <div className="h-3 w-1/3 bg-slate-100 rounded-full" />
+                  <div className="h-32 bg-slate-50 rounded-xl" />
+                  <div className="h-2 w-1/2 bg-slate-100 rounded-full" />
+                </div>
+              ))}
+            </div>
+          ) : !activeView || activeView.panels?.length === 0 ? (
             <EmptyCanvas onAddPanel={() => setShowPanelModal(true)} />
           ) : (
             <div
