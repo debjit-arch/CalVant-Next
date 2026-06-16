@@ -5,35 +5,61 @@ import { LayoutProvider } from "@/context/LayoutContext";
 import { SessionProvider } from "@/context/SessionContext";
 import SidebarWrapper from "@/components/SidebarWrapper";
 import MainContentWrapper from "@/components/MainContentWrapper";
-import { getPageMetadata } from '@/utils/getPageMetadata';
-import dynamic from "next/dynamic";
-
-const CalVantAIPanel = dynamic(
-  () => import("@/components/calvantaipanel"),
-  { ssr: false }
-);
+import { getPageMetadata } from "@/utils/getPageMetadata";
+import CalVantAIPanel from "@/components/calvantaipanel";
 
 export async function generateMetadata() {
-  return getPageMetadata('/', {
+  return getPageMetadata("/", {
     title: {
-      default: 'CalVant | ISO Compliance & Risk Management Platform',
-      template: '%s | CalVant',
+      default: "CalVant | ISO Compliance & Risk Management Platform",
+      template: "%s | CalVant",
     },
-    description: 'Empower your organization with CalVant compliance platform.',
-    verification: { google: '41e5318870c428ec' },
+    description: "Empower your organization with CalVant compliance platform.",
+    verification: { google: "41e5318870c428ec" },
     icons: {
       icon: [
-        { url: '/favicon-light.png', media: '(prefers-color-scheme: light)' },
-        { url: '/favicon-dark.png', media: '(prefers-color-scheme: dark)' },
+        { url: "/favicon-light.png", media: "(prefers-color-scheme: light)" },
+        { url: "/favicon-dark.png", media: "(prefers-color-scheme: dark)" },
       ],
-      apple: '/favicon-light.png',
+      apple: "/favicon-light.png",
     },
   });
 }
 
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  name: "CalVant",
+  url: "https://calvant.com",
+  description:
+    "AI-powered compliance and risk management platform for ISO 27001, ISO 27701, ISO 42001, SOC 2, GDPR and KSA PDPL.",
+  applicationCategory: "BusinessApplication",
+  operatingSystem: "Web",
+  offers: {
+    "@type": "Offer",
+    price: "0",
+    priceCurrency: "USD",
+  },
+  publisher: {
+    "@type": "Organization",
+    name: "CalVant",
+    url: "https://calvant.com",
+    logo: {
+      "@type": "ImageObject",
+      url: "https://calvant.com/icon-light.png", // use light version as the canonical logo
+    },
+  },
+};
+
 export default function RootLayout({ children }) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
+      </head>
       <body suppressHydrationWarning>
         <UIProvider>
           <SessionProvider>

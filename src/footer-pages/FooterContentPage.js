@@ -138,23 +138,47 @@ function injectHeadingIds(html) {
   });
 }
 
+/* ── Helper: build initial state from prefetchedData ─────────────────────── */
+function initFromPrefetched(prefetchedData) {
+  if (!prefetchedData) return { content: "", title: "", updatedAt: "" };
+
+  const rawContent = prefetchedData.content || "";
+  const content = injectHeadingIds(rawContent);
+
+  const title = prefetchedData.name || "";
+
+  const updatedAt = prefetchedData.updated_at
+    ? new Date(prefetchedData.updated_at).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      })
+    : "";
+
+  return { content, title, updatedAt };
+}
+
 /* ── Main Component ──────────────────────────────────────────────────────── */
-const FooterContentPage = ({ type: propType }) => {
+// ↓ Added `prefetchedData` prop — passed from the server page component
+const FooterContentPage = ({ type: propType, prefetchedData }) => {
   const { type: paramType } = useParams();
   const router = useRouter();
   const type = propType || paramType;
 
-  const [content, setContent] = useState("");
-  const [title, setTitle] = useState("");
-  const [updatedAt, setUpdatedAt] = useState("");
-  const [loading, setLoading] = useState(true);
+  // ↓ Initialize state from server-fetched data if available, else empty defaults
+  const init = initFromPrefetched(prefetchedData);
+
+  const [content, setContent] = useState(init.content);
+  const [title, setTitle] = useState(init.title);
+  const [updatedAt, setUpdatedAt] = useState(init.updatedAt);
+  // ↓ Skip loading state entirely if we already have data from the server
+  const [loading, setLoading] = useState(!prefetchedData);
   const [mounted, setMounted] = useState(false);
   const [activeSection, setActiveSection] = useState("");
   const [headings, setHeadings] = useState([]);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const isMobile = useIsMobile();
 
-  
   const cfg = PAGE_CONFIG[type] || PAGE_CONFIG.privacy;
   const BadgeIcon = cfg.badgeIcon;
   const CtaIcon = ArrowRight;
@@ -166,7 +190,21 @@ const FooterContentPage = ({ type: propType }) => {
     }
   }, []);
 
+  // ↓ If prefetchedData was provided, extract TOC from it on mount (client-side only)
   useEffect(() => {
+    if (prefetchedData && init.content) {
+      setTimeout(() => {
+        const extracted = extractHeadings(init.content);
+        setHeadings(extracted);
+        if (extracted.length > 0) setActiveSection(extracted[0].id);
+      }, 100);
+    }
+  }, []); // runs once on mount
+
+  useEffect(() => {
+    // ↓ Skip client-side fetch entirely if server already provided data
+    if (prefetchedData) return;
+
     const fetchContent = async () => {
       setLoading(true);
       try {
@@ -202,7 +240,7 @@ const FooterContentPage = ({ type: propType }) => {
     };
 
     if (type) fetchContent();
-  }, [type]);
+  }, [type]); // ↓ removed prefetchedData from deps — it never changes
 
   // Intersection observer for active TOC item
   useEffect(() => {

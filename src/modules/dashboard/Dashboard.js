@@ -916,12 +916,12 @@ const Dashboard = () => {
               <h4>Product</h4>
               <ul>
                 <li>
-                  <Link href="/risk-management" className="footer-link">
+                  <Link href="/risk-assessment" className="footer-link">
                     Risk Management
                   </Link>
                 </li>
                 <li>
-                  <Link href="/compliance">Compliance</Link>
+                  <Link href="/compliances">Compliance</Link>
                 </li>
                 <li>
                   <Link href="/gap-assessment">Gap Assessment</Link>
@@ -1539,7 +1539,7 @@ const Dashboard = () => {
                 <Link href="/risk-assessment">Risk Management</Link>
               </li>
               <li>
-                <Link href="/compliance">Compliance</Link>
+                <Link href="/compliances">Compliance</Link>
               </li>
               <li>
                 <Link href="/gap-assessment">Gap Assessment</Link>

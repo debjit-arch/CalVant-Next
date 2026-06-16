@@ -370,7 +370,7 @@ const DatasheetPage = () => {
             <ul>
               <li><Link href="/iso-27001">ISO 27001</Link></li>
               <li><Link href="/iso-27701">ISO 27701</Link></li>
-              <li><Link href="/risk-management">Risk Management</Link></li>
+              <li><Link href="/risk-assessment">Risk Management</Link></li>
               <li><Link href="/documentation">Documentation</Link></li>
             </ul>
           </div>
@@ -380,7 +380,7 @@ const DatasheetPage = () => {
               <li><Link href="/about">About Us</Link></li>
               <li><Link href="/careers">Careers</Link></li>
               <li><Link href="/blog">Blog</Link></li>
-              <li><Link href="/contact">Contact</Link></li>
+              <li><Link href="/demo">Contact</Link></li>
             </ul>
           </div>
           <div className="ds-footer-section">

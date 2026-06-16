@@ -29,7 +29,14 @@ const getStoredUser = () => {
 
 const ISO_27001 = () => {
   const isMobile = useIsMobile();
-
+  const [storedUser, setStoredUser] = useState(null); // ← not read at render time
+  useEffect(() => {
+    setStoredUser(getStoredUser()); // ← only runs in browser
+  }, []);
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }, []);
+  const isUserLoggedIn = !!storedUser;
   
   const handleScrollTo = (id) => {
     const el = document.getElementById(id);
@@ -42,12 +49,6 @@ const ISO_27001 = () => {
     }
   };
 
-  useEffect(() => {
-    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
-  }, []);
-
-  const storedUser = getStoredUser();
-  const isUserLoggedIn = !!storedUser;
 
   return (
     <div className="iso-page-root procedures-theme">
@@ -86,7 +87,7 @@ const ISO_27001 = () => {
               onMouseLeave={(e) => {
                 e.currentTarget.style.transform = "scale(3.5)";
               }}
-              onClick={() => (window.location.href = "/")}
+              onClick={() => { if (typeof window !== "undefined") window.location.href = "/"; }}
             />
           </div>
 
@@ -614,7 +615,7 @@ const ISO_27001 = () => {
             <button
               type="button"
               className="iso-cta-btn iso-cta-btn-secondary"
-              onClick={() => goTo("/contact")}
+              onClick={() => goTo("/demo")}
             >
               Talk to an expert
             </button>
@@ -646,14 +647,9 @@ const ISO_27001 = () => {
           <div className="iso-footer-section">
             <h4>Product</h4>
             <ul>
+              <li><Link href="/blog">Blog</Link></li>
               <li>
-                <Link href="/features">Features</Link>
-              </li>
-              <li>
-                <Link href="/pricing">Pricing</Link>
-              </li>
-              <li>
-                <Link href="/templates">Policy templates</Link>
+                <Link href="/policies">Policy templates</Link>
               </li>
             </ul>
           </div>
@@ -666,9 +662,7 @@ const ISO_27001 = () => {
               <li>
                 <Link href="/careers">Careers</Link>
               </li>
-              <li>
-                <Link href="/support">Support</Link>
-              </li>
+
             </ul>
           </div>
         </div>
