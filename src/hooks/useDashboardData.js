@@ -1,6 +1,6 @@
 /**
  * ─────────────────────────────────────────────────────────────────────────────
- * useDashboardData  (v2 — comparison + dimension filtering)
+ * useDashboardData  (v3 — comparison + dimension filtering + configId scoping)
  * ─────────────────────────────────────────────────────────────────────────────
  * New params:
  *   comparisonFilters  { enabled, from, to }   — drives comparisonResults
@@ -8,6 +8,9 @@
  *
  * New returns:
  *   comparisonResults  — same shape as `results`, covers the comparison window
+ *
+ * FIX: results are now scoped to config.id (configId) so switching between
+ * schedules doesn't mix results from other configs.
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
@@ -82,6 +85,13 @@ function applyDimensionFilters(rawResults, dimensionFilters) {
     }
     return { ...r, data: filteredData };
   });
+}
+
+// ─── configId scope filter ────────────────────────────────────────────────────
+// Ensures results from other schedules' configs never bleed into this view.
+function applyConfigScope(rawResults, configId) {
+  if (!configId) return rawResults;
+  return rawResults.filter((r) => r.configId === configId);
 }
 
 // ─── date window filter ───────────────────────────────────────────────────────
@@ -163,6 +173,7 @@ export function useDashboardData(
   dimensionFilters,
 ) {
   const orgId = useMemo(() => getOrgId(orgIdProp), [orgIdProp]);
+  const configId = config?.id ?? null;
 
   const [rawResults, setRawResults] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -199,7 +210,8 @@ export function useDashboardData(
       if (!res.ok) throw new Error(`HTTP ${res.status} — ${res.statusText}`);
       const json = await res.json();
       const arr = Array.isArray(json.data) ? json.data : [];
-      const sorted = [...arr].sort(
+      const scoped = applyConfigScope(arr, configId);
+      const sorted = [...scoped].sort(
         (a, b) => new Date(a.generatedAt) - new Date(b.generatedAt),
       );
       setRawResults(sorted);
@@ -211,10 +223,13 @@ export function useDashboardData(
     } finally {
       setLoading(false);
     }
-  }, [orgId, bumpLastFetched]);
+  }, [orgId, configId, bumpLastFetched]);
 
   useEffect(() => {
     if (!orgId) return;
+    // Reset results immediately on schedule switch so stale data from the
+    // previous config doesn't flash before the new fetch completes.
+    setRawResults([]);
     fetch_();
   }, [fetch_]);
 
@@ -228,6 +243,7 @@ export function useDashboardData(
     es.addEventListener("report-update", (e) => {
       try {
         const payload = JSON.parse(e.data);
+        if (configId && payload.configId !== configId) return;
         setRawResults((prev) => {
           const alreadyExists = prev.some(
             (r) => r.generatedAt === payload.generatedAt,
@@ -252,7 +268,7 @@ export function useDashboardData(
       es.close();
       if (pollId !== null) clearInterval(pollId);
     };
-  }, [orgId, fetch_, bumpLastFetched]);
+  }, [orgId, configId, fetch_, bumpLastFetched]);
 
   // ── Periodic background refresh ─────────────────────────────────────────
   useEffect(() => {
@@ -266,15 +282,26 @@ export function useDashboardData(
     [rawResults, filters],
   );
 
+  function bucketByDay(results) {
+  const map = new Map();
+  for (const r of results) {
+    const day = new Date(r.generatedAt).toISOString().slice(0, 10); // "2026-06-08"
+    map.set(day, r); // last write wins — most recent snapshot of that day
+  }
+  return [...map.values()].sort(
+    (a, b) => new Date(a.generatedAt) - new Date(b.generatedAt)
+  );
+}
+
   const dimensionFiltered = useMemo(
     () => applyDimensionFilters(filteredResults, dimensionFilters),
     [filteredResults, dimensionFilters],
   );
 
-  const results = useMemo(
-    () => toResultsShape(dimensionFiltered, dimensionFilters),
-    [dimensionFiltered, dimensionFilters],
-  );
+const results = useMemo(
+  () => toResultsShape(bucketByDay(dimensionFiltered), dimensionFilters),
+  [dimensionFiltered, dimensionFilters],
+);
 
   // ── Comparison results (separate date window, same dimension filter) ──────
   const comparisonResults = useMemo(() => {
@@ -282,6 +309,7 @@ export function useDashboardData(
 
     const { from, to } = comparisonFilters;
     if (!from) return [];
+
 
     const fromDate = new Date(from);
     fromDate.setHours(0, 0, 0, 0);
@@ -294,8 +322,8 @@ export function useDashboardData(
     });
 
     const dimFiltered = applyDimensionFilters(windowedRaw, dimensionFilters);
-    // REPLACE WITH:
-    return toResultsShape(dimFiltered, dimensionFilters);
+
+    return toResultsShape(bucketByDay(dimFiltered), dimensionFilters);
   }, [rawResults, comparisonFilters, dimensionFilters]);
 
   // ── Available dimension options for FilterBar dropdowns ──────────────────
