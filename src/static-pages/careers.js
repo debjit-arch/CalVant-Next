@@ -624,7 +624,7 @@ const CareersPage = () => {
                 <Link href="/iso-27701">ISO 27701</Link>
               </li>
               <li>
-                <Link href="/risk-management">Risk Management</Link>
+                <Link href="/risk-assessment">Risk Management</Link>
               </li>
               <li>
                 <Link href="/documentation">Documentation</Link>
@@ -644,7 +644,7 @@ const CareersPage = () => {
                 <Link href="/blog">Blog</Link>
               </li>
               <li>
-                <Link href="/contact">Contact</Link>
+                <Link href="/demo">Contact</Link>
               </li>
             </ul>
           </div>
@@ -661,7 +661,7 @@ const CareersPage = () => {
                 <Link href="/security">Security</Link>
               </li>
               <li>
-                <Link href="/compliance">Compliance</Link>
+                <Link href="/compliances">Compliance</Link>
               </li>
             </ul>
           </div>

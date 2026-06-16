@@ -26,7 +26,7 @@ function App() {
         <h2>Risk Assessment</h2>
         <nav>
           <Link to="/add">Add Risk</Link> | <Link to="/">Saved Risk</Link> |{" "}
-          <Link to="/templates">Templates</Link>
+          <Link to="/policies">Templates</Link>
         </nav>
 
         <Switch>

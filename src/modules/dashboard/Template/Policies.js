@@ -599,8 +599,8 @@ startxref
           <div className={styles.footerSection}>
             <h4>Product</h4>
             <ul>
-              <li><Link href="/risk-management">Risk Management</Link></li>
-              <li><Link href="/compliance">Compliance</Link></li>
+              <li><Link href="/risk-assessment">Risk Management</Link></li>
+              <li><Link href="/compliances">Compliance</Link></li>
               <li><Link href="/gap-assessment">Gap Assessment</Link></li>
             </ul>
           </div>

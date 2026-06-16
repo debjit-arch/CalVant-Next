@@ -7,7 +7,9 @@ import DashboardLoggedIn from "@/modules/dashboard/DashboardLoggedIn";
 export default function HomePageClient() {
   const { isAuthenticated } = useSession();
 
-  if (isAuthenticated === null) return null;
+  // ✅ Show guest Dashboard during SSR and while auth resolves
+  // Dashboard.jsx guards all sessionStorage inside useEffect — safe to SSR
+  if (isAuthenticated === null) return <Dashboard />;
   if (!isAuthenticated) return <Dashboard />;
   return <DashboardLoggedIn />;
 }

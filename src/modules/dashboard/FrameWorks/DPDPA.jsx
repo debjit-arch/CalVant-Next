@@ -457,7 +457,7 @@ const DPDPA = () => {
                 <button type="button" className="iso-cta-btn iso-cta-btn-primary dpdpa-cta-primary" onClick={() => goTo("/demo")}>Get a demo</button>
               ) : null;
             })()}
-            <button type="button" className="iso-cta-btn iso-cta-btn-secondary" onClick={() => goTo("/contact")}>Talk to an expert</button>
+            <button type="button" className="iso-cta-btn iso-cta-btn-secondary" onClick={() => goTo("/demo")}>Talk to an expert</button>
           </div>
         </div>
       </section>
@@ -486,7 +486,7 @@ const DPDPA = () => {
             <ul>
               <li><Link href="/features">Features</Link></li>
               <li><Link href="/pricing">Pricing</Link></li>
-              <li><Link href="/templates">Policy templates</Link></li>
+              <li><Link href="/policies">Policy templates</Link></li>
             </ul>
           </div>
           <div className="iso-footer-section">
