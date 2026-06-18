@@ -14,11 +14,6 @@ import { BarChart3 } from "lucide-react";
 export function ChartShell({ title, loading, hasData, height = 200, children }) {
   return (
     <div className="h-full bg-white/70 backdrop-blur-sm border border-slate-100/50 rounded-2xl shadow-sm p-4 flex flex-col gap-3">
-      {title && (
-        <p className="text-xs font-bold text-slate-600 uppercase tracking-wide leading-none">
-          {title}
-        </p>
-      )}
       <div style={{ height, flex: 1, minHeight: height }}>
         {loading ? (
           <div className="h-full bg-slate-100/60 rounded-xl animate-pulse" />
