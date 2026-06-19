@@ -6,7 +6,6 @@ import { SessionProvider } from "@/context/SessionContext";
 import SidebarWrapper from "@/components/SidebarWrapper";
 import MainContentWrapper from "@/components/MainContentWrapper";
 import { getPageMetadata } from "@/utils/getPageMetadata";
-import CalVantAIPanel from "@/components/calvantaipanel";
 
 export async function generateMetadata() {
   return getPageMetadata("/", {
@@ -67,7 +66,6 @@ export default function RootLayout({ children }) {
               <LayoutProvider>
                 <SidebarWrapper />
                 <MainContentWrapper>{children}</MainContentWrapper>
-                <CalVantAIPanel />
               </LayoutProvider>
             </FrameworkProvider>
           </SessionProvider>

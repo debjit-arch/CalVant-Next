@@ -441,7 +441,7 @@ export default function CalVantAIPanel() {
   // ── 5. RENDER ─────────────────────────────────────────────────────────────
   return (
     <>
-      <style dangerouslySetInnerHTML={{ __html: `
+      <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;600&family=Google+Sans+Text:wght@400;500&display=swap');
 
         .cvai-fab{position:fixed;bottom:28px;right:28px;z-index:9997;display:flex;align-items:center;gap:10px;padding:0 22px;height:52px;border-radius:26px;border:none;cursor:pointer;background:linear-gradient(135deg,#0f766e 0%,#065f46 60%,#064e3b 100%);box-shadow:0 4px 24px rgba(16,185,129,0.45);animation:cvai-pulse 3s ease-in-out infinite;transition:transform 0.2s,box-shadow 0.2s;font-family:'Google Sans',-apple-system,sans-serif;}
@@ -573,7 +573,7 @@ export default function CalVantAIPanel() {
           .cvai-menu-btn{display:flex;}
           .cvai-welcome-greeting{font-size:26px;}
         }
-      ` }} />
+      `}</style>
 
       {phase === "idle" && isAuthenticated && (
         <button className="cvai-fab" onClick={openPanel} aria-label="Open CalVant AI">
