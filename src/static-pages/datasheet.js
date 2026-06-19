@@ -380,7 +380,7 @@ const DatasheetPage = () => {
               <li><Link href="/about">About Us</Link></li>
               <li><Link href="/careers">Careers</Link></li>
               <li><Link href="/blog">Blog</Link></li>
-              <li><Link href="/contact">Contact</Link></li>
+              <li><Link href="/demo">Contact</Link></li>
             </ul>
           </div>
           <div className="ds-footer-section">

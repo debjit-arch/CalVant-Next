@@ -442,7 +442,7 @@ export default function FrameworkPageClient({ frameworkId }) {
               )}
               <button
                 className="fw-btn-secondary"
-                onClick={() => goTo("/contact")}
+                onClick={() => goTo("/demo")}
               >
                 Talk to an expert
               </button>

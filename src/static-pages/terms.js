@@ -774,7 +774,7 @@ const TermsPage = () => {
                 <Link href="/blog">Blog</Link>
               </li>
               <li>
-                <Link href="/contact">Contact</Link>
+                <Link href="/demo">Contact</Link>
               </li>
             </ul>
           </div>

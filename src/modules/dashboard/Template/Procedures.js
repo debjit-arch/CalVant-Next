@@ -779,7 +779,7 @@ const ProceduresPage = () => {
             <button
               type="button"
               className="procedures-cta-btn procedures-cta-btn-secondary cta-secondary"
-              onClick={() => goTo("/contact")}
+              onClick={() => goTo("/demo")}
             >
               Talk to Expert
             </button>

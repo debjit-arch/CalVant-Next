@@ -681,7 +681,7 @@ const PrivacyPage = () => {
                 <Link href="/blog">Blog</Link>
               </li>
               <li>
-                <Link href="/contact">Contact</Link>
+                <Link href="/demo">Contact</Link>
               </li>
             </ul>
           </div>
@@ -698,7 +698,7 @@ const PrivacyPage = () => {
                 <Link href="/security">Security</Link>
               </li>
               <li>
-                <Link href="/compliance">Compliance</Link>
+                <Link href="/compliances">Compliance</Link>
               </li>
             </ul>
           </div>

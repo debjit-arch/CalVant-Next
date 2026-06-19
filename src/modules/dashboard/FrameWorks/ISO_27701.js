@@ -743,7 +743,7 @@ const ISO_27701 = () => {
             <button
               type="button"
               className="iso-cta-btn iso-cta-btn-secondary"
-              onClick={() => goTo("/contact")}
+              onClick={() => goTo("/demo")}
             >
               Talk to an expert
             </button>
