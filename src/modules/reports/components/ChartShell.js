@@ -1,9 +1,14 @@
 /**
  * ─────────────────────────────────────────────────────────────────────────────
- * SHARED: ChartShell + helpers
+ * SHARED: ChartShell + helpers  (v3 — title gated behind showTitle)
  * ─────────────────────────────────────────────────────────────────────────────
  * Provides the common card wrapper, loading skeleton, empty state, and
  * custom recharts tooltip used by all chart widgets.
+ *
+ * `title` only renders when `showTitle` is explicitly true. Trend/line/bar
+ * charts already self-label via their axis + legend, so they pass nothing
+ * (default false) and keep their original look. Donut/pie charts pass
+ * showTitle to surface the module name (e.g. "Risks · By Status") top-left.
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
@@ -11,9 +16,12 @@ import React from "react";
 import { BarChart3 } from "lucide-react";
 
 // ─── CHART SHELL ─────────────────────────────────────────────────────────────
-export function ChartShell({ title, loading, hasData, height = 200, children }) {
+export function ChartShell({ title, showTitle = false, loading, hasData, height = 200, children }) {
   return (
     <div className="h-full bg-white/70 backdrop-blur-sm border border-slate-100/50 rounded-2xl shadow-sm p-4 flex flex-col gap-3">
+      {showTitle && title && (
+        <p className="text-xs font-semibold text-slate-600 truncate">{title}</p>
+      )}
       <div style={{ height, flex: 1, minHeight: height }}>
         {loading ? (
           <div className="h-full bg-slate-100/60 rounded-xl animate-pulse" />
@@ -25,7 +33,7 @@ export function ChartShell({ title, loading, hasData, height = 200, children }) 
   );
 }
 
-// ─── EMPTY CHART ─────────────────────────────────────────────────────────────
+// ─── EMPTY CHART ───────────────────────────────────────────────────────────────
 export function EmptyChart({ message = "No data in this period" }) {
   return (
     <div className="h-full flex flex-col items-center justify-center gap-2 text-center">
@@ -35,7 +43,7 @@ export function EmptyChart({ message = "No data in this period" }) {
   );
 }
 
-// ─── CUSTOM TOOLTIP ──────────────────────────────────────────────────────────
+// ─── CUSTOM TOOLTIP ────────────────────────────────────────────────────────────
 export function CustomTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null;
   return (
@@ -52,7 +60,7 @@ export function CustomTooltip({ active, payload, label }) {
   );
 }
 
-// ─── PIE TOOLTIP ─────────────────────────────────────────────────────────────
+// ─── PIE TOOLTIP ────────────────────────────────────────────────────────────────
 export function PieTooltip({ active, payload }) {
   if (!active || !payload?.length) return null;
   const d = payload[0].payload;
