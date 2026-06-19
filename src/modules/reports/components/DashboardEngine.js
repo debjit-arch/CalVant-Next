@@ -1,13 +1,18 @@
 /**
  * ─────────────────────────────────────────────────────────────────────────────
- * DashboardEngine.jsx  (v3 — per-schedule custom views, no predefined templates)
+ * DashboardEngine.jsx  (v4 — single mixed view, no tabs)
  * ─────────────────────────────────────────────────────────────────────────────
- * Changes from v2:
- *   1. No longer reads/writes localStorage directly — parent owns persistence
- *   2. Accepts `customViews` and `onCustomViewsChange` props
- *   3. Template views (config?.views) are NOT rendered — only custom views
- *   4. Empty state guides user to create their first panel
- *   5. viewsLoading prop — shows skeleton while backend views fetch
+ * Changes from v3:
+ *   1. Removed tab bar / multi-view switching entirely. A schedule now has
+ *      exactly one view containing a free mix of panels from any segment
+ *      (risks, audit, tasks, dpia, documents, aiia all in the same canvas).
+ *   2. `customViews` prop is still an array (storage-shape compatible with the
+ *      existing report_views backend collection) but is only ever treated as
+ *      length 0 or 1. We read/write customViews[0] exclusively.
+ *   3. Removed ViewManagerModal entirely — there's nothing to manage with a
+ *      single, un-renameable view.
+ *   4. savePanel / saveTemplateView always target the single view, creating
+ *      it on first panel/template if it doesn't exist yet.
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
@@ -17,10 +22,9 @@ import React, {
   useCallback,
   useMemo,
   useState,
-  useEffect,
 } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Settings2, Pencil, Trash2, LayoutDashboard } from "lucide-react";
+import { LayoutDashboard } from "lucide-react";
 import { resolveComponent } from "./kpiRegistry";
 import {
   resolveSingleValue,
@@ -29,7 +33,9 @@ import {
   resolveTableRows,
 } from "./dataExtractors";
 import CustomDashboardModal from "./customDashboardModal";
-import ViewManagerModal from "./ViewManagerModal";
+
+const SINGLE_VIEW_ID = "main";
+const SINGLE_VIEW_LABEL = "Dashboard";
 
 // ─── data resolution ──────────────────────────────────────────────────────────
 function resolveKpiData(kpiConfig, result) {
@@ -132,7 +138,7 @@ function EmptyCanvas({ onAddPanel }) {
       <div>
         <p className="text-sm font-semibold text-slate-600 mb-1">No panels yet</p>
         <p className="text-xs text-slate-400 max-w-xs">
-          Click <strong className="text-indigo-500">+ Custom Panel</strong> to add your first chart or stat card to this view.
+          Click <strong className="text-indigo-500">+ Custom Panel</strong> to add your first chart or stat card — mix and match tiles from any segment.
         </p>
       </div>
       <button
@@ -149,7 +155,9 @@ function EmptyCanvas({ onAddPanel }) {
 // ─── DashboardEngine ──────────────────────────────────────────────────────────
 /**
  * Props:
- *   customViews        [{ id, label, panels[] }]  — owned + persisted by parent
+ *   customViews        [{ id, label, panels[] }]  — owned + persisted by parent.
+ *                       Only customViews[0] is ever read or written; the array
+ *                       wrapper is kept purely for storage-shape compatibility.
  *   onCustomViewsChange (views) => void            — parent saves to backend
  *   results            — from useDashboardData
  *   comparisonResults  — from useDashboardData
@@ -166,69 +174,49 @@ export default function DashboardEngine({
   viewsLoading = false,
   error,
 }) {
-  // ── modals ────────────────────────────────────────────────────────────────
+  // ── modal ─────────────────────────────────────────────────────────────────
   const [showPanelModal, setShowPanelModal] = useState(false);
-  const [showViewManager, setShowViewManager] = useState(false);
   const [editingPanel, setEditingPanel] = useState(null);
 
-  // ── view tab state ────────────────────────────────────────────────────────
-  const [activeViewId, setActiveViewId] = useState(customViews[0]?.id ?? null);
+  // ── the single view (or null if nothing has been added yet) ───────────────
+  const view = customViews[0] ?? null;
 
-  // Sync active view when customViews changes (e.g. schedule switch)
-  useEffect(() => {
-    if (!customViews.find((v) => v.id === activeViewId)) {
-      setActiveViewId(customViews[0]?.id ?? null);
-    }
-  }, [customViews, activeViewId]);
-
-  const activeView = customViews.find((v) => v.id === activeViewId) ?? customViews[0] ?? null;
-
-  // ── save panel from modal ─────────────────────────────────────────────────
+  // ── save panel from modal (always targets the single view) ────────────────
   const savePanel = useCallback(
-    ({ viewId, viewLabel, panel, isEdit, originalPanelId }) => {
-      const exists = customViews.find((v) => v.id === viewId);
-      let updated;
-      if (exists) {
-        updated = customViews.map((v) => {
-          if (v.id !== viewId) return v;
-          if (isEdit && originalPanelId) {
-            return { ...v, panels: v.panels.map((p) => p.id === originalPanelId ? panel : p) };
-          }
-          return { ...v, panels: [...v.panels, panel] };
-        });
+    ({ panel, isEdit, originalPanelId }) => {
+      let updatedView;
+      if (view) {
+        updatedView = isEdit && originalPanelId
+          ? { ...view, panels: view.panels.map((p) => (p.id === originalPanelId ? panel : p)) }
+          : { ...view, panels: [...view.panels, panel] };
       } else {
-        updated = [...customViews, { id: viewId, label: viewLabel, panels: [panel] }];
-        setActiveViewId(viewId);
+        updatedView = { id: SINGLE_VIEW_ID, label: SINGLE_VIEW_LABEL, panels: [panel] };
       }
-      onCustomViewsChange?.(updated);
+      onCustomViewsChange?.([updatedView]);
     },
-    [customViews, onCustomViewsChange],
+    [view, onCustomViewsChange],
   );
 
-  // ── save whole view from a template (multiple panels at once) ─────────────
-  const saveTemplateView = useCallback(
-    (view) => {
-      const updated = [...customViews, view];
-      setActiveViewId(view.id);
-      onCustomViewsChange?.(updated);
+  // ── append a template's panels into the single view ────────────────────────
+  const appendTemplatePanels = useCallback(
+    (panels) => {
+      const updatedView = view
+        ? { ...view, panels: [...view.panels, ...panels] }
+        : { id: SINGLE_VIEW_ID, label: SINGLE_VIEW_LABEL, panels };
+      onCustomViewsChange?.([updatedView]);
     },
-    [customViews, onCustomViewsChange],
+    [view, onCustomViewsChange],
   );
 
   // ── delete panel ──────────────────────────────────────────────────────────
   const deletePanel = useCallback(
-    (viewId, panelId) => {
-      const updated = customViews.map((v) =>
-        v.id === viewId
-          ? { ...v, panels: v.panels.filter((p) => p.id !== panelId) }
-          : v,
-      );
-      onCustomViewsChange?.(updated);
+    (panelId) => {
+      if (!view) return;
+      const updatedView = { ...view, panels: view.panels.filter((p) => p.id !== panelId) };
+      onCustomViewsChange?.([updatedView]);
     },
-    [customViews, onCustomViewsChange],
+    [view, onCustomViewsChange],
   );
-
-  const existingViewsForModal = customViews.map((v) => ({ id: v.id, label: v.label }));
 
   if (error) {
     return (
@@ -240,68 +228,28 @@ export default function DashboardEngine({
 
   return (
     <div className="flex flex-col gap-4">
-      {/* ── Tab bar + actions ─────────────────────────────────────────────── */}
+      {/* ── actions ──────────────────────────────────────────────────────── */}
       <div
         id="kpis-container"
         data-html2canvas-ignore="true"
-        className="flex items-center justify-between flex-wrap gap-2"
+        className="flex items-center justify-end gap-2"
       >
-        <div className="flex items-center gap-1 bg-slate-100 rounded-xl p-1 flex-wrap overflow-x-auto max-w-full">
-          {viewsLoading ? (
-            <span className="px-4 py-1.5 text-sm text-slate-400 flex items-center gap-2">
-              <span className="inline-block w-3 h-3 rounded-full border-2 border-slate-300 border-t-indigo-400 animate-spin" />
-              Loading views…
-            </span>
-          ) : customViews.length === 0 ? (
-            <span className="px-4 py-1.5 text-sm text-slate-400 italic">No views yet</span>
-          ) : (
-            customViews.map((view) => (
-              <button
-                key={view.id}
-                onClick={() => setActiveViewId(view.id)}
-                className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all
-                  ${activeViewId === view.id
-                    ? "bg-white shadow text-slate-800"
-                    : "text-slate-500 hover:text-slate-700"
-                  }`}
-              >
-                {view.label ?? view.id}
-              </button>
-            ))
-          )}
-        </div>
-
-        <div className="flex items-center gap-2">
-          {customViews.length > 0 && (
-            <button
-              onClick={() => setShowViewManager(true)}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100
-                text-slate-500 text-sm font-semibold hover:bg-slate-200
-                active:scale-95 transition-all border border-slate-200"
-              title="Manage views"
-            >
-              <Settings2 size={14} />
-              Views
-            </button>
-          )}
-
-          <button
-            onClick={() => { setEditingPanel(null); setShowPanelModal(true); }}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600
-              text-white text-sm font-semibold hover:bg-indigo-700
-              active:scale-95 transition-all shadow-sm"
-          >
-            <span className="text-base leading-none">＋</span>{" "}
-            <span className="whitespace-nowrap">Custom Panel</span>
-          </button>
-        </div>
+        <button
+          onClick={() => { setEditingPanel(null); setShowPanelModal(true); }}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600
+            text-white text-sm font-semibold hover:bg-indigo-700
+            active:scale-95 transition-all shadow-sm"
+        >
+          <span className="text-base leading-none">＋</span>{" "}
+          <span className="whitespace-nowrap">Custom Panel</span>
+        </button>
       </div>
 
       {/* ── Panel grid ──────────────────────────────────────────────────── */}
       <AnimatePresence mode="wait">
         <motion.div
           id="charts-container"
-          key={viewsLoading ? "views-loading" : (activeViewId ?? "empty")}
+          key={viewsLoading ? "views-loading" : "main"}
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -8 }}
@@ -318,14 +266,14 @@ export default function DashboardEngine({
                 </div>
               ))}
             </div>
-          ) : !activeView || activeView.panels?.length === 0 ? (
+          ) : !view || view.panels?.length === 0 ? (
             <EmptyCanvas onAddPanel={() => setShowPanelModal(true)} />
           ) : (
             <div
               className="mt-2 grid gap-4"
               style={{ gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))" }}
             >
-              {(activeView.panels ?? []).map((panel) => (
+              {(view.panels ?? []).map((panel) => (
                 <div
                   key={panel.id}
                   className="relative rounded-2xl bg-white shadow-sm border border-slate-100 overflow-hidden group"
@@ -337,7 +285,7 @@ export default function DashboardEngine({
                   >
                     <button
                       onClick={() => {
-                        setEditingPanel({ panel, viewId: activeView.id });
+                        setEditingPanel({ panel });
                         setShowPanelModal(true);
                       }}
                       title="Edit panel"
@@ -345,16 +293,16 @@ export default function DashboardEngine({
                         hover:bg-indigo-100 hover:text-indigo-600 flex items-center justify-center
                         transition-colors"
                     >
-                      <Pencil size={11} />
+                      <span className="text-[11px] leading-none">✎</span>
                     </button>
                     <button
-                      onClick={() => deletePanel(activeView.id, panel.id)}
+                      onClick={() => deletePanel(panel.id)}
                       title="Remove panel"
                       className="w-6 h-6 rounded-full bg-slate-100 text-slate-500
                         hover:bg-rose-100 hover:text-rose-600 flex items-center justify-center
                         transition-colors"
                     >
-                      <Trash2 size={11} />
+                      <span className="text-[11px] leading-none">🗑</span>
                     </button>
                   </div>
 
@@ -375,27 +323,10 @@ export default function DashboardEngine({
       <AnimatePresence>
         {showPanelModal && (
           <CustomDashboardModal
-            existingViews={existingViewsForModal}
             editingPanel={editingPanel}
             onClose={() => { setShowPanelModal(false); setEditingPanel(null); }}
             onSave={savePanel}
-            onSaveTemplate={saveTemplateView}
-          />
-        )}
-      </AnimatePresence>
-
-      {/* ── View manager modal ─────────────────────────────────────────────── */}
-      <AnimatePresence>
-        {showViewManager && (
-          <ViewManagerModal
-            views={customViews}
-            onSave={(updatedViews) => {
-              onCustomViewsChange?.(updatedViews);
-              if (!updatedViews.find((v) => v.id === activeViewId)) {
-                setActiveViewId(updatedViews[0]?.id ?? null);
-              }
-            }}
-            onClose={() => setShowViewManager(false)}
+            onAppendTemplate={appendTemplatePanels}
           />
         )}
       </AnimatePresence>

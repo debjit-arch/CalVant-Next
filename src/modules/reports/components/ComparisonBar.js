@@ -1,9 +1,15 @@
 /**
  * ─────────────────────────────────────────────────────────────────────────────
- * ComparisonBar.jsx
+ * ComparisonBar.jsx  (v2 — named week-based presets)
  * ─────────────────────────────────────────────────────────────────────────────
  * Toggle + date pickers for the comparison window.
- * Default: today − 1 year  →  today
+ *
+ * Presets (all anchored on "yesterday" as the window end date):
+ *   • Previous Week        → yesterday-6  .. yesterday
+ *   • Same Week Last Month → (yesterday-6 .. yesterday) shifted back 1 month
+ *   • Same Week Last Year  → (yesterday-6 .. yesterday) shifted back 1 year
+ *
+ * Default (when first enabled, no presets picked): Previous Week.
  *
  * Props:
  *   value     { enabled, from, to }
@@ -15,54 +21,93 @@ import React, { useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { GitCompareArrows, Calendar } from "lucide-react";
 
-function defaultFrom() {
-  const d = new Date();
-  d.setFullYear(d.getFullYear() - 1);
+// ─── date helpers ─────────────────────────────────────────────────────────────
+function toISO(d) {
   return d.toISOString().slice(0, 10);
 }
 
-function todayStr() {
-  return new Date().toISOString().slice(0, 10);
+function yesterday() {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  return d;
+}
+
+function addMonths(d, n) {
+  const copy = new Date(d);
+  copy.setMonth(copy.getMonth() + n);
+  return copy;
+}
+
+function addYears(d, n) {
+  const copy = new Date(d);
+  copy.setFullYear(copy.getFullYear() + n);
+  return copy;
+}
+
+// Previous Week: yesterday-6 .. yesterday
+function previousWeekRange() {
+  const end = yesterday();
+  const start = new Date(end);
+  start.setDate(start.getDate() - 6);
+  return { from: toISO(start), to: toISO(end) };
+}
+
+// Same Week Last Month: previous-week range, shifted back one month
+function sameWeekLastMonthRange() {
+  const end = addMonths(yesterday(), -1);
+  const start = new Date(end);
+  start.setDate(start.getDate() - 6);
+  return { from: toISO(start), to: toISO(end) };
+}
+
+// Same Week Last Year: previous-week range, shifted back one year
+function sameWeekLastYearRange() {
+  const end = addYears(yesterday(), -1);
+  const start = new Date(end);
+  start.setDate(start.getDate() - 6);
+  return { from: toISO(start), to: toISO(end) };
 }
 
 const PRESETS = [
-  { label: "7d", days: 7 },
-  { label: "30d", days: 30 },
-  { label: "90d", days: 90 },
-  { label: "6m", days: 183 },
-  { label: "1y", days: 365 },
+  { key: "prev_week", label: "Previous Week", getRange: previousWeekRange },
+  { key: "same_week_last_month", label: "Same Week Last Month", getRange: sameWeekLastMonthRange },
+  { key: "same_week_last_year", label: "Same Week Last Year", getRange: sameWeekLastYearRange },
 ];
 
-function daysAgoStr(days) {
-  const d = new Date();
-  d.setDate(d.getDate() - days);
-  return d.toISOString().slice(0, 10);
+function defaultRange() {
+  return previousWeekRange();
 }
 
 export default function ComparisonBar({ value, onChange }) {
   const enabled = value?.enabled ?? false;
-  const from = value?.from ?? defaultFrom();
-  const to = value?.to ?? todayStr();
+  const from = value?.from ?? defaultRange().from;
+  const to = value?.to ?? defaultRange().to;
 
   const toggle = () => {
-    onChange({
-      enabled: !enabled,
-      from: value?.from ?? defaultFrom(),
-      to: value?.to ?? todayStr(),
-    });
+    if (enabled) {
+      onChange({ ...value, enabled: false });
+      return;
+    }
+    const range = value?.from && value?.to ? { from: value.from, to: value.to } : defaultRange();
+    onChange({ enabled: true, ...range });
   };
 
   const setFrom = (v) => onChange({ ...value, from: v });
   const setTo = (v) => onChange({ ...value, to: v });
 
-  const applyPreset = (days) => {
-    onChange({ enabled: true, from: daysAgoStr(days), to: todayStr() });
+  const applyPreset = (preset) => {
+    const range = preset.getRange();
+    onChange({ enabled: true, ...range });
   };
 
   // detect which preset is currently active (if any)
-  const activePreset =
-    PRESETS.find((p) => from === daysAgoStr(p.days) && to === todayStr())
-      ?.label ?? null;
+  const activePresetKey = useMemo(() => {
+    const found = PRESETS.find((p) => {
+      const r = p.getRange();
+      return r.from === from && r.to === to;
+    });
+    return found?.key ?? null;
+  }, [from, to]);
 
   const rangeLabel = useMemo(() => {
     try {
@@ -106,7 +151,7 @@ export default function ComparisonBar({ value, onChange }) {
         </button>
       </div>
 
-      {/* date pickers (only when enabled) */}
+      {/* presets + date pickers (only when enabled) */}
       <AnimatePresence>
         {enabled && (
           <motion.div
@@ -121,15 +166,15 @@ export default function ComparisonBar({ value, onChange }) {
               <span className="text-xs text-slate-500 font-medium">
                 Comparison window
               </span>
-              {/* quick presets */}
+              {/* named presets */}
               <div className="flex items-center gap-1 flex-wrap">
                 {PRESETS.map((p) => (
                   <button
-                    key={p.label}
-                    onClick={() => applyPreset(p.days)}
-                    className={`px-2 py-0.5 rounded-md text-[11px] font-semibold border transition-all
+                    key={p.key}
+                    onClick={() => applyPreset(p)}
+                    className={`px-2.5 py-0.5 rounded-md text-[11px] font-semibold border transition-all
           ${
-            activePreset === p.label
+            activePresetKey === p.key
               ? "bg-violet-600 text-white border-violet-600"
               : "bg-white text-slate-500 border-slate-200 hover:border-violet-300 hover:text-violet-600"
           }`}
@@ -161,19 +206,6 @@ export default function ComparisonBar({ value, onChange }) {
                     focus:border-violet-400 transition-all"
                 />
               </div>
-              <button
-                onClick={() =>
-                  onChange({
-                    enabled: true,
-                    from: defaultFrom(),
-                    to: todayStr(),
-                  })
-                }
-                className="text-xs text-violet-500 hover:text-violet-700 font-medium px-2 py-1
-                  rounded-lg hover:bg-violet-50 transition-all"
-              >
-                Reset to 1 year
-              </button>
             </div>
           </motion.div>
         )}

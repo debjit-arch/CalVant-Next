@@ -1,10 +1,14 @@
 /**
  * ─────────────────────────────────────────────────────────────────────────────
- * WIDGET: DonutStatusChart
+ * WIDGET: DonutStatusChart  (v2 — opts into shell title)
  * ─────────────────────────────────────────────────────────────────────────────
  * Renders a donut chart from either:
  *   resolvedData.map    – { key: value } object (from extractor)
  *   resolvedData.slices – [{ name, value }]      (from staticSlices)
+ *
+ * Passes showTitle to ChartShell so the module name (e.g. "Risks · By Status")
+ * renders top-left — this is the ONLY chart type that opts in. Other chart
+ * widgets (TrendLineChart, TrendBarChart, etc.) should NOT pass showTitle.
  * ─────────────────────────────────────────────────────────────────────────────
  */
 import React, { memo, useMemo } from "react";
@@ -23,7 +27,7 @@ const DonutStatusChart = memo(function DonutStatusChart({ kpiConfig, resolvedDat
   }, [resolvedData]);
 
   return (
-    <ChartShell title={kpiConfig.title} loading={loading} height={190}>
+    <ChartShell title={kpiConfig.title} showTitle loading={loading} height={190}>
       {slices.length === 0 ? <EmptyChart message="No status breakdown available" /> : (
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
