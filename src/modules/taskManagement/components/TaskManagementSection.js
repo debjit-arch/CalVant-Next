@@ -65,9 +65,7 @@ function getSourceModule(task) {
   if (task.auditId)
     return { label: "Audit", bg: "#fff9db", color: "#e67700" };
   if (task.dpiaId || task.source === "DPIA")
-    return { label: "DPIA", bg: "#fdf4ff", color: "#7c3aed" };
-  if (task.aiiaId || task.source === "AIIA")          // ✅ moved above return
-    return { label: "AIIA", bg: "#f0f9ff", color: "#0369a1" };
+    return { label: "DPIA", bg: "#fdf4ff", color: "#7c3aed" }; // ✅ NEW
   return { label: "General", bg: "#f1f3f5", color: "#868e96" };
 }
 const statusOptions = Object.values(STATUS);
@@ -479,7 +477,7 @@ function StatusChangeModal({ currentStatus, newStatus, onConfirm, onCancel }) {
 
 // ─── Main Component ───────────────────────────────────────────
 // ALL LOGIC UNCHANGED — only UI/styling updated
-export default function TaskManagement({ riskFormData = {}, auditFormData = {}, aiiaFormData = {} }) {
+export default function TaskManagement({ riskFormData = {}, auditFormData = {} }) {
   const router = useRouter();
   const {
     user,
@@ -500,16 +498,9 @@ export default function TaskManagement({ riskFormData = {}, auditFormData = {}, 
 
   const scopedRiskId = riskFormData?.riskId || null;
   const scopedAuditId = auditFormData?.auditId || null;
-  const scopedAiiaId = aiiaFormData?.aiiaId || null;   // ✅ NEW
-
-  const userOrgId = effectiveOrgId;   // ✅ NEW
-
-  const contextLabel = scopedRiskId ? "Risk Assessment"
-    : scopedAuditId ? "Audit"
-      : scopedAiiaId ? "AI Impact Assessment"   // ✅ NEW
-        : "Task Management";
-
-  const contextScopeId = scopedRiskId || scopedAuditId || scopedAiiaId || null;
+  const userOrgId = effectiveOrgId;
+  const contextLabel = scopedRiskId ? "Risk Assessment" : scopedAuditId ? "Audit" : "Task Management";
+  const contextScopeId = scopedRiskId || scopedAuditId || null;
   const [audits, setAudits] = useState([]);
 
   useEffect(() => {
@@ -518,7 +509,7 @@ export default function TaskManagement({ riskFormData = {}, auditFormData = {}, 
 
   const [tasks, setTasks] = useState([]);
 
-
+  
   const [departments, setDepartments] = useState([]);
   const [users, setUsers] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -541,7 +532,7 @@ export default function TaskManagement({ riskFormData = {}, auditFormData = {}, 
   }, [lastScrollY]);
 
   const emptyForm = () => ({
-    taskId: "", riskId: scopedRiskId || "", auditId: scopedAuditId || "", aiiaId: scopedAiiaId || "", aiiaRefId: aiiaFormData?.aiiaRefId || "",
+    taskId: "", riskId: scopedRiskId || "", auditId: scopedAuditId || "",
     organization: effectiveOrgId || "", department: "",
     employee: "", employeeName: "", employeeId: "",
     description: "", startDate: today, endDate: "",
@@ -577,18 +568,16 @@ export default function TaskManagement({ riskFormData = {}, auditFormData = {}, 
   }, [effectiveOrgId]);
 
   const fetchTasks = useCallback(async () => {
-    if (!userOrgId) return;   // ✅ add this line
     try {
       const all = await taskService.getAllTasks();
       const orgTasks = all.filter((t) => String(t.organization) === String(userOrgId));
       let scoped;
       if (scopedRiskId) scoped = orgTasks.filter((t) => t.riskId === scopedRiskId);
       else if (scopedAuditId) scoped = orgTasks.filter((t) => t.auditId === scopedAuditId);
-      else if (scopedAiiaId) scoped = orgTasks.filter((t) => t.aiiaId === scopedAiiaId);
       else scoped = orgTasks;
       setTasks(scoped);
     } catch (e) { console.error(e); }
-  }, [scopedRiskId, scopedAuditId, scopedAiiaId, userOrgId]);
+  }, [scopedRiskId, scopedAuditId, userOrgId]);
   useEffect(() => { fetchTasks(); }, [fetchTasks]);
 
   const empOptions = useMemo(() => {
@@ -690,9 +679,6 @@ export default function TaskManagement({ riskFormData = {}, auditFormData = {}, 
         reporter: currentUserName, reporterEmail, remarks: fd.remarks,
         createdAt: fd.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-        aiiaId: fd.aiiaId || undefined,   // ✅ NEW
-        aiiaRefId: fd.aiiaRefId || undefined,   // ✅ NEW
-        source: fd.aiiaId ? "AIIA" : undefined,
       };
       if (editingTaskId) {
         await taskService.updateTask(editingTaskId, payload, currentUserName);
@@ -1096,7 +1082,7 @@ export default function TaskManagement({ riskFormData = {}, auditFormData = {}, 
                         const serialNo = (currentPage - 1) * TASKS_PER_PAGE + displayIndex + 1;
                         const isOverdue = task.endDate && new Date(task.endDate) < new Date() && task.status !== STATUS.DONE;
                         const source = getSourceModule(task);
-                        const sourceId = task.riskId || (task.auditId ? (audits.find((a) => a.id === task.auditId)?.auditId || task.auditId) : null) || task.dpiaRefId || task.dpiaId || task.aiiaRefId || task.aiiaId || null;
+                        const sourceId = task.riskId || (task.auditId ? (audits.find((a) => a.id === task.auditId)?.auditId || task.auditId) : null) ||task.dpiaRefId || task.dpiaId || null;
                         const isReporter = !canEdit;
                         const isSelected = selectedTask?.taskId === task.taskId;
 
