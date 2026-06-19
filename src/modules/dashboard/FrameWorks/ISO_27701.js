@@ -18,17 +18,39 @@ import {
 } from "lucide-react";
 import "./Procedures.css";
 import { useIsMobile } from "@/hooks/useIsMobile";
+// Move this OUTSIDE the component (top of file, after imports)
+const getStoredUser = () => {
+  if (typeof window === "undefined") return null;
+  try {
+    return JSON.parse(sessionStorage.getItem("user") || "null");
+  } catch {
+    return null;
+  }
+};
+
 const ISO_27701 = () => {
   const isMobile = useIsMobile();
+  const [storedUser, setStoredUser] = useState(null); // ← state, not render-time read
 
-  
+  useEffect(() => {
+    setStoredUser(getStoredUser()); // ← browser only
+  }, []);
+
+  const isUserLoggedIn = !!storedUser;
+
+  // DELETE these two lines that were previously in the component body:
+  // const storedUser = getStoredUser();
+  // const isUserLoggedIn = !!storedUser;
+
   const handleScrollTo = (id) => {
     const el = document.getElementById(id);
     if (el) el.scrollIntoView({ behavior: "smooth" });
   };
 
   const goTo = (path) => {
-    window.location.href = path;
+    if (typeof window !== "undefined") {
+      window.location.href = path;
+    }
   };
 
   useEffect(() => {
@@ -36,19 +58,6 @@ const ISO_27701 = () => {
     document.documentElement.scrollTop = 0;
     document.body.scrollTop = 0;
   }, []);
-
-  const getStoredUser = () => {
-    if (typeof window === "undefined") return null;
-    try {
-      return JSON.parse(sessionStorage.getItem("user") || "null");
-    } catch {
-      return null;
-    }
-  };
-
-  // ✅ LOGIN STATUS - TOP LEVEL (available everywhere, no ESLint errors)
-  const storedUser = getStoredUser();
-  const isUserLoggedIn = !!storedUser;
 
   return (
     <div className="iso-page-root iso27701-page-root">
@@ -81,7 +90,7 @@ const ISO_27701 = () => {
               onMouseLeave={(e) => {
                 e.currentTarget.style.transform = "scale(3.5)";
               }}
-              onClick={() => (window.location.href = "/")}
+              onClick={() => { if (typeof window !== "undefined") window.location.href = "/"; }}
             />
           </div>
 
@@ -778,14 +787,10 @@ const ISO_27701 = () => {
           <div className="iso-footer-section">
             <h4>Product</h4>
             <ul>
+              <li><Link href="/blog">Blog</Link></li>
+
               <li>
-                <Link href="/features">Features</Link>
-              </li>
-              <li>
-                <Link href="/pricing">Pricing</Link>
-              </li>
-              <li>
-                <Link href="/templates">Policy templates</Link>
+                <Link href="/policies">Policy templates</Link>
               </li>
             </ul>
           </div>
@@ -799,9 +804,7 @@ const ISO_27701 = () => {
               <li>
                 <Link href="/careers">Careers</Link>
               </li>
-              <li>
-                <Link href="/support">Support</Link>
-              </li>
+
             </ul>
           </div>
         </div>

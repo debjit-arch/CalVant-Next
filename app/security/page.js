@@ -1,6 +1,4 @@
-//app/security/page.js
-
-import dynamic from 'next/dynamic';
+import FooterContentPage from '@/footer-pages/FooterContentPage';
 import { getPageMetadata } from '@/utils/getPageMetadata';
 
 export async function generateMetadata() {
@@ -11,15 +9,27 @@ export async function generateMetadata() {
   });
 }
 
-const FooterContentPage = dynamic(() => import('@/footer-pages/FooterContentPage'), { ssr: false });
+async function getFooterContent(type) {
+  try {
+    const res = await fetch(
+      `https://api.calvant.com/footer-service/api/footer-content/type/${type}`,
+      {
+        headers: {
+          'Origin': 'https://calvant.com',
+          'Referer': 'https://calvant.com/',
+          'Accept': 'application/json',
+        },
+        next: { revalidate: 3600 }
+      }
+    );
+    if (!res.ok) return null;
+    return res.json();
+  } catch {
+    return null;
+  }
+}
 
-export default function Page() {
-  return (
-    <>
-      <h1 style={{ position: 'absolute', width: '1px', height: '1px', overflow: 'hidden', clip: 'rect(0,0,0,0)', whiteSpace: 'nowrap' }}>
-        Security | CalVant
-      </h1>
-      <FooterContentPage type="security" />
-    </>
-  );
+export default async function Page() {
+  const data = await getFooterContent('security');
+  return <FooterContentPage type="security" prefetchedData={data} />;
 }

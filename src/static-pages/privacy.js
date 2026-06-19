@@ -661,7 +661,7 @@ const PrivacyPage = () => {
                 <Link href="/iso-27701">ISO 27701</Link>
               </li>
               <li>
-                <Link href="/risk-management">Risk Management</Link>
+                <Link href="/risk-assessment">Risk Management</Link>
               </li>
               <li>
                 <Link href="/documentation">Documentation</Link>

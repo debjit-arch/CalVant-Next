@@ -531,7 +531,7 @@ const ISO_42001 = () => {
             <ul>
               <li><Link href="/features">Features</Link></li>
               <li><Link href="/pricing">Pricing</Link></li>
-              <li><Link href="/templates">Policy templates</Link></li>
+              <li><Link href="/policies">Policy templates</Link></li>
             </ul>
           </div>
           <div className="iso-footer-section">

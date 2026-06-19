@@ -28,6 +28,8 @@ import { stage1Api, stage2Api } from "../services/aiiaApi";
 import { useUser } from "../../../hooks/useUser";
 import riskService from "../../riskAssesment/services/riskService";
 import { captureActivity } from "../../../services/activities";
+import taskService from "../../taskManagement/services/taskService";
+//import TaskManagement from "../../taskManagement/components/TaskManagementSection";
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const FONT = "'DM Sans', system-ui, sans-serif";
@@ -1409,7 +1411,7 @@ function RiskOwnerDetailsPanel({
     } catch (err) {
       setError(
         err.response?.data?.message ||
-          "Failed to save details. Please try again.",
+        "Failed to save details. Please try again.",
       );
     } finally {
       setSaving(false);
@@ -2254,6 +2256,13 @@ function AssignmentDetailPage({ assignment, onBack, onSaved }) {
               badge: noCount > 0 ? `${noCount}` : null,
               disabled: !riskReviewUnlocked,
             },
+            { key: "tasks", 
+              label: "Tasks", 
+              icon: ClipboardList, 
+              badge: null, 
+              disabled: false 
+            },
+
           ].map((tab) => {
             const Icon = tab.icon;
             const active = activeTab === tab.key;
@@ -2328,12 +2337,12 @@ function AssignmentDetailPage({ assignment, onBack, onSaved }) {
                       value={
                         assignment.dateOfAssessment
                           ? new Date(
-                              assignment.dateOfAssessment,
-                            ).toLocaleDateString("en-US", {
-                              year: "numeric",
-                              month: "long",
-                              day: "numeric",
-                            })
+                            assignment.dateOfAssessment,
+                          ).toLocaleDateString("en-US", {
+                            year: "numeric",
+                            month: "long",
+                            day: "numeric",
+                          })
                           : null
                       }
                       icon={Calendar}
@@ -2598,12 +2607,12 @@ function AssignmentDetailPage({ assignment, onBack, onSaved }) {
                                                 naErr ? "#fca5a5" : "#fde68a",
                                               )}
                                               onFocus={(e) =>
-                                                (e.target.style.borderColor =
-                                                  naErr ? "#ef4444" : "#f59e0b")
+                                              (e.target.style.borderColor =
+                                                naErr ? "#ef4444" : "#f59e0b")
                                               }
                                               onBlur={(e) =>
-                                                (e.target.style.borderColor =
-                                                  naErr ? "#fca5a5" : "#fde68a")
+                                              (e.target.style.borderColor =
+                                                naErr ? "#fca5a5" : "#fde68a")
                                               }
                                             />
                                           </div>
@@ -2639,12 +2648,12 @@ function AssignmentDetailPage({ assignment, onBack, onSaved }) {
                                                   rows={2}
                                                   style={S.ta(cat.color + "70")}
                                                   onFocus={(e) =>
-                                                    (e.target.style.borderColor =
-                                                      cat.color)
+                                                  (e.target.style.borderColor =
+                                                    cat.color)
                                                   }
                                                   onBlur={(e) =>
-                                                    (e.target.style.borderColor =
-                                                      cat.color + "70")
+                                                  (e.target.style.borderColor =
+                                                    cat.color + "70")
                                                   }
                                                 />
                                               </div>
@@ -2668,12 +2677,12 @@ function AssignmentDetailPage({ assignment, onBack, onSaved }) {
                                               rows={2}
                                               style={S.ta("#fecaca")}
                                               onFocus={(e) =>
-                                                (e.target.style.borderColor =
-                                                  "#ef4444")
+                                              (e.target.style.borderColor =
+                                                "#ef4444")
                                               }
                                               onBlur={(e) =>
-                                                (e.target.style.borderColor =
-                                                  "#fecaca")
+                                              (e.target.style.borderColor =
+                                                "#fecaca")
                                               }
                                             />
                                           </div>
@@ -2756,6 +2765,22 @@ function AssignmentDetailPage({ assignment, onBack, onSaved }) {
               user={user}
               aiSystemName={assignment.aiSystemName}
             />
+          )}
+          {activeTab === "tasks" && (
+            <motion.div
+              key="tasks"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.18 }}
+            >
+              <TaskManagement
+                aiiaFormData={{
+                  aiiaId: assessmentId,
+                  aiiaRefId: assignment.aiiaRefId,
+                }}
+              />
+            </motion.div>
           )}
         </AnimatePresence>
       </div>

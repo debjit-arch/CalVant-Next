@@ -1,4 +1,4 @@
-import dynamic from 'next/dynamic';
+import ISO_27001 from '@/modules/dashboard/FrameWorks/ISO_27001';
 import { getPageMetadata } from '@/utils/getPageMetadata';
 
 export async function generateMetadata() {
@@ -9,15 +9,6 @@ export async function generateMetadata() {
   });
 }
 
-const ISO_27001 = dynamic(() => import('@/modules/dashboard/FrameWorks/ISO_27001'), { ssr: false });
-
 export default function Page() {
-  return (
-    <>
-      <h1 style={{ position: 'absolute', width: '1px', height: '1px', overflow: 'hidden', clip: 'rect(0,0,0,0)', whiteSpace: 'nowrap' }}>
-        ISO 27001 Compliance | CalVant
-      </h1>
-      <ISO_27001 />
-    </>
-  );
+  return <ISO_27001 />;
 }

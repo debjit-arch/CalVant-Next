@@ -370,7 +370,7 @@ const DatasheetPage = () => {
             <ul>
               <li><Link href="/iso-27001">ISO 27001</Link></li>
               <li><Link href="/iso-27701">ISO 27701</Link></li>
-              <li><Link href="/risk-management">Risk Management</Link></li>
+              <li><Link href="/risk-assessment">Risk Management</Link></li>
               <li><Link href="/documentation">Documentation</Link></li>
             </ul>
           </div>

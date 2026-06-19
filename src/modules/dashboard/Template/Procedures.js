@@ -837,9 +837,7 @@ const ProceduresPage = () => {
               <li>
                 <Link href="/careers">Careers</Link>
               </li>
-              <li>
-                <Link href="/support">Support</Link>
-              </li>
+
             </ul>
           </div>
         </div>
