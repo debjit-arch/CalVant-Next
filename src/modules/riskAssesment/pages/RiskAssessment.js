@@ -38,17 +38,18 @@ import Joyride from "react-joyride";
 import { motion, AnimatePresence } from "framer-motion";
 import { useEffectiveOrg } from "@/hooks/useEffectiveOrg";
 
-// â”€â”€â”€ Framework filter helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// â”€â”€â”€ Framework filter helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Logging ───────────────────────────────────────────────────────────────────
+// Change this if it's resolving to the wrong file location
+import { captureActivity, ACTIONS, MODULES } from "../../admin/shell/services/activities"; // ← adjust path to your actual activityService location
 
 function riskMatchesFilter(risk, allowedRiskTypes) {
   const types = Array.isArray(risk.riskType)
     ? risk.riskType.map((t) => t.trim().toLowerCase())
     : risk.riskType
       ? String(risk.riskType)
-          .split(",")
-          .map((s) => s.trim().toLowerCase())
-          .filter(Boolean)
+        .split(",")
+        .map((s) => s.trim().toLowerCase())
+        .filter(Boolean)
       : [];
   if (types.length === 0) return false;
   const normalizedAllowed = new Set(
@@ -61,10 +62,7 @@ function riskMatchesFilter(risk, allowedRiskTypes) {
 const RiskAssessment = () => {
   const router = useRouter();
   const chartsContainerRef = useRef(null);
-  const [hasMounted, setHasMounted] = useState(false);
-  useEffect(() => {
-    setHasMounted(true);
-  }, []);
+
 
   // â”€â”€ Framework context â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const { selectedFrameworks, isAllSelected, availableFrameworks } =
@@ -220,10 +218,31 @@ const RiskAssessment = () => {
     };
   }, []);
 
+  const redirectTimerRef = useRef(null);
+
   useEffect(() => {
-    if (mounted && !user) {
-      router.push("/");
+    if (!mounted) return;
+
+    if (!user) {
+      // Don't redirect immediately — user may be null for one render cycle
+      // while useEffectiveOrg re-derives from sessionStorage after login.
+      // Only redirect if user is STILL null after 800ms.
+      redirectTimerRef.current = setTimeout(() => {
+        router.push("/");
+      }, 800);
+    } else {
+      // User resolved — cancel any pending redirect
+      if (redirectTimerRef.current) {
+        clearTimeout(redirectTimerRef.current);
+        redirectTimerRef.current = null;
+      }
     }
+
+    return () => {
+      if (redirectTimerRef.current) {
+        clearTimeout(redirectTimerRef.current);
+      }
+    };
   }, [mounted, user, router]);
 
   // useEffect(() => {
@@ -233,6 +252,10 @@ const RiskAssessment = () => {
   // â”€â”€ Load ALL org/dept risks (original logic unchanged) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const loadRiskStats = useCallback(async () => {
     if (!user || !effectiveOrgId) return;
+
+    // ── LOG: fires only when user is confirmed real ──
+    captureActivity({ action: ACTIONS.VISITED, module: MODULES.RISK, url: "/risk-assessment" });
+
     try {
       const risks = await riskService.getAllRisks();
       if (!Array.isArray(risks)) return;
@@ -243,8 +266,8 @@ const RiskAssessment = () => {
       const userDeptNames = seeAll
         ? []
         : (user.departments || []).map((d) =>
-            (d.name || "").trim().toLowerCase(),
-          );
+          (d.name || "").trim().toLowerCase(),
+        );
 
       const departmentRisks = risks.filter((risk) => {
         const riskOrgId = risk.organization?._id || risk.organization;
@@ -268,6 +291,9 @@ const RiskAssessment = () => {
   useEffect(() => {
     loadRiskStats();
   }, [loadRiskStats]);
+
+
+  // ─────────────────────────────────────────────────────────────────────────
 
   if (!mounted || !user) return null;
 
@@ -475,14 +501,10 @@ const RiskAssessment = () => {
                   {/* Framework filter pills â€” only shown when a specific filter is active */}
                   {!isAllSelected &&
                     selectedFrameworks.map((fwId) => {
-                      const fwObj = availableFrameworks?.find(
-                        (f) => f.id === fwId,
-                      );
+                      const fwObj = availableFrameworks?.find((f) => f.id === fwId);
                       const bg = fwObj?.color ? fwObj.color + "15" : "#f1f5f9";
                       const color = fwObj?.color || "#334155";
-                      const border = fwObj?.color
-                        ? fwObj.color + "40"
-                        : "#cbd5e1";
+                      const border = fwObj?.color ? fwObj.color + "40" : "#cbd5e1";
                       return (
                         <span
                           key={fwId}
@@ -544,7 +566,10 @@ const RiskAssessment = () => {
                 {user?.name || "User"}
               </span>
               <motion.button
-                onClick={loadRiskStats}
+                onClick={() => {
+                  captureActivity({ action: ACTIONS.CLICK, module: MODULES.RISK, item: "Refresh Dashboard", url: "/risk-assessment" });
+                  loadRiskStats();
+                }}
                 title="Refresh"
                 className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 transition-colors border border-slate-200 flex items-center justify-center"
                 whileHover={{ scale: 1.05 }}
@@ -555,6 +580,7 @@ const RiskAssessment = () => {
               <motion.button
                 className="px-5 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white text-sm font-semibold rounded-xl shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 flex items-center gap-2"
                 onClick={() => {
+                  captureActivity({ action: ACTIONS.CLICK, module: MODULES.RISK, item: "Open Guide", url: "/risk-assessment" });
                   setRun(false);
                   setTimeout(() => setRun(true), 100);
                 }}
@@ -580,47 +606,21 @@ const RiskAssessment = () => {
               transition={{ duration: 0.5, delay: 0.1 }}
             >
               {[
-                {
-                  Icon: BarChart3,
-                  value: riskStats.total,
-                  label: "Total",
-                  color: "from-blue-400 to-blue-500",
-                },
-                {
-                  Icon: AlertTriangle,
-                  value: riskStats.high + riskStats.critical,
-                  label: "High",
-                  color: "from-red-400 to-red-500",
-                },
-                {
-                  Icon: XCircle,
-                  value: riskStats.medium,
-                  label: "Medium",
-                  color: "from-orange-400 to-orange-500",
-                },
-                {
-                  Icon: CheckCircle2,
-                  value: riskStats.low,
-                  label: "Low",
-                  color: "from-emerald-400 to-emerald-500",
-                },
-                {
-                  Icon: Circle,
-                  value: riskStats.open,
-                  label: "Open",
-                  color: "from-sky-400 to-sky-500",
-                },
-                {
-                  Icon: CheckCircle,
-                  value: riskStats.closed,
-                  label: "Closed",
-                  color: "from-purple-400 to-purple-500",
-                },
+                { Icon: BarChart3, value: riskStats.total, label: "Total", color: "from-blue-400 to-blue-500" },
+                { Icon: AlertTriangle, value: riskStats.high + riskStats.critical, label: "High", color: "from-red-400 to-red-500" },
+                { Icon: XCircle, value: riskStats.medium, label: "Medium", color: "from-orange-400 to-orange-500" },
+                { Icon: CheckCircle2, value: riskStats.low, label: "Low", color: "from-emerald-400 to-emerald-500" },
+                { Icon: Circle, value: riskStats.open, label: "Open", color: "from-sky-400 to-sky-500" },
+                { Icon: CheckCircle, value: riskStats.closed, label: "Closed", color: "from-purple-400 to-purple-500" },
               ].map(({ Icon, value, label, color }, i) => (
                 <motion.div
                   key={label}
                   className="group bg-white/70 backdrop-blur-sm border border-slate-100/50 rounded-lg p-4 lg:p-3.5 shadow-sm hover:shadow-md transition-all duration-300 cursor-pointer flex items-center gap-2 h-17 lg:h-17 hover:bg-white"
-                  onClick={() => router.push("/risk-assessment/saved")}
+                  onClick={() => {
+                    // ── LOG: stat card click ──────────────────────────────
+                    captureActivity({ action: ACTIONS.CLICK, module: MODULES.RISK, item: `Stat Card - ${label}`, url: "/risk-assessment" });
+                    router.push("/risk-assessment/saved");
+                  }}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.4, delay: 0.15 + i * 0.05 }}
@@ -680,9 +680,12 @@ const RiskAssessment = () => {
                           initial={{ opacity: 0, scale: 0.9 }}
                           animate={{ opacity: 1, scale: 1 }}
                           exit={{ opacity: 0, scale: 0.9 }}
-                          transition={{
-                            duration: 0.4,
-                            delay: 0.4 + index * 0.06,
+                          transition={{ duration: 0.4, delay: 0.4 + index * 0.06 }}
+                          whileHover={{ scale: 1.02 }}
+                          onClick={() => {
+                            // ── LOG: action card click ────────────────────
+                            captureActivity({ action: ACTIONS.CLICK, module: MODULES.RISK, item: `Action Card - ${title}`, url: "/risk-assessment" });
+                            router.push(path);
                           }}
                           whileHover={{ scale: 1.02 }}
                           onClick={() => router.push(path)}
@@ -867,23 +870,9 @@ const RiskAssessment = () => {
                     margin={{ top: 15, right: 15, left: -5, bottom: 10 }}
                   >
                     <defs>
-                      <linearGradient
-                        id="riskGradient"
-                        x1="0"
-                        y1="0"
-                        x2="0"
-                        y2="1"
-                      >
-                        <stop
-                          offset="5%"
-                          stopColor="#3b82f6"
-                          stopOpacity={0.9}
-                        />
-                        <stop
-                          offset="95%"
-                          stopColor="#93c5fd"
-                          stopOpacity={0.6}
-                        />
+                      <linearGradient id="riskGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.9} />
+                        <stop offset="95%" stopColor="#93c5fd" stopOpacity={0.6} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid
