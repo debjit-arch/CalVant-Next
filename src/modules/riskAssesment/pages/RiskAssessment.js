@@ -57,14 +57,14 @@ function riskMatchesFilter(risk, allowedRiskTypes) {
   );
   return types.some((t) => normalizedAllowed.has(t));
 }
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─────────────────────────────────────────────────────────────────────────────
 
 const RiskAssessment = () => {
   const router = useRouter();
   const chartsContainerRef = useRef(null);
 
 
-  // â”€â”€ Framework context â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Framework context ─────────────────────────────────────────────────────
   const { selectedFrameworks, isAllSelected, availableFrameworks } =
     useFramework();
 
@@ -107,13 +107,13 @@ const RiskAssessment = () => {
 
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 
-  // â”€â”€ Framework-filtered view of risks â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Framework-filtered view of risks ──────────────────────────────────────
   const filteredRisks = useMemo(() => {
     if (!allowedRiskTypes) return allRisks;
     return allRisks.filter((r) => riskMatchesFilter(r, allowedRiskTypes));
   }, [allRisks, allowedRiskTypes]);
 
-  // â”€â”€ Available years (from filteredRisks) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Available years (from filteredRisks) ──────────────────────────────────
   const availableYears = useMemo(
     () => [
       ...new Set(
@@ -128,7 +128,7 @@ const RiskAssessment = () => {
     [filteredRisks],
   );
 
-  // â”€â”€ Monthly risk data (from filteredRisks) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Monthly risk data (from filteredRisks) ────────────────────────────────
   const monthlyRiskData = useMemo(() => {
     const months = [
       "Jan",
@@ -154,7 +154,7 @@ const RiskAssessment = () => {
     return months;
   }, [filteredRisks, selectedYear]);
 
-  // â”€â”€ Stats computed from filteredRisks â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Stats computed from filteredRisks ────────────────────────────────────
   const riskStats = useMemo(() => {
     return filteredRisks.reduce(
       (acc, risk) => {
@@ -200,7 +200,7 @@ const RiskAssessment = () => {
     },
   ];
 
-  // â”€â”€ ResizeObserver fix â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── ResizeObserver fix ────────────────────────────────────────────────────
   useEffect(() => {
     const resizeObserver = new ResizeObserver(() => {
       clearTimeout(window.resizeTimeout);
@@ -249,7 +249,7 @@ const RiskAssessment = () => {
   //   collapseSidebar();
   // }, [collapseSidebar]);
 
-  // â”€â”€ Load ALL org/dept risks (original logic unchanged) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Load ALL org/dept risks (original logic unchanged) ────────────────────
   const loadRiskStats = useCallback(async () => {
     if (!user || !effectiveOrgId) return;
 
@@ -297,7 +297,7 @@ const RiskAssessment = () => {
 
   if (!mounted || !user) return null;
 
-  // â”€â”€ Chart data (from filteredRisks / riskStats) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Chart data (from filteredRisks / riskStats) ──────────────────────────
   const pieData = [
     {
       name: "Low Risk",
@@ -461,7 +461,7 @@ const RiskAssessment = () => {
           styles={{ options: { primaryColor: "#3b82f6", width: 300 } }}
         />
 
-        {/* â”€â”€ Professional Header â”€â”€ */}
+        {/* ── Professional Header ── */}
         <motion.header
           id="dashboard-header"
           className="bg-white/80 backdrop-blur-md border border-slate-100/50 rounded-xl shadow-md mb-2 lg:mb-2 p-4 lg:p-5 !text-left"
@@ -489,7 +489,7 @@ const RiskAssessment = () => {
               </div>
 
               <div className="flex-1 min-w-0" style={{ textAlign: "left" }}>
-                {/* Title row â€” framework badges sit inline */}
+                {/* Title row – framework badges sit inline */}
                 <div
                   className="flex items-center justify-start gap-2 flex-wrap"
                   style={{ justifyContent: "flex-start" }}
@@ -498,7 +498,7 @@ const RiskAssessment = () => {
                     Risks Dashboard
                   </h1>
 
-                  {/* Framework filter pills â€” only shown when a specific filter is active */}
+                  {/* Framework filter pills – only shown when a specific filter is active */}
                   {!isAllSelected &&
                     selectedFrameworks.map((fwId) => {
                       const fwObj = availableFrameworks?.find((f) => f.id === fwId);
@@ -631,7 +631,7 @@ const RiskAssessment = () => {
                   >
                     <Icon
                       size={16}
-                      className="lg:size-18 text-white drop-shadow-sm"
+                      className="text-white drop-shadow-sm"
                     />
                   </div>
                   <div className="min-w-0 flex-1">
@@ -687,8 +687,6 @@ const RiskAssessment = () => {
                             captureActivity({ action: ACTIONS.CLICK, module: MODULES.RISK, item: `Action Card - ${title}`, url: "/risk-assessment" });
                             router.push(path);
                           }}
-                          whileHover={{ scale: 1.02 }}
-                          onClick={() => router.push(path)}
                         >
                           <div
                             className={`w-12 h-12 rounded-xl flex items-center justify-center mb-3 shadow-md flex-shrink-0 ${primary ? "bg-white/20 backdrop-blur-sm" : `bg-gradient-to-br ${color}`}`}
@@ -702,7 +700,7 @@ const RiskAssessment = () => {
                             <h4 className="text-sm lg:text-base font-semibold text-center text-slate-800 leading-tight mb-1 px-1 truncate group-hover:text-blue-600 transition-colors duration-200">
                               {title}
                             </h4>
-                            <p className="text-xs font-bold text-center text-slate-1000 px-1 truncate">
+                            <p className="text-xs font-bold text-center text-slate-900 px-1 truncate">
                               {subtitle}
                             </p>
                           </div>
@@ -906,7 +904,7 @@ const RiskAssessment = () => {
       <footer className="bg-white/90 backdrop-blur-md border-t border-slate-100/50 shadow-lg px-6 py-4 lg:px-8 lg:py-5 sticky bottom-0 z-50">
         <div className="max-w-7xl mx-auto text-center">
           <p className="text-sm lg:text-base text-slate-600 font-medium">
-            Â© {new Date().getFullYear()} CalVant. All rights reserved.
+            © {new Date().getFullYear()} CalVant. All rights reserved.
           </p>
         </div>
       </footer>
