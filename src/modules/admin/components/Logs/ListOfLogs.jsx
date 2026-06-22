@@ -570,14 +570,13 @@ import {
     Box, Typography, Paper, Table, TableBody, TableCell,
     TableContainer, TableHead, TableRow, TablePagination,
     Chip, CircularProgress, Alert, Stack, TextField,
-    MenuItem, Select, InputLabel, FormControl,
-    IconButton, Tooltip, Button,
+    MenuItem, Select, InputLabel, FormControl, IconButton, Tooltip, Button,
 } from "@mui/material";
-import RefreshIcon      from "@mui/icons-material/Refresh";
+import RefreshIcon from "@mui/icons-material/Refresh";
 import FilterAltOffIcon from "@mui/icons-material/FilterAltOff";
 
 const LOGGING_BASE_URL =
-    (typeof process !== "undefined" && process.env?.NEXT_PUBLIC_LOGGING_SERVICE_URL) ||
+    process.env.REACT_APP_LOGGING_SERVICE_URL ||
     "https://api.calvant.com/logging-service/api/logs";
 
 // ── Finalized canonical action taxonomy ───────────────────────────────────────
@@ -689,18 +688,7 @@ const isValidEmail = (email) => {
     return email.includes("@");
 };
 
-// ── JWT helpers ───────────────────────────────────────────────────────────────
-const decodeJwt = (token) => {
-    try {
-        if (!token) return {};
-        const base64   = token.split(".")[1];
-        const standard = base64.replace(/-/g, "+").replace(/_/g, "/");
-        const padded   = standard + "=".repeat((4 - standard.length % 4) % 4);
-        return JSON.parse(atob(padded));
-    } catch {
-        return {};
-    }
-};
+const ALL_ACTIONS = Object.keys(ACTION_META);
 
 const getCallerInfo = () => {
     try {
@@ -729,29 +717,19 @@ const toDate = (log) => {
     return isNaN(d.getTime()) ? null : d;
 };
 
-const formatIST = (d) =>
-    d ? d.toLocaleString("en-IN", {
-        timeZone : "Asia/Kolkata",
-        day      : "2-digit",
-        month    : "short",
-        year     : "numeric",
-        hour     : "2-digit",
-        minute   : "2-digit",
-        hour12   : true,
-    }) : "—";
-
-const SKIP_KEYS = ["password", "oldPassword", "processes", "auditorName", "organization"];
-
+// Convert one object to plain readable text: "Key: value | Key: value"
 const objectToText = (obj) => {
     if (!obj || typeof obj !== "object") return String(obj);
+    const SKIP = ["password", "oldPassword", "processes", "auditorName", "organization"];
     return Object.entries(obj)
         .filter(([k, v]) =>
-            !SKIP_KEYS.includes(k) &&
+            !SKIP.includes(k) &&
             v !== null && v !== undefined && v !== "" &&
             !(Array.isArray(v) && v.length === 0)
         )
         .map(([k, v]) => {
-            const label = k.replace(/([A-Z])/g, " $1").replace(/^./, s => s.toUpperCase());
+            const label = k.replace(/([A-Z])/g, " $1")
+                .replace(/^./, (s) => s.toUpperCase());
             const value = Array.isArray(v) ? v.join(", ") : String(v);
             return `${label}: ${value}`;
         })
@@ -759,10 +737,12 @@ const objectToText = (obj) => {
 };
 
 const formatItem = (item) => {
-    if (item == null) return null;
+    if (item === null || item === undefined) return null;
     try {
         const arr = Array.isArray(item) ? item : [item];
-        return arr.map(e => typeof e === "object" ? objectToText(e) : String(e)).join(" | ");
+        return arr.map((entry) =>
+            typeof entry === "object" ? objectToText(entry) : String(entry)
+        ).join(" | ");
     } catch {
         return String(item);
     }
@@ -786,40 +766,30 @@ const collapseExactDuplicates = (logs) => {
 };
 
 // ── Component ─────────────────────────────────────────────────────────────────
-const LogsList = () => {
-    const caller = getCallerInfo();
+const ListOfLogs = () => {
+    const [logs, setLogs] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
 
-    const [logs,        setLogs       ] = useState([]);
-    const [loading,     setLoading    ] = useState(true);
-    const [error,       setError      ] = useState(null);
-
+    // Filters
     const [actionFilter, setActionFilter] = useState("ALL");
-    const [moduleFilter, setModuleFilter] = useState("ALL");
-    const [dateFrom,     setDateFrom    ] = useState("");
-    const [dateTo,       setDateTo      ] = useState("");
-    const [searchQuery,  setSearchQuery ] = useState("");
+    const [dateFrom, setDateFrom] = useState("");   // "YYYY-MM-DD"
+    const [dateTo, setDateTo] = useState("");
 
-    const [page,        setPage       ] = useState(0);
+    // Pagination
+    const [page, setPage] = useState(0);
     const [rowsPerPage, setRowsPerPage] = useState(10);
 
-    // ── Fetch ─────────────────────────────────────────────────────────────────
+    // ── Fetch ───────────────────────────────────────────────────────────────────
     const fetchLogs = useCallback(async () => {
         setLoading(true);
         setError(null);
         try {
-            const token = localStorage.getItem("token") || sessionStorage.getItem("token") || "";
-            if (!token) throw new Error("Not authenticated");
-
+            const token = localStorage.getItem("token") || "";
             const res = await fetch(LOGGING_BASE_URL, {
-                headers: {
-                    Authorization       : `Bearer ${token}`,
-                    "X-User-Role"       : caller.role,
-                    "X-Organization-Id" : caller.orgId,
-                },
+                headers: token ? { Authorization: `Bearer ${token}` } : {},
             });
-
             if (!res.ok) throw new Error(`Server returned ${res.status}`);
-
             const data = await res.json();
             const list = Array.isArray(data) ? data : (data.content ?? []);
 
@@ -832,11 +802,11 @@ const LogsList = () => {
         } finally {
             setLoading(false);
         }
-    }, [caller.role, caller.orgId]);
+    }, []);
 
     useEffect(() => { fetchLogs(); }, [fetchLogs]);
 
-    // ── Client-side filter ────────────────────────────────────────────────────
+    // ── Filter ──────────────────────────────────────────────────────────────────
     const filtered = logs.filter((log) => {
         const normalisedAction = normaliseAction(log.action);
 
@@ -862,10 +832,8 @@ const LogsList = () => {
 
     const clearFilters = () => {
         setActionFilter("ALL");
-        setModuleFilter("ALL");
         setDateFrom("");
         setDateTo("");
-        setSearchQuery("");
         setPage(0);
     };
 
@@ -874,20 +842,11 @@ const LogsList = () => {
 
     const colSpan = caller.isSuperAdmin ? 9 : 8;
 
-    // ── Render ────────────────────────────────────────────────────────────────
     return (
         <Box sx={{ p: 3 }}>
-
-            {/* Header */}
+            {/* ── Header ─────────────────────────────────────────────────────────── */}
             <Stack direction="row" alignItems="center" justifyContent="space-between" mb={2}>
-                <Box>
-                    <Typography variant="h5" fontWeight={700}>Activity Logs</Typography>
-                    <Typography variant="caption" color="text.secondary">
-                        {caller.isSuperAdmin
-                            ? "Viewing logs across all organisations"
-                            : "Viewing logs for your organisation"}
-                    </Typography>
-                </Box>
+                <Typography variant="h5" fontWeight={700}>Activity Logs</Typography>
                 <Tooltip title="Refresh">
                     <IconButton onClick={fetchLogs} color="primary">
                         <RefreshIcon />
@@ -895,98 +854,94 @@ const LogsList = () => {
                 </Tooltip>
             </Stack>
 
-            {/* Filters */}
+            {/* ── Filters ────────────────────────────────────────────────────────── */}
             <Paper variant="outlined" sx={{ p: 2, mb: 2, borderRadius: 2 }}>
                 <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2, alignItems: "center" }}>
 
                     <FormControl size="small" sx={{ minWidth: 150 }}>
                         <InputLabel>Action</InputLabel>
-                        <Select value={actionFilter} label="Action"
-                            onChange={(e) => { setActionFilter(e.target.value); setPage(0); }}>
+                        <Select
+                            value={actionFilter}
+                            label="Action"
+                            onChange={(e) => { setActionFilter(e.target.value); setPage(0); }}
+                        >
                             <MenuItem value="ALL">All Actions</MenuItem>
-                            {ALL_ACTIONS.map(a => (
+                            {ALL_ACTIONS.map((a) => (
                                 <MenuItem key={a} value={a}>{ACTION_META[a].label}</MenuItem>
                             ))}
                         </Select>
                     </FormControl>
 
-                    <FormControl size="small" sx={{ minWidth: 150 }}>
-                        <InputLabel>Module</InputLabel>
-                        <Select value={moduleFilter} label="Module"
-                            onChange={(e) => { setModuleFilter(e.target.value); setPage(0); }}>
-                            <MenuItem value="ALL">All Modules</MenuItem>
-                            {MODULE_LIST.map(m => (
-                                <MenuItem key={m} value={m}>{m}</MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
-
+                    {/* Date from */}
                     <TextField
                         size="small"
-                        label="Search name / email"
-                        value={searchQuery}
-                        onChange={(e) => { setSearchQuery(e.target.value); setPage(0); }}
-                        sx={{ minWidth: 200 }}
-                    />
-
-                    <TextField size="small" label="From date" type="date" value={dateFrom}
+                        label="From date"
+                        type="date"
+                        value={dateFrom}
                         onChange={(e) => { setDateFrom(e.target.value); setPage(0); }}
                         slotProps={{ inputLabel: { shrink: true } }} sx={{ minWidth: 150 }} />
 
-                    <TextField size="small" label="To date" type="date" value={dateTo}
+                    {/* Date to */}
+                    <TextField
+                        size="small"
+                        label="To date"
+                        type="date"
+                        value={dateTo}
                         onChange={(e) => { setDateTo(e.target.value); setPage(0); }}
                         slotProps={{ inputLabel: { shrink: true } }} sx={{ minWidth: 150 }} />
 
+                    {/* Clear filters */}
                     {hasFilters && (
-                        <Button size="small" variant="outlined"
-                            startIcon={<FilterAltOffIcon />} onClick={clearFilters}>
+                        <Button
+                            size="small"
+                            variant="outlined"
+                            startIcon={<FilterAltOffIcon />}
+                            onClick={clearFilters}
+                        >
                             Clear
                         </Button>
                     )}
 
                     <Box sx={{ flexGrow: 1 }} />
-
                     <Typography variant="body2" color="text.secondary">
                         {filtered.length} record{filtered.length !== 1 ? "s" : ""}
                     </Typography>
-                </Box>
+                </Stack>
             </Paper>
 
-            {error && <Alert severity="error" sx={{ mb: 2 }}>Could not load logs: {error}</Alert>}
+            {/* ── Error ──────────────────────────────────────────────────────────── */}
+            {error && (
+                <Alert severity="error" sx={{ mb: 2 }}>
+                    Could not load logs: {error}
+                </Alert>
+            )}
 
-            {/* Table */}
+            {/* ── Table ──────────────────────────────────────────────────────────── */}
             <Paper sx={{ borderRadius: 2, overflow: "hidden" }}>
                 <TableContainer sx={{ maxHeight: "65vh" }}>
                     <Table stickyHeader size="small">
                         <TableHead>
                             <TableRow>
                                 <TableCell sx={{ fontWeight: 700, width: 50 }}>#</TableCell>
-                                <TableCell sx={{ fontWeight: 700 }}>Module</TableCell>
                                 <TableCell sx={{ fontWeight: 700 }}>Action</TableCell>
                                 <TableCell sx={{ fontWeight: 700 }}>Name</TableCell>
                                 <TableCell sx={{ fontWeight: 700 }}>Email</TableCell>
-                                {caller.isSuperAdmin && (
-                                    <TableCell sx={{ fontWeight: 700 }}>Organisation</TableCell>
-                                )}
                                 <TableCell sx={{ fontWeight: 700 }}>URL / Page</TableCell>
                                 <TableCell sx={{ fontWeight: 700 }}>Item</TableCell>
-                                <TableCell sx={{ fontWeight: 700, whiteSpace: "nowrap" }}>
-                                    Date &amp; Time (IST)
-                                </TableCell>
+                                <TableCell sx={{ fontWeight: 700, whiteSpace: "nowrap" }}>Date & Time</TableCell>
                             </TableRow>
                         </TableHead>
 
                         <TableBody>
                             {loading ? (
                                 <TableRow>
-                                    <TableCell colSpan={colSpan} align="center" sx={{ py: 6 }}>
+                                    <TableCell colSpan={7} align="center" sx={{ py: 6 }}>
                                         <CircularProgress size={28} />
                                     </TableCell>
                                 </TableRow>
                             ) : paginated.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={colSpan} align="center"
-                                               sx={{ py: 6, color: "text.secondary" }}>
+                                    <TableCell colSpan={7} align="center" sx={{ py: 6, color: "text.secondary" }}>
                                         No logs found.
                                     </TableCell>
                                 </TableRow>
@@ -1043,6 +998,7 @@ const LogsList = () => {
                                             </TableCell>
 
                                             <TableCell>{log.name || "—"}</TableCell>
+                                            <TableCell>{log.email || "—"}</TableCell>
 
                                             <TableCell>
                                                 {displayEmail ?? (
@@ -1071,23 +1027,29 @@ const LogsList = () => {
                                                 {log.item == null ? (
                                                     <Typography variant="caption" color="text.disabled">—</Typography>
                                                 ) : (
-                                                    <Tooltip title={formatItem(log.item)}>
-                                                        <Typography variant="caption" sx={{
-                                                            fontFamily   : "monospace",
-                                                            display      : "block",
-                                                            maxWidth     : 280,
-                                                            overflow     : "hidden",
-                                                            textOverflow : "ellipsis",
-                                                            whiteSpace   : "nowrap",
-                                                        }}>
-                                                            {formatItem(log.item)}
-                                                        </Typography>
-                                                    </Tooltip>
+                                                    <Typography
+                                                        variant="caption"
+                                                        sx={{
+                                                            fontFamily: "monospace",
+                                                            display: "block",
+                                                            maxWidth: 280,
+                                                            overflow: "hidden",
+                                                            textOverflow: "ellipsis",
+                                                            whiteSpace: "nowrap",
+                                                        }}
+                                                    >
+                                                        <Tooltip title={formatItem(log.item)}>
+                                                            <span>{formatItem(log.item)}</span>
+                                                        </Tooltip>
+                                                    </Typography>
                                                 )}
                                             </TableCell>
 
                                             <TableCell sx={{ whiteSpace: "nowrap" }}>
-                                                {formatIST(dt)}
+                                                {dt ? dt.toLocaleString("en-IN", {
+                                                    day: "2-digit", month: "short", year: "numeric",
+                                                    hour: "2-digit", minute: "2-digit",
+                                                }) : "—"}
                                             </TableCell>
                                         </TableRow>
                                     );
@@ -1111,4 +1073,4 @@ const LogsList = () => {
     );
 };
 
-export default LogsList;
+export default ListOfLogs;

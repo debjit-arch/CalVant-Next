@@ -246,9 +246,9 @@
 // export const logClick = (item = null, mod = MODULES.SYSTEM, overrides = {}) =>
 //   captureActivity({ action: ACTIONS.CLICK, module: mod, item, ...overrides });
 
-// ─── Endpoint ─────────────────────────────────────────────────────────────────
+// ─── Endpoint ────────────────────────────────────────────────────────────────
 const LOGGING_BASE_URL =
-  (typeof process !== "undefined" && process.env?.NEXT_PUBLIC_LOGGING_SERVICE_URL) ||
+  process.env.REACT_APP_LOGGING_SERVICE_URL ||
   "https://api.calvant.com/logging-service/api/logs";
 
 const USER_SERVICE_BASE =
@@ -269,19 +269,10 @@ export const ACTIONS = {
   DOWNLOAD  : "DOWNLOAD",
 };
 
-// ─── Module constants ─────────────────────────────────────────────────────────
-export const MODULES = {
-  AUTH       : "Auth",
-  RISK       : "Risk",
-  TASK       : "Task",
-  AUDIT      : "Audit",
-  COMPLIANCE : "Compliance",
-  TRUST      : "Trust",
-  TPRM       : "TPRM",
-  AIIA       : "AIIA",
-  DASHBOARD  : "Dashboard",
-  SYSTEM     : "System",
-};
+// ─── Recursion guard ──────────────────────────────────────────────────────────
+// Prevents captureActivity from calling itself if some interceptor or
+// middleware inadvertently triggers another log while one is in-flight.
+let _isSending = false;
 
 // ─── Human-facing module allowlist (UAT item #3) ─────────────────────────────
 // Only these modules ever reach the logging service.

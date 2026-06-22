@@ -1,18 +1,22 @@
 /**
  * ─────────────────────────────────────────────────────────────────────────────
- * CustomDashboardModal.jsx  (v2)
+ * CustomDashboardModal.jsx  (v3 — no view placement, mixed-bag templates)
  * ─────────────────────────────────────────────────────────────────────────────
- * Changes from v1:
- *   1. Step 0 now asks for view placement — add to existing view OR create new
- *   2. Removed from AVAILABLE_COMPONENTS: TrendAreaChart, ScoreGauge,
- *      DepartmentBreakdown, TableWidget  (still work in templates, just hidden
- *      from the builder picker)
- *   3. onSave payload changed: { viewId, viewLabel, panel }
+ * Changes from v2:
+ *   1. Removed Step 0 (view placement) entirely — there is only one view now,
+ *      so every panel and every template's panels go straight into it.
+ *   2. Template gallery selection no longer creates a new view. It calls
+ *      onAppendTemplate(panels) which merges the template's panels into the
+ *      existing single dashboard view — this is what makes the canvas a
+ *      genuine mixed bag (risk + audit + DPIA tiles side by side).
+ *   3. onSave payload simplified: { panel, isEdit, originalPanelId }
+ *      (viewId / viewLabel removed — the parent always targets the one view)
  *
  * Props:
- *   existingViews  [{ id, label }]  — current custom view list for dropdown
- *   onClose        () => void
- *   onSave         ({ viewId, viewLabel, panel }) => void
+ *   editingPanel     { panel } | null
+ *   onClose          () => void
+ *   onSave           ({ panel, isEdit, originalPanelId }) => void
+ *   onAppendTemplate (panels[]) => void
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
@@ -20,7 +24,7 @@ import React, { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { AVAILABLE_EXTRACTORS } from "./dashboardSchema";
 
-// ─── removed from builder (still in registry for templates) ──────────────────
+// ─── builder-selectable chart types ──────────────────────────────────────────
 const AVAILABLE_COMPONENTS = [
   {
     type: "StatCard",
@@ -72,188 +76,109 @@ const MAP_EXTRACTORS = new Set([
   "dpia.byDepartment",
 ]);
 
-// ─── PREDEFINED VIEW TEMPLATES (gallery) ──────────────────────────────────────
-// Each template creates a brand-new view with multiple pre-built panels.
-// Users pick one as a starting point — it's added as-is, then they can edit
-// individual panels (via the pencil icon) just like any custom panel.
-const VIEW_TEMPLATES = [
+// ─── PREDEFINED TEMPLATE GALLERY ──────────────────────────────────────────────
+// Every template here is intentionally cross-segment — each one mixes tiles
+// from multiple modules (risks, audit, tasks, dpia, documents, aiia) rather
+// than being scoped to a single source. There is no single-segment template;
+// "mixed bag" is the gallery's default, not an opt-in option. Selecting a
+// template APPENDS its panels into the single dashboard view, so users can
+// also layer multiple templates together over time.
+const PANEL_TEMPLATES = [
   {
-    id: "tpl_risk_overview",
-    label: "Risk Overview",
-    icon: "🛡️",
-    description: "Total risks, open count and a status breakdown",
+    id: "tpl_compliance_snapshot",
+    label: "Compliance Snapshot",
+    icon: "🧩",
+    description: "One headline number from every segment, at a glance",
     panels: [
-      {
-        componentType: "StatCard",
-        title: "Risks · Total",
-        props: { extractor: "risks.total" },
-      },
-      {
-        componentType: "StatCard",
-        title: "Risks · Avg Score",
-        props: { extractor: "risks.avgScore" },
-      },
-      {
-        componentType: "DonutStatusChart",
-        title: "Risks · By Status",
-        props: { extractor: "risks.byStatus" },
-      },
-      {
-        componentType: "TrendLineChart",
-        title: "Risks · Total",
-        props: {
-          series: [
-            { key: "risks_total", label: "Risks · Total", extractor: "risks.total", color: "#ef4444" },
-          ],
-        },
-      },
+      { componentType: "StatCard", title: "Risks · Total", props: { extractor: "risks.total" } },
+      { componentType: "StatCard", title: "Audit · Total", props: { extractor: "audit.total" } },
+      { componentType: "StatCard", title: "Tasks · Overdue", props: { extractor: "tasks.overdue" } },
+      { componentType: "StatCard", title: "DPIA · Total", props: { extractor: "dpia.total" } },
+      { componentType: "StatCard", title: "Documents · Pending", props: { extractor: "documents.pendingApproval" } },
+      { componentType: "StatCard", title: "AIIA · S1 Total", props: { extractor: "aiia.stage1Total" } },
     ],
   },
   {
-    id: "tpl_audit_summary",
-    label: "Audit Summary",
-    icon: "📋",
-    description: "Audit totals, findings and status split",
+    id: "tpl_open_items",
+    label: "Open Items Across Modules",
+    icon: "⚠️",
+    description: "What's still open or overdue, pulled from risk, audit, tasks and DPIA",
     panels: [
-      {
-        componentType: "StatCard",
-        title: "Audit · Total",
-        props: { extractor: "audit.total" },
-      },
-      {
-        componentType: "StatCard",
-        title: "Audit · Findings",
-        props: { extractor: "audit.totalFindings" },
-      },
-      {
-        componentType: "DonutStatusChart",
-        title: "Audit · By Status",
-        props: { extractor: "audit.byStatus" },
-      },
-    ],
-  },
-  {
-    id: "tpl_tasks_tracker",
-    label: "Tasks Tracker",
-    icon: "✅",
-    description: "Task totals, overdue count and status trend",
-    panels: [
-      {
-        componentType: "StatCard",
-        title: "Tasks · Total",
-        props: { extractor: "tasks.total" },
-      },
-      {
-        componentType: "StatCard",
-        title: "Tasks · Overdue",
-        props: { extractor: "tasks.overdue" },
-      },
+      { componentType: "StatCard", title: "Risks · Open", props: { extractor: "risks.byStatus.Open" } },
+      { componentType: "StatCard", title: "Audit · Open", props: { extractor: "audit.byStatus.Open" } },
+      { componentType: "StatCard", title: "Tasks · Overdue", props: { extractor: "tasks.overdue" } },
+      { componentType: "StatCard", title: "Documents · Pending", props: { extractor: "documents.pendingApproval" } },
       {
         componentType: "TrendLineChart",
-        title: "Tasks · Overdue",
+        title: "Open Items Over Time",
         props: {
           series: [
+            { key: "risks_open", label: "Risks · Open", extractor: "risks.byStatus.Open", color: "#ef4444" },
             { key: "tasks_overdue", label: "Tasks · Overdue", extractor: "tasks.overdue", color: "#f97316" },
-            { key: "tasks_total",   label: "Tasks · Total",   extractor: "tasks.total",   color: "#6366f1" },
           ],
         },
       },
-      {
-        componentType: "DonutStatusChart",
-        title: "Tasks · By Status",
-        props: { extractor: "tasks.byStatus" },
-      },
     ],
   },
   {
-    id: "tpl_dpia_compliance",
-    label: "DPIA Compliance",
-    icon: "🔐",
-    description: "DPIA totals, completion rate and status",
+    id: "tpl_status_breakdowns",
+    label: "Status Breakdowns",
+    icon: "🍩",
+    description: "Side-by-side status donuts from risk, audit, tasks and DPIA",
+    panels: [
+      { componentType: "DonutStatusChart", title: "Risks · By Status", props: { extractor: "risks.byStatus" } },
+      { componentType: "DonutStatusChart", title: "Audit · By Status", props: { extractor: "audit.byStatus" } },
+      { componentType: "DonutStatusChart", title: "Tasks · By Status", props: { extractor: "tasks.byStatus" } },
+      { componentType: "DonutStatusChart", title: "DPIA · By Status", props: { extractor: "dpia.byStatus" } },
+    ],
+  },
+  {
+    id: "tpl_trend_watch",
+    label: "Trend Watch",
+    icon: "📈",
+    description: "Multi-module trend line plus the totals driving it",
     panels: [
       {
-        componentType: "StatCard",
-        title: "DPIA · Total",
-        props: { extractor: "dpia.total" },
+        componentType: "TrendLineChart",
+        title: "All Modules Trend",
+        props: {
+          series: [
+            { key: "risks", label: "Risks", extractor: "risks.total", color: "#ef4444" },
+            { key: "audits", label: "Audits", extractor: "audit.total", color: "#f59e0b" },
+            { key: "tasks", label: "Tasks", extractor: "tasks.total", color: "#8b5cf6" },
+            { key: "dpias", label: "DPIAs", extractor: "dpia.total", color: "#3b82f6" },
+          ],
+        },
       },
-      {
-        componentType: "StatCard",
-        title: "DPIA · Avg Completion",
-        props: { extractor: "dpia.avgCompletion" },
-      },
-      {
-        componentType: "DonutStatusChart",
-        title: "DPIA · By Status",
-        props: { extractor: "dpia.byStatus" },
-      },
+      { componentType: "StatCard", title: "Risks · Total", props: { extractor: "risks.total" } },
+      { componentType: "StatCard", title: "Audit · Total", props: { extractor: "audit.total" } },
+      { componentType: "StatCard", title: "Tasks · Total", props: { extractor: "tasks.total" } },
     ],
   },
   {
-    id: "tpl_documents_status",
-    label: "Documents Status",
-    icon: "📄",
-    description: "Document totals, approvals and pending review",
-    panels: [
-      {
-        componentType: "StatCard",
-        title: "Documents · Total",
-        props: { extractor: "documents.total" },
-      },
-      {
-        componentType: "StatCard",
-        title: "Documents · Approved",
-        props: { extractor: "documents.approved" },
-      },
-      {
-        componentType: "StatCard",
-        title: "Documents · Pending",
-        props: { extractor: "documents.pendingApproval" },
-      },
-    ],
-  },
-  {
-    id: "tpl_aiia_pipeline",
-    label: "AIIA Pipeline",
+    id: "tpl_pipeline_progress",
+    label: "Pipeline Progress",
     icon: "🤖",
-    description: "Stage 1 / Stage 2 assessment progress",
+    description: "DPIA completion and AIIA stage progress, with documents pending review",
     panels: [
-      {
-        componentType: "StatCard",
-        title: "AIIA · S1 Total",
-        props: { extractor: "aiia.stage1Total" },
-      },
-      {
-        componentType: "StatCard",
-        title: "AIIA · S1 Completed",
-        props: { extractor: "aiia.stage1Completed" },
-      },
-      {
-        componentType: "StatCard",
-        title: "AIIA · S2 Total",
-        props: { extractor: "aiia.stage2Total" },
-      },
-      {
-        componentType: "StatCard",
-        title: "AIIA · S2 Completed",
-        props: { extractor: "aiia.stage2Completed" },
-      },
+      { componentType: "ScoreGauge", title: "DPIA · Avg Completion", props: { extractor: "dpia.avgCompletion" } },
+      { componentType: "StatCard", title: "AIIA · S1 Completed", props: { extractor: "aiia.stage1Completed" } },
+      { componentType: "StatCard", title: "AIIA · S2 Completed", props: { extractor: "aiia.stage2Completed" } },
+      { componentType: "StatCard", title: "Documents · Approved", props: { extractor: "documents.approved" } },
+      { componentType: "StatCard", title: "Documents · Pending", props: { extractor: "documents.pendingApproval" } },
     ],
   },
 ];
 
-// Materialise a template into a fresh view object with unique panel ids
-function instantiateTemplate(template) {
+// Materialise a template into fresh panels with unique ids (no view wrapper)
+function instantiateTemplatePanels(template) {
   const ts = Date.now();
-  return {
-    id: `custom_view_${ts}`,
-    label: template.label,
-    panels: template.panels.map((p, i) => ({
-      id: `custom_panel_${ts}_${i}`,
-      componentType: p.componentType,
-      title: p.title,
-      props: p.props,
-    })),
-  };
+  return template.panels.map((p, i) => ({
+    id: `custom_panel_${ts}_${i}`,
+    componentType: p.componentType,
+    title: p.title,
+    props: p.props,
+  }));
 }
 
 // ─── sub-components ───────────────────────────────────────────────────────────
@@ -409,31 +334,23 @@ function ReviewRow({ label, value, mono }) {
 
 // ─── main modal ───────────────────────────────────────────────────────────────
 export default function CustomDashboardModal({
-  existingViews = [],
   editingPanel = null,
   onClose,
   onSave,
-  onSaveTemplate,
+  onAppendTemplate,
 }) {
   const isEdit = !!editingPanel;
   const ep = editingPanel?.panel ?? null;
 
   // step -1 = template gallery (skipped when editing)
-  // step 0 = view placement, 1 = chart type+name, 2 = data, 3 = review
-  // when editing, skip gallery + step 0 (view is fixed) and start at step 1
-  const [step, setStep] = useState(isEdit ? 1 : -1);
+  // step 0 = chart type, 1 = data, 2 = review
+  // when editing, skip gallery and start at step 0
+  const [step, setStep] = useState(isEdit ? 0 : -1);
 
-  // step 0 — view
-  const [viewMode, setViewMode] = useState("existing");
-  const [selectedViewId, setSelectedViewId] = useState(
-    isEdit ? editingPanel.viewId : (existingViews[0]?.id ?? ""),
-  );
-  const [newViewLabel, setNewViewLabel] = useState("");
-
-  // step 1 — title is auto-derived from the first selected KPI label; no user input
+  // step 0 — title is auto-derived from the first selected KPI label; no user input
   const [chartType, setChart] = useState(ep?.componentType ?? "");
 
-  // step 2 — pre-fill from existing panel props
+  // step 1 — pre-fill from existing panel props
   const [series, setSeries] = useState(() => {
     if (ep?.props?.series?.length) return ep.props.series;
     return [
@@ -472,21 +389,12 @@ export default function CustomDashboardModal({
     setSeries((prev) => prev.filter((_, idx) => idx !== i));
 
   // ── step validation ───────────────────────────────────────────────────────
-  const step0Valid =
-    viewMode === "existing" ? !!selectedViewId : newViewLabel.trim().length > 0;
-  const step1Valid = chartType !== "";
-  const step2Valid = isTrend
+  const step0Valid = chartType !== "";
+  const step1Valid = isTrend
     ? series.some((s) => s.extractor)
     : singleExtractor !== "";
 
-  const totalSteps = isEdit ? 3 : 4;
-
-  const resolvedViewId =
-    viewMode === "new" ? `custom_view_${Date.now()}` : selectedViewId;
-  const resolvedViewLabel =
-    viewMode === "new"
-      ? newViewLabel.trim()
-      : (existingViews.find((v) => v.id === selectedViewId)?.label ?? "Custom");
+  const totalSteps = 3;
 
   const handleSave = () => {
     const panelId = isEdit ? ep.id : `custom_panel_${Date.now()}`;
@@ -503,8 +411,6 @@ export default function CustomDashboardModal({
         : { extractor: singleExtractor },
     };
     onSave({
-      viewId: resolvedViewId,
-      viewLabel: resolvedViewLabel,
       panel,
       isEdit,
       originalPanelId: ep?.id,
@@ -513,8 +419,8 @@ export default function CustomDashboardModal({
   };
 
   const handleSelectTemplate = (template) => {
-    const view = instantiateTemplate(template);
-    onSaveTemplate?.(view);
+    const panels = instantiateTemplatePanels(template);
+    onAppendTemplate?.(panels);
     onClose();
   };
 
@@ -539,10 +445,9 @@ export default function CustomDashboardModal({
               </h2>
               <p className="text-xs text-slate-400 mt-0.5">
                 {step === -1 && "Start from a template or build your own"}
-                {step === 0 && "Choose which view to add this panel to"}
-                {step === 1 && "Pick a chart type"}
-                {step === 2 && "Choose the data fields to display"}
-                {step === 3 && "Review and add to your dashboard"}
+                {step === 0 && "Pick a chart type"}
+                {step === 1 && "Choose the data fields to display"}
+                {step === 2 && "Review and add to your dashboard"}
               </p>
             </div>
             <button
@@ -568,7 +473,10 @@ export default function CustomDashboardModal({
                 transition={{ duration: 0.15 }}
                 className="space-y-2"
               >
-                {VIEW_TEMPLATES.map((tpl) => (
+                <p className="text-[11px] text-slate-400 mb-1">
+                  Templates add their tiles to your dashboard — pick as many as you like to build a mixed view.
+                </p>
+                {PANEL_TEMPLATES.map((tpl) => (
                   <button
                     key={tpl.id}
                     onClick={() => handleSelectTemplate(tpl)}
@@ -596,85 +504,10 @@ export default function CustomDashboardModal({
               </motion.div>
             )}
 
-            {/* STEP 0 — view placement */}
+            {/* STEP 0 — chart type */}
             {step === 0 && (
               <motion.div
                 key="step0"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.15 }}
-                className="space-y-4"
-              >
-                <div>
-                  <Label>Add to</Label>
-                  <div className="flex gap-2">
-                    {existingViews.length > 0 && (
-                      <button
-                        onClick={() => setViewMode("existing")}
-                        className={`flex-1 py-2.5 rounded-xl border-2 text-xs font-semibold transition-all
-                          ${
-                            viewMode === "existing"
-                              ? "border-indigo-400 bg-indigo-50 text-indigo-700"
-                              : "border-slate-150 bg-slate-50 text-slate-600 hover:border-slate-200"
-                          }`}
-                      >
-                        Existing view
-                      </button>
-                    )}
-                    <button
-                      onClick={() => setViewMode("new")}
-                      className={`flex-1 py-2.5 rounded-xl border-2 text-xs font-semibold transition-all
-                        ${
-                          viewMode === "new"
-                            ? "border-indigo-400 bg-indigo-50 text-indigo-700"
-                            : "border-slate-150 bg-slate-50 text-slate-600 hover:border-slate-200"
-                        }`}
-                    >
-                      New view
-                    </button>
-                  </div>
-                </div>
-
-                {viewMode === "existing" && existingViews.length > 0 && (
-                  <div>
-                    <Label>Select view</Label>
-                    <select
-                      value={selectedViewId}
-                      onChange={(e) => setSelectedViewId(e.target.value)}
-                      className="w-full border border-slate-200 bg-white rounded-xl px-3 py-2.5 text-sm
-                        text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-300
-                        focus:border-indigo-400 transition-all cursor-pointer"
-                    >
-                      {existingViews.map((v) => (
-                        <option key={v.id} value={v.id}>
-                          {v.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-                {viewMode === "new" && (
-                  <div>
-                    <Label>New view name</Label>
-                    <input
-                      autoFocus
-                      value={newViewLabel}
-                      onChange={(e) => setNewViewLabel(e.target.value)}
-                      placeholder="e.g. Risk Overview"
-                      className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm
-                        focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400"
-                    />
-                  </div>
-                )}
-              </motion.div>
-            )}
-
-            {/* STEP 1 — chart type */}
-            {step === 1 && (
-              <motion.div
-                key="step1"
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
@@ -713,10 +546,10 @@ export default function CustomDashboardModal({
               </motion.div>
             )}
 
-            {/* STEP 2 — data */}
-            {step === 2 && (
+            {/* STEP 1 — data */}
+            {step === 1 && (
               <motion.div
-                key="step2"
+                key="step1"
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
@@ -773,10 +606,10 @@ export default function CustomDashboardModal({
               </motion.div>
             )}
 
-            {/* STEP 3 — review */}
-            {step === 3 && (
+            {/* STEP 2 — review */}
+            {step === 2 && (
               <motion.div
-                key="step3"
+                key="step2"
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
@@ -784,7 +617,6 @@ export default function CustomDashboardModal({
                 className="space-y-3"
               >
                 <div className="rounded-xl bg-slate-50 border border-slate-100 divide-y divide-slate-100">
-                  <ReviewRow label="View" value={resolvedViewLabel} />
                   <ReviewRow label="Chart type" value={chartType} />
                   {isTrend ? (
                     <div className="px-4 py-3">
@@ -816,11 +648,7 @@ export default function CustomDashboardModal({
                   )}
                 </div>
                 <p className="text-xs text-slate-400 text-center">
-                  This panel will be saved to{" "}
-                  <strong className="text-slate-600">
-                    {resolvedViewLabel}
-                  </strong>
-                  .
+                  This panel will be added to your dashboard.
                 </p>
               </motion.div>
             )}
@@ -831,21 +659,20 @@ export default function CustomDashboardModal({
         <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-between">
           <button
             onClick={() => {
-              if (step === -1 || (step === 0 && isEdit) || (step === 1 && isEdit)) onClose();
+              if (step === -1 || (step === 0 && isEdit)) onClose();
               else if (step === 0) setStep(-1);
               else setStep(step - 1);
             }}
             className="text-sm text-slate-500 hover:text-slate-700 font-medium px-2 py-1"
           >
-            {step === -1 || (isEdit && step === 1) ? "Cancel" : "← Back"}
+            {step === -1 || (isEdit && step === 0) ? "Cancel" : "← Back"}
           </button>
-          {step === -1 ? null : step < 3 ? (
+          {step === -1 ? null : step < 2 ? (
             <button
               onClick={() => setStep(step + 1)}
               disabled={
                 (step === 0 && !step0Valid) ||
-                (step === 1 && !step1Valid) ||
-                (step === 2 && !step2Valid)
+                (step === 1 && !step1Valid)
               }
               className="px-5 py-2 rounded-xl bg-indigo-600 text-white text-sm font-semibold
                 hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed

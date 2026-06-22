@@ -42,7 +42,6 @@ import { useEffectiveOrg } from "@/hooks/useEffectiveOrg";
 // Change this if it's resolving to the wrong file location
 import { captureActivity, ACTIONS, MODULES } from "../../admin/shell/services/activities"; // ← adjust path to your actual activityService location
 
-// ── Framework filter helpers ──────────────────────────────────────────────────
 function riskMatchesFilter(risk, allowedRiskTypes) {
   const types = Array.isArray(risk.riskType)
     ? risk.riskType.map((t) => t.trim().toLowerCase())
@@ -58,18 +57,18 @@ function riskMatchesFilter(risk, allowedRiskTypes) {
   );
   return types.some((t) => normalizedAllowed.has(t));
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const RiskAssessment = () => {
   const router = useRouter();
   const chartsContainerRef = useRef(null);
 
 
-  // ── Framework context ─────────────────────────────────────────────────────
+  // â”€â”€ Framework context â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const { selectedFrameworks, isAllSelected, availableFrameworks } =
     useFramework();
 
+  // Compute allowed risk types for active filter (null = ALL, no filter)
   const allowedRiskTypes = useMemo(() => {
     if (isAllSelected) return null;
     const allowed = new Set();
@@ -79,15 +78,19 @@ const RiskAssessment = () => {
         fw.riskTypes.forEach((rt) => allowed.add(rt));
       }
     });
+    // Fallback: if somehow no risk types matched, we allow nothing or everything?
+    // If no risk types are defined for the framework, it might show 0 risks.
+    // That's expected if we enforce riskTypes filtering.
     return allowed;
   }, [selectedFrameworks, isAllSelected, availableFrameworks]);
 
+  // Add isViewingManagedOrg to the destructure
   const {
     user,
     mounted,
     isRoot,
     isPrivilegedRole,
-    isViewingManagedOrg,
+    isViewingManagedOrg, // ← add this
     effectiveOrgId,
   } = useEffectiveOrg();
 
@@ -101,15 +104,16 @@ const RiskAssessment = () => {
   const [run, setRun] = useState(false);
   const [departmentName, setDepartmentName] = useState("Your");
   const [allRisks, setAllRisks] = useState([]);
+
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 
-  // ── Framework-filtered risks ──────────────────────────────────────────────
+  // â”€â”€ Framework-filtered view of risks â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const filteredRisks = useMemo(() => {
     if (!allowedRiskTypes) return allRisks;
     return allRisks.filter((r) => riskMatchesFilter(r, allowedRiskTypes));
   }, [allRisks, allowedRiskTypes]);
 
-  // ── Available years ───────────────────────────────────────────────────────
+  // â”€â”€ Available years (from filteredRisks) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const availableYears = useMemo(
     () => [
       ...new Set(
@@ -124,11 +128,21 @@ const RiskAssessment = () => {
     [filteredRisks],
   );
 
-  // ── Monthly risk data ─────────────────────────────────────────────────────
+  // â”€â”€ Monthly risk data (from filteredRisks) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const monthlyRiskData = useMemo(() => {
     const months = [
-      "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
     ].map((name) => ({ name, value: 0 }));
     filteredRisks.forEach((risk) => {
       const dateStr = risk.createdAt || risk.created_at;
@@ -140,7 +154,7 @@ const RiskAssessment = () => {
     return months;
   }, [filteredRisks, selectedYear]);
 
-  // ── Stats ─────────────────────────────────────────────────────────────────
+  // â”€â”€ Stats computed from filteredRisks â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const riskStats = useMemo(() => {
     return filteredRisks.reduce(
       (acc, risk) => {
@@ -186,7 +200,7 @@ const RiskAssessment = () => {
     },
   ];
 
-  // ── ResizeObserver ────────────────────────────────────────────────────────
+  // â”€â”€ ResizeObserver fix â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   useEffect(() => {
     const resizeObserver = new ResizeObserver(() => {
       clearTimeout(window.resizeTimeout);
@@ -231,7 +245,11 @@ const RiskAssessment = () => {
     };
   }, [mounted, user, router]);
 
-  // ── Load risks ────────────────────────────────────────────────────────────
+  // useEffect(() => {
+  //   collapseSidebar();
+  // }, [collapseSidebar]);
+
+  // â”€â”€ Load ALL org/dept risks (original logic unchanged) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const loadRiskStats = useCallback(async () => {
     if (!user || !effectiveOrgId) return;
 
@@ -242,7 +260,9 @@ const RiskAssessment = () => {
       const risks = await riskService.getAllRisks();
       if (!Array.isArray(risks)) return;
 
+      // seeAll = privileged role OR viewing a delegated/managed org
       const seeAll = isPrivilegedRole || isViewingManagedOrg;
+
       const userDeptNames = seeAll
         ? []
         : (user.departments || []).map((d) =>
@@ -277,7 +297,7 @@ const RiskAssessment = () => {
 
   if (!mounted || !user) return null;
 
-  // ── Chart data ────────────────────────────────────────────────────────────
+  // â”€â”€ Chart data (from filteredRisks / riskStats) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const pieData = [
     {
       name: "Low Risk",
@@ -314,10 +334,26 @@ const RiskAssessment = () => {
   }, {});
 
   const barData = [
-    { name: "Q1", value: realQuarterlyData.Q1 || 0, desc: "Jan-Mar: Risk assessments created" },
-    { name: "Q2", value: realQuarterlyData.Q2 || 0, desc: "Apr-Jun: Risk assessments created" },
-    { name: "Q3", value: realQuarterlyData.Q3 || 0, desc: "Jul-Sep: Risk assessments created" },
-    { name: "Q4", value: realQuarterlyData.Q4 || 0, desc: "Oct-Dec: Risk assessments created" },
+    {
+      name: "Q1",
+      value: realQuarterlyData.Q1 || 0,
+      desc: "Jan-Mar: Risk assessments created",
+    },
+    {
+      name: "Q2",
+      value: realQuarterlyData.Q2 || 0,
+      desc: "Apr-Jun: Risk assessments created",
+    },
+    {
+      name: "Q3",
+      value: realQuarterlyData.Q3 || 0,
+      desc: "Jul-Sep: Risk assessments created",
+    },
+    {
+      name: "Q4",
+      value: realQuarterlyData.Q4 || 0,
+      desc: "Oct-Dec: Risk assessments created",
+    },
   ];
 
   const CustomPieTooltip = ({ active, payload }) => {
@@ -325,8 +361,12 @@ const RiskAssessment = () => {
       const data = payload[0].payload;
       return (
         <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-lg min-w-[200px]">
-          <div className="font-semibold text-slate-800 text-sm mb-1">{data.name}</div>
-          <div className="text-xl font-bold text-slate-900 mb-1">{data.value}</div>
+          <div className="font-semibold text-slate-800 text-sm mb-1">
+            {data.name}
+          </div>
+          <div className="text-xl font-bold text-slate-900 mb-1">
+            {data.value}
+          </div>
           <div className="text-xs text-slate-600">{data.desc}</div>
           <div className="text-xs text-slate-500 mt-1">
             {((data.value / (riskStats.total || 1)) * 100).toFixed(1)}% of total
@@ -342,8 +382,12 @@ const RiskAssessment = () => {
       const data = payload[0].payload;
       return (
         <div className="bg-white border border-slate-200 rounded-xl p-3 shadow-lg">
-          <div className="font-semibold text-slate-800 text-sm mb-1">{data.name}</div>
-          <div className="text-xl font-bold text-slate-900 mb-1">{data.value}</div>
+          <div className="font-semibold text-slate-800 text-sm mb-1">
+            {data.name}
+          </div>
+          <div className="text-xl font-bold text-slate-900 mb-1">
+            {data.value}
+          </div>
           <div className="text-xs text-slate-600 mb-1">{data.desc}</div>
           <div className="text-xs text-slate-500">Total Risks</div>
         </div>
@@ -386,7 +430,13 @@ const RiskAssessment = () => {
       path: "/risk-assessment/saved",
       color: "from-red-400 to-red-500",
       show: userRoles.some((r) =>
-        ["risk_owner", "risk_manager", "risk_identifier", "super_admin", "root"].includes(r),
+        [
+          "risk_owner",
+          "risk_manager",
+          "risk_identifier",
+          "super_admin",
+          "root",
+        ].includes(r),
       ),
     },
     {
@@ -411,11 +461,16 @@ const RiskAssessment = () => {
           styles={{ options: { primaryColor: "#3b82f6", width: 300 } }}
         />
 
-        {/* Header */}
+        {/* â”€â”€ Professional Header â”€â”€ */}
         <motion.header
           id="dashboard-header"
           className="bg-white/80 backdrop-blur-md border border-slate-100/50 rounded-xl shadow-md mb-2 lg:mb-2 p-4 lg:p-5 !text-left"
-          style={{ textAlign: "left", width: "100%", justifyContent: "flex-start", alignItems: "flex-start" }}
+          style={{
+            textAlign: "left",
+            width: "100%",
+            justifyContent: "flex-start",
+            alignItems: "flex-start",
+          }}
           initial={{ opacity: 0, y: -15 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
@@ -423,13 +478,18 @@ const RiskAssessment = () => {
           <div className="flex items-center justify-between w-full">
             <div
               className="flex items-center gap-4 flex-1"
-              style={{ justifyContent: "flex-start", textAlign: "left", alignItems: "flex-start" }}
+              style={{
+                justifyContent: "flex-start",
+                textAlign: "left",
+                alignItems: "flex-start",
+              }}
             >
               <div className="w-12 h-12 lg:w-14 lg:h-14 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
                 <BarChart3 className="w-6 h-6 lg:w-7 lg:h-7 text-white drop-shadow-sm" />
               </div>
 
               <div className="flex-1 min-w-0" style={{ textAlign: "left" }}>
+                {/* Title row â€” framework badges sit inline */}
                 <div
                   className="flex items-center justify-start gap-2 flex-wrap"
                   style={{ justifyContent: "flex-start" }}
@@ -437,6 +497,8 @@ const RiskAssessment = () => {
                   <h1 className="text-xl lg:text-2xl font-semibold text-slate-800 leading-tight">
                     Risks Dashboard
                   </h1>
+
+                  {/* Framework filter pills â€” only shown when a specific filter is active */}
                   {!isAllSelected &&
                     selectedFrameworks.map((fwId) => {
                       const fwObj = availableFrameworks?.find((f) => f.id === fwId);
@@ -448,35 +510,61 @@ const RiskAssessment = () => {
                           key={fwId}
                           title={`Showing risks filtered by ${fwId}`}
                           style={{
-                            display: "inline-flex", alignItems: "center", gap: 4,
-                            padding: "3px 10px", borderRadius: 20, background: bg,
-                            color, border: `1px solid ${border}`, fontSize: 11,
-                            fontWeight: 700, boxShadow: `0 0 0 2px ${border}33`, whiteSpace: "nowrap",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 4,
+                            padding: "3px 10px",
+                            borderRadius: 20,
+                            background: bg,
+                            color: color,
+                            border: `1px solid ${border}`,
+                            fontSize: 11,
+                            fontWeight: 700,
+                            boxShadow: `0 0 0 2px ${border}33`,
+                            whiteSpace: "nowrap",
                           }}
                         >
-                          <span style={{ width: 6, height: 6, borderRadius: "50%", background: color || "#94a3b8", flexShrink: 0 }} />
+                          <span
+                            style={{
+                              width: 6,
+                              height: 6,
+                              borderRadius: "50%",
+                              background: color || "#94a3b8",
+                              flexShrink: 0,
+                            }}
+                          />
                           {fwId}
                         </span>
                       );
                     })}
                 </div>
+
+                {/* Department + total row */}
                 <p className="text-sm lg:text-base text-slate-600 mt-0.5">
                   {departmentName}{" "}
-                  <span className="font-bold text-lg text-slate-900">{riskStats.total} </span>
-                  <span className="text-slate-400 text-xs ml-1">Total Risks</span>
+                  <span className="font-bold text-lg text-slate-900">
+                    {riskStats.total}{" "}
+                  </span>{" "}
+                  <span className="text-slate-400 text-xs ml-1">
+                    Total Risks
+                  </span>
                 </p>
               </div>
             </div>
 
             <div className="flex items-center gap-3">
-              <span className={`text-xs font-bold px-3 py-1.5 rounded-full ${isRoot ? "bg-blue-100 text-blue-700" : "bg-violet-100 text-violet-700"}`}>
-                {isRoot ? "Root" : userRoles[0] ? userRoles[0].replace("_", " ") : "User"}
+              <span
+                className={`text-xs font-bold px-3 py-1.5 rounded-full ${isRoot ? "bg-blue-100 text-blue-700" : "bg-violet-100 text-violet-700"}`}
+              >
+                {isRoot
+                  ? "Root"
+                  : userRoles[0]
+                    ? userRoles[0].replace("_", " ")
+                    : "User"}
               </span>
               <span className="text-sm font-semibold text-slate-600">
                 {user?.name || "User"}
               </span>
-
-              {/* ── LOG: Refresh click ─────────────────────────────────────── */}
               <motion.button
                 onClick={() => {
                   captureActivity({ action: ACTIONS.CLICK, module: MODULES.RISK, item: "Refresh Dashboard", url: "/risk-assessment" });
@@ -489,8 +577,6 @@ const RiskAssessment = () => {
               >
                 <RefreshCw size={15} className="text-slate-500" />
               </motion.button>
-
-              {/* ── LOG: Guide click ───────────────────────────────────────── */}
               <motion.button
                 className="px-5 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white text-sm font-semibold rounded-xl shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 flex items-center gap-2"
                 onClick={() => {
@@ -511,7 +597,6 @@ const RiskAssessment = () => {
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 lg:gap-10 w-full min-w-0">
           {/* Left: Stats + Actions */}
           <div className="space-y-8 lg:space-y-10 w-full min-w-0">
-
             {/* Stats Grid */}
             <motion.section
               id="stats-grid"
@@ -541,8 +626,13 @@ const RiskAssessment = () => {
                   transition={{ duration: 0.4, delay: 0.15 + i * 0.05 }}
                   whileHover={{ scale: 1.02 }}
                 >
-                  <div className={`w-9 h-9 lg:w-10 lg:h-10 rounded-lg bg-gradient-to-br ${color} flex items-center justify-center shadow-md flex-shrink-0`}>
-                    <Icon size={16} className="lg:size-18 text-white drop-shadow-sm" />
+                  <div
+                    className={`w-9 h-9 lg:w-10 lg:h-10 rounded-lg bg-gradient-to-br ${color} flex items-center justify-center shadow-md flex-shrink-0`}
+                  >
+                    <Icon
+                      size={16}
+                      className="lg:size-18 text-white drop-shadow-sm"
+                    />
                   </div>
                   <div className="min-w-0 flex-1">
                     <span className="text-lg lg:text-xl font-semibold text-slate-800 block leading-tight group-hover:text-slate-900">
@@ -570,7 +660,19 @@ const RiskAssessment = () => {
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3 h-15">
                 <AnimatePresence>
                   {actionCards.map(
-                    ({ id, icon: Icon, title, subtitle, path, color, primary, show = true }, index) =>
+                    (
+                      {
+                        id,
+                        icon: Icon,
+                        title,
+                        subtitle,
+                        path,
+                        color,
+                        primary,
+                        show = true,
+                      },
+                      index,
+                    ) =>
                       show && (
                         <motion.div
                           key={id}
@@ -585,9 +687,16 @@ const RiskAssessment = () => {
                             captureActivity({ action: ACTIONS.CLICK, module: MODULES.RISK, item: `Action Card - ${title}`, url: "/risk-assessment" });
                             router.push(path);
                           }}
+                          whileHover={{ scale: 1.02 }}
+                          onClick={() => router.push(path)}
                         >
-                          <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-3 shadow-md flex-shrink-0 ${primary ? "bg-white/20 backdrop-blur-sm" : `bg-gradient-to-br ${color}`}`}>
-                            <Icon size={20} className="text-white drop-shadow-sm" />
+                          <div
+                            className={`w-12 h-12 rounded-xl flex items-center justify-center mb-3 shadow-md flex-shrink-0 ${primary ? "bg-white/20 backdrop-blur-sm" : `bg-gradient-to-br ${color}`}`}
+                          >
+                            <Icon
+                              size={20}
+                              className="text-white drop-shadow-sm"
+                            />
                           </div>
                           <div className="flex-1 flex flex-col justify-center">
                             <h4 className="text-sm lg:text-base font-semibold text-center text-slate-800 leading-tight mb-1 px-1 truncate group-hover:text-blue-600 transition-colors duration-200">
@@ -606,8 +715,11 @@ const RiskAssessment = () => {
           </div>
 
           {/* Right: Charts */}
-          <div ref={chartsContainerRef} id="charts-container" className="space-y-4 lg:space-y-3 w-full min-w-0">
-
+          <div
+            ref={chartsContainerRef}
+            id="charts-container"
+            className="space-y-4 lg:space-y-3 w-full min-w-0"
+          >
             {/* Pie chart */}
             <motion.div
               className="bg-white/70 backdrop-blur-sm border border-slate-100/50 rounded-2xl p-9 lg:p-8 shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-400 h-72 flex flex-col w-full min-w-0"
@@ -639,18 +751,36 @@ const RiskAssessment = () => {
                         ))}
                       </Pie>
                       <Tooltip content={<CustomPieTooltip />} />
-                      <text x="50%" y="42%" textAnchor="middle" dominantBaseline="middle" className="fill-slate-700 text-sm font-semibold">
+                      <text
+                        x="50%"
+                        y="42%"
+                        textAnchor="middle"
+                        dominantBaseline="middle"
+                        className="fill-slate-700 text-sm font-semibold"
+                      >
                         Total
                       </text>
-                      <text x="50%" y="52%" textAnchor="middle" dominantBaseline="middle" className="fill-slate-900 text-xl lg:text-2xl font-bold">
+                      <text
+                        x="50%"
+                        y="52%"
+                        textAnchor="middle"
+                        dominantBaseline="middle"
+                        className="fill-slate-900 text-xl lg:text-2xl font-bold"
+                      >
                         {riskStats.total}
                       </text>
                     </PieChart>
                   </ResponsiveContainer>
                 ) : (
                   <div className="flex flex-col items-center justify-center h-full text-center p-8">
-                    <BarChart3 size={40} className="text-slate-400 mb-4" strokeWidth={1.5} />
-                    <p className="text-lg font-semibold text-slate-500 mb-2">No Data</p>
+                    <BarChart3
+                      size={40}
+                      className="text-slate-400 mb-4"
+                      strokeWidth={1.5}
+                    />
+                    <p className="text-lg font-semibold text-slate-500 mb-2">
+                      No Data
+                    </p>
                     <p className="text-sm text-slate-500 max-w-xs">
                       {!isAllSelected
                         ? `No risks found for ${selectedFrameworks.join(" + ")}`
@@ -664,20 +794,47 @@ const RiskAssessment = () => {
             {/* Bar chart */}
             <motion.div
               style={{
-                background: "rgba(255,255,255,0.7)", backdropFilter: "blur(6px)",
-                border: "1px solid rgba(241,245,249,0.6)", borderRadius: "16px",
-                padding: "24px", height: "288px", boxShadow: "0 8px 20px rgba(0,0,0,0.05)",
-                transition: "all 0.4s ease", display: "flex", flexDirection: "column",
-                width: "100%", minWidth: 0,
+                background: "rgba(255,255,255,0.7)",
+                backdropFilter: "blur(6px)",
+                border: "1px solid rgba(241,245,249,0.6)",
+                borderRadius: "16px",
+                padding: "24px",
+                height: "288px",
+                boxShadow: "0 8px 20px rgba(0,0,0,0.05)",
+                transition: "all 0.4s ease",
+                display: "flex",
+                flexDirection: "column",
+                width: "100%",
+                minWidth: 0,
               }}
               whileHover={{ scale: 1.01 }}
             >
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  marginBottom: "8px",
+                }}
+              >
                 <div>
-                  <h3 style={{ fontSize: "18px", fontWeight: 600, color: "#1e293b", marginBottom: "4px" }}>
+                  <h3
+                    style={{
+                      fontSize: "18px",
+                      fontWeight: 600,
+                      color: "#1e293b",
+                      marginBottom: "4px",
+                    }}
+                  >
                     Monthly Risk Trends
                   </h3>
-                  <p style={{ fontSize: "14px", color: "#475569", fontWeight: 500 }}>
+                  <p
+                    style={{
+                      fontSize: "14px",
+                      color: "#475569",
+                      fontWeight: 500,
+                    }}
+                  >
                     Number of risks created each month
                   </p>
                 </div>
@@ -685,14 +842,20 @@ const RiskAssessment = () => {
                   value={selectedYear}
                   onChange={(e) => setSelectedYear(Number(e.target.value))}
                   style={{
-                    fontSize: "12px", border: "1px solid #e2e8f0", borderRadius: "6px",
-                    padding: "4px 8px", background: "white",
-                    boxShadow: "0 1px 3px rgba(0,0,0,0.05)", cursor: "pointer",
+                    fontSize: "12px",
+                    border: "1px solid #e2e8f0",
+                    borderRadius: "6px",
+                    padding: "4px 8px",
+                    background: "white",
+                    boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
+                    cursor: "pointer",
                   }}
                 >
                   {availableYears.length > 0 ? (
                     availableYears.map((year) => (
-                      <option key={year} value={year}>{year}</option>
+                      <option key={year} value={year}>
+                        {year}
+                      </option>
                     ))
                   ) : (
                     <option value={selectedYear}>{selectedYear}</option>
@@ -702,17 +865,35 @@ const RiskAssessment = () => {
 
               <div style={{ width: "100%", height: "100%", minWidth: 0 }}>
                 <ResponsiveContainer width="100%" height="100%" debounce={50}>
-                  <BarChart data={monthlyRiskData} margin={{ top: 15, right: 15, left: -5, bottom: 10 }}>
+                  <BarChart
+                    data={monthlyRiskData}
+                    margin={{ top: 15, right: 15, left: -5, bottom: 10 }}
+                  >
                     <defs>
                       <linearGradient id="riskGradient" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.9} />
                         <stop offset="95%" stopColor="#93c5fd" stopOpacity={0.6} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid vertical={false} stroke="#f1f5f9" strokeDasharray="3 3" />
-                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "#6b7280", fontWeight: 500 }} />
+                    <CartesianGrid
+                      vertical={false}
+                      stroke="#f1f5f9"
+                      strokeDasharray="3 3"
+                    />
+                    <XAxis
+                      dataKey="name"
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fontSize: 12, fill: "#6b7280", fontWeight: 500 }}
+                    />
                     <Tooltip content={<CustomBarTooltip />} />
-                    <Bar dataKey="value" fill="url(#riskGradient)" radius={[6, 6, 0, 0]} barSize={24} animationDuration={800} />
+                    <Bar
+                      dataKey="value"
+                      fill="url(#riskGradient)"
+                      radius={[6, 6, 0, 0]}
+                      barSize={24}
+                      animationDuration={800}
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -725,7 +906,7 @@ const RiskAssessment = () => {
       <footer className="bg-white/90 backdrop-blur-md border-t border-slate-100/50 shadow-lg px-6 py-4 lg:px-8 lg:py-5 sticky bottom-0 z-50">
         <div className="max-w-7xl mx-auto text-center">
           <p className="text-sm lg:text-base text-slate-600 font-medium">
-            © {new Date().getFullYear()} CalVant. All rights reserved.
+            Â© {new Date().getFullYear()} CalVant. All rights reserved.
           </p>
         </div>
       </footer>

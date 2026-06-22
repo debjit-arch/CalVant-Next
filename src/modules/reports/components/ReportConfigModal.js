@@ -1,13 +1,20 @@
 /**
  * ─────────────────────────────────────────────────────────────────────────────
- * ReportConfigModal.jsx
+ * ReportConfigModal.jsx  (v2 — no data source picker)
  * ─────────────────────────────────────────────────────────────────────────────
  * Allows users to view and edit a report config's schedule settings:
  *   • Report name
- *   • Data sources (checklist)
  *   • Interval type (Daily, Weekly, Monthly, Quarterly, Yearly, Custom)
  *   • Interval value (for Custom types)
  *   • Active toggle
+ *
+ * CHANGED FROM v1:
+ *   • Data source selection removed from this modal entirely. Users now pick
+ *     duration first (here), then KPI tiles later on the dashboard canvas
+ *     (CustomDashboardModal / template gallery). `dataSources` is sent as
+ *     ALL available sources at creation time and is narrowed implicitly as
+ *     panels are added — the dashboard canvas does not currently write back
+ *     to config.dataSources, so this is a permissive default, not a live sync.
  *
  * Calls PATCH /api/reports/config/:id/active for toggle-only changes.
  * Calls POST /api/reports/config for creating new configs.
@@ -17,7 +24,7 @@
  *   config      – existing ReportConfig object | null (null = create mode)
  *   organization – string
  *   userId      – string
- *   availableSources – string[]
+ *   availableSources – string[]   (used silently to populate dataSources)
  *   onSave      – (savedConfig) => void
  *   onClose     – () => void
  * ─────────────────────────────────────────────────────────────────────────────
@@ -26,8 +33,8 @@
 import React, { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Clock, CalendarDays, RefreshCw, ToggleLeft, ToggleRight,
-  Database, ChevronDown, Save, Trash2, Plus
+  Clock, RefreshCw, ToggleLeft, ToggleRight,
+  Save, Trash2, Plus
 } from "lucide-react";
 
 const BASE_URL = "https://api.calvant.com/reports-service/api/reports";
@@ -85,9 +92,6 @@ export default function ReportConfigModal({
   const isCreate = !config;
 
   const [reportName, setReportName] = useState(config?.reportName ?? "");
-  const [dataSources, setDataSources] = useState(
-    config?.dataSources ?? []
-  );
   const [intervalType, setIntervalType] = useState(
     config?.intervalType ?? "DAILY"
   );
@@ -103,26 +107,25 @@ export default function ReportConfigModal({
 
   const selectedInterval = INTERVAL_OPTIONS.find((o) => o.value === intervalType);
 
-  const toggleSource = (src) => {
-    setDataSources((prev) =>
-      prev.includes(src) ? prev.filter((s) => s !== src) : [...prev, src]
-    );
-  };
-
   // ── save ─────────────────────────────────────────────────────────────────
   const handleSave = useCallback(async () => {
     if (!reportName.trim()) { setError("Report name is required."); return; }
-    if (dataSources.length === 0) { setError("Select at least one data source."); return; }
 
     setSaving(true);
     setError(null);
     try {
+      // dataSources is no longer user-selected — send every available source.
+      // KPI tiles added later on the dashboard determine what's actually used.
+      const resolvedDataSources = config?.dataSources?.length
+        ? config.dataSources
+        : availableSources;
+
       const payload = {
         reportName: reportName.trim(),
         organization,
         userId,
         createdBy: userId,
-        dataSources,
+        dataSources: resolvedDataSources,
         intervalType,
         intervalValue: selectedInterval?.needsValue ? Math.max(1, intervalValue) : 1,
         active,
@@ -145,7 +148,7 @@ export default function ReportConfigModal({
     } finally {
       setSaving(false);
     }
-  }, [reportName, dataSources, intervalType, intervalValue, active, isCreate, config, organization, userId, selectedInterval, onSave, onClose]);
+  }, [reportName, intervalType, intervalValue, active, isCreate, config, organization, userId, selectedInterval, availableSources, onSave, onClose]);
 
   // ── delete ────────────────────────────────────────────────────────────────
   const handleDelete = useCallback(async () => {
@@ -194,7 +197,7 @@ export default function ReportConfigModal({
               </h2>
               <p className="text-xs text-slate-400 mt-0.5">
                 {isCreate
-                  ? "Set up what data to collect and how often"
+                  ? "Set how often this report should run — you'll pick KPIs next"
                   : `Editing "${config.reportName}"`}
               </p>
             </div>
@@ -241,41 +244,6 @@ export default function ReportConfigModal({
                 focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400
                 text-slate-700 transition-all"
             />
-          </div>
-
-          {/* data sources */}
-          <div>
-            <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">
-              Data sources
-            </label>
-            {availableSources.length === 0 ? (
-              <p className="text-xs text-slate-400 italic">No sources available</p>
-            ) : (
-              <div className="grid grid-cols-2 gap-2">
-                {availableSources.map((src) => {
-                  const active_ = dataSources.includes(src);
-                  return (
-                    <button
-                      key={src}
-                      onClick={() => toggleSource(src)}
-                      className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border-2 text-left
-                        transition-all text-sm
-                        ${active_
-                          ? "border-indigo-400 bg-indigo-50 text-indigo-700"
-                          : "border-slate-150 bg-slate-50 text-slate-600 hover:border-slate-200 hover:bg-white"
-                        }`}
-                    >
-                      <Database size={13} className={active_ ? "text-indigo-500" : "text-slate-400"} />
-                      <span className="font-medium capitalize">{src}</span>
-                      {active_ && (
-                        <span className="ml-auto w-4 h-4 rounded-full bg-indigo-500 flex items-center
-                          justify-center text-white text-[9px] font-bold">✓</span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
           </div>
 
           {/* interval type */}
@@ -339,6 +307,14 @@ export default function ReportConfigModal({
                   {new Date(config.nextRunAt).toLocaleString()}
                 </p>
               </div>
+            </div>
+          )}
+
+          {/* hint for create mode */}
+          {isCreate && (
+            <div className="bg-indigo-50 border border-indigo-100 rounded-xl px-3 py-2.5 text-xs text-indigo-600">
+              Once this schedule is created, open it from the sidebar and use{" "}
+              <strong>+ Custom Panel</strong> to choose which KPIs to track.
             </div>
           )}
 
