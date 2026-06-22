@@ -536,33 +536,14 @@
 'use client'
 
 /**
- * LogsList.jsx
- * Activity log viewer — role-aware, IST timestamps, module filter.
+ * ListOfLogs.jsx
+ * Activity log viewer — role-aware, IST timestamps, module + action filter.
  *
  * Finalized action taxonomy (10 canonical actions):
  *   VISITED | CLICK | CREATED | MODIFIED | UPDATED |
  *   LOGGED_IN | LOGOUT | DELETE | UPLOAD | DOWNLOAD
  *
  * Legacy alias map handles old DB records written before the taxonomy was finalized.
- *
- * CHANGE FROM PREVIOUS VERSION:
- * Display-layer "dedup by time window" has been removed. That heuristic
- * (treat two events as duplicates if they're the same action/user/url within
- * N seconds) could hide genuinely distinct events — e.g. a user visiting the
- * same page twice in under 30s would have the second visit silently hidden,
- * which is exactly wrong for an audit trail.
- *
- * Duplicates are now prevented upstream, at capture time, via an
- * idempotencyKey (see activities.js) that the logging-service backend is
- * expected to enforce as unique. This component now only collapses rows
- * that share the *exact same* idempotencyKey — i.e. true duplicates, not
- * "looks similar within a time window." If the backend does its job, this
- * collapse is a no-op safety net, not the primary defense.
- *
- * "Human actions only" (no tech/system layer) is now enforced primarily at
- * capture time in activities.js (an allowlist of human modules — nothing
- * system-layer is ever sent). The URL blocklist below is kept only as a
- * secondary safety net for records written before that fix shipped.
  */
 
 import React, { useEffect, useState, useCallback } from "react";
@@ -570,16 +551,18 @@ import {
     Box, Typography, Paper, Table, TableBody, TableCell,
     TableContainer, TableHead, TableRow, TablePagination,
     Chip, CircularProgress, Alert, Stack, TextField,
-    MenuItem, Select, InputLabel, FormControl, IconButton, Tooltip, Button,
+    MenuItem, Select, InputLabel, FormControl,
+    IconButton, Tooltip, Button,
 } from "@mui/material";
-import RefreshIcon from "@mui/icons-material/Refresh";
+import RefreshIcon      from "@mui/icons-material/Refresh";
 import FilterAltOffIcon from "@mui/icons-material/FilterAltOff";
 
+// ── Endpoint ──────────────────────────────────────────────────────────────────
 const LOGGING_BASE_URL =
-    process.env.REACT_APP_LOGGING_SERVICE_URL ||
+    (typeof process !== "undefined" && process.env?.NEXT_PUBLIC_LOGGING_SERVICE_URL) ||
     "https://api.calvant.com/logging-service/api/logs";
 
-// ── Finalized canonical action taxonomy ───────────────────────────────────────
+// ── Canonical action taxonomy ─────────────────────────────────────────────────
 const ACTION_META = {
     VISITED   : { color: "primary",   label: "VISITED"   },
     CLICK     : { color: "default",   label: "CLICK"     },
@@ -593,7 +576,7 @@ const ACTION_META = {
     DOWNLOAD  : { color: "info",      label: "DOWNLOAD"  },
 };
 
-// ── Legacy alias map — old DB strings → canonical ─────────────────────────────
+// ── Legacy alias map ──────────────────────────────────────────────────────────
 const ACTION_ALIAS = {
     PAGE_LOAD : "VISITED",
     LOGIN     : "LOGGED_IN",
@@ -612,9 +595,7 @@ const getChipProps = (rawAction = "") => {
     return { color: "default", label: action.replace(/_/g, " ") };
 };
 
-// ── Module list — human-facing modules only ───────────────────────────────────
-// "System" intentionally excluded from the filter dropdown: it is not a
-// human action category, it's the catch-all for tech-layer noise.
+// ── Module list ───────────────────────────────────────────────────────────────
 const MODULE_LIST = [
     "Auth", "Risk", "Task", "Audit", "Compliance",
     "Trust", "TPRM", "AIIA", "Dashboard",
@@ -649,21 +630,18 @@ const resolveModule = (log) => {
     if (action.startsWith("AUDIT_"))               return "Audit";
     if (action.startsWith("COMPLIANCE_"))          return "Compliance";
     const url = (log.url || "").toLowerCase();
-    if (url.includes("/risk"))                                  return "Risk";
-    if (url.includes("/gap-assessment"))                        return "Audit";
-    if (url.includes("/task"))                                  return "Task";
-    if (url.includes("/trust"))                                 return "Trust";
-    if (url.includes("/tprm") || url.includes("/vendor"))       return "TPRM";
+    if (url.includes("/risk"))                                        return "Risk";
+    if (url.includes("/gap-assessment"))                              return "Audit";
+    if (url.includes("/task"))                                        return "Task";
+    if (url.includes("/trust"))                                       return "Trust";
+    if (url.includes("/tprm") || url.includes("/vendor"))             return "TPRM";
     if (url.includes("/documentation") || url.includes("/compliances")) return "Compliance";
-    if (url.includes("/login") || url.includes("/logout"))      return "Auth";
-    if (url === "/" || url.includes("/dashboard"))              return "Dashboard";
+    if (url.includes("/login") || url.includes("/logout"))            return "Auth";
+    if (url === "/" || url.includes("/dashboard"))                    return "Dashboard";
     return null;
 };
 
-// ── System-log safety net (secondary, for pre-fix legacy records) ────────────
-// Primary enforcement is at capture time in activities.js (human-module
-// allowlist). This blocklist only catches records written before that fix
-// shipped, or written by something that bypassed activities.js entirely.
+// ── System-log safety net ─────────────────────────────────────────────────────
 const SYSTEM_URL_BLOCKLIST = [
     "/framework/controls",
     "/framework/",
@@ -677,10 +655,10 @@ const SYSTEM_URL_BLOCKLIST = [
 const isSystemLog = (log) => {
     const url = (log.url || "").toLowerCase();
     if (resolveModule(log) === null && log.module === "System") return true;
-    return SYSTEM_URL_BLOCKLIST.some(blocked => url.startsWith(blocked) || url.includes(blocked));
+    return SYSTEM_URL_BLOCKLIST.some(b => url.startsWith(b) || url.includes(b));
 };
 
-// ── Email validation ──────────────────────────────────────────────────────────
+// ── Validation ────────────────────────────────────────────────────────────────
 const isValidEmail = (email) => {
     if (!email) return false;
     if (email === "unknown@example.com") return false;
@@ -688,7 +666,18 @@ const isValidEmail = (email) => {
     return email.includes("@");
 };
 
-const ALL_ACTIONS = Object.keys(ACTION_META);
+// ── JWT helpers ───────────────────────────────────────────────────────────────
+const decodeJwt = (token) => {
+    try {
+        if (!token) return {};
+        const base64   = token.split(".")[1];
+        const standard = base64.replace(/-/g, "+").replace(/_/g, "/");
+        const padded   = standard + "=".repeat((4 - standard.length % 4) % 4);
+        return JSON.parse(atob(padded));
+    } catch {
+        return {};
+    }
+};
 
 const getCallerInfo = () => {
     try {
@@ -717,19 +706,30 @@ const toDate = (log) => {
     return isNaN(d.getTime()) ? null : d;
 };
 
-// Convert one object to plain readable text: "Key: value | Key: value"
+const formatIST = (d) =>
+    d ? d.toLocaleString("en-IN", {
+        timeZone : "Asia/Kolkata",
+        day      : "2-digit",
+        month    : "short",
+        year     : "numeric",
+        hour     : "2-digit",
+        minute   : "2-digit",
+        hour12   : true,
+    }) : "—";
+
+// ── Item formatter ────────────────────────────────────────────────────────────
+const SKIP_KEYS = ["password", "oldPassword", "processes", "auditorName", "organization"];
+
 const objectToText = (obj) => {
     if (!obj || typeof obj !== "object") return String(obj);
-    const SKIP = ["password", "oldPassword", "processes", "auditorName", "organization"];
     return Object.entries(obj)
         .filter(([k, v]) =>
-            !SKIP.includes(k) &&
+            !SKIP_KEYS.includes(k) &&
             v !== null && v !== undefined && v !== "" &&
             !(Array.isArray(v) && v.length === 0)
         )
         .map(([k, v]) => {
-            const label = k.replace(/([A-Z])/g, " $1")
-                .replace(/^./, (s) => s.toUpperCase());
+            const label = k.replace(/([A-Z])/g, " $1").replace(/^./, s => s.toUpperCase());
             const value = Array.isArray(v) ? v.join(", ") : String(v);
             return `${label}: ${value}`;
         })
@@ -737,28 +737,20 @@ const objectToText = (obj) => {
 };
 
 const formatItem = (item) => {
-    if (item === null || item === undefined) return null;
+    if (item == null) return null;
     try {
         const arr = Array.isArray(item) ? item : [item];
-        return arr.map((entry) =>
-            typeof entry === "object" ? objectToText(entry) : String(entry)
-        ).join(" | ");
+        return arr.map(e => typeof e === "object" ? objectToText(e) : String(e)).join(" | ");
     } catch {
         return String(item);
     }
 };
 
-// ── Exact-duplicate collapse — keyed on idempotencyKey only ──────────────────
-// This is NOT a time-window heuristic. It only collapses rows that carry the
-// identical idempotencyKey (i.e. true duplicates — e.g. leftover rows from
-// before the backend enforced uniqueness on that field). Records without an
-// idempotencyKey (legacy, pre-fix data) are never collapsed against each
-// other here — they pass through as-is, since we have no reliable way to
-// know if they're really duplicates or just similar-looking distinct events.
+// ── Exact-duplicate collapse ──────────────────────────────────────────────────
 const collapseExactDuplicates = (logs) => {
     const seen = new Set();
     return logs.filter((log) => {
-        if (!log.idempotencyKey) return true; // nothing to dedupe against — keep
+        if (!log.idempotencyKey) return true;
         if (seen.has(log.idempotencyKey)) return false;
         seen.add(log.idempotencyKey);
         return true;
@@ -767,33 +759,44 @@ const collapseExactDuplicates = (logs) => {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 const ListOfLogs = () => {
-    const [logs, setLogs] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
+    const caller = getCallerInfo();
+
+    const [logs,         setLogs        ] = useState([]);
+    const [loading,      setLoading     ] = useState(true);
+    const [error,        setError       ] = useState(null);
 
     // Filters
     const [actionFilter, setActionFilter] = useState("ALL");
-    const [dateFrom, setDateFrom] = useState("");   // "YYYY-MM-DD"
-    const [dateTo, setDateTo] = useState("");
+    const [moduleFilter, setModuleFilter] = useState("ALL");
+    const [searchQuery,  setSearchQuery ] = useState("");
+    const [dateFrom,     setDateFrom    ] = useState("");
+    const [dateTo,       setDateTo      ] = useState("");
 
     // Pagination
-    const [page, setPage] = useState(0);
-    const [rowsPerPage, setRowsPerPage] = useState(10);
+    const [page,         setPage        ] = useState(0);
+    const [rowsPerPage,  setRowsPerPage ] = useState(10);
 
-    // ── Fetch ───────────────────────────────────────────────────────────────────
+    // ── Fetch ─────────────────────────────────────────────────────────────────
     const fetchLogs = useCallback(async () => {
         setLoading(true);
         setError(null);
         try {
-            const token = localStorage.getItem("token") || "";
+            const token = localStorage.getItem("token") || sessionStorage.getItem("token") || "";
+            if (!token) throw new Error("Not authenticated");
+
             const res = await fetch(LOGGING_BASE_URL, {
-                headers: token ? { Authorization: `Bearer ${token}` } : {},
+                headers: {
+                    Authorization       : `Bearer ${token}`,
+                    "X-User-Role"       : caller.role,
+                    "X-Organization-Id" : caller.orgId,
+                },
             });
+
             if (!res.ok) throw new Error(`Server returned ${res.status}`);
+
             const data = await res.json();
             const list = Array.isArray(data) ? data : (data.content ?? []);
 
-            // Newest-first → strip legacy system-layer rows → collapse exact dupes
             const humanOnly = [...list].reverse().filter(log => !isSystemLog(log));
             const deduped   = collapseExactDuplicates(humanOnly);
             setLogs(deduped);
@@ -802,11 +805,11 @@ const ListOfLogs = () => {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [caller.role, caller.orgId]);
 
     useEffect(() => { fetchLogs(); }, [fetchLogs]);
 
-    // ── Filter ──────────────────────────────────────────────────────────────────
+    // ── Client-side filter ────────────────────────────────────────────────────
     const filtered = logs.filter((log) => {
         const normalisedAction = normaliseAction(log.action);
 
@@ -832,6 +835,8 @@ const ListOfLogs = () => {
 
     const clearFilters = () => {
         setActionFilter("ALL");
+        setModuleFilter("ALL");
+        setSearchQuery("");
         setDateFrom("");
         setDateTo("");
         setPage(0);
@@ -840,13 +845,23 @@ const ListOfLogs = () => {
     const hasFilters = actionFilter !== "ALL" || moduleFilter !== "ALL"
         || dateFrom || dateTo || searchQuery;
 
+    // super_admin sees Organisation column; others don't
     const colSpan = caller.isSuperAdmin ? 9 : 8;
 
+    // ── Render ────────────────────────────────────────────────────────────────
     return (
         <Box sx={{ p: 3 }}>
-            {/* ── Header ─────────────────────────────────────────────────────────── */}
+
+            {/* Header */}
             <Stack direction="row" alignItems="center" justifyContent="space-between" mb={2}>
-                <Typography variant="h5" fontWeight={700}>Activity Logs</Typography>
+                <Box>
+                    <Typography variant="h5" fontWeight={700}>Activity Logs</Typography>
+                    <Typography variant="caption" color="text.secondary">
+                        {caller.isSuperAdmin
+                            ? "Viewing logs across all organisations"
+                            : "Viewing logs for your organisation"}
+                    </Typography>
+                </Box>
                 <Tooltip title="Refresh">
                     <IconButton onClick={fetchLogs} color="primary">
                         <RefreshIcon />
@@ -854,7 +869,7 @@ const ListOfLogs = () => {
                 </Tooltip>
             </Stack>
 
-            {/* ── Filters ────────────────────────────────────────────────────────── */}
+            {/* Filters */}
             <Paper variant="outlined" sx={{ p: 2, mb: 2, borderRadius: 2 }}>
                 <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2, alignItems: "center" }}>
 
@@ -866,31 +881,54 @@ const ListOfLogs = () => {
                             onChange={(e) => { setActionFilter(e.target.value); setPage(0); }}
                         >
                             <MenuItem value="ALL">All Actions</MenuItem>
-                            {ALL_ACTIONS.map((a) => (
+                            {ALL_ACTIONS.map(a => (
                                 <MenuItem key={a} value={a}>{ACTION_META[a].label}</MenuItem>
                             ))}
                         </Select>
                     </FormControl>
 
-                    {/* Date from */}
+                    <FormControl size="small" sx={{ minWidth: 150 }}>
+                        <InputLabel>Module</InputLabel>
+                        <Select
+                            value={moduleFilter}
+                            label="Module"
+                            onChange={(e) => { setModuleFilter(e.target.value); setPage(0); }}
+                        >
+                            <MenuItem value="ALL">All Modules</MenuItem>
+                            {MODULE_LIST.map(m => (
+                                <MenuItem key={m} value={m}>{m}</MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
+
+                    <TextField
+                        size="small"
+                        label="Search name / email"
+                        value={searchQuery}
+                        onChange={(e) => { setSearchQuery(e.target.value); setPage(0); }}
+                        sx={{ minWidth: 200 }}
+                    />
+
                     <TextField
                         size="small"
                         label="From date"
                         type="date"
                         value={dateFrom}
                         onChange={(e) => { setDateFrom(e.target.value); setPage(0); }}
-                        slotProps={{ inputLabel: { shrink: true } }} sx={{ minWidth: 150 }} />
+                        slotProps={{ inputLabel: { shrink: true } }}
+                        sx={{ minWidth: 150 }}
+                    />
 
-                    {/* Date to */}
                     <TextField
                         size="small"
                         label="To date"
                         type="date"
                         value={dateTo}
                         onChange={(e) => { setDateTo(e.target.value); setPage(0); }}
-                        slotProps={{ inputLabel: { shrink: true } }} sx={{ minWidth: 150 }} />
+                        slotProps={{ inputLabel: { shrink: true } }}
+                        sx={{ minWidth: 150 }}
+                    />
 
-                    {/* Clear filters */}
                     {hasFilters && (
                         <Button
                             size="small"
@@ -903,76 +941,97 @@ const ListOfLogs = () => {
                     )}
 
                     <Box sx={{ flexGrow: 1 }} />
+
                     <Typography variant="body2" color="text.secondary">
                         {filtered.length} record{filtered.length !== 1 ? "s" : ""}
                     </Typography>
-                </Stack>
+
+                </Box> {/* ← closes the filter Box — this was </Stack> before, causing the build error */}
             </Paper>
 
-            {/* ── Error ──────────────────────────────────────────────────────────── */}
+            {/* Error */}
             {error && (
                 <Alert severity="error" sx={{ mb: 2 }}>
                     Could not load logs: {error}
                 </Alert>
             )}
 
-            {/* ── Table ──────────────────────────────────────────────────────────── */}
+            {/* Table */}
             <Paper sx={{ borderRadius: 2, overflow: "hidden" }}>
                 <TableContainer sx={{ maxHeight: "65vh" }}>
                     <Table stickyHeader size="small">
                         <TableHead>
                             <TableRow>
                                 <TableCell sx={{ fontWeight: 700, width: 50 }}>#</TableCell>
+                                <TableCell sx={{ fontWeight: 700 }}>Module</TableCell>
                                 <TableCell sx={{ fontWeight: 700 }}>Action</TableCell>
                                 <TableCell sx={{ fontWeight: 700 }}>Name</TableCell>
                                 <TableCell sx={{ fontWeight: 700 }}>Email</TableCell>
+                                {caller.isSuperAdmin && (
+                                    <TableCell sx={{ fontWeight: 700 }}>Organisation</TableCell>
+                                )}
                                 <TableCell sx={{ fontWeight: 700 }}>URL / Page</TableCell>
                                 <TableCell sx={{ fontWeight: 700 }}>Item</TableCell>
-                                <TableCell sx={{ fontWeight: 700, whiteSpace: "nowrap" }}>Date & Time</TableCell>
+                                <TableCell sx={{ fontWeight: 700, whiteSpace: "nowrap" }}>
+                                    Date &amp; Time (IST)
+                                </TableCell>
                             </TableRow>
                         </TableHead>
 
                         <TableBody>
                             {loading ? (
                                 <TableRow>
-                                    <TableCell colSpan={7} align="center" sx={{ py: 6 }}>
+                                    <TableCell colSpan={colSpan} align="center" sx={{ py: 6 }}>
                                         <CircularProgress size={28} />
                                     </TableCell>
                                 </TableRow>
                             ) : paginated.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={7} align="center" sx={{ py: 6, color: "text.secondary" }}>
+                                    <TableCell
+                                        colSpan={colSpan}
+                                        align="center"
+                                        sx={{ py: 6, color: "text.secondary" }}
+                                    >
                                         No logs found.
                                     </TableCell>
                                 </TableRow>
                             ) : (
                                 paginated.map((log, i) => {
-                                    const chip        = getChipProps(log.action);
-                                    const dt          = toDate(log);
-                                    const resolvedMod = resolveModule(log);
-                                    const modColor    = MODULE_COLORS[resolvedMod] ?? "#6b7280";
+                                    const chip         = getChipProps(log.action);
+                                    const dt           = toDate(log);
+                                    const resolvedMod  = resolveModule(log);
+                                    const modColor     = MODULE_COLORS[resolvedMod] ?? "#6b7280";
                                     const displayEmail = isValidEmail(log.email) ? log.email : null;
 
                                     return (
-                                        <TableRow key={log.id ?? log.idempotencyKey ?? i} hover
-                                            sx={{ "&:last-child td": { borderBottom: 0 } }}>
-
+                                        <TableRow
+                                            key={log.id ?? log.idempotencyKey ?? i}
+                                            hover
+                                            sx={{ "&:last-child td": { borderBottom: 0 } }}
+                                        >
+                                            {/* # */}
                                             <TableCell>{page * rowsPerPage + i + 1}</TableCell>
 
+                                            {/* Module */}
                                             <TableCell>
                                                 {resolvedMod ? (
-                                                    <Chip label={resolvedMod} size="small" sx={{
-                                                        bgcolor    : modColor + "22",
-                                                        color      : modColor,
-                                                        fontWeight : 600,
-                                                        fontSize   : "11px",
-                                                        border     : `1px solid ${modColor}55`,
-                                                    }} />
+                                                    <Chip
+                                                        label={resolvedMod}
+                                                        size="small"
+                                                        sx={{
+                                                            bgcolor    : modColor + "22",
+                                                            color      : modColor,
+                                                            fontWeight : 600,
+                                                            fontSize   : "11px",
+                                                            border     : `1px solid ${modColor}55`,
+                                                        }}
+                                                    />
                                                 ) : (
                                                     <Typography variant="caption" color="text.disabled">—</Typography>
                                                 )}
                                             </TableCell>
 
+                                            {/* Action */}
                                             <TableCell>
                                                 <Chip
                                                     label={chip.label}
@@ -997,21 +1056,24 @@ const ListOfLogs = () => {
                                                 />
                                             </TableCell>
 
+                                            {/* Name */}
                                             <TableCell>{log.name || "—"}</TableCell>
-                                            <TableCell>{log.email || "—"}</TableCell>
 
+                                            {/* Email */}
                                             <TableCell>
                                                 {displayEmail ?? (
                                                     <Typography variant="caption" color="text.disabled">—</Typography>
                                                 )}
                                             </TableCell>
 
+                                            {/* Organisation — super_admin only */}
                                             {caller.isSuperAdmin && (
                                                 <TableCell sx={{ fontSize: "11px", color: "text.secondary" }}>
                                                     {log.organizationId || "—"}
                                                 </TableCell>
                                             )}
 
+                                            {/* URL */}
                                             <TableCell sx={{
                                                 maxWidth     : 180,
                                                 overflow     : "hidden",
@@ -1023,34 +1085,34 @@ const ListOfLogs = () => {
                                                 </Tooltip>
                                             </TableCell>
 
+                                            {/* Item */}
                                             <TableCell sx={{ maxWidth: 280 }}>
                                                 {log.item == null ? (
                                                     <Typography variant="caption" color="text.disabled">—</Typography>
                                                 ) : (
-                                                    <Typography
-                                                        variant="caption"
-                                                        sx={{
-                                                            fontFamily: "monospace",
-                                                            display: "block",
-                                                            maxWidth: 280,
-                                                            overflow: "hidden",
-                                                            textOverflow: "ellipsis",
-                                                            whiteSpace: "nowrap",
-                                                        }}
-                                                    >
-                                                        <Tooltip title={formatItem(log.item)}>
-                                                            <span>{formatItem(log.item)}</span>
-                                                        </Tooltip>
-                                                    </Typography>
+                                                    <Tooltip title={formatItem(log.item) || ""}>
+                                                        <Typography
+                                                            variant="caption"
+                                                            sx={{
+                                                                fontFamily   : "monospace",
+                                                                display      : "block",
+                                                                maxWidth     : 280,
+                                                                overflow     : "hidden",
+                                                                textOverflow : "ellipsis",
+                                                                whiteSpace   : "nowrap",
+                                                            }}
+                                                        >
+                                                            {formatItem(log.item)}
+                                                        </Typography>
+                                                    </Tooltip>
                                                 )}
                                             </TableCell>
 
+                                            {/* Date & Time IST */}
                                             <TableCell sx={{ whiteSpace: "nowrap" }}>
-                                                {dt ? dt.toLocaleString("en-IN", {
-                                                    day: "2-digit", month: "short", year: "numeric",
-                                                    hour: "2-digit", minute: "2-digit",
-                                                }) : "—"}
+                                                {formatIST(dt)}
                                             </TableCell>
+
                                         </TableRow>
                                     );
                                 })

@@ -246,7 +246,7 @@
 // export const logClick = (item = null, mod = MODULES.SYSTEM, overrides = {}) =>
 //   captureActivity({ action: ACTIONS.CLICK, module: mod, item, ...overrides });
 
-// ─── Endpoint ────────────────────────────────────────────────────────────────
+/// ─── Endpoint ────────────────────────────────────────────────────────────────
 const LOGGING_BASE_URL =
   process.env.REACT_APP_LOGGING_SERVICE_URL ||
   "https://api.calvant.com/logging-service/api/logs";
@@ -267,6 +267,20 @@ export const ACTIONS = {
   DELETE    : "DELETE",
   UPLOAD    : "UPLOAD",
   DOWNLOAD  : "DOWNLOAD",
+};
+
+// ─── Module constants ─────────────────────────────────────────────────────────
+export const MODULES = {
+  AUTH       : "Auth",
+  RISK       : "Risk",
+  TASK       : "Task",
+  AUDIT      : "Audit",
+  COMPLIANCE : "Compliance",
+  TRUST      : "Trust",
+  TPRM       : "TPRM",
+  AIIA       : "AIIA",
+  DASHBOARD  : "Dashboard",
+  SYSTEM     : "System",
 };
 
 // ─── Recursion guard ──────────────────────────────────────────────────────────
