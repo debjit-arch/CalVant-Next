@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import MultiStepFormManager from "../components/forms/MultiStepFormManager";
+import { captureActivity, ACTIONS, MODULES } from "../../admin/shell/services/activities";
+import { useEffectiveOrg } from "@/hooks/useEffectiveOrg";
 
 const addRiskStyles = `
   .addrisk-page {
@@ -71,9 +73,15 @@ const AddRisk = () => {
   const pathname = usePathname();
   const focusArea = "risk";
 
+  // ── User session ──────────────────────────────────────────────────────────
+  // effectiveOrgId is only non-null once the full session is resolved,
+  // making it a reliable signal — same pattern used by AuditDashboard.
+  const { effectiveOrgId } = useEffectiveOrg();
+
   const [showButtons, setShowButtons] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
 
+  // ── Scroll hide/show ──────────────────────────────────────────────────────
   useEffect(() => {
     const handleScroll = () => {
       if (window.scrollY > lastScrollY) {
@@ -83,10 +91,22 @@ const AddRisk = () => {
       }
       setLastScrollY(window.scrollY);
     };
-
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, [lastScrollY]);
+
+  // ── LOG: page load ────────────────────────────────────────────────────────
+  // effectiveOrgId is derived from JWT and is only non-null once the full
+  // session resolution is complete — prevents stale user data being logged.
+  useEffect(() => {
+    if (!effectiveOrgId) return;
+    captureActivity({
+      action: ACTIONS.VISITED,
+      module: MODULES.RISK,
+      url: "/risk-assessment/add",
+    });
+  }, [effectiveOrgId]);
+  // ─────────────────────────────────────────────────────────────────────────
 
   const handleSubmit = () => {
     // submission happens inside MultiStepFormManager
@@ -94,14 +114,21 @@ const AddRisk = () => {
 
   return (
     <div className="addrisk-page">
-      {/* inject styles */}
       <style>{addRiskStyles}</style>
 
       <button
         className={`addrisk-back-btn ${
           showButtons ? "addrisk-back-btn--visible" : "addrisk-back-btn--hidden"
         }`}
-        onClick={() => router.push("/risk-assessment")}
+        onClick={() => {
+          captureActivity({
+            action: ACTIONS.CLICK,
+            module: MODULES.RISK,
+            item: "Back to Dashboard",
+            url: "/risk-assessment/add",
+          });
+          router.push("/risk-assessment");
+        }}
       >
         ← Back to Dashboard
       </button>
@@ -112,4 +139,3 @@ const AddRisk = () => {
 };
 
 export default AddRisk;
-

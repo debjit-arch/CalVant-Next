@@ -1,15 +1,16 @@
+// //working Model
 // 'use client'
 
 // /**
 //  * LogsList.jsx
 //  * Activity log viewer — role-aware, IST timestamps, module filter.
 //  *
-//  * Fixes applied:
-//  *  1. flexWrap DOM prop warning  → moved to sx={{ flexWrap: "wrap" }} on a Box wrapper
-//  *  2. Module column showing "—"  → LOGIN/LOGOUT defaulted to "Auth" module on display
-//  *  3. Role caption clarified     → shows org name if available
-//  *  4. Email search now also searches name
-//  *  5. Cleaned up Stack usage for Next.js App Router compatibility
+//  * Fixes:
+//  *  1. flexWrap DOM prop warning         → Box wrapper with sx flexWrap
+//  *  2. Module "—" for most rows          → resolveModule now infers from URL path + action prefix
+//  *  3. Email showing ObjectId or unknown → isValidEmail guard; falls back to name only
+//  *  4. AIIA / custom actions rendered    → ACTION_META extended with prefix fallback
+//  *  5. Module filter covers inferred     → uses resolveModule() in filter, not log.module
 //  */
 
 // import React, { useEffect, useState, useCallback } from "react";
@@ -29,22 +30,32 @@
 
 // // ── Action chip meta ──────────────────────────────────────────────────────────
 // const ACTION_META = {
-//     PAGE_LOAD : { color: "primary",   label: "PAGE LOAD" },
-//     LOGIN     : { color: "success",   label: "LOGIN"     },
-//     LOGOUT    : { color: "warning",   label: "LOGOUT"    },
-//     CREATE    : { color: "success",   label: "CREATE"    },
-//     UPDATE    : { color: "warning",   label: "UPDATE"    },
-//     DELETE    : { color: "error",     label: "DELETE"    },
-//     UPLOAD    : { color: "secondary", label: "UPLOAD"    },
-//     DOWNLOAD  : { color: "info",      label: "DOWNLOAD"  },
-//     SELECT    : { color: "default",   label: "SELECT"    },
-//     CLICK     : { color: "default",   label: "CLICK"     },
+//     PAGE_LOAD  : { color: "primary",   label: "PAGE LOAD"  },
+//     LOGIN      : { color: "success",   label: "LOGIN"      },
+//     LOGOUT     : { color: "warning",   label: "LOGOUT"     },
+//     CREATE     : { color: "success",   label: "CREATE"     },
+//     UPDATE     : { color: "warning",   label: "UPDATE"     },
+//     DELETE     : { color: "error",     label: "DELETE"     },
+//     UPLOAD     : { color: "secondary", label: "UPLOAD"     },
+//     DOWNLOAD   : { color: "info",      label: "DOWNLOAD"   },
+//     SELECT     : { color: "default",   label: "SELECT"     },
+//     CLICK      : { color: "default",   label: "CLICK"      },
 // };
 // const ALL_ACTIONS  = Object.keys(ACTION_META);
-// const getChipProps = (action = "") => ACTION_META[action] ?? { color: "default", label: action || "UNKNOWN" };
+
+// /**
+//  * Render chip for any action string, including custom ones like
+//  * AIIA_PLAN_MODAL_OPENED, AIIA_DASHBOARD_VISITED, etc.
+//  */
+// const getChipProps = (action = "") => {
+//     if (ACTION_META[action]) return ACTION_META[action];
+//     // Custom action: render as-is with a neutral color, prettify underscores
+//     const label = action.replace(/_/g, " ");
+//     return { color: "default", label };
+// };
 
 // // ── Module list ───────────────────────────────────────────────────────────────
-// const MODULE_LIST = ["Auth", "Risk", "Task", "Audit", "Compliance", "Trust", "TPRM", "System"];
+// const MODULE_LIST = ["Auth", "Risk", "Task", "Audit", "Compliance", "Trust", "TPRM", "AIIA", "Dashboard", "System"];
 
 // const MODULE_COLORS = {
 //     Auth       : "#6366f1",
@@ -54,17 +65,63 @@
 //     Compliance : "#3b82f6",
 //     Trust      : "#8b5cf6",
 //     TPRM       : "#ec4899",
+//     AIIA       : "#0ea5e9",
+//     Dashboard  : "#64748b",
 //     System     : "#6b7280",
 // };
 
 // /**
-//  * If the backend didn't persist the module field, infer it from the action.
-//  * LOGIN / LOGOUT always belong to Auth.
+//  * Infer module from multiple signals, in priority order:
+//  *   1. log.module  (backend persisted it correctly)
+//  *   2. action prefix  (AIIA_xxx → AIIA, LOGIN/LOGOUT → Auth)
+//  *   3. URL path  (/risk → Risk, /gap-assessment → Audit, etc.)
 //  */
 // const resolveModule = (log) => {
-//     if (log.module) return log.module;
-//     if (log.action === "LOGIN" || log.action === "LOGOUT") return "Auth";
-//     return null;
+//     // 1. Backend sent a valid module
+//     if (log.module && MODULE_LIST.includes(log.module)) return log.module;
+//     // Also accept case-insensitive match
+//     if (log.module) {
+//         const match = MODULE_LIST.find(m => m.toLowerCase() === log.module.toLowerCase());
+//         if (match) return match;
+//     }
+
+//     // 2. Infer from action prefix / specific known actions
+//     const action = log.action || "";
+//     if (action === "LOGIN" || action === "LOGOUT") return "Auth";
+//     if (action.startsWith("AIIA_"))               return "AIIA";
+//     if (action.startsWith("RISK_"))               return "Risk";
+//     if (action.startsWith("TASK_"))               return "Task";
+//     if (action.startsWith("TRUST_"))              return "Trust";
+//     if (action.startsWith("TPRM_"))               return "TPRM";
+//     if (action.startsWith("AUDIT_"))              return "Audit";
+//     if (action.startsWith("COMPLIANCE_"))         return "Compliance";
+
+//     // 3. Infer from URL
+//     const url = (log.url || "").toLowerCase();
+//     if (url.includes("/risk"))            return "Risk";
+//     if (url.includes("/gap-assessment"))  return "Audit";
+//     if (url.includes("/task"))            return "Task";
+//     if (url.includes("/trust"))           return "Trust";
+//     if (url.includes("/tprm") || url.includes("/vendor")) return "TPRM";
+//     if (url.includes("/documentation"))   return "Compliance";
+//     if (url.includes("/compliances"))     return "Compliance";
+//     if (url.includes("/login") || url.includes("/logout")) return "Auth";
+//     if (url === "/" || url.includes("/dashboard")) return "Dashboard";
+
+//     return null; // genuinely unknown
+// };
+
+// // ── Email validation helper ───────────────────────────────────────────────────
+// /**
+//  * MongoDB ObjectIds (24 hex chars) and placeholder emails must not be
+//  * shown as real emails. This guard filters them out.
+//  */
+// const isValidEmail = (email) => {
+//     if (!email) return false;
+//     if (email === "unknown@example.com") return false;
+//     // 24-char hex string = ObjectId accidentally stored as email
+//     if (/^[a-f0-9]{24}$/i.test(email)) return false;
+//     return email.includes("@");
 // };
 
 // // ── JWT helpers ───────────────────────────────────────────────────────────────
@@ -160,7 +217,7 @@
 //     const [moduleFilter, setModuleFilter] = useState("ALL");
 //     const [dateFrom,     setDateFrom    ] = useState("");
 //     const [dateTo,       setDateTo      ] = useState("");
-//     const [searchQuery,  setSearchQuery ] = useState("");   // searches both email AND name
+//     const [searchQuery,  setSearchQuery ] = useState("");
 
 //     const [page,        setPage       ] = useState(0);
 //     const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -185,7 +242,6 @@
 
 //             const data = await res.json();
 //             const list = Array.isArray(data) ? data : (data.content ?? []);
-//             // Server returns oldest-first; reverse for newest-first display
 //             setLogs([...list].reverse());
 //         } catch (err) {
 //             setError(err.message);
@@ -200,14 +256,13 @@
 //     const filtered = logs.filter((log) => {
 //         if (actionFilter !== "ALL" && log.action !== actionFilter) return false;
 
-//         // Use resolved module for filtering too
 //         const resolvedMod = resolveModule(log);
 //         if (moduleFilter !== "ALL" && resolvedMod !== moduleFilter) return false;
 
 //         if (searchQuery) {
 //             const q        = searchQuery.toLowerCase();
-//             const logEmail = (log.email || "").toLowerCase();
-//             const logName  = (log.name  || "").toLowerCase();
+//             const logEmail = isValidEmail(log.email) ? log.email.toLowerCase() : "";
+//             const logName  = (log.name || "").toLowerCase();
 //             if (!logEmail.includes(q) && !logName.includes(q)) return false;
 //         }
 
@@ -243,7 +298,7 @@
 //                     <Typography variant="caption" color="text.secondary">
 //                         {caller.isSuperAdmin
 //                             ? "Viewing logs across all organisations"
-//                             : `Viewing logs for your organisation`}
+//                             : "Viewing logs for your organisation"}
 //                     </Typography>
 //                 </Box>
 //                 <Tooltip title="Refresh">
@@ -253,19 +308,9 @@
 //                 </Tooltip>
 //             </Stack>
 
-//             {/* ── Filters ──
-//                 FIX: flexWrap must NOT be passed as a prop to Stack directly in Next.js App Router.
-//                      Wrap in a Box with display:flex and flexWrap:"wrap" instead.
-//             */}
+//             {/* Filters */}
 //             <Paper variant="outlined" sx={{ p: 2, mb: 2, borderRadius: 2 }}>
-//                 <Box
-//                     sx={{
-//                         display    : "flex",
-//                         flexWrap   : "wrap",        // ← correct: on Box, not Stack prop
-//                         gap        : 2,
-//                         alignItems : "center",
-//                     }}
-//                 >
+//                 <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2, alignItems: "center" }}>
 //                     <FormControl size="small" sx={{ minWidth: 150 }}>
 //                         <InputLabel>Action</InputLabel>
 //                         <Select value={actionFilter} label="Action"
@@ -288,7 +333,6 @@
 //                         </Select>
 //                     </FormControl>
 
-//                     {/* FIX: searches both email and name now */}
 //                     <TextField
 //                         size="small"
 //                         label="Search name / email"
@@ -362,8 +406,11 @@
 //                                 paginated.map((log, i) => {
 //                                     const chip        = getChipProps(log.action);
 //                                     const dt          = toDate(log);
-//                                     const resolvedMod = resolveModule(log);   // ← FIX: infer Auth for LOGIN/LOGOUT
+//                                     const resolvedMod = resolveModule(log);
 //                                     const modColor    = MODULE_COLORS[resolvedMod] ?? "#6b7280";
+
+//                                     // ── Email display: guard against ObjectId / placeholder ──
+//                                     const displayEmail = isValidEmail(log.email) ? log.email : null;
 
 //                                     return (
 //                                         <TableRow key={log.id ?? i} hover
@@ -371,7 +418,7 @@
 
 //                                             <TableCell>{page * rowsPerPage + i + 1}</TableCell>
 
-//                                             {/* Module badge — uses resolvedMod, never shows "—" for known actions */}
+//                                             {/* Module badge — inferred from URL/action if not stored */}
 //                                             <TableCell>
 //                                                 {resolvedMod ? (
 //                                                     <Chip label={resolvedMod} size="small" sx={{
@@ -386,21 +433,42 @@
 //                                                 )}
 //                                             </TableCell>
 
-//                                             {/* Action chip */}
+//                                             {/* Action chip — handles custom action strings too */}
 //                                             <TableCell>
-//                                                 <Chip label={chip.label} color={chip.color} size="small"
-//                                                     sx={{ fontWeight: 600, fontSize: "11px" }} />
+//                                                 <Chip
+//                                                     label={chip.label}
+//                                                     color={chip.color}
+//                                                     size="small"
+//                                                     sx={{
+//                                                         fontWeight  : 600,
+//                                                         fontSize    : "11px",
+//                                                         maxWidth    : 220,
+//                                                         // custom actions get a subtle outlined style
+//                                                         ...(ACTION_META[log.action]
+//                                                             ? {}
+//                                                             : {
+//                                                                 variant         : "outlined",
+//                                                                 bgcolor         : "#f1f5f9",
+//                                                                 color           : "#475569",
+//                                                                 border          : "1px solid #cbd5e1",
+//                                                                 textOverflow    : "ellipsis",
+//                                                                 overflow        : "hidden",
+//                                                                 whiteSpace      : "nowrap",
+//                                                                 display         : "inline-flex",
+//                                                             }),
+//                                                     }}
+//                                                 />
 //                                             </TableCell>
 
 //                                             <TableCell>{log.name || "—"}</TableCell>
 
+//                                             {/* Email — never shows ObjectId or placeholder */}
 //                                             <TableCell>
-//                                                 {log.email || (
+//                                                 {displayEmail ?? (
 //                                                     <Typography variant="caption" color="text.disabled">—</Typography>
 //                                                 )}
 //                                             </TableCell>
 
-//                                             {/* Org column — super_admin only */}
 //                                             {caller.isSuperAdmin && (
 //                                                 <TableCell sx={{ fontSize: "11px", color: "text.secondary" }}>
 //                                                     {log.organizationId || "—"}
@@ -464,18 +532,37 @@
 
 // export default LogsList;
 
+
 'use client'
 
 /**
  * LogsList.jsx
  * Activity log viewer — role-aware, IST timestamps, module filter.
  *
- * Fixes:
- *  1. flexWrap DOM prop warning         → Box wrapper with sx flexWrap
- *  2. Module "—" for most rows          → resolveModule now infers from URL path + action prefix
- *  3. Email showing ObjectId or unknown → isValidEmail guard; falls back to name only
- *  4. AIIA / custom actions rendered    → ACTION_META extended with prefix fallback
- *  5. Module filter covers inferred     → uses resolveModule() in filter, not log.module
+ * Finalized action taxonomy (10 canonical actions):
+ *   VISITED | CLICK | CREATED | MODIFIED | UPDATED |
+ *   LOGGED_IN | LOGOUT | DELETE | UPLOAD | DOWNLOAD
+ *
+ * Legacy alias map handles old DB records written before the taxonomy was finalized.
+ *
+ * CHANGE FROM PREVIOUS VERSION:
+ * Display-layer "dedup by time window" has been removed. That heuristic
+ * (treat two events as duplicates if they're the same action/user/url within
+ * N seconds) could hide genuinely distinct events — e.g. a user visiting the
+ * same page twice in under 30s would have the second visit silently hidden,
+ * which is exactly wrong for an audit trail.
+ *
+ * Duplicates are now prevented upstream, at capture time, via an
+ * idempotencyKey (see activities.js) that the logging-service backend is
+ * expected to enforce as unique. This component now only collapses rows
+ * that share the *exact same* idempotencyKey — i.e. true duplicates, not
+ * "looks similar within a time window." If the backend does its job, this
+ * collapse is a no-op safety net, not the primary defense.
+ *
+ * "Human actions only" (no tech/system layer) is now enforced primarily at
+ * capture time in activities.js (an allowlist of human modules — nothing
+ * system-layer is ever sent). The URL blocklist below is kept only as a
+ * secondary safety net for records written before that fix shipped.
  */
 
 import React, { useEffect, useState, useCallback } from "react";
@@ -493,34 +580,46 @@ const LOGGING_BASE_URL =
     (typeof process !== "undefined" && process.env?.NEXT_PUBLIC_LOGGING_SERVICE_URL) ||
     "https://api.calvant.com/logging-service/api/logs";
 
-// ── Action chip meta ──────────────────────────────────────────────────────────
+// ── Finalized canonical action taxonomy ───────────────────────────────────────
 const ACTION_META = {
-    PAGE_LOAD  : { color: "primary",   label: "PAGE LOAD"  },
-    LOGIN      : { color: "success",   label: "LOGIN"      },
-    LOGOUT     : { color: "warning",   label: "LOGOUT"     },
-    CREATE     : { color: "success",   label: "CREATE"     },
-    UPDATE     : { color: "warning",   label: "UPDATE"     },
-    DELETE     : { color: "error",     label: "DELETE"     },
-    UPLOAD     : { color: "secondary", label: "UPLOAD"     },
-    DOWNLOAD   : { color: "info",      label: "DOWNLOAD"   },
-    SELECT     : { color: "default",   label: "SELECT"     },
-    CLICK      : { color: "default",   label: "CLICK"      },
+    VISITED   : { color: "primary",   label: "VISITED"   },
+    CLICK     : { color: "default",   label: "CLICK"     },
+    CREATED   : { color: "success",   label: "CREATED"   },
+    MODIFIED  : { color: "info",      label: "MODIFIED"  },
+    UPDATED   : { color: "warning",   label: "UPDATED"   },
+    LOGGED_IN : { color: "success",   label: "LOGGED IN" },
+    LOGOUT    : { color: "warning",   label: "LOGOUT"    },
+    DELETE    : { color: "error",     label: "DELETE"    },
+    UPLOAD    : { color: "secondary", label: "UPLOAD"    },
+    DOWNLOAD  : { color: "info",      label: "DOWNLOAD"  },
 };
-const ALL_ACTIONS  = Object.keys(ACTION_META);
 
-/**
- * Render chip for any action string, including custom ones like
- * AIIA_PLAN_MODAL_OPENED, AIIA_DASHBOARD_VISITED, etc.
- */
-const getChipProps = (action = "") => {
+// ── Legacy alias map — old DB strings → canonical ─────────────────────────────
+const ACTION_ALIAS = {
+    PAGE_LOAD : "VISITED",
+    LOGIN     : "LOGGED_IN",
+    CREATE    : "CREATED",
+    UPDATE    : "UPDATED",
+    SELECT    : "CLICK",
+};
+
+const ALL_ACTIONS = Object.keys(ACTION_META);
+
+const normaliseAction = (action = "") => ACTION_ALIAS[action] ?? action;
+
+const getChipProps = (rawAction = "") => {
+    const action = normaliseAction(rawAction);
     if (ACTION_META[action]) return ACTION_META[action];
-    // Custom action: render as-is with a neutral color, prettify underscores
-    const label = action.replace(/_/g, " ");
-    return { color: "default", label };
+    return { color: "default", label: action.replace(/_/g, " ") };
 };
 
-// ── Module list ───────────────────────────────────────────────────────────────
-const MODULE_LIST = ["Auth", "Risk", "Task", "Audit", "Compliance", "Trust", "TPRM", "AIIA", "Dashboard", "System"];
+// ── Module list — human-facing modules only ───────────────────────────────────
+// "System" intentionally excluded from the filter dropdown: it is not a
+// human action category, it's the catch-all for tech-layer noise.
+const MODULE_LIST = [
+    "Auth", "Risk", "Task", "Audit", "Compliance",
+    "Trust", "TPRM", "AIIA", "Dashboard",
+];
 
 const MODULE_COLORS = {
     Auth       : "#6366f1",
@@ -535,56 +634,57 @@ const MODULE_COLORS = {
     System     : "#6b7280",
 };
 
-/**
- * Infer module from multiple signals, in priority order:
- *   1. log.module  (backend persisted it correctly)
- *   2. action prefix  (AIIA_xxx → AIIA, LOGIN/LOGOUT → Auth)
- *   3. URL path  (/risk → Risk, /gap-assessment → Audit, etc.)
- */
 const resolveModule = (log) => {
-    // 1. Backend sent a valid module
     if (log.module && MODULE_LIST.includes(log.module)) return log.module;
-    // Also accept case-insensitive match
     if (log.module) {
         const match = MODULE_LIST.find(m => m.toLowerCase() === log.module.toLowerCase());
         if (match) return match;
     }
-
-    // 2. Infer from action prefix / specific known actions
-    const action = log.action || "";
-    if (action === "LOGIN" || action === "LOGOUT") return "Auth";
-    if (action.startsWith("AIIA_"))               return "AIIA";
-    if (action.startsWith("RISK_"))               return "Risk";
-    if (action.startsWith("TASK_"))               return "Task";
-    if (action.startsWith("TRUST_"))              return "Trust";
-    if (action.startsWith("TPRM_"))               return "TPRM";
-    if (action.startsWith("AUDIT_"))              return "Audit";
-    if (action.startsWith("COMPLIANCE_"))         return "Compliance";
-
-    // 3. Infer from URL
+    const action = normaliseAction(log.action || "");
+    if (["LOGGED_IN", "LOGOUT"].includes(action))  return "Auth";
+    if (action.startsWith("AIIA_"))                return "AIIA";
+    if (action.startsWith("RISK_"))                return "Risk";
+    if (action.startsWith("TASK_"))                return "Task";
+    if (action.startsWith("TRUST_"))               return "Trust";
+    if (action.startsWith("TPRM_"))                return "TPRM";
+    if (action.startsWith("AUDIT_"))               return "Audit";
+    if (action.startsWith("COMPLIANCE_"))          return "Compliance";
     const url = (log.url || "").toLowerCase();
-    if (url.includes("/risk"))            return "Risk";
-    if (url.includes("/gap-assessment"))  return "Audit";
-    if (url.includes("/task"))            return "Task";
-    if (url.includes("/trust"))           return "Trust";
-    if (url.includes("/tprm") || url.includes("/vendor")) return "TPRM";
-    if (url.includes("/documentation"))   return "Compliance";
-    if (url.includes("/compliances"))     return "Compliance";
-    if (url.includes("/login") || url.includes("/logout")) return "Auth";
-    if (url === "/" || url.includes("/dashboard")) return "Dashboard";
-
-    return null; // genuinely unknown
+    if (url.includes("/risk"))                                  return "Risk";
+    if (url.includes("/gap-assessment"))                        return "Audit";
+    if (url.includes("/task"))                                  return "Task";
+    if (url.includes("/trust"))                                 return "Trust";
+    if (url.includes("/tprm") || url.includes("/vendor"))       return "TPRM";
+    if (url.includes("/documentation") || url.includes("/compliances")) return "Compliance";
+    if (url.includes("/login") || url.includes("/logout"))      return "Auth";
+    if (url === "/" || url.includes("/dashboard"))              return "Dashboard";
+    return null;
 };
 
-// ── Email validation helper ───────────────────────────────────────────────────
-/**
- * MongoDB ObjectIds (24 hex chars) and placeholder emails must not be
- * shown as real emails. This guard filters them out.
- */
+// ── System-log safety net (secondary, for pre-fix legacy records) ────────────
+// Primary enforcement is at capture time in activities.js (human-module
+// allowlist). This blocklist only catches records written before that fix
+// shipped, or written by something that bypassed activities.js entirely.
+const SYSTEM_URL_BLOCKLIST = [
+    "/framework/controls",
+    "/framework/",
+    "/api/",
+    "/_next/",
+    "/static/",
+    "/health",
+    "/actuator",
+];
+
+const isSystemLog = (log) => {
+    const url = (log.url || "").toLowerCase();
+    if (resolveModule(log) === null && log.module === "System") return true;
+    return SYSTEM_URL_BLOCKLIST.some(blocked => url.startsWith(blocked) || url.includes(blocked));
+};
+
+// ── Email validation ──────────────────────────────────────────────────────────
 const isValidEmail = (email) => {
     if (!email) return false;
     if (email === "unknown@example.com") return false;
-    // 24-char hex string = ObjectId accidentally stored as email
     if (/^[a-f0-9]{24}$/i.test(email)) return false;
     return email.includes("@");
 };
@@ -606,11 +706,9 @@ const getCallerInfo = () => {
     try {
         const token = localStorage.getItem("token") || sessionStorage.getItem("token") || "";
         if (!token) return { role: "user", orgId: "", email: "", name: "", isSuperAdmin: false };
-
         const jwt   = decodeJwt(token);
         const roles = Array.isArray(jwt.role) ? jwt.role : [jwt.role].filter(Boolean);
         const role  = roles[0] || "user";
-
         return {
             role,
             orgId        : jwt.organization || jwt.organizationId || jwt.orgId || "",
@@ -623,7 +721,7 @@ const getCallerInfo = () => {
     }
 };
 
-// ── Date / format helpers ─────────────────────────────────────────────────────
+// ── Date helpers ──────────────────────────────────────────────────────────────
 const toDate = (log) => {
     const raw = log.createdAt || log.timestamp;
     if (!raw) return null;
@@ -670,6 +768,23 @@ const formatItem = (item) => {
     }
 };
 
+// ── Exact-duplicate collapse — keyed on idempotencyKey only ──────────────────
+// This is NOT a time-window heuristic. It only collapses rows that carry the
+// identical idempotencyKey (i.e. true duplicates — e.g. leftover rows from
+// before the backend enforced uniqueness on that field). Records without an
+// idempotencyKey (legacy, pre-fix data) are never collapsed against each
+// other here — they pass through as-is, since we have no reliable way to
+// know if they're really duplicates or just similar-looking distinct events.
+const collapseExactDuplicates = (logs) => {
+    const seen = new Set();
+    return logs.filter((log) => {
+        if (!log.idempotencyKey) return true; // nothing to dedupe against — keep
+        if (seen.has(log.idempotencyKey)) return false;
+        seen.add(log.idempotencyKey);
+        return true;
+    });
+};
+
 // ── Component ─────────────────────────────────────────────────────────────────
 const LogsList = () => {
     const caller = getCallerInfo();
@@ -707,7 +822,11 @@ const LogsList = () => {
 
             const data = await res.json();
             const list = Array.isArray(data) ? data : (data.content ?? []);
-            setLogs([...list].reverse());
+
+            // Newest-first → strip legacy system-layer rows → collapse exact dupes
+            const humanOnly = [...list].reverse().filter(log => !isSystemLog(log));
+            const deduped   = collapseExactDuplicates(humanOnly);
+            setLogs(deduped);
         } catch (err) {
             setError(err.message);
         } finally {
@@ -719,7 +838,9 @@ const LogsList = () => {
 
     // ── Client-side filter ────────────────────────────────────────────────────
     const filtered = logs.filter((log) => {
-        if (actionFilter !== "ALL" && log.action !== actionFilter) return false;
+        const normalisedAction = normaliseAction(log.action);
+
+        if (actionFilter !== "ALL" && normalisedAction !== actionFilter) return false;
 
         const resolvedMod = resolveModule(log);
         if (moduleFilter !== "ALL" && resolvedMod !== moduleFilter) return false;
@@ -748,7 +869,8 @@ const LogsList = () => {
         setPage(0);
     };
 
-    const hasFilters = actionFilter !== "ALL" || moduleFilter !== "ALL" || dateFrom || dateTo || searchQuery;
+    const hasFilters = actionFilter !== "ALL" || moduleFilter !== "ALL"
+        || dateFrom || dateTo || searchQuery;
 
     const colSpan = caller.isSuperAdmin ? 9 : 8;
 
@@ -776,6 +898,7 @@ const LogsList = () => {
             {/* Filters */}
             <Paper variant="outlined" sx={{ p: 2, mb: 2, borderRadius: 2 }}>
                 <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2, alignItems: "center" }}>
+
                     <FormControl size="small" sx={{ minWidth: 150 }}>
                         <InputLabel>Action</InputLabel>
                         <Select value={actionFilter} label="Action"
@@ -808,11 +931,11 @@ const LogsList = () => {
 
                     <TextField size="small" label="From date" type="date" value={dateFrom}
                         onChange={(e) => { setDateFrom(e.target.value); setPage(0); }}
-                        InputLabelProps={{ shrink: true }} sx={{ minWidth: 150 }} />
+                        slotProps={{ inputLabel: { shrink: true } }} sx={{ minWidth: 150 }} />
 
                     <TextField size="small" label="To date" type="date" value={dateTo}
                         onChange={(e) => { setDateTo(e.target.value); setPage(0); }}
-                        InputLabelProps={{ shrink: true }} sx={{ minWidth: 150 }} />
+                        slotProps={{ inputLabel: { shrink: true } }} sx={{ minWidth: 150 }} />
 
                     {hasFilters && (
                         <Button size="small" variant="outlined"
@@ -873,17 +996,14 @@ const LogsList = () => {
                                     const dt          = toDate(log);
                                     const resolvedMod = resolveModule(log);
                                     const modColor    = MODULE_COLORS[resolvedMod] ?? "#6b7280";
-
-                                    // ── Email display: guard against ObjectId / placeholder ──
                                     const displayEmail = isValidEmail(log.email) ? log.email : null;
 
                                     return (
-                                        <TableRow key={log.id ?? i} hover
+                                        <TableRow key={log.id ?? log.idempotencyKey ?? i} hover
                                             sx={{ "&:last-child td": { borderBottom: 0 } }}>
 
                                             <TableCell>{page * rowsPerPage + i + 1}</TableCell>
 
-                                            {/* Module badge — inferred from URL/action if not stored */}
                                             <TableCell>
                                                 {resolvedMod ? (
                                                     <Chip label={resolvedMod} size="small" sx={{
@@ -898,28 +1018,25 @@ const LogsList = () => {
                                                 )}
                                             </TableCell>
 
-                                            {/* Action chip — handles custom action strings too */}
                                             <TableCell>
                                                 <Chip
                                                     label={chip.label}
                                                     color={chip.color}
                                                     size="small"
                                                     sx={{
-                                                        fontWeight  : 600,
-                                                        fontSize    : "11px",
-                                                        maxWidth    : 220,
-                                                        // custom actions get a subtle outlined style
-                                                        ...(ACTION_META[log.action]
+                                                        fontWeight : 600,
+                                                        fontSize   : "11px",
+                                                        maxWidth   : 220,
+                                                        ...(ACTION_META[normaliseAction(log.action)]
                                                             ? {}
                                                             : {
-                                                                variant         : "outlined",
-                                                                bgcolor         : "#f1f5f9",
-                                                                color           : "#475569",
-                                                                border          : "1px solid #cbd5e1",
-                                                                textOverflow    : "ellipsis",
-                                                                overflow        : "hidden",
-                                                                whiteSpace      : "nowrap",
-                                                                display         : "inline-flex",
+                                                                bgcolor      : "#f1f5f9",
+                                                                color        : "#475569",
+                                                                border       : "1px solid #cbd5e1",
+                                                                textOverflow : "ellipsis",
+                                                                overflow     : "hidden",
+                                                                whiteSpace   : "nowrap",
+                                                                display      : "inline-flex",
                                                             }),
                                                     }}
                                                 />
@@ -927,7 +1044,6 @@ const LogsList = () => {
 
                                             <TableCell>{log.name || "—"}</TableCell>
 
-                                            {/* Email — never shows ObjectId or placeholder */}
                                             <TableCell>
                                                 {displayEmail ?? (
                                                     <Typography variant="caption" color="text.disabled">—</Typography>

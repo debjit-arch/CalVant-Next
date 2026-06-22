@@ -192,6 +192,7 @@ function PlanAssessmentModal({ onClose, onSaved }) {
         assignedRiskOwners: form.riskOwners,
         dateOfAssessment: form.dateOfAssessment,
         status: "ASSIGNED",
+        aiSystemOwner: user?.name || user?.username || "System",
       };
       //  `${process.env.NEXT_PUBLIC_CFTB}/aiia-service/api/stage1/create`,
       const token =
