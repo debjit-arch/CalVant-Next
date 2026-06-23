@@ -3,7 +3,7 @@
 
 // const DOC_CHECKER_BASE = "https://api.calvant.com/doc-checker-service/api/doc-checker";
 
-// export const APPROVAL_THRESHOLD = 75;
+// export const APPROVAL_THRESHOLD = 85;
 
 // function authHeaders() {
 //   const token = sessionStorage.getItem("token");
@@ -87,7 +87,6 @@
 //         controlId:      row.controlId,
 //       };
 //       const result = await postCheck(payload);
-//       // No mountedRef guard — React 18 handles unmounted updates as no-ops
 //       setResults((prev) => ({ ...prev, [docId]: result }));
 //       hydratedRef.current.add(docId);
 //       return result;
@@ -95,7 +94,6 @@
 //       setErrors((prev) => ({ ...prev, [docId]: e.message }));
 //       return null;
 //     } finally {
-//       // This ALWAYS runs — no mountedRef to block it
 //       setVerifying((prev) => ({ ...prev, [docId]: false }));
 //     }
 //   }, []);
@@ -107,6 +105,7 @@
 //   const canApprove = useCallback((docId) => {
 //     const r = results[docId];
 //     if (!r) return false;
+//     // Both title match AND content score >= 85 required to approve
 //     return r.titleMatch === true && (r.overallScore ?? 0) >= APPROVAL_THRESHOLD;
 //   }, [results]);
 
@@ -116,12 +115,12 @@
 //     const reasons = [];
 //     if (!r.titleMatch) {
 //       reasons.push(
-//         `Title mismatch: the MLD expects "${r.mldDocName}" but the document title is "${r.extractedDocTitle}" (${r.titleMatchScore}% similarity).`
+//         `Title mismatch: the MLD expects "${r.mldDocName}" but the document title is "${r.extractedDocTitle}".`
 //       );
 //     }
 //     if ((r.overallScore ?? 0) < APPROVAL_THRESHOLD) {
 //       reasons.push(
-//         `Score is ${r.overallScore}% — below the required ${APPROVAL_THRESHOLD}% to approve.`
+//         `Content score is ${r.overallScore}/100 — below the required ${APPROVAL_THRESHOLD} to approve.`
 //       );
 //     }
 //     return reasons.join(" ");
@@ -225,6 +224,14 @@ export function useDocChecker() {
         organizationId: row.organizationId,
         soaId:          row.soaId,
         controlId:      row.controlId,
+        // ── NEW: framework-aware control mapping ──
+        // When present, doc-checker-service factors coverage of this
+        // control's actual requirements directly into the policyStatements
+        // score (see GroqAuditService) — not a separate field, a real input
+        // to the same 0-80 criterion.
+        framework:      row.framework,
+        controlCode:    row.controlCode,
+        controlTitle:   row.controlTitle,
       };
       const result = await postCheck(payload);
       setResults((prev) => ({ ...prev, [docId]: result }));
@@ -245,7 +252,10 @@ export function useDocChecker() {
   const canApprove = useCallback((docId) => {
     const r = results[docId];
     if (!r) return false;
-    // Both title match AND content score >= 85 required to approve
+    // Both title match AND content score >= 85 required to approve.
+    // Note: when this doc was control-linked, control-requirement coverage
+    // is already baked into overallScore via policyStatements (see
+    // GroqAuditService/DocCheckerService) — there is no separate gate here.
     return r.titleMatch === true && (r.overallScore ?? 0) >= APPROVAL_THRESHOLD;
   }, [results]);
 

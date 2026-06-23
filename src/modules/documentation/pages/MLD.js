@@ -2949,6 +2949,14 @@ const MLD = () => {
                       organizationId: effectiveOrgId,
                       soaId: soaEntry?.id,
                       controlId: cId,
+                      // ── NEW: framework-aware control mapping ──
+                      // Lets doc-checker-service factor coverage of this control's actual
+                      // requirements directly into the policyStatements score (see
+                      // GroqAuditService). Sourced straight from this row's already-destructured
+                      // values — no extra fetch needed.
+                      framework,
+                      controlCode,
+                      controlTitle,
                     } : null;
 
                     const handleApprove = async () => {
