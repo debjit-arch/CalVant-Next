@@ -6,8 +6,8 @@ import documentationService from "../services/documentationService";
 import controlService from "../services/controlService";
 import taskService from "../../taskManagement/services/taskService";          // ← NEW
 import { getAllUsers, getDepartments } from "../../departments/services/userService"; // ← NEW
-import { useDocChecker, APPROVAL_THRESHOLD, BORDERLINE_THRESHOLD, getComplianceStatus } from "./useDocChecker";
-//import { useDocChecker, APPROVAL_THRESHOLD } from "./useDocChecker";          // ← NEW (doc-checker)
+//import { useDocChecker, APPROVAL_THRESHOLD, BORDERLINE_THRESHOLD, getComplianceStatus } from "./useDocChecker";
+import { useDocChecker, APPROVAL_THRESHOLD } from "./useDocChecker";          // ← NEW (doc-checker)
 import { VerifyCell, ApproveGateModal } from "./VerifyCell";                  // ← NEW (doc-checker)
 import { Trash2, UploadCloud, Calendar, Check, ArrowUpDown, ArrowUp, ArrowDown, Plus, X } from "lucide-react";
 import Modal from "../../../components/navigations/Modal";
@@ -1289,8 +1289,10 @@ const MLD = () => {
                     const ownership = ownershipMap[`${framework.trim()}:${controlCode.trim()}`] || {};
                     const approvedBy = doc?.approvedBy || doc?.approverName || (doc?.approvalDate ? "—" : "—");
 
+
                     // The row object we'll pass into AddTaskModal
                     const taskRow = { rowKey, cId, docName, docType, docDept, controlCode, controlTitle, soaEntry, framework, controlMongoId };
+
 
                     // The row object we'll pass into the doc-checker hook.
                     // mldDocName is intentionally row.docName (the MLD's
@@ -1314,6 +1316,7 @@ const MLD = () => {
                       controlCode,
                       controlTitle,
                     } : null;
+
 
                     const handleApprove = async () => {
                       if (!doc) return;
@@ -1347,6 +1350,7 @@ const MLD = () => {
                       }
                     };
 
+
                     return (
                       <tr
                         key={rowKey}
@@ -1371,6 +1375,7 @@ const MLD = () => {
                           </span>
                         </td>
 
+
                         {/* Policy Name */}
                         <td
                           onClick={() => {
@@ -1391,15 +1396,18 @@ const MLD = () => {
                           )}
                         </td>
 
+
                         {/* Related Framework */}
                         <td style={{ padding: "12px 14px", textAlign: "center", verticalAlign: "middle" }}>
                           <FrameworkCell framework={framework} mappings={mappings} colorMap={fwColorMap} />
                         </td>
 
+
                         {/* Type */}
                         <td style={{ padding: "12px 14px", textAlign: "center", verticalAlign: "middle", color: "#6c757d", fontSize: "12px" }}>
                           {docType || "—"}
                         </td>
+
 
                         {/* Control Code + title */}
                         <td style={{ padding: "12px 14px", verticalAlign: "middle", maxWidth: "220px" }}>
@@ -1412,6 +1420,7 @@ const MLD = () => {
                             </span>
                           )}
                         </td>
+
 
                         {/* Ownership */}
                         <td style={{ padding: "12px 14px", textAlign: "center", verticalAlign: "middle" }}>
@@ -1435,10 +1444,12 @@ const MLD = () => {
                           )}
                         </td>
 
+
                         {/* Department */}
                         <td style={{ padding: "12px 14px", textAlign: "center", verticalAlign: "middle", color: "#2c3e50", fontSize: "13px" }}>
                           {docDept || "—"}
                         </td>
+
 
                         {/* CalVant Version */}
                         <td style={{ padding: "12px 14px", textAlign: "center", verticalAlign: "middle", color: "#2c3e50" }}>
@@ -1449,30 +1460,36 @@ const MLD = () => {
                           ) : "—"}
                         </td>
 
+
                         {/* Status */}
                         <td style={{ padding: "12px 14px", textAlign: "center", verticalAlign: "middle" }}>
                           <StatusBadge status={status} />
                         </td>
+
 
                         {/* Submitted By */}
                         <td style={{ padding: "12px 14px", textAlign: "center", verticalAlign: "middle", color: "#2c3e50" }}>
                           {doc?.uploaderName ?? "—"}
                         </td>
 
+
                         {/* Submission Date */}
                         <td style={{ padding: "12px 14px", textAlign: "center", verticalAlign: "middle", color: "#2c3e50" }}>
                           {submissionDate}
                         </td>
+
 
                         {/* Approved By */}
                         <td style={{ padding: "12px 14px", textAlign: "center", verticalAlign: "middle", color: "#2c3e50" }}>
                           {doc?.approvalDate ? (approvedBy || user?.name || "—") : "—"}
                         </td>
 
+
                         {/* Review Date */}
                         <td style={{ padding: "12px 14px", textAlign: "center", verticalAlign: "middle", color: "#2c3e50" }}>
                           {reviewDate}
                         </td>
+
 
                         {/* Upload + inline actions */}
                         <td style={{ padding: "12px 14px", textAlign: "center", verticalAlign: "middle" }}>
@@ -1501,6 +1518,7 @@ const MLD = () => {
                             ) : (
                               <span style={{ fontSize: "11px", color: "#aaa", fontStyle: "italic", whiteSpace: "nowrap" }}>Not assessed</span>
                             )}
+
 
                             {isUploaded && soaId && (
                               <div style={{ display: "flex", gap: "4px", justifyContent: "center", flexWrap: "wrap" }}>
@@ -1571,10 +1589,12 @@ const MLD = () => {
                           </div>
                         </td>
 
+
                         {/* Remarks */}
                         <td style={{ padding: "12px 14px", textAlign: "center", color: "#2c3e50", fontSize: "12px" }}>
                           {doc?.deleteComment ?? "—"}
                         </td>
+
 
                         {/* ── NEW: Quality Check cell (doc-checker) ── */}
                         <td style={{ padding: "12px 14px", textAlign: "center", verticalAlign: "middle", background: "#f6fbf7" }}>
@@ -1590,6 +1610,7 @@ const MLD = () => {
                             <span style={{ fontSize: "11px", color: "#aaa", fontStyle: "italic" }}>—</span>
                           )}
                         </td>
+
 
                         {/* ── NEW: Add Task cell ── */}
                         <td style={{ padding: "12px 14px", textAlign: "center", verticalAlign: "middle", background: "#f8f9ff" }}>
@@ -1611,6 +1632,7 @@ const MLD = () => {
           </table>
         </div>
       </div>
+
 
       {/* Preview Modal */}
       {previewModalOpen && (
