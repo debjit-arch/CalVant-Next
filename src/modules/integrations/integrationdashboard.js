@@ -1452,6 +1452,7 @@ const RiskAssessmentTable = () => {
       });
       return;
     }
+    console.log('🔍 Syncing with tenantId:', tenantId, '| type:', typeof tenantId); // ← ADD THIS
     try {
       setLoading(true);
       setSnackbar({

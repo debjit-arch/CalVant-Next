@@ -1,6 +1,6 @@
 ﻿'use client'
 
-import React, { useState ,useMemo} from "react";
+import React, { useState, useMemo } from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { styled } from "@mui/material/styles";
 import classNames from "classnames";
@@ -18,8 +18,7 @@ import useActivityLogger from "../hooks/useActivityLogger";
 
 import { useEffectiveOrg } from '../../../../hooks/useEffectiveOrg';
 const getFilteredRoutes = () => {
-  const { isPartnerRoot, isOrgManager, effectiveOrgId, selectedChildOrg } = useEffectiveOrg();
-  const token = localStorage.getItem("token");
+  const token = sessionStorage.getItem("token");
   if (!token) return routes.items;
 
   let userRoles = [];
@@ -30,7 +29,6 @@ const getFilteredRoutes = () => {
     return routes.items;
   }
 
-  // inject partner_root if this root user's org is a partner
   if (
     userRoles.includes("root") &&
     !userRoles.includes("super_admin") &&
@@ -80,11 +78,11 @@ const Dashboard = () => {
   const location = useLocation();
 
   const filteredRoutes = React.useMemo(() => {
-  console.log("isPartnerOrg at render:", sessionStorage.getItem("isPartnerOrg"));
-  const result = getFilteredRoutes();
-  console.log("filtered route names:", result.map(r => r.name));
-  return result;
-}, []);
+    console.log("isPartnerOrg at render:", sessionStorage.getItem("isPartnerOrg"));
+    const result = getFilteredRoutes();
+    console.log("filtered route names:", result.map(r => r.name));
+    return result;
+  }, []);
 
   // ─── Activity logging ───────────────────────────────────────────────────
   // Automatically sends a PAGE_LOAD log (item: null) on every route change.
@@ -94,10 +92,8 @@ const Dashboard = () => {
   const mediaMatcher = matchMedia(`(max-width: ${MobileBreakpoint}px)`);
 
   const handleDrawerToggle = () => {
-  const { isPartnerRoot, isOrgManager, effectiveOrgId, selectedChildOrg } = useEffectiveOrg();
     setOpened(!opened);
   };
-
   const getRoutes = (
     <Routes>
       {routes.items.map((item, index) =>
