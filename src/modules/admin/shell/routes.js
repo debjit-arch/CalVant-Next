@@ -71,6 +71,8 @@ import AccountTreeIcon from "@mui/icons-material/AccountTree";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
 import LibraryBooksIcon from "@mui/icons-material/LibraryBooks";
 import CompareArrowsIcon from "@mui/icons-material/CompareArrows";
+import IntegrationsPage from './components/Toolintegrations/IntegrationsPage';
+import ExtensionIcon from "@mui/icons-material/Extension";
 
 export default {
   items: [
@@ -217,7 +219,7 @@ export default {
         type: "primary",
         value: "1",
       },
-      roles: ["super_admin","partner_root"],
+      roles: ["super_admin", "partner_root"],
       children: [
         {
           path: "/create",
@@ -390,6 +392,14 @@ export default {
       roles: ["root"], // only root can assign control owners
     },
     {
+      path: "/integrations",
+      name: "Integrations",
+      type: "link",
+      icon: ExtensionIcon,
+      component: IntegrationsPage,
+      roles: ["root", "super_admin"],
+    },
+    {
       path: "/users",
       name: "Users",
       type: "submenu",
@@ -470,6 +480,7 @@ export default {
         type: "primary",
         value: "1",
       },
+
 
       roles: ["super_admin"],
       children: [

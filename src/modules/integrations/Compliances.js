@@ -259,7 +259,7 @@ const Compliances = () => {
         const cached = localStorage.getItem("risk_assessment_cache_v1");
         if (!cached) {
           const requirementsRes = await axios.get(
-            `https://api.calvant.com/compliance-brain/compliance/requirements?tenantId=${tenantId}`,
+            `https://api.calvant.com/compliance-brain/compliance/controls?tenantId=${tenantId}`,
             {
               headers: {
                 Authorization: `Bearer ${sessionStorage.getItem("token")}`,

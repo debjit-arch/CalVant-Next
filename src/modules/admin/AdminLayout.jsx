@@ -315,6 +315,7 @@ import {
   ChevronUp, LogOut, ArrowLeft, BookOpen, HelpCircle,
   Search, FileText, Landmark, Network, CheckCircle2
 } from "lucide-react";
+import { Plug } from "lucide-react";
 
 // ── Nav Config ────────────────────────────────────────────────────────────────
 
@@ -391,6 +392,7 @@ const NAV_BASE = [
     ],
   },
   { label: "Activity Logs", icon: Activity, path: "/admin/logs" },
+  { label: "Integrations",  icon: Plug,      path: "/admin/integrations" },
 ];
 
 const ORG_ITEM = {

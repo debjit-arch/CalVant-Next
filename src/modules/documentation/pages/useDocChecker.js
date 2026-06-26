@@ -1,4 +1,5 @@
-// // useDocChecker.js
+//Working Model
+
 // import { useState, useCallback, useRef } from "react";
 
 // const DOC_CHECKER_BASE = "https://api.calvant.com/doc-checker-service/api/doc-checker";
@@ -85,6 +86,14 @@
 //         organizationId: row.organizationId,
 //         soaId:          row.soaId,
 //         controlId:      row.controlId,
+//         // ── NEW: framework-aware control mapping ──
+//         // When present, doc-checker-service factors coverage of this
+//         // control's actual requirements directly into the policyStatements
+//         // score (see GroqAuditService) — not a separate field, a real input
+//         // to the same 0-80 criterion.
+//         framework:      row.framework,
+//         controlCode:    row.controlCode,
+//         controlTitle:   row.controlTitle,
 //       };
 //       const result = await postCheck(payload);
 //       setResults((prev) => ({ ...prev, [docId]: result }));
@@ -105,7 +114,10 @@
 //   const canApprove = useCallback((docId) => {
 //     const r = results[docId];
 //     if (!r) return false;
-//     // Both title match AND content score >= 85 required to approve
+//     // Both title match AND content score >= 85 required to approve.
+//     // Note: when this doc was control-linked, control-requirement coverage
+//     // is already baked into overallScore via policyStatements (see
+//     // GroqAuditService/DocCheckerService) — there is no separate gate here.
 //     return r.titleMatch === true && (r.overallScore ?? 0) >= APPROVAL_THRESHOLD;
 //   }, [results]);
 
@@ -137,12 +149,33 @@
 //   };
 // }
 
-// useDocChecker.js
 import { useState, useCallback, useRef } from "react";
 
 const DOC_CHECKER_BASE = "https://api.calvant.com/doc-checker-service/api/doc-checker";
 
-export const APPROVAL_THRESHOLD = 85;
+/**
+ * Hard approval threshold — a doc must score >= this to be COMPLIANT.
+ * Still 85, unchanged. What changed is the band BELOW it:
+ *   COMPLIANT    >= 85   → green, can approve
+ *   BORDERLINE   75–84   → amber, cannot approve yet (manual review required)
+ *   NON_COMPLIANT < 75   → red, hard fail
+ *
+ * The 10-point BORDERLINE buffer (75–84) absorbs LLM score drift of ±4–6 pts
+ * across re-runs, so a document that scores 82 on run 1 and 79 on re-verify
+ * stays BORDERLINE rather than flipping to a hard fail.
+ */
+export const APPROVAL_THRESHOLD  = 85;
+export const BORDERLINE_THRESHOLD = 75;
+
+/**
+ * Derive the compliance band from a numeric score.
+ * Single source of truth — mirrors DocCheckerService.evaluate() on the backend.
+ */
+export function getComplianceStatus(score) {
+  if (score >= APPROVAL_THRESHOLD)   return "COMPLIANT";
+  if (score >= BORDERLINE_THRESHOLD) return "BORDERLINE";
+  return "NON_COMPLIANT";
+}
 
 function authHeaders() {
   const token = sessionStorage.getItem("token");
@@ -224,11 +257,8 @@ export function useDocChecker() {
         organizationId: row.organizationId,
         soaId:          row.soaId,
         controlId:      row.controlId,
-        // ── NEW: framework-aware control mapping ──
-        // When present, doc-checker-service factors coverage of this
-        // control's actual requirements directly into the policyStatements
-        // score (see GroqAuditService) — not a separate field, a real input
-        // to the same 0-80 criterion.
+        // Framework-aware control mapping — lets doc-checker-service factor
+        // coverage of this control's requirements into the policyStatements score.
         framework:      row.framework,
         controlCode:    row.controlCode,
         controlTitle:   row.controlTitle,
@@ -249,30 +279,57 @@ export function useDocChecker() {
   const isVerifying = useCallback((docId) => !!verifying[docId], [verifying]);
   const getError    = useCallback((docId) => errors[docId],      [errors]);
 
+  /**
+   * A document can be approved only when:
+   *   1. Title matches (binary gate — never relaxed)
+   *   2. complianceStatus === "COMPLIANT" (score >= 85)
+   *
+   * BORDERLINE (75–84) is intentionally NOT approvable — it requires manual
+   * review before sign-off. This is what requiresManualReview=true signals
+   * from the backend.
+   */
   const canApprove = useCallback((docId) => {
     const r = results[docId];
     if (!r) return false;
-    // Both title match AND content score >= 85 required to approve.
-    // Note: when this doc was control-linked, control-requirement coverage
-    // is already baked into overallScore via policyStatements (see
-    // GroqAuditService/DocCheckerService) — there is no separate gate here.
-    return r.titleMatch === true && (r.overallScore ?? 0) >= APPROVAL_THRESHOLD;
+    const status = r.complianceStatus || getComplianceStatus(r.overallScore ?? 0);
+    return r.titleMatch === true && status === "COMPLIANT";
   }, [results]);
 
+  /**
+   * Human-readable block reason shown in the ApproveGateModal.
+   * Explicitly describes the BORDERLINE state so users understand
+   * this isn't a hard fail — it needs manual review.
+   */
   const getBlockReason = useCallback((docId) => {
     const r = results[docId];
-    if (!r) return "This document has not been verified yet. Click Verify in the Quality Check column to run the check.";
+    if (!r) {
+      return "This document has not been verified yet. Click Verify in the Quality Check column to run the check.";
+    }
+
     const reasons = [];
+
     if (!r.titleMatch) {
       reasons.push(
         `Title mismatch: the MLD expects "${r.mldDocName}" but the document title is "${r.extractedDocTitle}".`
       );
     }
-    if ((r.overallScore ?? 0) < APPROVAL_THRESHOLD) {
+
+    const score  = r.overallScore ?? 0;
+    const status = r.complianceStatus || getComplianceStatus(score);
+
+    if (status === "BORDERLINE") {
       reasons.push(
-        `Content score is ${r.overallScore}/100 — below the required ${APPROVAL_THRESHOLD} to approve.`
+        `Content score ${score}/100 is in the borderline zone (${BORDERLINE_THRESHOLD}–${APPROVAL_THRESHOLD - 1}). ` +
+        `This document requires manual review before approval. ` +
+        `A compliance officer must sign off on borderline documents — they do not auto-approve.`
+      );
+    } else if (status === "NON_COMPLIANT") {
+      reasons.push(
+        `Content score ${score}/100 is below the minimum threshold of ${BORDERLINE_THRESHOLD}. ` +
+        `The document must be revised and re-verified before it can be approved.`
       );
     }
+
     return reasons.join(" ");
   }, [results]);
 
