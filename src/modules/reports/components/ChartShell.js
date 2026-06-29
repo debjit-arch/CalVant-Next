@@ -16,13 +16,16 @@ import React from "react";
 import { BarChart3 } from "lucide-react";
 
 // ─── CHART SHELL ─────────────────────────────────────────────────────────────
-export function ChartShell({ title, showTitle = false, loading, hasData, height = 200, children }) {
+export function ChartShell({ title, showTitle = false, loading, hasData, height, children }) {
   return (
     <div className="h-full bg-white/70 backdrop-blur-sm border border-slate-100/50 rounded-2xl shadow-sm p-4 flex flex-col gap-3">
       {showTitle && title && (
         <p className="text-xs font-semibold text-slate-600 truncate">{title}</p>
       )}
-      <div style={{ height, flex: 1, minHeight: height }}>
+      <div
+        className="flex-1 min-h-0"
+        style={height ? { height, flexShrink: 0 } : undefined}
+      >
         {loading ? (
           <div className="h-full bg-slate-100/60 rounded-xl animate-pulse" />
         ) : (

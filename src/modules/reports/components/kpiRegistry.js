@@ -1,10 +1,6 @@
 /**
  * ─────────────────────────────────────────────────────────────────────────────
- * KPI WIDGET REGISTRY  (FIXED)
- * ─────────────────────────────────────────────────────────────────────────────
- * BUG FIXED: DepartmentBreakdown and TableWidget were both pointing to
- * "./ScoreGauge" — they are named exports from the same file so they need
- * the `.then(m => ({ default: m.NamedExport }))` pattern for React.lazy.
+ * KPI WIDGET REGISTRY  (v2 — adds TargetMeter, uses updated TrendLineChart)
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
@@ -12,16 +8,13 @@ import { lazy } from "react";
 
 export const KPI_REGISTRY = {
   StatCard:            lazy(() => import("./StatCard")),
-  TrendLineChart:      lazy(() => import("./TrendLineChart")),
+  TrendLineChart:      lazy(() => import("./TrendLineChart")),   // v2 — benchmarks
   TrendAreaChart:      lazy(() => import("./TrendAreaChart")),
   TrendBarChart:       lazy(() => import("./TrendBarChart")),
   DonutStatusChart:    lazy(() => import("./DonutStatusChart")),
-
-  // ScoreGauge is the default export
   ScoreGauge:          lazy(() => import("./ScoreGauge")),
+  TargetMeter:         lazy(() => import("./TargetMeter")),       // NEW
 
-  // DepartmentBreakdown and TableWidget are NAMED exports from ScoreGauge.jsx
-  // React.lazy requires a module with a `default` export, so we re-wrap them:
   DepartmentBreakdown: lazy(() =>
     import("./ScoreGauge").then((m) => ({ default: m.DepartmentBreakdown }))
   ),
@@ -30,10 +23,6 @@ export const KPI_REGISTRY = {
   ),
 };
 
-/**
- * Resolve a componentType string to a React component.
- * Returns a fallback placeholder if the type is not registered.
- */
 export function resolveComponent(componentType) {
   const Component = KPI_REGISTRY[componentType];
   if (!Component) {
@@ -43,7 +32,6 @@ export function resolveComponent(componentType) {
   return Component;
 }
 
-// ─── FALLBACK FOR UNREGISTERED TYPES ─────────────────────────────────────────
 function UnknownWidget({ kpiConfig }) {
   return (
     <div className="h-full flex items-center justify-center bg-slate-50 border-2 border-dashed border-slate-200 rounded-xl p-4 text-center">

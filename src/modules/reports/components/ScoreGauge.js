@@ -148,11 +148,31 @@ export const TableWidget = memo(function TableWidget({
   loading,
 }) {
   const { columns = [] } = kpiConfig.props ?? {};
-  const map = resolvedData?.map ?? {};
-  const rows = Object.entries(map)
-    .filter(([, v]) => v > 0)
-    .map(([k, v]) => ({ department: k, value: v }))
-    .sort((a, b) => b.value - a.value);
+
+  // Dynamic mode: resolvedData.rows already contains full row objects
+  // (e.g. from resolveFrameworkTable — { name: "ISO27001", applicableControls: 122, ... }).
+  // Static mode (unchanged): build {department, value} rows from resolvedData.map.
+  const dynamicRows = resolvedData?.rows;
+  const rows = Array.isArray(dynamicRows) && dynamicRows.length > 0
+    ? dynamicRows
+    : Object.entries(resolvedData?.map ?? {})
+        .filter(([, v]) => v > 0)
+        .map(([k, v]) => ({ department: k, value: v }))
+        .sort((a, b) => b.value - a.value);
+
+  // If no explicit columns were configured and we're in dynamic mode, derive
+  // columns from whatever keys are present on the first row — this is what
+  // makes the table adapt automatically to however many metrics/frameworks
+  // exist in the live payload, with no hardcoded list anywhere.
+  const effectiveColumns = columns.length > 0
+    ? columns
+    : (rows[0]
+        ? Object.keys(rows[0]).map((key) => ({
+            key,
+            label: key === "name" ? "Framework" : key.replace(/([A-Z])/g, " $1").replace(/^./, (c) => c.toUpperCase()),
+            align: key === "name" ? "left" : "right",
+          }))
+        : []);
 
   return (
     <div className="bg-white/70 backdrop-blur-sm border border-slate-100/50 rounded-2xl shadow-sm p-4 flex flex-col gap-3">
@@ -169,7 +189,7 @@ export const TableWidget = memo(function TableWidget({
         <table className="w-full text-xs">
           <thead>
             <tr className="border-b border-slate-100">
-              {columns.map((col) => (
+              {effectiveColumns.map((col) => (
                 <th
                   key={col.key}
                   className={`pb-2 font-semibold text-slate-500 uppercase tracking-wide ${col.align === "right" ? "text-right" : "text-left"}`}
@@ -185,12 +205,14 @@ export const TableWidget = memo(function TableWidget({
                 key={i}
                 className="border-b border-slate-50 hover:bg-slate-50 transition-colors"
               >
-                {columns.map((col) => (
+                {effectiveColumns.map((col) => (
                   <td
                     key={col.key}
                     className={`py-2 text-slate-700 ${col.align === "right" ? "text-right font-bold" : ""}`}
                   >
-                    {row[col.key]}
+                    {col.key.toLowerCase().includes("percentage") && typeof row[col.key] === "number"
+                      ? `${row[col.key].toFixed(1)}%`
+                      : row[col.key]}
                   </td>
                 ))}
               </tr>
@@ -198,7 +220,7 @@ export const TableWidget = memo(function TableWidget({
             {rows.length === 0 && (
               <tr>
                 <td
-                  colSpan={columns.length}
+                  colSpan={effectiveColumns.length}
                   className="py-4 text-center text-slate-400 italic"
                 >
                   No data available
