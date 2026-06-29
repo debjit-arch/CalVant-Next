@@ -470,6 +470,7 @@ const LoginPage = () => {
       if (
         currentHost.includes("localhost") ||
         currentHost.includes(".amplifyapp.com")
+
       ) {
         sessionStorage.setItem("token", token);
 
@@ -517,13 +518,34 @@ const LoginPage = () => {
       const tenantId = tenantIdRes.data;
 
       // STEP 3: GET PRODUCTION DOMAIN FROM TENANT ID
-      const domainLookupRes = await axios.get(
-        `${process.env.NEXT_PUBLIC_SP}/compliance-brain/api/tenant-lookup/${tenantId}/domain`,
-      );
+      // If domain lookup fails (new org with no GWS configured yet),
+      // fall back to current host — no redirect needed
+      let configuredDomain = null;
+      try {
+        const domainLookupRes = await axios.get(
+          `${process.env.NEXT_PUBLIC_SP}/compliance-brain/api/tenant-lookup/${tenantId}/domain`,
+        );
+        configuredDomain = domainLookupRes.data;
+      } catch (err) {
+        // 400 = tenant exists but no domain configured yet
+        // 404 = tenant config not found yet
+        // Either way, stay on current host
+        console.warn("Domain lookup failed, staying on current host:", err.response?.status);
+      }
 
-      const configuredDomain = domainLookupRes.data;
+      // STEP 4: DETERMINE BASE DOMAIN + REDIRECT OR STAY
+      if (!configuredDomain) {
+        // No domain configured — just store session and proceed on current host
+        sessionStorage.setItem("token", token);
+        sessionStorage.setItem("user", JSON.stringify({ ...loginRes.data, email }));
+        sessionStorage.setItem("userEmail", email);
+        login();
+        await new Promise((r) => setTimeout(r, 0));
+        router.replace("/");
+        return;
+      }
 
-      // STEP 4: DETERMINE BASE DOMAIN CORRECTLY
+      // Domain found — do the full subdomain redirect
       const hostParts = currentHost.split(".");
       let baseDomain;
 
@@ -539,9 +561,6 @@ const LoginPage = () => {
       const subdomain = configuredDomain.split(".")[0];
 
       // STEP 5: REDIRECT TO TENANT SUBDOMAIN
-      // email is injected into the user object and passed as a separate param
-      // so the auth-bridge page can write a complete user object (with email)
-      // into sessionStorage on the tenant subdomain — same reason as above.
       window.location.href = `https://${subdomain}.${baseDomain}/auth-bridge?token=${token}&user=${encodeURIComponent(
         JSON.stringify({ ...loginRes.data, email }),
       )}&email=${encodeURIComponent(email)}`;
@@ -550,7 +569,7 @@ const LoginPage = () => {
       console.error("Login/Routing Error:", err);
       setError(
         err.response?.data?.error ||
-          "Routing failed. Check your organization config.",
+        "Routing failed. Check your organization config.",
       );
     } finally {
       setLoading(false);
