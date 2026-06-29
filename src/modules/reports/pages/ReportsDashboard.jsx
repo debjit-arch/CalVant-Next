@@ -1,3 +1,21 @@
+/**
+ * ─────────────────────────────────────────────────────────────────────────────
+ * ReportsDashboard.jsx  (v7 — Bigin-style view switcher dropdown)
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Key changes from v6:
+ * 1. View switcher dropdown in the header (like Bigin's dashboard selector):
+ * - Shows current view name + sharing badge as the trigger
+ * - Dropdown lists all views with their sharing info
+ * - "+ New View" at the bottom of the dropdown list
+ * - Search/filter within the dropdown
+ * 2. Active view tracked via activeViewId; only that view's panels are
+ * passed to DashboardEngine (single-view rendering).
+ * 3. "Add View" button removed from header — the dropdown is the entry
+ * point for both switching and creating views.
+ * 4. Persistent notification dots replace toast alerts for new panels.
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
+
 import React, {
   useState,
   useMemo,
@@ -11,68 +29,106 @@ import {
   Wifi,
   WifiOff,
   RefreshCw,
-  Calendar,
   Download,
-  FileJson,
-  FileSpreadsheet,
-  Settings2,
   HelpCircle,
-  GitCompareArrows,
-  FileText,
-  Pencil,
   Plus,
-  ClipboardList,
+  X,
+  Check,
+  Lock,
+  Globe,
+  Users,
+  UserPlus,
+  ChevronDown,
+  Search,
+  Eye,
+  Trash2,
 } from "lucide-react";
-import Joyride, { STATUS } from "react-joyride";
 
 import DashboardEngine from "../components/DashboardEngine";
+import ReportConfigModal from "../components/ReportConfigModal";
 import { useDashboardData } from "../../../hooks/useDashboardData";
 import { useDashboardExport } from "../../../hooks/useDashboardExport";
-import ComparisonBar from "../components/ComparisonBar";
-import FilterBar from "../components/FilterBar";
-import ReportConfigModal from "../components/ReportConfigModal";
 
 // ─── CONFIG ───────────────────────────────────────────────────────────────────
-const INTERVALS = [
-  { key: "7d",     label: "7 Days"  },
-  { key: "14d",    label: "14 Days" },
-  { key: "90d",    label: "90 Days" },
-  { key: "custom", label: "Custom"  },
-];
-
 const BASE_URL = "https://api.calvant.com/reports-service/api/reports";
-
 const INTERVAL_TYPE_TO_KEY = {
-  DAILY:         "7d",
-  WEEKLY:        "7d",
-  MONTHLY:       "90d",
-  QUARTERLY:     "90d",
-  YEARLY:        "custom",
-  HOURLY:        "7d",
-  CUSTOM_DAYS:   "7d",
+  DAILY: "7d",
+  WEEKLY: "7d",
+  MONTHLY: "90d",
+  QUARTERLY: "90d",
+  YEARLY: "custom",
+  HOURLY: "7d",
+  CUSTOM_DAYS: "7d",
   CUSTOM_MONTHS: "90d",
-  CUSTOM_YEARS:  "custom",
+  CUSTOM_YEARS: "custom",
 };
 
-// ─── PER-SCHEDULE CUSTOM VIEWS  (backend — report_views collection) ──────────
-async function fetchScheduleViews(scheduleId, token) {
-  if (!scheduleId) return [];
+const MAX_VIEWS_PER_CONFIG = 2;
+
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
+function getDefaultOrg() {
   try {
-    const res = await fetch(`${BASE_URL}/config/${scheduleId}/views`, {
+    return (
+      sessionStorage.getItem("orgId") ||
+      JSON.parse(sessionStorage.getItem("user") || "{}").organization ||
+      JSON.parse(sessionStorage.getItem("user") || "{}").organizationId ||
+      ""
+    );
+  } catch {
+    return "";
+  }
+}
+
+function getToken() {
+  try {
+    return (
+      sessionStorage.getItem("token") || localStorage.getItem("token") || ""
+    );
+  } catch {
+    return "";
+  }
+}
+
+async function fetchOrCreatePrimaryConfig(organization, userId, token) {
+  try {
+    const qs = new URLSearchParams({ organization });
+    if (userId) qs.set("userId", userId);
+    const res = await fetch(`${BASE_URL}/config/primary?${qs.toString()}`, {
       headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
     });
-    if (!res.ok) return [];
+    if (!res.ok) return null;
     const json = await res.json();
-    return Array.isArray(json?.data) ? json.data : [];
+    const cfg = json?.data ?? null;
+    return cfg ? { ...cfg, id: cfg.id ?? cfg._id } : null;
   } catch {
-    return [];
+    return null;
+  }
+}
+
+async function fetchScheduleViews(scheduleId, userEmail, token) {
+  if (!scheduleId) return { views: [], totalCount: 0 };
+  try {
+    const qs = new URLSearchParams();
+    if (userEmail) qs.set("userEmail", userEmail);
+    const res = await fetch(`${BASE_URL}/config/${scheduleId}/views?${qs.toString()}`, {
+      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    });
+    if (!res.ok) return { views: [], totalCount: 0 };
+    const json = await res.json();
+    const data = json?.data ?? {};
+    return {
+      views: Array.isArray(data.views) ? data.views : [],
+      totalCount: data.totalCount ?? 0,
+    };
+  } catch {
+    return { views: [], totalCount: 0 };
   }
 }
 
 async function saveScheduleViewsRemote(scheduleId, organization, views, token) {
-  if (!scheduleId) return;
+  if (!scheduleId) return { ok: false, status: "NO_CONFIG" };
   try {
-    await fetch(
+    const res = await fetch(
       `${BASE_URL}/config/${scheduleId}/views?organization=${encodeURIComponent(organization)}`,
       {
         method: "PUT",
@@ -83,114 +139,285 @@ async function saveScheduleViewsRemote(scheduleId, organization, views, token) {
         body: JSON.stringify(views),
       },
     );
-  } catch {
-    // best-effort; UI already has the optimistic update
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return { ok: false, status: json.status || "ERROR", message: json.message };
+    }
+    return { ok: true, data: json.data ?? views };
+  } catch (e) {
+    return { ok: false, status: "NETWORK_ERROR", message: e?.message };
   }
 }
 
-// ─── ORG / TOKEN HELPERS ──────────────────────────────────────────────────────
-function getDefaultOrg() {
+async function generateNowRemote(configId, token) {
+  if (!configId) return { ok: false, status: "NO_CONFIG" };
   try {
-    return (
-      sessionStorage.getItem("orgId") ||
-      JSON.parse(sessionStorage.getItem("user") || "{}").organization ||
-      JSON.parse(sessionStorage.getItem("user") || "{}").organizationId ||
-      ""
+    const res = await fetch(`${BASE_URL}/generate/${configId}`, {
+      method: "POST",
+      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) return { ok: false, status: json.status || "ERROR", message: json.message };
+    return { ok: true, data: json.data };
+  } catch (e) {
+    return { ok: false, status: "NETWORK_ERROR", message: e?.message };
+  }
+}
+
+async function deleteScheduleViewRemote(scheduleId, viewId, organization, token) {
+  if (!scheduleId || !viewId) return { ok: false, status: "NO_CONFIG" };
+  try {
+    const res = await fetch(
+      `${BASE_URL}/config/${scheduleId}/views/${viewId}?organization=${encodeURIComponent(organization)}`,
+      {
+        method: "DELETE",
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      },
     );
-  } catch { return ""; }
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) return { ok: false, status: json.status || "ERROR", message: json.message };
+    return { ok: true, data: json.data };
+  } catch (e) {
+    return { ok: false, status: "NETWORK_ERROR", message: e?.message };
+  }
 }
 
-function getToken() {
-  try { return sessionStorage.getItem("token") || ""; }
-  catch { return ""; }
+// ─── SHARING BADGE ────────────────────────────────────────────────────────────
+function SharingBadge({ view, compact = false }) {
+  if (!view) return null;
+  const { sharing, sharedWith = [] } = view;
+
+  if (sharing === "me") {
+    return (
+      <span className={`inline-flex items-center gap-1 ${compact ? "text-[10px]" : "text-xs"} text-slate-400`}>
+        <Lock size={compact ? 9 : 10} />
+        Only me
+      </span>
+    );
+  }
+  if (sharing === "all") {
+    return (
+      <span className={`inline-flex items-center gap-1 ${compact ? "text-[10px]" : "text-xs"} text-emerald-600`}>
+        <Globe size={compact ? 9 : 10} />
+        All members
+      </span>
+    );
+  }
+  if (sharing === "custom") {
+    if (!sharedWith || sharedWith.length === 0) {
+      return (
+        <span className={`inline-flex items-center gap-1 ${compact ? "text-[10px]" : "text-xs"} text-violet-500`}>
+          <Users size={compact ? 9 : 10} />
+          Custom
+        </span>
+      );
+    }
+    const first = sharedWith[0];
+    const rest = sharedWith.length - 1;
+    return (
+      <span className={`inline-flex items-center gap-1 ${compact ? "text-[10px]" : "text-xs"} text-violet-500`}>
+        <Users size={compact ? 9 : 10} />
+        {first}{rest > 0 ? ` +${rest} more` : ""}
+      </span>
+    );
+  }
+  return null;
 }
 
-// ─── SIDEBAR SCHEDULE ITEM ────────────────────────────────────────────────────
-function ScheduleItem({ cfg, isActive, onClick, onEdit }) {
-  return (
-    <motion.div
-      whileHover={{ x: 2 }}
-      onClick={onClick}
-      className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl cursor-pointer group transition-all border ${
-        isActive
-          ? "bg-white shadow-sm border-indigo-100"
-          : "border-transparent hover:bg-white/60 hover:border-slate-100"
-      }`}
-    >
-      <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 mt-0.5 ${cfg.active ? "bg-emerald-400" : "bg-slate-300"}`} />
-      <div className="flex-1 min-w-0">
-        <p className={`text-xs font-semibold truncate ${isActive ? "text-slate-800" : "text-slate-600"}`}>
-          {cfg.reportName}
-        </p>
-        {cfg.dataSources?.length > 0 && (
-          <p className="text-[10px] text-slate-400 truncate mt-0.5">
-            {cfg.dataSources.join(", ")}
-          </p>
-        )}
-      </div>
-      <button
-        onClick={(e) => { e.stopPropagation(); onEdit(); }}
-        className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 p-1 rounded-md hover:bg-slate-100"
-        title="Edit schedule"
-      >
-        <Pencil size={10} className="text-slate-400 hover:text-indigo-500" />
-      </button>
-    </motion.div>
-  );
-}
-
-// ─── EXPORT DROPDOWN ─────────────────────────────────────────────────────────
-function ExportDropdown({ onConfig, onSnapshot, onCSV, onComparison, onPDF, hasComparison }) {
+// ─── VIEW SWITCHER DROPDOWN ───────────────────────────────────────────────────
+function ViewSwitcherDropdown({
+  views = [],
+  activeViewId,
+  onSelect,
+  onNewView,
+  onDeleteView,
+  deletingViewId = null,
+  disabled = false,
+  totalViewCount
+}) {
   const [open, setOpen] = useState(false);
-  const [hasMounted, setHasMounted] = useState(false);
-  useEffect(() => { setHasMounted(true); }, []);
+  const [search, setSearch] = useState("");
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
   const ref = useRef(null);
+  const searchRef = useRef(null);
+
+  const activeView = views.find((v) => v.id === activeViewId) ?? views[0] ?? null;
+
+  const filtered = useMemo(() => {
+    if (!search.trim()) return views;
+    const q = search.toLowerCase();
+    return views.filter((v) => (v.label ?? "").toLowerCase().includes(q));
+  }, [views, search]);
 
   useEffect(() => {
-    function handler(e) { if (ref.current && !ref.current.contains(e.target)) setOpen(false); }
+    function handler(e) {
+      if (ref.current && !ref.current.contains(e.target)) {
+        setOpen(false);
+        setSearch("");
+        setConfirmDeleteId(null);
+      }
+    }
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  const items = [
-    { label: "Dashboard Config", sub: "JSON schema · layout + KPIs",    icon: <Settings2 size={13} className="text-indigo-500" />,  bg: "bg-indigo-50", onClick: onConfig   },
-    { label: "Data Snapshot",    sub: "JSON · resolved KPI values",      icon: <FileJson size={13} className="text-emerald-500" />,  bg: "bg-emerald-50", onClick: onSnapshot },
-    { label: "Raw Data CSV",     sub: "Active sources only",             icon: <FileSpreadsheet size={13} className="text-amber-500" />, bg: "bg-amber-50", onClick: onCSV },
-    ...(hasComparison ? [{ label: "Comparison CSV", sub: "Primary vs comparison period", icon: <GitCompareArrows size={13} className="text-violet-500" />, bg: "bg-violet-50", onClick: onComparison }] : []),
-    { label: "Download PDF",     sub: "Visual screenshot",              icon: <FileText size={13} className="text-rose-500" />,     bg: "bg-rose-50",    onClick: onPDF      },
-  ];
+  useEffect(() => {
+    if (open && searchRef.current) {
+      setTimeout(() => searchRef.current?.focus(), 60);
+    }
+  }, [open]);
+
+  const handleSelect = (viewId) => {
+    onSelect(viewId);
+    setOpen(false);
+    setSearch("");
+    setConfirmDeleteId(null);
+  };
+
+  const handleNew = () => {
+    setOpen(false);
+    setSearch("");
+    setConfirmDeleteId(null);
+    onNewView();
+  };
 
   return (
-    <div className="relative" ref={ref}>
-      <motion.button
-        whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
+    <div className="relative flex-shrink-0" ref={ref}>
+      <button
+        disabled={disabled}
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-xs font-semibold text-slate-600 transition-colors"
+        className={`
+          flex items-center gap-2 pl-3 pr-2.5 py-2 rounded-xl border transition-all
+          ${open
+            ? "bg-white border-indigo-300 shadow-md"
+            : "bg-white border-slate-200 hover:border-slate-300 hover:shadow-sm"
+          }
+          disabled:opacity-50 disabled:cursor-not-allowed min-w-[160px] max-w-[260px]
+        `}
       >
-        <Download size={13} /> Export
-      </motion.button>
+        <div className="flex-1 min-w-0 text-left">
+          <p className="text-sm font-semibold text-slate-800 truncate leading-tight">
+            {activeView?.label ?? "Select view"}
+          </p>
+          {activeView && (
+            <div className="mt-0.5">
+              <SharingBadge view={activeView} compact />
+            </div>
+          )}
+        </div>
+        <ChevronDown
+          size={14}
+          className={`text-slate-400 flex-shrink-0 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+
       <AnimatePresence>
         {open && (
           <motion.div
-            initial={hasMounted ? { opacity: 0, y: -6, scale: 0.97 } : false}
+            initial={{ opacity: 0, y: -6, scale: 0.97 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -6, scale: 0.97 }}
-            transition={{ duration: 0.15 }}
-            className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-xl border border-slate-100 overflow-hidden z-50"
+            transition={{ duration: 0.13 }}
+            className="absolute left-0 top-full mt-1.5 w-72 bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden z-50"
           >
-            <div className="p-1.5 flex flex-col gap-0.5">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-3 py-1.5">Export As</p>
-              {items.map((item) => (
-                <button key={item.label} onClick={() => { item.onClick(); setOpen(false); }}
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-50 transition-colors text-left"
-                >
-                  <div className={`w-7 h-7 rounded-lg ${item.bg} flex items-center justify-center flex-shrink-0`}>{item.icon}</div>
-                  <div>
-                    <p className="text-xs font-semibold text-slate-700">{item.label}</p>
-                    <p className="text-[10px] text-slate-400">{item.sub}</p>
-                  </div>
-                </button>
-              ))}
+            <div className="px-3 pt-3 pb-2">
+              <div className="relative">
+                <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                <input
+                  ref={searchRef}
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search views…"
+                  className="w-full pl-7 pr-3 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-300 focus:bg-white transition-all placeholder:text-slate-300 text-slate-700"
+                />
+              </div>
+            </div>
+
+            <div className="px-2 pb-1 max-h-60 overflow-y-auto">
+              {filtered.length === 0 ? (
+                <div className="px-3 py-4 text-center text-xs text-slate-400">
+                  No views match "{search}"
+                </div>
+              ) : (
+                filtered.map((view) => {
+                  const isActive = view.id === activeViewId;
+                  const isConfirming = confirmDeleteId === view.id;
+                  const isDeleting = deletingViewId === view.id;
+                  return (
+                    <div
+                      key={view.id}
+                      className={`
+                        group w-full flex items-center gap-2 px-3 py-2.5 rounded-xl transition-all
+                        ${isActive ? "bg-indigo-50" : "hover:bg-slate-50"}
+                      `}
+                    >
+                      <button
+                        onClick={() => handleSelect(view.id)}
+                        className={`flex-1 flex items-center gap-3 min-w-0 text-left ${isActive ? "text-indigo-700" : "text-slate-700"}`}
+                      >
+                        <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${isActive ? "bg-indigo-100" : "bg-slate-100"}`}>
+                          <Eye size={13} className={isActive ? "text-indigo-500" : "text-slate-400"} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-xs font-semibold truncate ${isActive ? "text-indigo-700" : "text-slate-700"}`}>
+                            {view.label || "Untitled"}
+                          </p>
+                          <div className="mt-0.5">
+                            <SharingBadge view={view} compact />
+                          </div>
+                        </div>
+                        {isActive && (
+                          <div className="w-5 h-5 rounded-full bg-indigo-500 flex items-center justify-center flex-shrink-0">
+                            <Check size={10} className="text-white" />
+                          </div>
+                        )}
+                      </button>
+                      {onDeleteView && (
+                        isConfirming ? (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setConfirmDeleteId(null);
+                              onDeleteView(view.id);
+                            }}
+                            disabled={isDeleting}
+                            className="flex-shrink-0 px-2 py-1.5 rounded-lg bg-rose-500 text-white text-[10px] font-bold hover:bg-rose-600 disabled:opacity-60 transition-colors"
+                          >
+                            {isDeleting ? "…" : "Confirm"}
+                          </button>
+                        ) : (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(view.id); }}
+                            title="Delete view"
+                            className="flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-slate-300 opacity-0 group-hover:opacity-100 hover:bg-rose-50 hover:text-rose-500 transition-all"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        )
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            <div className="border-t border-slate-100 p-2">
+              <button
+                onClick={handleNew}
+                className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left hover:bg-slate-50 transition-all group"
+              >
+                <div className="w-7 h-7 rounded-lg bg-indigo-50 flex items-center justify-center flex-shrink-0 group-hover:bg-indigo-100 transition-colors">
+                  <Plus size={13} className="text-indigo-500" />
+                </div>
+                <span className="text-xs font-semibold text-indigo-600">
+                  New Dashboard
+                </span>
+                {totalViewCount > 0 && (
+                  <span className="ml-auto text-[10px] text-slate-400 font-medium">
+                    {totalViewCount}/{MAX_VIEWS_PER_CONFIG}
+                  </span>
+                )}
+              </button>
             </div>
           </motion.div>
         )}
@@ -199,187 +426,396 @@ function ExportDropdown({ onConfig, onSnapshot, onCSV, onComparison, onPDF, hasC
   );
 }
 
-// ─── EMPTY STATE (no schedules at all) ───────────────────────────────────────
-function EmptyState({ onNew }) {
+// ─── SHARING OPTIONS ───────────────────────────────────
+const SHARING_OPTIONS = [
+  { key: "me", icon: Lock, title: "Just me", description: "Only you can see this view", color: "indigo" },
+  { key: "all", icon: Globe, title: "All members", description: "Everyone in your organization can see this view", color: "emerald" },
+  { key: "custom", icon: Users, title: "Custom", description: "Choose specific people to share with", color: "violet" },
+];
+
+function SharingCard({ icon: Icon, title, description, color, selected, onClick }) {
   return (
-    <div className="flex-1 flex flex-col items-center justify-center gap-6 p-12 text-center">
-      <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-indigo-100 to-blue-50 flex items-center justify-center shadow-inner">
-        <ClipboardList size={32} className="text-indigo-400" />
+    <button
+      onClick={onClick}
+      className={`w-full flex items-start gap-3 px-4 py-3.5 rounded-2xl border-2 text-left transition-all ${
+        selected ? `border-${color}-400 bg-${color}-50` : "border-slate-150 bg-slate-50 hover:border-slate-200 hover:bg-white"
+      }`}
+    >
+      <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${selected ? `bg-${color}-100` : "bg-white border border-slate-200"}`}>
+        <Icon size={16} className={selected ? `text-${color}-600` : "text-slate-400"} />
       </div>
-      <div>
-        <h2 className="text-base font-bold text-slate-700 mb-1">No report schedules yet</h2>
-        <p className="text-sm text-slate-400 max-w-xs">
-          Create a schedule to start building custom dashboards with your compliance data.
-        </p>
+      <div className="flex-1 min-w-0">
+        <p className={`text-sm font-semibold ${selected ? `text-${color}-800` : "text-slate-700"}`}>{title}</p>
+        <p className="text-[11px] text-slate-400 mt-0.5 leading-snug">{description}</p>
       </div>
-      <motion.button
-        whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
-        onClick={onNew}
-        className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-indigo-500 to-blue-500 text-white text-sm font-semibold rounded-xl shadow-md hover:shadow-lg transition-all"
+      {selected && (
+        <div className={`w-5 h-5 rounded-full bg-${color}-500 flex items-center justify-center flex-shrink-0 mt-0.5`}>
+          <Check size={11} className="text-white" />
+        </div>
+      )}
+    </button>
+  );
+}
+
+function buildNewView({ label, sharing, sharedWith, createdBy }) {
+  return {
+    id: `view_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+    label,
+    sharing,
+    sharedWith: sharing === "custom" ? sharedWith : [],
+    createdBy,
+    panels: [],
+  };
+}
+
+// ─── ADD VIEW MODAL ───────────────────────────────────────────────────────────
+function AddViewModal({ createdBy, onCreate, onClose }) {
+  const [step, setStep] = useState(0);
+  const [name, setName] = useState("");
+  const [sharing, setSharing] = useState("all");
+  const [customEmails, setCustomEmails] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const nameValid = name.trim().length > 0;
+
+  const handleCreate = useCallback(async () => {
+    if (!nameValid) return;
+    setSaving(true);
+    try {
+      const view = buildNewView({
+        label: name.trim(),
+        sharing,
+        sharedWith: customEmails.split(",").map((e) => e.trim()).filter(Boolean),
+        createdBy,
+      });
+      await onCreate(view);
+      onClose();
+    } finally {
+      setSaving(false);
+    }
+  }, [name, sharing, customEmails, createdBy, nameValid, onCreate, onClose]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+      <motion.div
+        initial={{ y: 36, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        exit={{ y: 36, opacity: 0 }}
+        transition={{ type: "spring", damping: 26, stiffness: 320 }}
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
       >
-        <Plus size={15} /> New schedule
-      </motion.button>
+        <div className="px-6 pt-5 pb-4 border-b border-slate-100">
+          <div className="flex items-start justify-between">
+            <div>
+              <h2 className="text-base font-bold text-slate-800">New Dashboard</h2>
+              <p className="text-xs text-slate-400 mt-0.5">
+                {step === 0 ? "Give your view a name" : "Choose who can see it"}
+              </p>
+            </div>
+            <button onClick={onClose} className="text-slate-300 hover:text-slate-500 p-1"><X size={16} /></button>
+          </div>
+          <div className="flex items-center gap-1.5 mt-3">
+            {[0, 1].map((i) => (
+              <div key={i} className={`h-1.5 rounded-full transition-all duration-300 ${i < step ? "bg-indigo-500 w-4" : i === step ? "bg-indigo-400 w-6" : "bg-slate-200 w-4"}`} />
+            ))}
+          </div>
+        </div>
+
+        <div className="px-6 py-5">
+          <AnimatePresence mode="wait">
+            {step === 0 && (
+              <motion.div key="step0" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.15 }} className="space-y-4">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">View name</label>
+                  <input
+                    autoFocus
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter" && nameValid) setStep(1); }}
+                    placeholder="e.g. Risk Overview"
+                    className="w-full border border-slate-200 rounded-xl px-3 py-3 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 text-slate-800 transition-all placeholder:text-slate-300"
+                  />
+                </div>
+                <p className="text-[11px] text-slate-400">You can add components and arrange the layout after creating the view.</p>
+              </motion.div>
+            )}
+            {step === 1 && (
+              <motion.div key="step1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.15 }} className="space-y-3">
+                {SHARING_OPTIONS.map((opt) => (
+                  <SharingCard key={opt.key} icon={opt.icon} title={opt.title} description={opt.description} color={opt.color} selected={sharing === opt.key} onClick={() => setSharing(opt.key)} />
+                ))}
+                <AnimatePresence>
+                  {sharing === "custom" && (
+                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+                      <div className="pt-1">
+                        <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Share with (comma-separated emails)</label>
+                        <div className="relative">
+                          <UserPlus size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                          <input
+                            value={customEmails}
+                            onChange={(e) => setCustomEmails(e.target.value)}
+                            placeholder="alice@acme.com, bob@acme.com"
+                            className="w-full border border-slate-200 rounded-xl pl-8 pr-3 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-violet-300 focus:border-violet-400 text-slate-700 transition-all"
+                          />
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-between">
+          <button onClick={() => (step === 0 ? onClose() : setStep(0))} className="text-sm text-slate-500 hover:text-slate-700 font-medium px-2 py-1">
+            {step === 0 ? "Cancel" : "← Back"}
+          </button>
+          {step === 0 ? (
+            <button disabled={!nameValid} onClick={() => setStep(1)} className="px-5 py-2 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition-all shadow-sm">
+              Next →
+            </button>
+          ) : (
+            <button disabled={saving} onClick={handleCreate} className="px-5 py-2 rounded-xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 disabled:opacity-60 active:scale-95 transition-all shadow-sm flex items-center gap-2">
+              {saving ? <RefreshCw size={13} className="animate-spin" /> : <Check size={13} />}
+              Create Dashboard
+            </button>
+          )}
+        </div>
+      </motion.div>
     </div>
   );
 }
 
-// ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
+// ─── VIEW LIMIT MODAL ─────────────────────────────────────────────────────────
+function ViewLimitModal({ onClose }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+      <motion.div
+        initial={{ y: 24, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        exit={{ y: 24, opacity: 0 }}
+        transition={{ type: "spring", damping: 26, stiffness: 320 }}
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden"
+      >
+        <div className="px-6 pt-6 pb-4 text-center">
+          <div className="w-12 h-12 mx-auto rounded-2xl bg-amber-50 flex items-center justify-center mb-3">
+            <HelpCircle size={20} className="text-amber-500" />
+          </div>
+          <h2 className="text-sm font-bold text-slate-800">View limit reached</h2>
+          <p className="text-xs text-slate-400 mt-2 leading-relaxed">
+            You can have up to {MAX_VIEWS_PER_CONFIG} dashboards. To add more, please contact your admin.
+          </p>
+        </div>
+        <div className="px-6 py-4 border-t border-slate-100">
+          <button onClick={onClose} className="w-full px-4 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 active:scale-95 transition-all">
+            Got it
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
+function LoadingState() {
+  return (
+    <div className="flex-1 flex flex-col items-center justify-center gap-4 p-12 text-center">
+      <RefreshCw size={22} className="text-indigo-300 animate-spin" />
+      <p className="text-sm text-slate-400">Loading your dashboard…</p>
+    </div>
+  );
+}
+
+// ─── NEW-PANEL TRACKING ─────────────────────────────────────────────────────────
+function diffNewPanelIds(previousViews, nextViews) {
+  const prevMap = new Map(previousViews.map((v) => [v.id, v]));
+  const added = [];
+  for (const view of nextViews) {
+    const prevView = prevMap.get(view.id);
+    if (!prevView) continue;
+    const prevIds = new Set((prevView.panels ?? []).map((p) => p.id));
+    for (const panel of view.panels ?? []) {
+      if (!prevIds.has(panel.id)) added.push(panel.id);
+    }
+  }
+  return added;
+}
+
+// ─── MAIN ─────────────────────────────────────────────────────────────────────
 export default function ReportsDashboard() {
   const [organization] = useState(getDefaultOrg);
-
-  // ── active schedule ───────────────────────────────────────────────────────
-  const [activeScheduleId, setActiveScheduleId] = useState(null);
-
-  // ── per-schedule custom views (owned here, persisted to backend) ─────────
-  const [customViews, setCustomViews] = useState([]);
-  const [viewsLoading, setViewsLoading] = useState(false);
-
-  const handleCustomViewsChange = useCallback((views) => {
-    setCustomViews(views);
-    saveScheduleViewsRemote(activeScheduleId, organization, views, getToken());
-  }, [activeScheduleId, organization]);
-
-  // ── date window filter ────────────────────────────────────────────────────
-  const [interval, setIntervalKey] = useState("7d");
-  const [customFrom, setCustomFrom] = useState("");
-  const [customTo, setCustomTo]     = useState("");
-
-  const resetDashboardState = useCallback(() => {
-    setActiveScheduleId(null);
-    setCustomViews([]);
-    setViewsLoading(false);
-    setIntervalKey("7d");
-    setCustomFrom("");
-    setCustomTo("");
-  }, []);
-
-  const handleScheduleClick = useCallback(
-    (cfg) => {
-      if (activeScheduleId === cfg.id) { resetDashboardState(); return; }
-
-      setActiveScheduleId(cfg.id);
-      // Load this schedule's persisted custom views from the backend
-      setCustomViews([]);
-      setViewsLoading(true);
-      fetchScheduleViews(cfg.id, getToken()).then((views) => {
-        setCustomViews(views);
-        setViewsLoading(false);
-      });
-
-      // Set interval from schedule config
-      const mappedInterval = INTERVAL_TYPE_TO_KEY[cfg.intervalType] ?? "7d";
-      setIntervalKey(mappedInterval);
-      if (cfg.intervalType === "YEARLY" || cfg.intervalType === "CUSTOM_YEARS") {
-        const from = new Date();
-        from.setFullYear(from.getFullYear() - (cfg.intervalValue ?? 1));
-        setCustomFrom(from.toISOString().slice(0, 10));
-        setCustomTo(new Date().toISOString().slice(0, 10));
-      } else {
-        setCustomFrom("");
-        setCustomTo("");
-      }
-    },
-    [activeScheduleId, resetDashboardState],
-  );
-
-  // ── comparison filter ─────────────────────────────────────────────────────
-  const [comparisonFilters, setComparisonFilters] = useState(() => {
-    const d = new Date();
-    d.setFullYear(d.getFullYear() - 1);
-    return { enabled: false, from: d.toISOString().slice(0, 10), to: new Date().toISOString().slice(0, 10) };
-  });
-
-  // ── dimension filter ──────────────────────────────────────────────────────
-  const [dimensionFilters, setDimensionFilters] = useState({ department: [], client: [], branch: [] });
-
-  // ── report config modal ───────────────────────────────────────────────────
-  const [showConfigModal, setShowConfigModal] = useState(false);
-  const [editingConfig,   setEditingConfig]   = useState(null);
-  const [reportConfigs,   setReportConfigs]   = useState([]);
-  const [availableSources, setAvailableSources] = useState([]);
-  const [configsLoaded,   setConfigsLoaded]   = useState(false);
-
-  const [hasMounted, setHasMounted] = useState(false);
-  useEffect(() => { setHasMounted(true); }, []);
-
   const [user] = useState(() => {
     try { return JSON.parse(sessionStorage.getItem("user") || "{}"); }
     catch { return {}; }
   });
-  const userRoles = useMemo(() => {
-    if (!user) return [];
-    return Array.isArray(user.role) ? user.role : user.role ? [user.role] : [];
+
+  const primaryRole = useMemo(() => {
+    if (!user) return "";
+    const roles = Array.isArray(user.role) ? user.role : user.role ? [user.role] : [];
+    const priority = ["root","super_admin","ciso","dpo","aio","ai_officer","privacy_officer","audit_manager","risk_manager","admin","department_user"];
+    return priority.find((r) => roles.map((x) => x.toLowerCase()).includes(r)) || roles[0] || "";
   }, [user]);
-  const isRoot = userRoles.includes("root");
 
-  // ── Joyride ───────────────────────────────────────────────────────────────
-  const [run, setRun] = useState(false);
-  const steps = [
-    { target: "#dashboard-header",    content: "Welcome to your Reports Dashboard." },
-    { target: "#sidebar-navigation",  content: "Saved report schedules appear here. Click one to open it." },
-    { target: "#kpis-container",      content: "Switch views and add custom panels here." },
-    { target: "#charts-container",    content: "Your custom charts and stat cards render here." },
-    { target: "#comparison-bar",      content: "Compare the current period against any past date range." },
-    { target: "#filter-bar",          content: "Filter by department, client, or branch." },
-  ];
+  const [primaryConfig, setPrimaryConfig] = useState(null);
+  const [configLoading, setConfigLoading] = useState(true);
+  const [configBootstrapped, setConfigBootstrapped] = useState(false);
+  const [availableSources, setAvailableSources] = useState([]);
+  const [totalViewCount, setTotalViewCount] = useState(0);
 
+  const [customViews, setCustomViews] = useState([]);
+  const [activeViewId, setActiveViewId] = useState(null);
+  const [viewsLoading, setViewsLoading] = useState(false);
+  const [showLimitModal, setShowLimitModal] = useState(false);
+  const [showAddViewModal, setShowAddViewModal] = useState(false);
+
+  const [interval, setIntervalKey] = useState("7d");
+  const [customFrom, setCustomFrom] = useState("");
+  const [customTo, setCustomTo] = useState("");
+  const comparisonFilters = useMemo(() => ({ enabled: false, from: "", to: "" }), []);
+  const dimensionFilters = useMemo(() => ({ department: [], client: [], branch: [] }), []);
+  const [showConfigModal, setShowConfigModal] = useState(false);
+  const [hasMounted, setHasMounted] = useState(false);
+
+  useEffect(() => { setHasMounted(true); }, []);
   const exportAreaRef = useRef(null);
 
-  // ── Synthetic config for data hook + export (no template views needed) ────
-  // We still need a config object so useDashboardData knows what org/endpoint to use.
-  // We pass a minimal config; the engine ignores config.views now.
-  const activeSchedule = useMemo(
-    () => reportConfigs.find((c) => c.id === activeScheduleId) ?? null,
-    [reportConfigs, activeScheduleId],
+  const activeView = useMemo(
+    () => customViews.find((v) => v.id === activeViewId) ?? customViews[0] ?? null,
+    [customViews, activeViewId],
   );
 
   const syntheticConfig = useMemo(() => {
-    if (!activeSchedule) return null;
+    if (!primaryConfig) return null;
     return {
-      id: activeSchedule.id,
-      label: activeSchedule.reportName,
-      dataSources: activeSchedule.dataSources ?? [],
+      id: primaryConfig.id,
+      label: primaryConfig.reportName,
+      dataSources: primaryConfig.dataSources ?? [],
       dataModule: null,
-      views: [], // DashboardEngine v3 ignores this
+      views: [],
     };
-  }, [activeSchedule]);
+  }, [primaryConfig]);
 
-  const filters = useMemo(
-    () => ({ interval, customFrom, customTo }),
-    [interval, customFrom, customTo],
+  const filters = useMemo(() => ({ interval, customFrom, customTo }), [interval, customFrom, customTo]);
+  const hasActiveDashboard = !!primaryConfig;
+
+  // ── "new panel" markers — a dot stays on a panel until it's hovered ───────
+  const newPanelsStorageKey = primaryConfig?.id ? `calvant_new_panels_${primaryConfig.id}` : null;
+  const [newPanelIds, setNewPanelIds] = useState(() => new Set());
+
+  useEffect(() => {
+    if (!newPanelsStorageKey) return;
+    try {
+      const stored = JSON.parse(localStorage.getItem(newPanelsStorageKey) || "[]");
+      setNewPanelIds(new Set(stored));
+    } catch {
+      setNewPanelIds(new Set());
+    }
+  }, [newPanelsStorageKey]);
+
+  const markPanelSeen = useCallback((panelId) => {
+    setNewPanelIds((prev) => {
+      if (!prev.has(panelId)) return prev;
+      const next = new Set(prev);
+      next.delete(panelId);
+      if (newPanelsStorageKey) {
+        try { localStorage.setItem(newPanelsStorageKey, JSON.stringify([...next])); } catch {}
+      }
+      return next;
+    });
+  }, [newPanelsStorageKey]);
+
+  const handleCustomViewsChange = useCallback(
+    async (views) => {
+      const previous = customViews;
+      setCustomViews(views);
+
+      const result = await saveScheduleViewsRemote(
+        primaryConfig?.id, organization, views, getToken(),
+      );
+      if (result.ok) {
+        setTotalViewCount(views.length);
+        const addedIds = diffNewPanelIds(previous, views);
+        if (addedIds.length) {
+          setNewPanelIds((prev) => {
+            const next = new Set(prev);
+            addedIds.forEach((id) => next.add(id));
+            if (newPanelsStorageKey) {
+              try { localStorage.setItem(newPanelsStorageKey, JSON.stringify([...next])); } catch {}
+            }
+            return next;
+          });
+        }
+      }
+      if (!result.ok) {
+        if (result.status === "VIEW_LIMIT_REACHED") {
+          setCustomViews(previous);
+          setShowLimitModal(true);
+        }
+      }
+    },
+    [primaryConfig, organization, customViews, newPanelsStorageKey],
   );
 
-  // ── data hook ─────────────────────────────────────────────────────────────
-  const {
-    results, comparisonResults, dimensionOptions,
-    loading, error, refetch, lastFetched, online,
-  } = useDashboardData(syntheticConfig, organization, filters, comparisonFilters, dimensionFilters);
+  const handleNewViewClick = useCallback(() => {
+    if (totalViewCount >= MAX_VIEWS_PER_CONFIG) {
+      setShowLimitModal(true);
+      return;
+    }
+    setShowAddViewModal(true);
+  }, [totalViewCount]);
 
-  console.log("[Dashboard] results:", results.length,
-  "| comparisonResults:", comparisonResults.length,
-  "| comparisonResults[0]?._series:", comparisonResults[0]?._series?.length
-);
+  const handleCreateView = useCallback(
+    async (newView) => {
+      const updated = [...customViews, newView];
+      await handleCustomViewsChange(updated);
+      setActiveViewId(newView.id);
+    },
+    [customViews, handleCustomViewsChange],
+  );
 
-  // ── export hook ───────────────────────────────────────────────────────────
-  const { exportConfig, exportSnapshot, exportCSV, exportComparison, exportPDF } =
-    useDashboardExport({ config: syntheticConfig, results, comparisonResults });
+  const [deletingViewId, setDeletingViewId] = useState(null);
+  const handleDeleteView = useCallback(
+    async (viewId) => {
+      setDeletingViewId(viewId);
+      const result = await deleteScheduleViewRemote(primaryConfig?.id, viewId, organization, getToken());
+      setDeletingViewId(null);
 
-  // ── fetch schedule configs from backend ───────────────────────────────────
-  const fetchConfigs = useCallback(async () => {
-    if (!organization) return;
-    try {
-      const token = getToken();
-      const res = await fetch(
-        `${BASE_URL}/config?organization=${encodeURIComponent(organization)}`,
-        { headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) } },
-      );
-      if (!res.ok) return;
-      const json = await res.json();
-      const raw = Array.isArray(json?.data) ? json.data : Array.isArray(json) ? json : [];
-      const configs = raw.map((c) => ({ ...c, id: c.id ?? c._id }));
-      setReportConfigs(configs);
-    } catch {}
-  }, [organization]);
+      if (!result.ok) return;
+
+      const remaining = customViews.filter((v) => v.id !== viewId);
+      setCustomViews(remaining);
+      setTotalViewCount(remaining.length);
+
+      if (activeViewId === viewId) {
+        setActiveViewId(remaining[0]?.id ?? null);
+      }
+    },
+    [primaryConfig, organization, customViews, activeViewId],
+  );
+
+  useEffect(() => {
+    if (configBootstrapped || !organization) return;
+    setConfigBootstrapped(true);
+
+    (async () => {
+      const cfg = await fetchOrCreatePrimaryConfig(organization, user?.id || user?.userId, getToken());
+      setPrimaryConfig(cfg);
+      setConfigLoading(false);
+
+      if (cfg?.id) {
+        generateNowRemote(cfg.id, getToken());
+        setViewsLoading(true);
+        const { views, totalCount } = await fetchScheduleViews(cfg.id, user?.email || "", getToken());
+        setCustomViews(views);
+        setTotalViewCount(totalCount);
+        if (views.length > 0) setActiveViewId(views[0].id);
+        setViewsLoading(false);
+      }
+
+      const mapped = INTERVAL_TYPE_TO_KEY[cfg?.intervalType] ?? "7d";
+      setIntervalKey(mapped);
+    })();
+  }, [configBootstrapped, organization, user]);
 
   const fetchAvailableSources = useCallback(async () => {
     try {
@@ -390,325 +826,166 @@ export default function ReportsDashboard() {
       if (!res.ok) throw new Error("no sources");
       const json = await res.json();
       const sources = Array.isArray(json.data) ? json.data : [];
-      if (sources.length > 0) setAvailableSources(sources);
+      if (sources.length) setAvailableSources(sources);
       else throw new Error("empty");
     } catch {
       setAvailableSources(["risks", "audit", "tasks", "dpia", "documents", "aiia"]);
     }
   }, []);
 
+  useEffect(() => { fetchAvailableSources(); }, [fetchAvailableSources]);
+
   useEffect(() => {
-    // One-time cleanup: remove any old localStorage view keys from the previous
-    // localStorage-based persistence so stale data doesn't interfere.
     try {
-      Object.keys(localStorage)
-        .filter((k) => k.startsWith("calvant_schedule_views_"))
-        .forEach((k) => localStorage.removeItem(k));
+      Object.keys(localStorage).filter((k) => k.startsWith("calvant_schedule_views_")).forEach((k) => localStorage.removeItem(k));
     } catch {}
   }, []);
 
-  useEffect(() => {
-    if (!configsLoaded && organization) {
-      setConfigsLoaded(true);
-      fetchConfigs();
-      fetchAvailableSources();
-    }
-  }, [configsLoaded, organization, fetchConfigs, fetchAvailableSources]);
+  const { results, comparisonResults, getComparisonForWindow, getResultsForWindow, dimensionOptions, loading, error, refetch, lastFetched, online } =
+    useDashboardData(syntheticConfig, organization, filters, comparisonFilters, dimensionFilters);
 
-  // ── config modal handlers ─────────────────────────────────────────────────
-  const openCreateConfig = () => { setEditingConfig(null); setShowConfigModal(true); };
-  const openEditConfig   = (cfg) => { setEditingConfig(cfg); setShowConfigModal(true); };
+  const { exportPDF } =
+    useDashboardExport({ config: syntheticConfig, results, comparisonResults });
 
   const handleConfigSaved = (saved) => {
-    setReportConfigs((prev) => {
-      const idx = prev.findIndex((c) => c.id === saved.id || c.reportName === saved.reportName);
-      if (idx >= 0) { const next = [...prev]; next[idx] = saved; return next; }
-      return [...prev, saved];
-    });
-    fetchConfigs();
+    setPrimaryConfig((prev) => ({ ...prev, ...saved, id: saved.id ?? saved._id ?? prev?.id }));
   };
-
-  const handleConfigDeleted = useCallback(
-    (deletedId) => {
-      setReportConfigs((prev) => prev.filter((c) => c.id !== deletedId));
-      if (activeScheduleId === deletedId) resetDashboardState();
-    },
-    [activeScheduleId, resetDashboardState],
-  );
-
-  // ── custom range label ────────────────────────────────────────────────────
-  const customRangeLabel = useMemo(() => {
-    if (!customFrom) return "Custom";
-    const from = new Date(customFrom).toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
-    if (!customTo) return `From ${from}`;
-    const to = new Date(customTo).toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
-    return `${from} – ${to}`;
-  }, [customFrom, customTo]);
-
-  const activeDimCount =
-    (dimensionFilters.department?.length ?? 0) +
-    (dimensionFilters.client?.length ?? 0) +
-    (dimensionFilters.branch?.length ?? 0);
-
-  const hasActiveSchedule = !!activeScheduleId && !!activeSchedule;
 
   return (
     <div
-      className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/40 to-indigo-50/20 flex"
+      className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20 flex flex-col"
       style={{ fontFamily: "'Segoe UI', system-ui, sans-serif" }}
     >
-      <Joyride
-        steps={steps} run={run} continuous showSkipButton scrollToFirstStep
-        styles={{ options: { primaryColor: "#3b82f6", width: 300 } }}
-        callback={(data) => { if ([STATUS.FINISHED, STATUS.SKIPPED].includes(data.status)) setRun(false); }}
-      />
-
-      {/* ── SIDEBAR ──────────────────────────────────────────────────────── */}
-      <aside
-        id="sidebar-navigation"
-        className="w-56 flex-shrink-0 bg-white/60 backdrop-blur-md border-r border-slate-100/60 flex flex-col gap-2 p-3 sticky top-0 h-screen overflow-y-auto"
-      >
-        <div className="flex items-center justify-between px-1 mb-1">
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">My Reports</p>
-          <motion.button
-            whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}
-            onClick={openCreateConfig}
-            className="w-5 h-5 rounded-md bg-indigo-50 hover:bg-indigo-100 flex items-center justify-center transition-colors"
-            title="New schedule"
-          >
-            <Plus size={11} className="text-indigo-500" />
-          </motion.button>
-        </div>
-
-        <nav className="flex flex-col gap-0.5 flex-1">
-          {reportConfigs.length === 0 ? (
-            <div className="flex flex-col items-center gap-2 py-8 px-2 text-center">
-              <ClipboardList size={24} className="text-slate-300" />
-              <p className="text-[11px] text-slate-400 leading-snug">
-                No schedules yet.{" "}
-                <button onClick={openCreateConfig} className="text-indigo-500 font-semibold hover:underline">
-                  Create one
-                </button>
-              </p>
+      <header className="sticky top-0 z-40 bg-white/85 backdrop-blur-lg border-b border-slate-100/70 px-5 py-3">
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-2.5 flex-shrink-0">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center shadow-md">
+              <BarChart3 size={16} className="text-white" />
             </div>
-          ) : (
-            reportConfigs.map((cfg) => (
-              <ScheduleItem
-                key={cfg.id}
-                cfg={cfg}
-                isActive={activeScheduleId === cfg.id}
-                onClick={() => handleScheduleClick(cfg)}
-                onEdit={() => openEditConfig(cfg)}
-              />
-            ))
-          )}
-        </nav>
+            <span className="text-sm font-bold text-slate-500 hidden sm:block">Reports</span>
+          </div>
 
-        {reportConfigs.length > 0 && (
-          <div className="pt-3 border-t border-slate-100">
-            <button
-              onClick={openCreateConfig}
-              className="w-full flex items-center gap-2 px-2 py-2 rounded-xl text-xs font-semibold text-indigo-600 hover:bg-indigo-50 transition-all"
+          <div className="w-px h-6 bg-slate-200 flex-shrink-0 hidden sm:block" />
+
+          {hasActiveDashboard && (
+            <ViewSwitcherDropdown
+              views={customViews}
+              activeViewId={activeViewId ?? customViews[0]?.id}
+              onSelect={setActiveViewId}
+              onNewView={handleNewViewClick}
+              onDeleteView={handleDeleteView}
+              deletingViewId={deletingViewId}
+              disabled={viewsLoading}
+              totalViewCount={totalViewCount}
+            />
+          )}
+          {!hasActiveDashboard && !configLoading && (
+            <span className="text-sm font-semibold text-slate-400">No dashboard</span>
+          )}
+
+          <div className="flex-1" />
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className={`text-xs font-bold px-2.5 py-1.5 rounded-full flex items-center gap-1.5 ${online ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"}`}>
+              {online ? <><Wifi size={11} /> Live</> : <><WifiOff size={11} /> Offline</>}
+            </span>
+
+            {lastFetched && (
+              <span className="text-xs text-slate-400 hidden lg:block">{lastFetched.toLocaleTimeString()}</span>
+            )}
+
+            <motion.button
+              onClick={refetch}
+              disabled={loading || !hasActiveDashboard}
+              whileTap={{ scale: 0.95 }}
+              className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 transition-colors border border-slate-200 disabled:opacity-40"
+              title="Refresh data"
             >
-              <span className="text-sm leading-none">＋</span> New schedule
-            </button>
+              <RefreshCw size={13} className="text-slate-500" style={loading ? { animation: "spin 1s linear infinite" } : {}} />
+            </motion.button>
+
+            {hasActiveDashboard && (
+              <motion.button
+                whileTap={{ scale: 0.97 }}
+                onClick={() => exportPDF(exportAreaRef)}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-xs font-semibold text-slate-600 transition-colors"
+                title="Download PDF"
+              >
+                <Download size={13} /> Download PDF
+              </motion.button>
+            )}
+
+            <span className="text-xs font-bold px-2.5 py-1.5 rounded-full bg-violet-50 text-violet-700 hidden md:block">
+              {user?.name || "User"}
+            </span>
+          </div>
+        </div>
+      </header>
+
+      <main className="flex-1 p-5 overflow-y-auto flex flex-col">
+        {configLoading || !primaryConfig ? (
+          <LoadingState />
+        ) : (
+          <div ref={exportAreaRef} className="pb-4">
+            <motion.div
+              initial={hasMounted ? { opacity: 0, y: 10 } : false}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.25 }}
+            >
+              <DashboardEngine
+                dashboardName={activeView?.label ?? primaryConfig.reportName}
+                customViews={customViews}
+                activeViewId={activeViewId ?? customViews[0]?.id}
+                onCustomViewsChange={handleCustomViewsChange}
+                results={results}
+                comparisonResults={comparisonResults}
+                getComparisonForWindow={getComparisonForWindow}
+                getResultsForWindow={getResultsForWindow}
+                loading={loading}
+                viewsLoading={viewsLoading}
+                error={error}
+                userRole={primaryRole}
+                newPanelIds={newPanelIds}
+                onPanelSeen={markPanelSeen}
+              />
+            </motion.div>
           </div>
         )}
-      </aside>
+      </main>
 
-      {/* ── MAIN CONTENT ─────────────────────────────────────────────────── */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <footer className="bg-white/80 backdrop-blur-md border-t border-slate-100/60 px-5 py-3">
+        <p className="text-xs text-slate-400 text-center">
+          © {new Date().getFullYear()} CalVant · Reports ·{" "}
+          {totalViewCount}/{MAX_VIEWS_PER_CONFIG} views
+        </p>
+      </footer>
 
-        {/* ── HEADER ───────────────────────────────────────────────────── */}
-        <header
-          id="dashboard-header"
-          className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-slate-100/60 px-6 py-4"
-        >
-          {/* Row 1 */}
-          <div className="flex items-center justify-between gap-4 flex-wrap">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-400 to-blue-500 flex items-center justify-center shadow-md flex-shrink-0">
-                <BarChart3 size={18} className="text-white" />
-              </div>
-              <div>
-                <h1 className="text-base font-bold text-slate-800 leading-tight">
-                  {activeSchedule ? activeSchedule.reportName : "Reports"}
-                </h1>
-                <p className="text-xs text-slate-500">
-                  {activeSchedule
-                    ? activeSchedule.dataSources?.join(", ") || "No sources configured"
-                    : "Select a schedule from the sidebar"}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className={`text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1.5 ${online ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`}>
-                {online ? <><Wifi size={11} /> Live</> : <><WifiOff size={11} /> Offline</>}
-              </span>
-
-              {lastFetched && (
-                <span className="text-xs text-slate-400 hidden sm:block">Synced {lastFetched.toLocaleTimeString()}</span>
-              )}
-
-              <motion.button
-                onClick={refetch}
-                disabled={loading || !hasActiveSchedule}
-                whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
-                className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 transition-colors border border-slate-200 disabled:opacity-40 flex items-center justify-center"
-              >
-                <RefreshCw size={14} className="text-slate-500" style={loading ? { animation: "spin 1s linear infinite" } : {}} />
-              </motion.button>
-
-              {hasActiveSchedule && (
-                <ExportDropdown
-                  onConfig={exportConfig} onSnapshot={exportSnapshot}
-                  onCSV={exportCSV} onComparison={exportComparison}
-                  onPDF={() => exportPDF(exportAreaRef)}
-                  hasComparison={comparisonFilters.enabled}
-                />
-              )}
-
-              {/* Interval selector */}
-              <div className="flex bg-slate-100 rounded-xl p-1 gap-0.5">
-                {INTERVALS.map(({ key, label }) => (
-                  <button
-                    key={key} onClick={() => setIntervalKey(key)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1 ${interval === key ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
-                  >
-                    {key === "custom" && <Calendar size={10} />}
-                    {key === "custom" && interval === "custom" ? customRangeLabel : label}
-                  </button>
-                ))}
-              </div>
-
-              <motion.button
-                whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
-                onClick={openCreateConfig}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-xs font-semibold text-slate-600 transition-colors"
-              >
-                <Settings2 size={13} /> Schedule
-              </motion.button>
-
-              <span className={`text-xs font-bold px-3 py-1.5 rounded-full ${isRoot ? "bg-blue-100 text-blue-700" : "bg-violet-100 text-violet-700"}`}>
-                {isRoot ? "Root" : userRoles[0] ? userRoles[0].replace("_", " ") : "User"}
-              </span>
-              <span className="text-sm font-semibold text-slate-600">{user?.name || "User"}</span>
-
-              <motion.button
-                className="px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white text-xs font-semibold rounded-xl shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 flex items-center gap-1.5"
-                onClick={() => { setRun(false); setTimeout(() => setRun(true), 100); }}
-                whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
-              >
-                <HelpCircle size={14} /> Guide
-              </motion.button>
-            </div>
-          </div>
-
-          {/* Row 2: Custom date range */}
-          <AnimatePresence>
-            {interval === "custom" && (
-              <motion.div
-                initial={hasMounted ? { opacity: 0, height: 0 } : false}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.2 }}
-                className="overflow-hidden"
-              >
-                <div className="flex items-center gap-3 mt-3 pt-3 border-t border-slate-100 flex-wrap">
-                  <Calendar size={13} className="text-slate-400 flex-shrink-0" />
-                  <div className="flex items-center gap-1.5">
-                    <label className="text-xs text-slate-500 font-medium">From</label>
-                    <input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)}
-                      className="text-xs border border-slate-200 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 transition-all" />
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <label className="text-xs text-slate-500 font-medium">To</label>
-                    <input type="date" value={customTo} min={customFrom} onChange={(e) => setCustomTo(e.target.value)}
-                      className="text-xs border border-slate-200 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 transition-all" />
-                  </div>
-                  {customFrom && customTo && (
-                    <motion.button
-                      initial={hasMounted ? { opacity: 0, scale: 0.9 } : false}
-                      animate={{ opacity: 1, scale: 1 }}
-                      onClick={() => { setCustomFrom(""); setCustomTo(""); setIntervalKey("7d"); }}
-                      className="text-xs text-slate-400 hover:text-slate-600 px-2 py-1.5 rounded-lg hover:bg-slate-100 transition-all"
-                    >
-                      Clear
-                    </motion.button>
-                  )}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Row 3: Comparison + Filter */}
-          {hasActiveSchedule && (
-            <div className="flex items-start gap-4 mt-3 pt-3 border-t border-slate-100 flex-wrap">
-              <div id="comparison-bar" className="flex-1 min-w-[260px]">
-                <ComparisonBar value={comparisonFilters} onChange={setComparisonFilters} />
-              </div>
-              <div id="filter-bar" className="flex-shrink-0">
-                <FilterBar dimensionOptions={dimensionOptions} value={dimensionFilters} onChange={setDimensionFilters} />
-              </div>
-            </div>
-          )}
-        </header>
-
-        {/* ── MAIN CANVAS ──────────────────────────────────────────────── */}
-        <main className="flex-1 p-6 overflow-y-auto flex flex-col">
-          {!hasActiveSchedule ? (
-            <EmptyState onNew={openCreateConfig} />
-          ) : (
-            <div ref={exportAreaRef} className="pb-4">
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={activeScheduleId}
-                  initial={hasMounted ? { opacity: 0, y: 12 } : false}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.3 }}
-                >
-                  <DashboardEngine
-                    customViews={customViews}
-                    onCustomViewsChange={handleCustomViewsChange}
-                    results={results}
-                    comparisonResults={comparisonResults}
-                    loading={loading}
-                    viewsLoading={viewsLoading}
-                    error={error}
-                  />
-                </motion.div>
-              </AnimatePresence>
-            </div>
-          )}
-        </main>
-
-        <footer className="bg-white/80 backdrop-blur-md border-t border-slate-100/60 px-6 py-4">
-          <p className="text-xs text-slate-400 text-center">
-            © {new Date().getFullYear()} CalVant · Reports Dashboard ·{" "}
-            {reportConfigs.length} schedule{reportConfigs.length !== 1 ? "s" : ""} configured
-            {activeDimCount > 0 && (
-              <span className="ml-2 text-indigo-500 font-semibold">
-                · {activeDimCount} filter{activeDimCount !== 1 ? "s" : ""} active
-              </span>
-            )}
-          </p>
-        </footer>
-      </div>
-
-      {/* ── REPORT CONFIG MODAL ───────────────────────────────────────── */}
       <AnimatePresence>
         {showConfigModal && (
           <ReportConfigModal
-            config={editingConfig}
+            config={primaryConfig}
             organization={organization}
             userId={user?.id || user?.userId || ""}
-            availableSources={availableSources.length > 0 ? availableSources : ["risks", "audit", "tasks", "dpia", "documents", "aiia"]}
-            onSave={handleConfigSaved}
-            onDelete={handleConfigDeleted}
-            onClose={() => { setShowConfigModal(false); setEditingConfig(null); }}
+            availableSources={availableSources.length ? availableSources : ["risks", "audit", "tasks", "dpia", "documents", "aiia"]}
+            onSave={(saved) => { handleConfigSaved(saved); setShowConfigModal(false); }}
+            onClose={() => setShowConfigModal(false)}
           />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showAddViewModal && (
+          <AddViewModal
+            createdBy={user?.email || ""}
+            onCreate={handleCreateView}
+            onClose={() => setShowAddViewModal(false)}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showLimitModal && (
+          <ViewLimitModal onClose={() => setShowLimitModal(false)} />
         )}
       </AnimatePresence>
 

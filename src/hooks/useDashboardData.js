@@ -1,13 +1,17 @@
 /**
  * ─────────────────────────────────────────────────────────────────────────────
- * useDashboardData  (v3 — comparison + dimension filtering + configId scoping)
+ * useDashboardData  (v4 — per-panel duration windows)
  * ─────────────────────────────────────────────────────────────────────────────
  * New params:
  *   comparisonFilters  { enabled, from, to }   — drives comparisonResults
  *   dimensionFilters   { department, client, branch }  — client-side slice
  *
  * New returns:
- *   comparisonResults  — same shape as `results`, covers the comparison window
+ *   comparisonResults     — same shape as `results`, covers the comparison window
+ *   getComparisonForWindow(from, to)        — ad-hoc comparison window (per-panel)
+ *   getResultsForWindow(interval, from, to) — ad-hoc PRIMARY window (per-panel),
+ *     mirrors applyDateWindow/INTERVALS so each panel can run its own 7d/14d/
+ *     90d/custom duration independently of the (now removed) global selector.
  *
  * FIX: results are now scoped to config.id (configId) so switching between
  * schedules doesn't mix results from other configs.
@@ -17,7 +21,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 
 const BASE_URL = "https://api.calvant.com/reports-service/api/reports";
-
+// const BASE_URL ="http://localhost:8085/api/reports"
 function getToken() {
   try {
     return sessionStorage.getItem("token") || "";
@@ -164,6 +168,17 @@ function extractDimensionOptions(rawResults) {
   };
 }
 
+function bucketByDay(results) {
+  const map = new Map();
+  for (const r of results) {
+    const day = new Date(r.generatedAt).toISOString().slice(0, 10); // "2026-06-08"
+    map.set(day, r); // last write wins — most recent snapshot of that day
+  }
+  return [...map.values()].sort(
+    (a, b) => new Date(a.generatedAt) - new Date(b.generatedAt)
+  );
+}
+
 // ─── hook ─────────────────────────────────────────────────────────────────────
 export function useDashboardData(
   config,
@@ -233,6 +248,37 @@ export function useDashboardData(
     fetch_();
   }, [fetch_]);
 
+  // ── ad-hoc comparison window (per-panel) ──────────────────────────────────
+  const getComparisonForWindow = useCallback((from, to) => {
+    if (!from) return [];
+    const fromDate = new Date(from);
+    fromDate.setHours(0, 0, 0, 0);
+    const toDate = to ? new Date(to) : new Date();
+    toDate.setHours(23, 59, 59, 999);
+
+    const windowedRaw = rawResults.filter((r) => {
+      const d = new Date(r.generatedAt);
+      return d >= fromDate && d <= toDate;
+    });
+
+    const dimFiltered = applyDimensionFilters(windowedRaw, dimensionFilters);
+    return toResultsShape(bucketByDay(dimFiltered), dimensionFilters);
+  }, [rawResults, dimensionFilters]);
+
+  // ── ad-hoc PRIMARY window (per-panel duration: 7d/14d/90d/custom) ─────────
+  // Mirrors applyDateWindow, but callable on demand with an arbitrary
+  // {interval, customFrom, customTo} so each panel can run its own duration
+  // independently of the page-level `filters` state.
+  const getResultsForWindow = useCallback((interval, customFrom, customTo) => {
+    const windowed = applyDateWindow(rawResults, {
+      interval,
+      customFrom,
+      customTo,
+    });
+    const dimFiltered = applyDimensionFilters(windowed, dimensionFilters);
+    return toResultsShape(bucketByDay(dimFiltered), dimensionFilters);
+  }, [rawResults, dimensionFilters]);
+
   // ── SSE subscription ────────────────────────────────────────────────────
   useEffect(() => {
     if (!orgId) return;
@@ -282,26 +328,15 @@ export function useDashboardData(
     [rawResults, filters],
   );
 
-  function bucketByDay(results) {
-  const map = new Map();
-  for (const r of results) {
-    const day = new Date(r.generatedAt).toISOString().slice(0, 10); // "2026-06-08"
-    map.set(day, r); // last write wins — most recent snapshot of that day
-  }
-  return [...map.values()].sort(
-    (a, b) => new Date(a.generatedAt) - new Date(b.generatedAt)
-  );
-}
-
   const dimensionFiltered = useMemo(
     () => applyDimensionFilters(filteredResults, dimensionFilters),
     [filteredResults, dimensionFilters],
   );
 
-const results = useMemo(
-  () => toResultsShape(bucketByDay(dimensionFiltered), dimensionFilters),
-  [dimensionFiltered, dimensionFilters],
-);
+  const results = useMemo(
+    () => toResultsShape(bucketByDay(dimensionFiltered), dimensionFilters),
+    [dimensionFiltered, dimensionFilters],
+  );
 
   // ── Comparison results (separate date window, same dimension filter) ──────
   const comparisonResults = useMemo(() => {
@@ -309,7 +344,6 @@ const results = useMemo(
 
     const { from, to } = comparisonFilters;
     if (!from) return [];
-
 
     const fromDate = new Date(from);
     fromDate.setHours(0, 0, 0, 0);
@@ -334,6 +368,8 @@ const results = useMemo(
 
   return {
     results,
+    getComparisonForWindow,
+    getResultsForWindow,
     comparisonResults,
     dimensionOptions,
     loading,

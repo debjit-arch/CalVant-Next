@@ -1,25 +1,26 @@
 /**
  * ─────────────────────────────────────────────────────────────────────────────
- * WIDGET: TrendLineChart
+ * WIDGET: TrendLineChart  (v2 — benchmark reference lines)
  * ─────────────────────────────────────────────────────────────────────────────
- * Multi-series recharts LineChart with optional comparison period overlay.
+ * New in v2:
+ *   kpiConfig.props.benchmarks  [{ value, label, color }]
+ *     Rendered as dashed ReferenceLine elements on the chart.
  *
- * resolvedData.points    – [{ name, seriesKey1, seriesKey2, … }]
- * comparisonData.points  – same shape, comparison period (dashed, muted)
- * kpiConfig.props.series – [{ key, label, color }]
+ * Existing:
+ *   resolvedData.points    – [{ name, seriesKey1, seriesKey2, … }]
+ *   comparisonData.points  – same shape, dashed + muted
+ *   kpiConfig.props.series – [{ key, label, color }]
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
 import React, { memo, useMemo } from "react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
-  Tooltip, Legend, ResponsiveContainer,
+  Tooltip, Legend, ReferenceLine, ResponsiveContainer,
 } from "recharts";
 import { ChartShell, CustomTooltip, EmptyChart } from "./ChartShell";
 
-// ── Mute a hex colour for comparison lines ────────────────────────────────────
 function muteColor(hex) {
-  // blend toward #94a3b8 (slate-400) by 40% — more visible than before
   try {
     const r1 = parseInt(hex.slice(1, 3), 16);
     const g1 = parseInt(hex.slice(3, 5), 16);
@@ -34,25 +35,18 @@ function muteColor(hex) {
   }
 }
 
-// ── Merge primary + comparison points into a single data array ────────────────
-// Primary keys stay as-is (e.g. "risks_total").
-// Comparison keys get a "__cmp" suffix (e.g. "risks_total__cmp").
-// Both share the same x-axis by index position so the chart aligns them.
 function mergePoints(primaryPoints, compPoints, series) {
-  if (!compPoints.length) return primaryPoints.map((p) => ({ name: p.name, __cmpName: null, ...Object.fromEntries(series.map(s => [s.key, p[s.key]])) }));
+  if (!compPoints.length) return primaryPoints.map((p) => ({
+    name: p.name,
+    __cmpName: null,
+    ...Object.fromEntries(series.map((s) => [s.key, p[s.key]])),
+  }));
 
-  // Downsample compPoints to same length as primaryPoints by even spacing
   const ratio = compPoints.length / primaryPoints.length;
-
   return primaryPoints.map((p, i) => {
-    // Pick the comp point that proportionally matches this primary slot
     const compIdx = Math.min(Math.round(i * ratio), compPoints.length - 1);
     const c = compPoints[compIdx] ?? {};
-
-    const merged = {
-      name:      p.name,
-      __cmpName: c.name ?? null,
-    };
+    const merged = { name: p.name, __cmpName: c.name ?? null };
     for (const s of series) {
       if (p[s.key] != null) merged[s.key] = p[s.key];
       if (c[s.key] != null) merged[`${s.key}__cmp`] = c[s.key];
@@ -61,7 +55,6 @@ function mergePoints(primaryPoints, compPoints, series) {
   });
 }
 
-// ── Comparison-aware tooltip ──────────────────────────────────────────────────
 function ComparisonTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null;
   const cmpName = payload[0]?.payload?.__cmpName;
@@ -105,16 +98,16 @@ const TrendLineChart = memo(function TrendLineChart({
   comparisonData,
   loading,
 }) {
-  const series      = resolvedData?.expandedSeries ?? kpiConfig.props?.series ?? [];
-  const primaryPts  = resolvedData?.points  ?? [];
-  const compPts     = comparisonData?.points ?? [];
-  const hasComp     = compPts.length > 0;
+  const series     = resolvedData?.expandedSeries ?? kpiConfig.props?.series ?? [];
+  const primaryPts = resolvedData?.points  ?? [];
+  const compPts    = comparisonData?.points ?? [];
+  const hasComp    = compPts.length > 0;
+  const benchmarks = kpiConfig.props?.benchmarks ?? [];
 
-const points = useMemo(() => {
-  console.log("[TrendLine] primary:", primaryPts.length, "comp:", compPts.length);
-  if (!hasComp) return primaryPts;
-  return mergePoints(primaryPts, compPts, series);
-}, [primaryPts, compPts, series, hasComp]);
+  const points = useMemo(() => {
+    if (!hasComp) return primaryPts;
+    return mergePoints(primaryPts, compPts, series);
+  }, [primaryPts, compPts, series, hasComp]);
 
   return (
     <ChartShell title={kpiConfig.title} loading={loading} hasData={points.length > 0}>
@@ -140,7 +133,25 @@ const points = useMemo(() => {
               iconType="circle" iconSize={7}
             />
 
-            {/* Primary series — solid lines */}
+            {/* Benchmark reference lines */}
+            {benchmarks.map((bm, i) => (
+              <ReferenceLine
+                key={`bm_${i}`}
+                y={bm.value}
+                stroke={bm.color ?? "#ef4444"}
+                strokeDasharray="6 3"
+                strokeWidth={1.5}
+                label={{
+                  value: bm.label ?? `${bm.value}`,
+                  position: "insideTopRight",
+                  fill: bm.color ?? "#ef4444",
+                  fontSize: 10,
+                  fontWeight: 600,
+                }}
+              />
+            ))}
+
+            {/* Primary series */}
             {series.map((s) => (
               <Line
                 key={s.key}
@@ -154,7 +165,7 @@ const points = useMemo(() => {
               />
             ))}
 
-            {/* Comparison series — dashed muted lines */}
+            {/* Comparison series */}
             {hasComp && series.map((s) => (
               <Line
                 key={`${s.key}__cmp`}

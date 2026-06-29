@@ -54,7 +54,12 @@ export function resolveSingleValue(result, path) {
 }
 
 // ─── resolveTrendSeries ───────────────────────────────────────────────────────
-export function resolveTrendSeries(result, seriesConfigs, _labelExtractor) {
+// durationField: optional key like "createdAt", "closedAt" etc. — the date
+// field to use as the x-axis label. ReportResult stores *daily aggregate
+// snapshots*, so per-entry the only available date is generatedAt; if a
+// durationField is set, we look for it inside entry.data first (in case a
+// future data shape includes it), then fall back to generatedAt.
+export function resolveTrendSeries(result, seriesConfigs, _labelExtractor, durationField) {
   const series_ = result?._series;
   if (!series_?.length || !seriesConfigs?.length) return { points: [] };
 
@@ -86,7 +91,13 @@ export function resolveTrendSeries(result, seriesConfigs, _labelExtractor) {
   ];
 
   const points = series_.map((entry) => {
-    const point = { name: fmtDate(entry.generatedAt) };
+    // Prefer durationField from within entry.data (future per-record shape),
+    // then from the entry itself (e.g. entry.closedAt), then generatedAt.
+    const labelDate =
+      (durationField && resolveByPath(entry.data, durationField)) ||
+      (durationField && entry[durationField]) ||
+      entry.generatedAt;
+    const point = { name: fmtDate(labelDate) };
     for (const s of expandedSeries) {
       const extractor = s.extractor ?? s.key;
       const dataKey = s.key ?? extractor.replace(/\./g, "_");
@@ -161,4 +172,40 @@ export function resolveTableRows(result, path) {
   }
 
   return { rows: [] };
+}
+
+// ─── resolveFrameworkTable ────────────────────────────────────────────────────
+// For maps-of-objects, e.g. compliance.frameworkBreakdown:
+//   { ISO27001: { totalControls, applicableControls, compliancePercentage, ... },
+//     SOC2:     { totalControls, applicableControls, compliancePercentage, ... } }
+// Produces one row per top-level key, with every numeric sub-field as a column —
+// dynamic over however many frameworks/keys exist in the live payload, no
+// hardcoded list of names anywhere.
+export function resolveFrameworkTable(result, path) {
+  const data = result?.data;
+  if (!data || !path) return { rows: [] };
+
+  const raw = resolveByPath(data, path);
+  if (raw == null || typeof raw !== "object" || Array.isArray(raw)) {
+    return { rows: [] };
+  }
+
+  const rows = Object.entries(raw).map(([key, metrics]) => {
+    const row = { name: key };
+    if (metrics != null && typeof metrics === "object") {
+      for (const [metricKey, metricVal] of Object.entries(metrics)) {
+        row[metricKey] = safeNum(metricVal);
+      }
+    }
+    return row;
+  });
+
+  return { rows };
+}
+
+/** True if a resolved table value is a map-of-objects (needs dynamic columns)
+ * rather than a flat map-of-numbers (existing department/value table path). */
+export function isObjectMap(raw) {
+  if (raw == null || typeof raw !== "object" || Array.isArray(raw)) return false;
+  return Object.values(raw).some((v) => v != null && typeof v === "object" && !Array.isArray(v));
 }

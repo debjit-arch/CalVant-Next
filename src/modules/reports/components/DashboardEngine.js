@@ -1,18 +1,23 @@
 /**
  * ─────────────────────────────────────────────────────────────────────────────
- * DashboardEngine.jsx  (v4 — single mixed view, no tabs)
+ * DashboardEngine.jsx  (v7 — free-position, resizable panels — Bigin style)
  * ─────────────────────────────────────────────────────────────────────────────
- * Changes from v3:
- *   1. Removed tab bar / multi-view switching entirely. A schedule now has
- *      exactly one view containing a free mix of panels from any segment
- *      (risks, audit, tasks, dpia, documents, aiia all in the same canvas).
- *   2. `customViews` prop is still an array (storage-shape compatible with the
- *      existing report_views backend collection) but is only ever treated as
- *      length 0 or 1. We read/write customViews[0] exclusively.
- *   3. Removed ViewManagerModal entirely — there's nothing to manage with a
- *      single, un-renameable view.
- *   4. savePanel / saveTemplateView always target the single view, creating
- *      it on first panel/template if it doesn't exist yet.
+ * Changes from v6:
+ * 1. Replaced HTML5 drag-reorder with react-grid-layout:
+ * - panels can be dropped ANYWHERE on the canvas (free x/y), not just
+ * swapped into the existing flow order
+ * - panels are resizable from all 8 handles (corners + edges)
+ * - while dragging/resizing, faint grid cells render behind the panels
+ * so you can see exactly where a panel will land (the "indicator")
+ * 2. Layout (x, y, w, h) is stored per-panel as panel.layout and persisted
+ * with the rest of the view, same as colSpan/rowSpan used to be.
+ * Old panels without a layout get one auto-generated on first load so
+ * nothing breaks for existing dashboards.
+ * 3. "Add Components" now drops the new panel into the first open grid space
+ * and the grid briefly highlights it so it's obvious where it landed.
+ * 4. Notification dots mapped to newly added panels via newPanelIds/onPanelSeen.
+ *
+ * Requires: react-grid-layout  (npm install react-grid-layout)
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
@@ -20,49 +25,157 @@ import React, {
   Suspense,
   memo,
   useCallback,
+  useEffect,
   useMemo,
   useState,
+  useRef,
 } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { LayoutDashboard } from "lucide-react";
+import { Responsive, WidthProvider } from "react-grid-layout";
+import "react-grid-layout/css/styles.css";
+import "react-resizable/css/styles.css";
+import {
+  LayoutDashboard, Pencil, Trash2, Copy, Maximize2, Printer,
+  X as XIcon, GripVertical, Calendar,
+} from "lucide-react";
 import { resolveComponent } from "./kpiRegistry";
 import {
   resolveSingleValue,
   resolveTrendSeries,
   resolveMapValue,
   resolveTableRows,
+  resolveFrameworkTable,
+  resolveByPath,
+  isObjectMap,
 } from "./dataExtractors";
-import CustomDashboardModal from "./customDashboardModal";
+import PanelBuilderModal from "./PanelBuilderModal";
 
-const SINGLE_VIEW_ID = "main";
+const ResponsiveGridLayout = WidthProvider(Responsive);
+
+const SINGLE_VIEW_ID    = "main";
 const SINGLE_VIEW_LABEL = "Dashboard";
+
+// ─── grid constants ───────────────────────────────────────────────────────────
+const GRID_COLS    = { lg: 12, md: 12, sm: 6, xs: 4 };
+const GRID_BREAKS  = { lg: 1024, md: 768, sm: 480, xs: 0 };
+const ROW_HEIGHT   = 80;
+const DEFAULT_W    = 3; 
+const DEFAULT_H    = 3; 
+const MAX_PANELS_PER_VIEW = 10;
+const MIN_W = 2;
+const MIN_H = 3;
+
+const CHART_TYPES = new Set([
+  "TrendLineChart", "TrendAreaChart", "TrendBarChart", "DonutStatusChart",
+]);
+
+// ─── per-panel duration ─────────────────────────────────────────────────────
+const PANEL_INTERVALS = [
+  { key: "7d",     label: "7D"  },
+  { key: "14d",    label: "14D" },
+  { key: "90d",    label: "90D" },
+  { key: "custom", label: "Custom" },
+];
+const DEFAULT_PANEL_INTERVAL = { key: "7d", customFrom: "", customTo: "" };
+
+function ensurePanelInterval(panel) {
+  return panel.interval?.key ? panel.interval : DEFAULT_PANEL_INTERVAL;
+}
+
+function panelSignature(panel) {
+  const props = panel.props ?? {};
+  if (Array.isArray(props.series) && props.series.length) {
+    const extractors = props.series.map((s) => s.extractor).filter(Boolean).sort().join("|");
+    return `${panel.componentType}::${extractors}`;
+  }
+  return `${panel.componentType}::${props.extractor ?? ""}`;
+}
+
+function minSizeFor(componentType) {
+  if (CHART_TYPES.has(componentType)) return { minW: 4, minH: 4 };
+  if (componentType === "TableWidget") return { minW: 4, minH: 4 };
+  return { minW: MIN_W, minH: MIN_H };
+}
+
+function clampLayout({ x, y, w, h }, componentType) {
+  const { minW, minH } = minSizeFor(componentType);
+  const safeW = Math.max(Number(w) || DEFAULT_W, minW);
+  const safeH = Math.max(Number(h) || DEFAULT_H, minH);
+  return {
+    x: Math.max(Number(x) || 0, 0),
+    y: Math.max(Number(y) || 0, 0),
+    w: safeW,
+    h: safeH,
+  };
+}
+const FOOTPRINTS = {
+  StatCard: { w: 2, h: 2 },
+  ScoreGauge: { w: 2, h: 2 },
+  TargetMeter: { w: 2, h: 2 },
+  default: { w: 3, h: 3 }
+};
+
+function ensureLayout(panel, fallbackIndex = 0) {
+  const footprint = FOOTPRINTS[panel.componentType] || FOOTPRINTS.default; 
+  // If the panel already has a layout, use it UNLESS it's the "old" default (w:3)
+  // and it should be the new "small" default (w:2).
+  if (panel.layout?.w && panel.layout?.w !== 3) {
+      return clampLayout(panel.layout, panel.componentType);
+  }
+  const { minW, minH } = minSizeFor(panel.componentType);
+  const w = Math.max(footprint.w, minW);
+  const h = Math.max(footprint.h, minH);
+  
+  const perRow = Math.floor(GRID_COLS.lg / w) || 1;
+  const x = (fallbackIndex % perRow) * w;
+  const y = Math.floor(fallbackIndex / perRow) * h;
+  
+  return clampLayout({ x, y, w, h }, panel.componentType);
+}
+
+function findOpenSlot(layouts, w = DEFAULT_W, h = DEFAULT_H) {
+  const cols = GRID_COLS.lg;
+  const occupied = layouts.map((l) => ({ x: l.x, y: l.y, w: l.w, h: l.h }));
+  const maxY = occupied.reduce((m, l) => Math.max(m, l.y + l.h), 0);
+  for (let y = 0; y <= maxY + h; y++) {
+    for (let x = 0; x <= cols - w; x++) {
+      const collides = occupied.some(
+        (l) => x < l.x + l.w && x + w > l.x && y < l.y + l.h && y + h > l.y
+      );
+      if (!collides) return { x, y, w, h };
+    }
+  }
+  return { x: 0, y: maxY, w, h };
+}
 
 // ─── data resolution ──────────────────────────────────────────────────────────
 function resolveKpiData(kpiConfig, result) {
   const { componentType, props = {} } = kpiConfig;
   switch (componentType) {
     case "StatCard":
-    case "ScoreGauge": {
+    case "ScoreGauge":
+    case "TargetMeter": {
       const extractor = props.extractor ?? kpiConfig.extractor ?? "";
       return resolveSingleValue(result, extractor);
     }
     case "TrendLineChart":
     case "TrendAreaChart":
     case "TrendBarChart": {
-      const series = props.series ?? [];
-      return resolveTrendSeries(result, series, props.labelExtractor);
+      return resolveTrendSeries(result, props.series ?? [], props.labelExtractor);
     }
-    case "DonutStatusChart": {
+    case "DonutStatusChart":
+    case "DepartmentBreakdown": {
       const extractor = props.extractor ?? kpiConfig.extractor ?? "";
       if (props.staticSlices) return { slices: props.staticSlices };
       return resolveMapValue(result, extractor);
     }
-    case "DepartmentBreakdown": {
-      const extractor = props.extractor ?? kpiConfig.extractor ?? "";
-      return resolveMapValue(result, extractor);
-    }
     case "TableWidget": {
       const extractor = props.extractor ?? kpiConfig.extractor ?? "";
+      const raw = resolveByPath(result?.data, extractor);
+      if (isObjectMap(raw)) {
+        return resolveFrameworkTable(result, extractor);
+      }
       return resolveTableRows(result, extractor);
     }
     default:
@@ -71,16 +184,8 @@ function resolveKpiData(kpiConfig, result) {
 }
 
 // ─── KpiWrapper ───────────────────────────────────────────────────────────────
-const KpiWrapper = memo(function KpiWrapper({
-  kpiConfig,
-  results,
-  comparisonResults,
-  loading,
-}) {
-  const Component = useMemo(
-    () => resolveComponent(kpiConfig.componentType),
-    [kpiConfig.componentType],
-  );
+const KpiWrapper = memo(function KpiWrapper({ kpiConfig, results, comparisonResults, loading }) {
+  const Component = useMemo(() => resolveComponent(kpiConfig.componentType), [kpiConfig.componentType]);
 
   const result = useMemo(() => {
     if (!results?.length) return null;
@@ -89,21 +194,16 @@ const KpiWrapper = memo(function KpiWrapper({
     return results.find((r) => r?.reportId === reportId) ?? results[0] ?? null;
   }, [results, kpiConfig.reportId]);
 
-  const compResult = useMemo(
-    () => comparisonResults?.[0] ?? null,
-    [comparisonResults],
-  );
+  const compResult = useMemo(() => comparisonResults?.[0] ?? null, [comparisonResults]);
 
   const resolvedData = useMemo(() => {
     if (!result) return null;
-    try { return resolveKpiData(kpiConfig, result); }
-    catch { return null; }
+    try { return resolveKpiData(kpiConfig, result); } catch { return null; }
   }, [result, kpiConfig]);
 
   const comparisonData = useMemo(() => {
     if (!compResult) return null;
-    try { return resolveKpiData(kpiConfig, compResult); }
-    catch { return null; }
+    try { return resolveKpiData(kpiConfig, compResult); } catch { return null; }
   }, [compResult, kpiConfig]);
 
   return (
@@ -121,102 +221,695 @@ const KpiWrapper = memo(function KpiWrapper({
 // ─── SkeletonCard ─────────────────────────────────────────────────────────────
 function SkeletonCard() {
   return (
-    <div className="h-48 rounded-2xl bg-slate-50 animate-pulse flex flex-col gap-3 p-5">
+    <div className="h-full rounded-2xl bg-slate-50 animate-pulse flex flex-col gap-3 p-5">
       <div className="h-3 w-1/3 bg-slate-200 rounded-full" />
       <div className="flex-1 bg-slate-100 rounded-xl" />
     </div>
   );
 }
 
-// ─── EmptyCanvas ──────────────────────────────────────────────────────────────
-function EmptyCanvas({ onAddPanel }) {
+// ─── Per-panel duration picker ────────────────────────────────────────────────
+function IntervalPicker({ value, onChange, compact = false }) {
+  const interval = value?.key ?? DEFAULT_PANEL_INTERVAL.key;
+  const customFrom = value?.customFrom ?? "";
+  const customTo = value?.customTo ?? "";
+  const [showCustom, setShowCustom] = useState(false);
+
+  const selectKey = (key) => {
+    if (key === "custom") {
+      setShowCustom((v) => !v);
+      onChange({ key: "custom", customFrom, customTo });
+      return;
+    }
+    setShowCustom(false);
+    onChange({ key, customFrom: "", customTo: "" });
+  };
+
   return (
-    <div className="flex flex-col items-center justify-center py-24 gap-4 text-center">
+    <div className="relative" data-html2canvas-ignore="true">
+      <div className={`flex bg-slate-100 rounded-lg p-0.5 gap-0.5 ${compact ? "" : "scale-95"}`}>
+        {PANEL_INTERVALS.map((opt) => (
+          <button
+            key={opt.key}
+            onClick={(e) => { e.stopPropagation(); selectKey(opt.key); }}
+            className={`px-1.5 py-1 rounded-md text-[10px] font-bold transition-all flex items-center gap-0.5 ${
+              interval === opt.key ? "bg-white text-slate-800 shadow-sm" : "text-slate-400 hover:text-slate-600"
+            }`}
+          >
+            {opt.key === "custom" && <Calendar size={9} />}
+            {opt.label}
+          </button>
+        ))}
+      </div>
+
+      <AnimatePresence>
+        {showCustom && interval === "custom" && (
+          <motion.div
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.12 }}
+            onClick={(e) => e.stopPropagation()}
+            className="absolute right-0 top-full mt-1 z-20 bg-white rounded-xl border border-slate-200 shadow-lg p-2.5 flex items-center gap-1.5 whitespace-nowrap"
+          >
+            <input
+              type="date"
+              value={customFrom}
+              onChange={(e) => onChange({ key: "custom", customFrom: e.target.value, customTo })}
+              className="text-[10px] border border-slate-200 rounded-md px-1.5 py-1 bg-white text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-300"
+            />
+            <span className="text-[10px] text-slate-300">–</span>
+            <input
+              type="date"
+              value={customTo}
+              min={customFrom}
+              onChange={(e) => onChange({ key: "custom", customFrom, customTo: e.target.value })}
+              className="text-[10px] border border-slate-200 rounded-md px-1.5 py-1 bg-white text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-300"
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+// ─── Fullscreen overlay ───────────────────────────────────────────────────────
+function FullscreenOverlay({ panel, results, comparisonResults, loading, onClose }) {
+  if (typeof document === "undefined") return null;
+  
+  // We add a dedicated container class to ensure it ignores parent styles
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm">
+      <motion.div
+        initial={{ scale: 0.95, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.95, opacity: 0 }}
+        transition={{ duration: 0.18 }}
+        className="relative bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col"
+        style={{ height: "85vh" }}
+      >
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 z-50 w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors"
+        >
+          <XIcon size={18} className="text-slate-500" />
+        </button>
+        
+        {/* Force flex-1 here to ensure content expands to fill the modal */}
+        <div className="flex-1 p-8 overflow-auto">
+          <KpiWrapper
+            kpiConfig={panel}
+            results={results}
+            comparisonResults={comparisonResults}
+            loading={loading}
+          />
+        </div>
+      </motion.div>
+    </div>,
+    document.body
+  );
+}
+
+// ─── Panel card ───────────────────────────────────────────────────────────────
+const PanelCard = memo(function PanelCard({
+  panel, results, comparisonResults, loading,
+  onEdit, onDelete, onClone, onIntervalChange, justAdded,
+  isNew, onHover
+}) {
+  const [fullscreen, setFullscreen] = useState(false);
+  const printRef = useRef(null);
+
+  const handlePrint = () => {
+    if (!printRef.current) return;
+    const w = window.open("", "_blank", "width=800,height=600");
+    w.document.write(`
+      <html><head><title>CalVant Panel — ${panel.title}</title>
+      <link rel="stylesheet" href="${window.location.origin}/index.css">
+      </head><body style="padding:32px;font-family:Segoe UI,sans-serif">
+      <h3 style="color:#475569;font-size:13px;margin-bottom:16px">${panel.title}</h3>
+      ${printRef.current.innerHTML}
+      </body></html>
+    `);
+    w.document.close();
+    w.focus();
+    setTimeout(() => { w.print(); w.close(); }, 400);
+  };
+  const isSmall = panel.layout?.w < 3;
+  return (
+    <>
+      <div 
+          onMouseEnter={onHover}
+          className={`relative h-full w-full rounded-2xl bg-white shadow-sm border transition-shadow overflow-hidden group ${
+            justAdded ? "border-indigo-400 ring-2 ring-indigo-200" : "border-slate-100"
+          } ${isSmall ? "p-3" : "p-5"}`} // <--- Apply the padding class directly here
+        >
+        {/* Persistent Notification Dot */}
+        {isNew && (
+          <div 
+            className="absolute top-3 right-3 w-3 h-3 bg-indigo-500 rounded-full shadow border-2 border-white z-20 group-hover:opacity-0 transition-opacity duration-200"
+            title="New Panel"
+          />
+        )}
+
+        {/* Drag handle */}
+        <div
+          className="drag-handle absolute top-2 left-2 z-10 opacity-0 group-hover:opacity-100
+            transition-opacity cursor-grab active:cursor-grabbing p-1 rounded-lg
+            text-slate-300 hover:text-slate-500 hover:bg-slate-50"
+        >
+          <GripVertical size={14} />
+        </div>
+
+        {/* Per-panel duration picker */}
+        <div className="absolute top-2 left-8 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
+          <IntervalPicker value={ensurePanelInterval(panel)} onChange={onIntervalChange} />
+        </div>
+
+        {/* Action bar */}
+        <div className="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5 bg-white/90 backdrop-blur-sm rounded-xl border border-slate-100 shadow-sm px-1 py-0.5">
+          <ActionBtn icon={Pencil}    title="Edit"       onClick={onEdit}                color="indigo" />
+          <ActionBtn icon={Copy}      title="Clone"      onClick={onClone}               color="amber"  />
+          <ActionBtn icon={Maximize2} title="Fullscreen" onClick={() => setFullscreen(true)} color="sky" />
+          <ActionBtn icon={Printer}   title="Print"      onClick={handlePrint}           color="slate"  />
+          <div className="w-px h-4 bg-slate-200 mx-0.5" />
+          <ActionBtn icon={Trash2}    title="Delete"     onClick={onDelete}              color="rose"   />
+        </div>
+
+        {/* In PanelCard, wrap the KpiWrapper in a div that strictly fills the container */}
+        <div ref={printRef} className="h-full w-full overflow-hidden flex flex-col">
+          <div className="flex-1 min-h-0"> {/* min-h-0 is crucial for flex charts to shrink */}
+            <KpiWrapper
+              kpiConfig={panel}
+              results={results}
+              comparisonResults={comparisonResults}
+              loading={loading}
+            />
+          </div>
+        </div>
+      </div>
+
+      <AnimatePresence>
+        {fullscreen && (
+          <FullscreenOverlay
+            panel={panel}
+            results={results}
+            comparisonResults={comparisonResults}
+            loading={loading}
+            onClose={() => setFullscreen(false)}
+          />
+        )}
+      </AnimatePresence>
+    </>
+  );
+});
+
+function ActionBtn({ icon: Icon, title, onClick, color }) {
+  const colors = {
+    indigo: "hover:bg-indigo-50 hover:text-indigo-600",
+    amber:  "hover:bg-amber-50  hover:text-amber-600",
+    sky:    "hover:bg-sky-50    hover:text-sky-600",
+    slate:  "hover:bg-slate-100 hover:text-slate-700",
+    rose:   "hover:bg-rose-50   hover:text-rose-600",
+  };
+  return (
+    <button
+      onClick={onClick}
+      title={title}
+      className={`w-6 h-6 rounded-lg flex items-center justify-center transition-colors text-slate-400 ${colors[color] || ""}`}
+    >
+      <Icon size={11} />
+    </button>
+  );
+}
+
+// ─── EmptyCanvas ──────────────────────────────────────────────────────────────
+function EmptyCanvas({ onAddPanel, onSuggestedDashboard }) {
+  const [choice, setChoice] = useState(null);
+
+  return (
+    <div className="flex flex-col items-center justify-center py-20 gap-6 text-center">
       <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-50 to-blue-50 flex items-center justify-center shadow-inner">
         <LayoutDashboard size={26} className="text-indigo-300" />
       </div>
       <div>
         <p className="text-sm font-semibold text-slate-600 mb-1">No panels yet</p>
         <p className="text-xs text-slate-400 max-w-xs">
-          Click <strong className="text-indigo-500">+ Custom Panel</strong> to add your first chart or stat card — mix and match tiles from any segment.
+          Choose how you'd like to set up this dashboard.
         </p>
       </div>
-      <button
-        onClick={onAddPanel}
-        className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 text-white
-          text-xs font-semibold hover:bg-indigo-700 transition-colors shadow-sm"
+
+      <div className="flex gap-4 flex-wrap justify-center">
+        <button
+          onClick={() => onSuggestedDashboard()}
+          className="flex flex-col items-center gap-2 px-6 py-5 rounded-2xl border-2 border-indigo-200 bg-indigo-50 hover:border-indigo-400 hover:bg-indigo-100 transition-all w-44"
+        >
+          <span className="text-2xl">✨</span>
+          <span className="text-sm font-bold text-indigo-700">Suggested Dashboard</span>
+          <span className="text-[11px] text-indigo-400 leading-snug">Pick a ready-made layout based on your goals</span>
+        </button>
+
+        <button
+          onClick={() => onAddPanel()}
+          className="flex flex-col items-center gap-2 px-6 py-5 rounded-2xl border-2 border-slate-200 bg-slate-50 hover:border-slate-400 hover:bg-white transition-all w-44"
+        >
+          <span className="text-2xl">🎛️</span>
+          <span className="text-sm font-bold text-slate-700">Customized Dashboard</span>
+          <span className="text-[11px] text-slate-400 leading-snug">Add KPIs and charts exactly how you want</span>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Suggested Dashboard Modal ────────────────────────────────────────────────
+export const SUGGESTED_TEMPLATES = [
+  {
+    id: "risk",
+    label: "Risk Overview",
+    icon: "🛡️",
+    description: "High-level risk posture and departmental exposure.",
+    panels: [
+      { title: "Total Risks", componentType: "StatCard", extractor: "risks.total" },
+      { title: "Risk Avg Score", componentType: "StatCard", extractor: "risks.avgScore" },
+      { title: "Risks by Status", componentType: "DonutStatusChart", extractor: "risks.byStatus" },
+      { title: "By Department", componentType: "DepartmentBreakdown", extractor: "risks.byDepartment" }
+    ]
+  },
+  {
+    id: "audit",
+    label: "Audit Summary",
+    icon: "📋",
+    description: "Audit completion rates, findings, and status.",
+    panels: [
+      { title: "Total Audits", componentType: "StatCard", extractor: "audit.total" },
+      { title: "Total Findings", componentType: "StatCard", extractor: "audit.totalFindings" },
+      { title: "Audit Status", componentType: "DonutStatusChart", extractor: "audit.byStatus" }
+    ]
+  },
+  {
+    id: "compliance",
+    label: "Compliance Tracker",
+    icon: "✅",
+    description: "Framework compliance progress and control status.",
+    panels: [
+      { title: "Compliance %", componentType: "StatCard", extractor: "compliance.compliancePercentage" },
+      { title: "Applicable Controls", componentType: "StatCard", extractor: "compliance.applicableControls" },
+      { title: "Framework Readiness", componentType: "TableWidget", extractor: "compliance.frameworkBreakdown" }
+    ]
+  },
+  {
+    id: "tasks",
+    label: "Task Dashboard",
+    icon: "📌",
+    description: "Task completion, overdue items, and workload.",
+    panels: [
+      { title: "Total Tasks", componentType: "StatCard", extractor: "tasks.total" },
+      { title: "Overdue Tasks", componentType: "StatCard", extractor: "tasks.overdue" },
+      { title: "Tasks by Status", componentType: "DonutStatusChart", extractor: "tasks.byStatus" }
+    ]
+  },
+  {
+    id: "dpo",
+    label: "Privacy & DPIA",
+    icon: "🔒",
+    description: "DPIA status and privacy metrics.",
+    panels: [
+      { title: "Total DPIAs", componentType: "StatCard", extractor: "dpia.total" },
+      { title: "Avg Completion", componentType: "ScoreGauge", extractor: "dpia.avgCompletion" },
+      { title: "DPIA Status", componentType: "DonutStatusChart", extractor: "dpia.byStatus" }
+    ]
+  },
+  {
+    id: "ai",
+    label: "AI Governance",
+    icon: "🤖",
+    description: "AI impact assessment and pipeline tracking.",
+    panels: [
+      { title: "S1 Total", componentType: "StatCard", extractor: "aiia.stage1Total" },
+      { title: "S1 Completed", componentType: "StatCard", extractor: "aiia.stage1Completed" },
+      { title: "S2 Total", componentType: "StatCard", extractor: "aiia.stage2Total" },
+      { title: "AIIA Pipeline", componentType: "TrendLineChart", extractor: "aiia.stage1Total" }
+    ]
+  }
+];
+
+function SuggestedDashboardModal({ onClose, onAppendTemplate, userRole }) {
+  const [selected, setSelected] = useState(null);
+  const [previewing, setPreviewing] = useState(null);
+  const [adding, setAdding] = useState(false);
+  const [addedIds, setAddedIds] = useState(new Set());
+
+  // Logic to filter templates based on role
+  const templates = useMemo(() => {
+    const role = (userRole || "").toLowerCase();
+    // Define role permissions
+    const map = {
+      root: ["risk", "audit", "compliance", "tasks", "ai"],
+      ciso: ["risk", "compliance", "audit"],
+      ai_officer: ["ai", "risk"],
+      risk_manager: ["risk", "audit"],
+      department_user: ["tasks"]
+    };
+    const allowedKeys = map[role] || ["tasks", "compliance"]; // Default fallback
+    return SUGGESTED_TEMPLATES.filter(t => allowedKeys.includes(t.id));
+  }, [userRole]);
+
+  const handleSelect = (tpl) => {
+    setSelected(tpl);
+    setPreviewing(tpl);
+  };
+
+  const handleAdd = async () => {
+    if (!selected || !onAppendTemplate) return;
+    setAdding(true);
+    
+    // Map the template panels into the format DashboardEngine expects
+    const panels = selected.panels.map((p) => ({
+      id: `suggested_${selected.id}_${p.title.replace(/\s+/g, '_')}_${Date.now()}`,
+      title: p.title,
+      componentType: p.componentType,
+      props: { extractor: p.extractor },
+      interval: { key: "7d", customFrom: "", customTo: "" },
+    }));
+    
+    onAppendTemplate(panels);
+    setAddedIds(new Set(panels.map((p) => p.id)));
+    setAdding(false);
+    setTimeout(onClose, 600);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+      <motion.div
+        initial={{ y: 36, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        exit={{ y: 36, opacity: 0 }}
+        transition={{ type: "spring", damping: 26, stiffness: 320 }}
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden"
       >
-        <span className="text-sm leading-none">＋</span> Add first panel
-      </button>
+        <div className="px-6 pt-5 pb-4 border-b border-slate-100 flex items-start justify-between">
+          <div>
+            <h2 className="text-base font-bold text-slate-800">✨ Suggested Dashboards</h2>
+            <p className="text-xs text-slate-400 mt-0.5">Pick a template to get started instantly.</p>
+          </div>
+          <button onClick={onClose} className="text-slate-300 hover:text-slate-500 p-1">
+            <XIcon size={16} />
+          </button>
+        </div>
+
+        <div className="flex" style={{ minHeight: 360 }}>
+          <div className="w-56 border-r border-slate-100 p-3 flex flex-col gap-2 overflow-y-auto">
+            {SUGGESTED_TEMPLATES.map((tpl) => (
+              <button
+                key={tpl.id}
+                onClick={() => handleSelect(tpl)}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all ${
+                  selected?.id === tpl.id
+                    ? "bg-indigo-50 border border-indigo-200"
+                    : "hover:bg-slate-50 border border-transparent"
+                }`}
+              >
+                <span className="text-xl">{tpl.icon}</span>
+                <div>
+                  <p className={`text-xs font-semibold ${selected?.id === tpl.id ? "text-indigo-700" : "text-slate-700"}`}>
+                    {tpl.label}
+                  </p>
+                  <p className="text-[10px] text-slate-400 leading-snug mt-0.5">{tpl.description}</p>
+                </div>
+              </button>
+            ))}
+          </div>
+
+          <div className="flex-1 p-5 flex flex-col gap-4">
+            {!previewing ? (
+              <div className="flex-1 flex items-center justify-center text-slate-300 text-sm">
+                ← Select a template to preview
+              </div>
+            ) : (
+              <>
+                <div>
+                  <p className="text-sm font-bold text-slate-700 mb-1">
+                    {previewing.icon} {previewing.label}
+                  </p>
+                  <p className="text-xs text-slate-400">{previewing.description}</p>
+                </div>
+                <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">
+                  Panels that will be added
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  {previewing.panels.map((panel, i) => (
+                    <div
+                      key={i}
+                      className={`relative px-3 py-2.5 rounded-xl border text-xs font-semibold transition-all ${
+                        addedIds.size > 0
+                          ? "bg-emerald-50 border-emerald-200 text-emerald-700"
+                          : "bg-slate-50 border-slate-200 text-slate-700"
+                      }`}
+                    >
+                      {panel.title}
+                      {addedIds.size > 0 && (
+                        <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-emerald-500 text-white text-[9px] font-black flex items-center justify-center shadow">
+                          !
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
+        <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-end gap-3">
+          <button onClick={onClose} className="text-sm text-slate-500 hover:text-slate-700 font-medium px-3 py-1.5">
+            Cancel
+          </button>
+          <button
+            disabled={!selected || adding}
+            onClick={handleAdd}
+            className="px-5 py-2 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition-all shadow-sm flex items-center gap-2"
+          >
+            {adding ? (
+              <><RefreshCw size={13} className="animate-spin" /> Adding…</>
+            ) : (
+              <>✨ Add {selected?.panels.length ?? ""} Panels</>
+            )}
+          </button>
+        </div>
+      </motion.div>
     </div>
   );
 }
 
 // ─── DashboardEngine ──────────────────────────────────────────────────────────
-/**
- * Props:
- *   customViews        [{ id, label, panels[] }]  — owned + persisted by parent.
- *                       Only customViews[0] is ever read or written; the array
- *                       wrapper is kept purely for storage-shape compatibility.
- *   onCustomViewsChange (views) => void            — parent saves to backend
- *   results            — from useDashboardData
- *   comparisonResults  — from useDashboardData
- *   loading            — bool (data fetching)
- *   viewsLoading       — bool (custom views fetching from backend)
- *   error              — string | null
- */
 export default function DashboardEngine({
+  dashboardName,
   customViews = [],
+  activeViewId,
   onCustomViewsChange,
   results,
   comparisonResults = [],
+  getComparisonForWindow,
+  getResultsForWindow,
   loading,
   viewsLoading = false,
   error,
+  userRole = "",
+  newPanelIds = new Set(),
+  onPanelSeen,
 }) {
-  // ── modal ─────────────────────────────────────────────────────────────────
-  const [showPanelModal, setShowPanelModal] = useState(false);
+  const [showBuilder,  setShowBuilder]  = useState(false);
+  const [showPanelLimitBanner, setShowPanelLimitBanner] = useState(false);
+  const [showSuggestedModal, setShowSuggestedModal] = useState(false);
   const [editingPanel, setEditingPanel] = useState(null);
+  const [isDragging,   setIsDragging]   = useState(false);
+  const [justAddedId,  setJustAddedId]  = useState(null);
 
-  // ── the single view (or null if nothing has been added yet) ───────────────
-  const view = customViews[0] ?? null;
+  const needsLayoutRepairRef = useRef(null);
+  const view = customViews.find((v) => v.id === activeViewId) ?? customViews[0] ?? null;
 
-  // ── save panel from modal (always targets the single view) ────────────────
-  const savePanel = useCallback(
-    ({ panel, isEdit, originalPanelId }) => {
-      let updatedView;
-      if (view) {
-        updatedView = isEdit && originalPanelId
-          ? { ...view, panels: view.panels.map((p) => (p.id === originalPanelId ? panel : p)) }
-          : { ...view, panels: [...view.panels, panel] };
+  const pushViewUpdate = useCallback((updatedView) => {
+    const exists = customViews.some((v) => v.id === updatedView.id);
+    const nextViews = exists
+      ? customViews.map((v) => (v.id === updatedView.id ? updatedView : v))
+      : [...customViews, updatedView];
+    onCustomViewsChange?.(nextViews);
+  }, [customViews, onCustomViewsChange]);
+
+  const panelsWithLayout = useMemo(() => {
+    if (!view?.panels?.length) return [];
+    const withLayout = view.panels.map((p, i) => ({ ...p, layout: ensureLayout(p, i) }));
+
+    const distinctX = new Set(withLayout.map((p) => p.layout.x));
+    const allSameColumn = withLayout.length > 1 && distinctX.size === 1;
+
+    const hasOverlap = withLayout.some((p, i) =>
+      withLayout.some((q, j) => i !== j &&
+        p.layout.x < q.layout.x + q.layout.w && p.layout.x + p.layout.w > q.layout.x &&
+        p.layout.y < q.layout.y + q.layout.h && p.layout.y + p.layout.h > q.layout.y
+      )
+    );
+
+    if (!allSameColumn && !hasOverlap) return withLayout;
+
+    const placed = [];
+    for (const p of withLayout) {
+      const occupied = placed.map((q) => ({ x: q.layout.x, y: q.layout.y, w: q.layout.w, h: q.layout.h }));
+      const slot = findOpenSlot(occupied, p.layout.w, p.layout.h);
+      placed.push({ ...p, layout: slot });
+    }
+    needsLayoutRepairRef.current = placed;
+    return placed;
+  }, [view]);
+
+  const rglLayout = useMemo(
+    () => panelsWithLayout.map((p) => {
+      const { minW, minH } = minSizeFor(p.componentType);
+      return { i: p.id, x: p.layout.x, y: p.layout.y, w: p.layout.w, h: p.layout.h, minW, minH };
+    }),
+    [panelsWithLayout]
+  );
+
+  const comparisonResultsByPanel = useMemo(() => {
+    const map = {};
+    for (const p of panelsWithLayout) {
+      if (p.comparison?.enabled && p.comparison?.from) {
+        map[p.id] = typeof getComparisonForWindow === "function"
+          ? getComparisonForWindow(p.comparison.from, p.comparison.to)
+          : [];
       } else {
-        updatedView = { id: SINGLE_VIEW_ID, label: SINGLE_VIEW_LABEL, panels: [panel] };
+        map[p.id] = comparisonResults;
       }
-      onCustomViewsChange?.([updatedView]);
-    },
-    [view, onCustomViewsChange],
-  );
+    }
+    return map;
+  }, [panelsWithLayout, getComparisonForWindow, comparisonResults]);
 
-  // ── append a template's panels into the single view ────────────────────────
-  const appendTemplatePanels = useCallback(
-    (panels) => {
-      const updatedView = view
-        ? { ...view, panels: [...view.panels, ...panels] }
-        : { id: SINGLE_VIEW_ID, label: SINGLE_VIEW_LABEL, panels };
-      onCustomViewsChange?.([updatedView]);
-    },
-    [view, onCustomViewsChange],
-  );
+  const resultsByPanel = useMemo(() => {
+    const map = {};
+    for (const p of panelsWithLayout) {
+      const interval = ensurePanelInterval(p);
+      map[p.id] = typeof getResultsForWindow === "function"
+        ? getResultsForWindow(interval.key, interval.customFrom, interval.customTo)
+        : results;
+    }
+    return map;
+  }, [panelsWithLayout, getResultsForWindow, results]);
 
-  // ── delete panel ──────────────────────────────────────────────────────────
-  const deletePanel = useCallback(
-    (panelId) => {
-      if (!view) return;
-      const updatedView = { ...view, panels: view.panels.filter((p) => p.id !== panelId) };
-      onCustomViewsChange?.([updatedView]);
-    },
-    [view, onCustomViewsChange],
-  );
+  useEffect(() => {
+    if (!needsLayoutRepairRef.current || !view) return;
+    const repairedPanels = needsLayoutRepairRef.current;
+    needsLayoutRepairRef.current = null;
+    pushViewUpdate({ ...view, panels: repairedPanels.map(({ layout, ...rest }) => ({ ...rest, layout })) });
+  }, [panelsWithLayout, view, pushViewUpdate]);
+
+  const currentOccupiedLayout = useCallback(() => {
+    if (!view?.panels?.length) return [];
+    return view.panels.map((p, i) => {
+      const l = ensureLayout(p, i);
+      return { i: p.id, x: l.x, y: l.y, w: l.w, h: l.h };
+    });
+  }, [view]);
+
+  const commitLayout = useCallback((layout) => {
+    if (!view) return;
+    const byId = Object.fromEntries(layout.map((l) => [l.i, l]));
+    const updatedPanels = view.panels.map((p) => {
+      const l = byId[p.id];
+      if (!l) return p;
+      return { ...p, layout: clampLayout({ x: l.x, y: l.y, w: l.w, h: l.h }, p.componentType) };
+    });
+    pushViewUpdate({ ...view, panels: updatedPanels });
+  }, [view, pushViewUpdate]);
+
+  const savePanel = useCallback(({ panel, isEdit, originalPanelId }) => {
+    if (!isEdit && (view?.panels?.length ?? 0) >= MAX_PANELS_PER_VIEW) {
+      setShowPanelLimitBanner(true);
+      return;
+    }
+
+    let updatedView;
+    if (view) {
+      if (isEdit && originalPanelId) {
+        updatedView = { ...view, panels: view.panels.map((p) => (p.id === originalPanelId ? { ...panel, layout: p.layout } : p)) };
+      } else {
+        const { minW, minH } = minSizeFor(panel.componentType);
+        const slot = findOpenSlot(currentOccupiedLayout(), minW, minH);
+        const newPanel = { ...panel, layout: slot };
+        updatedView = { ...view, panels: [...view.panels, newPanel] };
+        setJustAddedId(panel.id);
+      }
+    } else {
+      // Use the new footprint logic instead of hardcoded DEFAULT_W/H
+      const footprint = FOOTPRINTS[panel.componentType] || FOOTPRINTS.default;
+      const slot = findOpenSlot(currentOccupiedLayout(), footprint.w, footprint.h);
+      const newPanel = { ...panel, layout: slot };
+      updatedView = { ...view, panels: [...view.panels, newPanel] };
+      setJustAddedId(panel.id);
+    }
+    pushViewUpdate(updatedView);
+  }, [view, currentOccupiedLayout, pushViewUpdate]);
+
+  const appendTemplatePanels = useCallback((panels) => {
+    const existingSignatures = new Set((view?.panels ?? []).map(panelSignature));
+    const currentCount = view?.panels?.length ?? 0;
+    const remaining = MAX_PANELS_PER_VIEW - currentCount;
+    if (remaining <= 0) {
+      setShowPanelLimitBanner(true);
+      return { addedCount: 0, skippedCount: panels.length };
+    }
+    const panelsToAdd = panels.slice(0, remaining);
+    const skippedByLimit = panels.length - panelsToAdd.length;
+    const deduped = [];
+    for (const p of panelsToAdd) {
+      const sig = panelSignature(p);
+      if (existingSignatures.has(sig)) continue;
+      existingSignatures.add(sig);
+      deduped.push(p);
+    }
+    const skippedCount = panels.length - deduped.length;
+
+    if (deduped.length === 0) return { addedCount: 0, skippedCount };
+
+    let runningLayout = currentOccupiedLayout();
+    const placed = deduped.map((p) => {
+      const { minW, minH } = minSizeFor(p.componentType);
+      const slot = findOpenSlot(runningLayout, minW, minH);
+      runningLayout = [...runningLayout, { i: p.id, ...slot }];
+      return { ...p, layout: slot };
+    });
+    const updatedView = view
+      ? { ...view, panels: [...view.panels, ...placed] }
+      : { id: SINGLE_VIEW_ID, label: SINGLE_VIEW_LABEL, panels: placed };
+    pushViewUpdate(updatedView);
+    return { addedCount: placed.length, skippedCount: skippedCount + skippedByLimit };
+  }, [view, currentOccupiedLayout, pushViewUpdate]);
+
+  const deletePanel = useCallback((panelId) => {
+    if (!view) return;
+    pushViewUpdate({ ...view, panels: view.panels.filter((p) => p.id !== panelId) });
+  }, [view, pushViewUpdate]);
+
+  const clonePanel = useCallback((panel) => {
+    if (!view) return;
+    const { minW, minH } = minSizeFor(panel.componentType);
+    const slot = findOpenSlot(currentOccupiedLayout(), panel.layout?.w ?? minW, panel.layout?.h ?? minH);
+    const cloned = { ...panel, id: `custom_panel_clone_${Date.now()}`, title: `${panel.title} (Copy)`, layout: slot };
+    pushViewUpdate({ ...view, panels: [...view.panels, cloned] });
+  }, [view, currentOccupiedLayout, pushViewUpdate]);
+
+  const updatePanelInterval = useCallback((panelId, interval) => {
+    if (!view) return;
+    pushViewUpdate({
+      ...view,
+      panels: view.panels.map((p) => (p.id === panelId ? { ...p, interval } : p)),
+    });
+  }, [view, pushViewUpdate]);
+
+  useEffect(() => {
+    if (!justAddedId) return;
+    const t = setTimeout(() => setJustAddedId(null), 2200);
+    return () => clearTimeout(t);
+  }, [justAddedId]);
 
   if (error) {
     return (
@@ -228,24 +921,49 @@ export default function DashboardEngine({
 
   return (
     <div className="flex flex-col gap-4">
-      {/* ── actions ──────────────────────────────────────────────────────── */}
       <div
         id="kpis-container"
         data-html2canvas-ignore="true"
-        className="flex items-center justify-end gap-2"
+        className="flex items-center justify-between"
       >
-        <button
-          onClick={() => { setEditingPanel(null); setShowPanelModal(true); }}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600
-            text-white text-sm font-semibold hover:bg-indigo-700
-            active:scale-95 transition-all shadow-sm"
-        >
-          <span className="text-base leading-none">＋</span>{" "}
-          <span className="whitespace-nowrap">Custom Panel</span>
+        <div>
+          {dashboardName && (
+            <h2 className="text-sm font-bold text-slate-700">{dashboardName}</h2>
+          )}
+          {panelsWithLayout.length > 0 && (
+            <p className="text-xs text-slate-400 mt-0.5">
+              {panelsWithLayout.length}/{MAX_PANELS_PER_VIEW} panel{panelsWithLayout.length !== 1 ? "s" : ""}{" "}
+              <span className="text-slate-300">· drag the grip to move · drag a corner to resize</span>
+            </p>
+          )}
+        </div>
+        {showPanelLimitBanner && (
+          <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 text-xs font-semibold">
+            <span>⚠ Maximum {MAX_PANELS_PER_VIEW} panels per view reached.</span>
+            <button onClick={() => setShowPanelLimitBanner(false)} className="ml-2 text-amber-400 hover:text-amber-600">✕</button>
+          </div>
+        )}
+
+          <button
+            onClick={() => {
+              if ((view?.panels?.length ?? 0) >= MAX_PANELS_PER_VIEW) {
+                setShowPanelLimitBanner(true);
+                return;
+              }
+              setEditingPanel(null);
+              setShowBuilder(true);
+            }}
+            disabled={(view?.panels?.length ?? 0) >= MAX_PANELS_PER_VIEW}
+            title={(view?.panels?.length ?? 0) >= MAX_PANELS_PER_VIEW ? `Maximum ${MAX_PANELS_PER_VIEW} panels reached` : "Add a new panel"}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 text-white
+              text-sm font-semibold hover:bg-indigo-700 active:scale-95 transition-all shadow-sm
+              disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
+          >
+          <span className="text-base leading-none">＋</span>
+          <span className="whitespace-nowrap">Add Component</span>
         </button>
       </div>
 
-      {/* ── Panel grid ──────────────────────────────────────────────────── */}
       <AnimatePresence mode="wait">
         <motion.div
           id="charts-container"
@@ -256,80 +974,121 @@ export default function DashboardEngine({
           transition={{ duration: 0.18 }}
         >
           {viewsLoading ? (
-            /* skeleton while backend views are fetching */
             <div className="mt-2 grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))" }}>
-              {[1, 2].map((i) => (
+              {[1, 2, 3].map((i) => (
                 <div key={i} className="rounded-2xl bg-white border border-slate-100 shadow-sm p-5 flex flex-col gap-3 animate-pulse">
                   <div className="h-3 w-1/3 bg-slate-100 rounded-full" />
                   <div className="h-32 bg-slate-50 rounded-xl" />
-                  <div className="h-2 w-1/2 bg-slate-100 rounded-full" />
                 </div>
               ))}
             </div>
-          ) : !view || view.panels?.length === 0 ? (
-            <EmptyCanvas onAddPanel={() => setShowPanelModal(true)} />
+          ) : !view || panelsWithLayout.length === 0 ? (
+            <EmptyCanvas
+              onAddPanel={() => { setEditingPanel(null); setShowBuilder(true); }}
+              onSuggestedDashboard={() => setShowSuggestedModal(true)}
+            />
           ) : (
             <div
-              className="mt-2 grid gap-4"
-              style={{ gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))" }}
+              className={`relative mt-2 rounded-2xl overflow-hidden transition-colors ${
+                isDragging ? "bg-grid-indicator" : ""
+              }`}
             >
-              {(view.panels ?? []).map((panel) => (
-                <div
-                  key={panel.id}
-                  className="relative rounded-2xl bg-white shadow-sm border border-slate-100 overflow-hidden group"
-                >
-                  {/* edit / delete controls */}
-                  <div
-                    className="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100
-                    transition-opacity flex items-center gap-1"
-                  >
-                    <button
-                      onClick={() => {
-                        setEditingPanel({ panel });
-                        setShowPanelModal(true);
-                      }}
-                      title="Edit panel"
-                      className="w-6 h-6 rounded-full bg-slate-100 text-slate-500
-                        hover:bg-indigo-100 hover:text-indigo-600 flex items-center justify-center
-                        transition-colors"
-                    >
-                      <span className="text-[11px] leading-none">✎</span>
-                    </button>
-                    <button
-                      onClick={() => deletePanel(panel.id)}
-                      title="Remove panel"
-                      className="w-6 h-6 rounded-full bg-slate-100 text-slate-500
-                        hover:bg-rose-100 hover:text-rose-600 flex items-center justify-center
-                        transition-colors"
-                    >
-                      <span className="text-[11px] leading-none">🗑</span>
-                    </button>
-                  </div>
+              <ResponsiveGridLayout
+                className="layout"
+                layouts={{ lg: rglLayout, md: rglLayout, sm: rglLayout, xs: rglLayout }}
+                breakpoints={GRID_BREAKS}
+                cols={GRID_COLS}
+                rowHeight={ROW_HEIGHT}
+                margin={[16, 16]}
+                draggableHandle=".drag-handle"
+                resizeHandles={["se", "sw", "ne", "nw", "e", "w", "n", "s"]}
+                onDragStart={() => setIsDragging(true)}
+                onDragStop={(layout) => { setIsDragging(false); commitLayout(layout); }}
+                onResizeStart={() => setIsDragging(true)}
+                onResizeStop={(layout, oldItem, newItem) => {
+                  console.log("OLD:", oldItem);
+                  console.log("NEW:", newItem);
 
-                  <KpiWrapper
-                    kpiConfig={panel}
-                    results={results}
-                    comparisonResults={comparisonResults}
-                    loading={loading}
-                  />
-                </div>
-              ))}
+                  setIsDragging(false);
+                  commitLayout(layout);
+                }}
+                compactType="vertical"
+                preventCollision={true}
+                isBounded={false}
+              >
+                {panelsWithLayout.map((panel) => (
+                  <div key={panel.id}>
+                    <PanelCard
+                      panel={panel}
+                      results={resultsByPanel[panel.id] ?? results}
+                      comparisonResults={comparisonResultsByPanel[panel.id] ?? comparisonResults}
+                      loading={loading}
+                      justAdded={justAddedId === panel.id}
+                      isNew={newPanelIds?.has(panel.id)}
+                      onHover={() => onPanelSeen?.(panel.id)}
+                      onEdit={() => { setEditingPanel({ panel }); setShowBuilder(true); }}
+                      onDelete={() => deletePanel(panel.id)}
+                      onClone={() => clonePanel(panel)}
+                      onIntervalChange={(interval) => updatePanelInterval(panel.id, interval)}
+                    />
+                  </div>
+                ))}
+              </ResponsiveGridLayout>
             </div>
           )}
         </motion.div>
       </AnimatePresence>
 
-      {/* ── Custom panel modal ─────────────────────────────────────────────── */}
       <AnimatePresence>
-        {showPanelModal && (
-          <CustomDashboardModal
+        {showBuilder && (
+          <PanelBuilderModal
             editingPanel={editingPanel}
-            onClose={() => { setShowPanelModal(false); setEditingPanel(null); }}
+            existingPanels={view?.panels ?? []}
+            onClose={() => { setShowBuilder(false); setEditingPanel(null); }}
             onSave={savePanel}
             onAppendTemplate={appendTemplatePanels}
+            userRole={userRole}
           />
         )}
       </AnimatePresence>
+      <AnimatePresence>
+        {showSuggestedModal && (
+          <SuggestedDashboardModal
+            onAppendTemplate={appendTemplatePanels}
+            onClose={() => setShowSuggestedModal(false)}
+            userRole={userRole} // Ensure this is passed!
+          />
+        )}
+      </AnimatePresence>
+
+      <style>{`
+        .bg-grid-indicator {
+          background-image:
+            linear-gradient(to right, #eef2ff 1px, transparent 1px),
+            linear-gradient(to bottom, #eef2ff 1px, transparent 1px);
+          background-size: calc((100% - 16px) / 12) ${ROW_HEIGHT}px;
+          background-position: 8px 8px;
+        }
+        .react-grid-item.react-grid-placeholder {
+          background: #6366f1 !important;
+          opacity: 0.12 !important;
+          border-radius: 16px;
+        }
+        .react-grid-item > .react-resizable-handle {
+          opacity: 0;
+          transition: opacity 0.15s;
+        }
+        .react-grid-item:hover > .react-resizable-handle {
+          opacity: 1;
+        }
+        .react-grid-item.resizing {
+          box-shadow: 0 0 0 2px #6366f1, 0 8px 24px rgba(99,102,241,0.18);
+        }
+        .react-grid-item.react-draggable-dragging {
+          box-shadow: 0 12px 28px rgba(15,23,42,0.18);
+          z-index: 30;
+        }
+      `}</style>
     </div>
   );
 }

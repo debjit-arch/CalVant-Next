@@ -23,6 +23,7 @@
 /** @type {import('./types').DataSource} */
 const API_BASE = "https://api.calvant.com/reports-service/api/reports";
 
+// const API_BASE ="http://localhost:8085/api/reports"
 function resultsEndpoint(org) {
   return `${API_BASE}/results?organization=${encodeURIComponent(org)}`;
 }
@@ -187,7 +188,167 @@ export const DASHBOARD_TEMPLATES = {
     ],
   },
 
-  // ── 2. AUDIT DASHBOARD ─────────────────────────────────────────────────────
+  // ── 2. COMPLIANCE DASHBOARD ────────────────────────────────────────────────
+  compliance: {
+    id: "compliance",
+    label: "Compliance Dashboard",
+    description: "Track control applicability, implementation and framework readiness",
+    icon: "ShieldCheck",
+    accent: "#10b981",
+    gradient: "from-emerald-500 to-teal-600",
+    dataModule: "compliance",      // matches ComplianceDataProvider.getSourceName()
+    endpoint: resultsEndpoint,
+    views: [
+      {
+        id: "compliance-overview",
+        label: "Overview",
+        icon: "LayoutDashboard",
+        layout: { columns: 3, rows: "auto", gap: 16 },
+        panels: [
+          {
+            id: "compliance-stat-applicable",
+            colSpan: 1, rowSpan: 1,
+            kpis: [{
+              id: "kpi-compliance-applicable",
+              componentType: "StatCard",
+              title: "Applicable Controls",
+              icon: "ClipboardList",
+              color: "emerald",
+              props: { extractor: "compliance.applicableControls", trend: true },
+            }],
+          },
+          {
+            id: "compliance-stat-implemented",
+            colSpan: 1, rowSpan: 1,
+            kpis: [{
+              id: "kpi-compliance-implemented",
+              componentType: "StatCard",
+              title: "Implemented",
+              icon: "CheckCircle2",
+              color: "blue",
+              props: { extractor: "compliance.implementedControls", trend: true },
+            }],
+          },
+          {
+            id: "compliance-stat-percentage",
+            colSpan: 1, rowSpan: 1,
+            kpis: [{
+              id: "kpi-compliance-percentage",
+              componentType: "StatCard",
+              title: "Compliance %",
+              icon: "ShieldCheck",
+              color: "teal",
+              props: { extractor: "compliance.compliancePercentage", format: "percent", trend: true },
+            }],
+          },
+          {
+            id: "compliance-stat-auto",
+            colSpan: 1, rowSpan: 1,
+            kpis: [{
+              id: "kpi-compliance-auto",
+              componentType: "StatCard",
+              title: "Auto-Compliant",
+              icon: "Activity",
+              color: "indigo",
+              props: { extractor: "compliance.autoCompliantControls", trend: true },
+            }],
+          },
+          {
+            id: "compliance-stat-manual",
+            colSpan: 1, rowSpan: 1,
+            kpis: [{
+              id: "kpi-compliance-manual",
+              componentType: "StatCard",
+              title: "Manual-Compliant",
+              icon: "FileText",
+              color: "violet",
+              props: { extractor: "compliance.manualCompliantControls", trend: true },
+            }],
+          },
+          {
+            id: "compliance-stat-total",
+            colSpan: 1, rowSpan: 1,
+            kpis: [{
+              id: "kpi-compliance-total",
+              componentType: "StatCard",
+              title: "Total Controls",
+              icon: "BarChart3",
+              color: "slate",
+              props: { extractor: "compliance.totalControls", trend: true },
+            }],
+          },
+          {
+            id: "compliance-trend-panel",
+            colSpan: 2, rowSpan: 2,
+            kpis: [{
+              id: "kpi-compliance-trend",
+              componentType: "TrendAreaChart",
+              title: "Compliance Trend",
+              props: {
+                series: [
+                  { key: "applicable",  label: "Applicable",  extractor: "compliance.applicableControls",  color: "#10b981" },
+                  { key: "implemented", label: "Implemented", extractor: "compliance.implementedControls", color: "#3b82f6" },
+                ],
+              },
+            }],
+          },
+          {
+            id: "compliance-gauge-panel",
+            colSpan: 1, rowSpan: 2,
+            kpis: [{
+              id: "kpi-compliance-gauge",
+              componentType: "ScoreGauge",
+              title: "Overall Compliance %",
+              props: { extractor: "compliance.compliancePercentage", max: 100 },
+            }],
+          },
+        ],
+      },
+      {
+        id: "compliance-frameworks",
+        label: "By Framework",
+        icon: "Layers",
+        layout: { columns: 1, rows: "auto", gap: 16 },
+        panels: [
+          {
+            id: "compliance-fw-table",
+            colSpan: 1, rowSpan: 1,
+            kpis: [{
+              id: "kpi-compliance-fw-table",
+              componentType: "TableWidget",
+              title: "Framework Readiness",
+              props: {
+                // No hardcoded column list — TableWidget derives columns from
+                // whatever keys exist on each framework's breakdown object at
+                // runtime, so adding/removing a framework in the backend needs
+                // no frontend change at all.
+                extractor: "compliance.frameworkBreakdown",
+              },
+            }],
+          },
+          {
+            id: "compliance-fw-bar",
+            colSpan: 1, rowSpan: 1,
+            kpis: [{
+              id: "kpi-compliance-fw-bar",
+              componentType: "TrendBarChart",
+              title: "Applicable vs Implemented by Framework",
+              props: {
+                series: [
+                  { key: "iso27001-applicable",  label: "ISO27001 Applicable",  extractor: "compliance.frameworkBreakdown.ISO27001.applicableControls",  color: "#10b981" },
+                  { key: "iso27001-implemented", label: "ISO27001 Implemented", extractor: "compliance.frameworkBreakdown.ISO27001.implementedControls", color: "#3b82f6" },
+                  { key: "soc2-applicable",       label: "SOC2 Applicable",      extractor: "compliance.frameworkBreakdown.SOC2.applicableControls",      color: "#f59e0b" },
+                  { key: "soc2-implemented",      label: "SOC2 Implemented",     extractor: "compliance.frameworkBreakdown.SOC2.implementedControls",     color: "#a855f7" },
+                ],
+              },
+            }],
+          },
+        ],
+      },
+    ],
+  },
+
+  // ── 3. AUDIT DASHBOARD ─────────────────────────────────────────────────────
   audit: {
     id: "audit",
     label: "Audit Dashboard",
@@ -802,6 +963,7 @@ export const DASHBOARD_TEMPLATES = {
 export const TEMPLATE_ORDER = [
   "executive",
   "risks",
+  "compliance",
   "audit",
   "tasks",
   "dpia",
@@ -830,6 +992,21 @@ export const AVAILABLE_EXTRACTORS = [
   { extractor: "risks.maxScore",           label: "Risks · Max Score"          },
   { extractor: "risks.byStatus",           label: "Risks · By Status"          },
   { extractor: "risks.byDepartment",       label: "Risks · By Department"      },
+  { extractor: "compliance.totalControls",                label: "Compliance · Total Controls"        },
+  { extractor: "compliance.applicableControls",           label: "Compliance · Applicable"            },
+  { extractor: "compliance.implementedControls",          label: "Compliance · Implemented"           },
+  { extractor: "compliance.autoCompliantControls",        label: "Compliance · Auto-Compliant"        },
+  { extractor: "compliance.manualCompliantControls",      label: "Compliance · Manual-Compliant"      },
+  { extractor: "compliance.compliancePercentage",          label: "Compliance · Compliance %"          },
+  { extractor: "compliance.frameworkBreakdown.ISO27001.compliancePercentage",  label: "Compliance · ISO27001 %" },
+  { extractor: "compliance.frameworkBreakdown.ISO27701.compliancePercentage",  label: "Compliance · ISO27701 %" },
+  { extractor: "compliance.frameworkBreakdown.ISO42001.compliancePercentage",  label: "Compliance · ISO42001 %" },
+  { extractor: "compliance.frameworkBreakdown.SOC2.compliancePercentage",      label: "Compliance · SOC2 %"     },
+  { extractor: "compliance.frameworkBreakdown.GDPR.compliancePercentage",      label: "Compliance · GDPR %"     },
+  { extractor: "compliance.frameworkBreakdown.KSA_PDPL.compliancePercentage",  label: "Compliance · KSA PDPL %" },
+  { extractor: "compliance.frameworkBreakdown.DPDPA.compliancePercentage",     label: "Compliance · DPDPA %"    },
+  { extractor: "compliance.frameworkBreakdown.NIST_CSF2.compliancePercentage", label: "Compliance · NIST CSF2 %"},
+  { extractor: "compliance.frameworkBreakdown.HIPPA.compliancePercentage",     label: "Compliance · HIPAA %"    },
   { extractor: "audit.total",              label: "Audit · Total"              },
   { extractor: "audit.totalFindings",      label: "Audit · Findings"           },
   { extractor: "audit.byStatus",           label: "Audit · By Status"          },

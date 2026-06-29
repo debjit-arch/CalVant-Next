@@ -686,7 +686,7 @@ export default function CustomDashboardModal({
               className="px-5 py-2 rounded-xl bg-emerald-600 text-white text-sm font-semibold
                 hover:bg-emerald-700 active:scale-95 transition-all shadow-sm flex items-center gap-2"
             >
-              <span>✓</span> Add Panel
+              <span>✓</span> Add Component
             </button>
           )}
         </div>
