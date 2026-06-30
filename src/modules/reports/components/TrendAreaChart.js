@@ -15,7 +15,7 @@ const series = resolvedData?.expandedSeries ?? kpiConfig.props?.series ?? [];
 const points = resolvedData?.points ?? [];
 
   return (
-    <ChartShell title={kpiConfig.title} loading={loading}>
+    <ChartShell title={kpiConfig.title} showTitle loading={loading}>
       {points.length === 0 ? <EmptyChart /> : (
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={points} margin={{ top: 10, right: 10, left: -10, bottom: 30 }}>

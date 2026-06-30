@@ -64,6 +64,10 @@ const StatCard = memo(function StatCard({
   const { format, trend } = props;
   const { value, delta } = resolvedData ?? {};
   const compValue = comparisonData?.value ?? null;
+  // "increase_negative" means a rise in value should read as bad (red) and a
+  // drop should read as good (green) — e.g. open risks, overdue tasks.
+  const objective = kpiConfig.comparison?.objective ?? "increase_positive";
+  const increaseIsGood = objective !== "increase_negative";
 
   const IconComp = ICONS[icon] ?? BarChart3;
   const gradient = GRADIENTS[color] ?? GRADIENTS.slate;
@@ -83,16 +87,17 @@ const StatCard = memo(function StatCard({
   }, [value, compValue]);
 
   // ── built-in trend delta (from extractor, not comparison) ─────────────────
-  const DeltaIcon  = delta == null ? Minus : delta > 0 ? TrendingUp : delta < 0 ? TrendingDown : Minus;
+  const deltaIsGood = delta > 0 ? increaseIsGood : delta < 0 ? !increaseIsGood : null;
+  const DeltaIcon  = delta == null || delta === 0 ? Minus : deltaIsGood ? TrendingUp : TrendingDown;
   const deltaColor = delta == null ? "text-slate-400"
-    : delta > 0  ? "text-emerald-500"
-    : delta < 0  ? "text-rose-500"
-    : "text-slate-400";
+    : deltaIsGood  ? "text-emerald-500"
+    : "text-rose-500";
 
-  const CompIcon  = compDeltaDir > 0 ? TrendingUp : compDeltaDir < 0 ? TrendingDown : Minus;
-  const compColor = compDeltaDir > 0 ? "text-emerald-500"
-    : compDeltaDir < 0 ? "text-rose-500"
-    : "text-slate-400";
+  const compIsGood = compDeltaDir > 0 ? increaseIsGood : compDeltaDir < 0 ? !increaseIsGood : null;
+  const CompIcon  = compDeltaDir === 0 ? Minus : compIsGood ? TrendingUp : TrendingDown;
+  const compColor = compDeltaDir === 0 ? "text-slate-400"
+    : compIsGood ? "text-emerald-500"
+    : "text-rose-500";
 
   return (
     <motion.div

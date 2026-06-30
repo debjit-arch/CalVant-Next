@@ -110,7 +110,7 @@ const TrendLineChart = memo(function TrendLineChart({
   }, [primaryPts, compPts, series, hasComp]);
 
   return (
-    <ChartShell title={kpiConfig.title} loading={loading} hasData={points.length > 0}>
+    <ChartShell title={kpiConfig.title} showTitle loading={loading} hasData={points.length > 0}>
       {points.length === 0 ? <EmptyChart /> : (
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={points} margin={{ top: 10, right: 10, left: 0, bottom: 30 }}>

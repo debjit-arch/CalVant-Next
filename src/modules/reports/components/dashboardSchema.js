@@ -959,6 +959,67 @@ export const DASHBOARD_TEMPLATES = {
   },
 };
 
+// ─── MODULES (for the Component Builder's "Module" selector) ────────────────
+// Derived from AVAILABLE_EXTRACTORS module prefixes — used to filter the
+// Data field dropdown down to one module at a time, Bigin-style.
+export const MODULES = [
+  { id: "risks",      label: "Risks"      },
+  { id: "compliance", label: "Compliance" },
+  { id: "audit",      label: "Audit"      },
+  { id: "tasks",      label: "Tasks"      },
+  { id: "dpia",       label: "DPIA"       },
+  { id: "documents",  label: "Documents"  },
+  { id: "aiia",       label: "AIIA"       },
+];
+
+// ─── Duration X-axis grouping (charts) ───────────────────────────────────────
+export const GROUP_BY_OPTIONS = [
+  { key: "day",   label: "By Day"   },
+  { key: "week",  label: "By Week"  },
+  { key: "month", label: "By Month" },
+  { key: "year",  label: "By Year"  },
+];
+
+// ─── KPI comparison period ────────────────────────────────────────────────────
+export const COMPARE_TO_OPTIONS = [
+  { key: "previous_period",          label: "Previous Period"          },
+  { key: "previous_relative_period", label: "Previous Relative Period" },
+  { key: "same_period_last_year",    label: "Same Period Last Year"    },
+  { key: "custom",                   label: "Custom"                   },
+];
+
+export const OBJECTIVE_OPTIONS = [
+  { key: "increase_positive", label: "Consider increase in value as positive" },
+  { key: "increase_negative", label: "Consider increase in value as negative" },
+];
+
+export const TARGET_METER_TYPES = [
+  { key: "dial_gauge",     label: "Dial Gauge",    hint: "Single needle gauge" },
+  { key: "traffic_lights", label: "Traffic Lights", hint: "Red/amber/green gauge" },
+  { key: "single_bar",     label: "Single Bar",    hint: "One bar, one target" },
+  { key: "multiple_bar",   label: "Multiple Bar",  hint: "One bar per user/role" },
+];
+
+export const TARGET_FOR_OPTIONS = [
+  { key: "specific_users", label: "Specific Users" },
+  { key: "specific_roles", label: "Specific Roles" },
+];
+
+export const TARGET_TYPE_OPTIONS = [
+  { key: "common",     label: "Common Target" },
+  { key: "individual", label: "Individual Target" },
+];
+
+// ─── Chart "More Options" — grouping ─────────────────────────────────────────
+export const SORT_BY_OPTIONS = [
+  { key: "value_desc", label: "Value Descending" },
+  { key: "value_asc",  label: "Value Ascending"  },
+  { key: "label_asc",  label: "Label Ascending"  },
+  { key: "label_desc", label: "Label Descending" },
+];
+
+export const MAX_GROUPING_OPTIONS = [5, 10, 15, 20, 30, 40, 50, 75];
+
 // ─── DEFAULT TEMPLATE ORDER (for sidebar) ────────────────────────────────────
 export const TEMPLATE_ORDER = [
   "executive",
