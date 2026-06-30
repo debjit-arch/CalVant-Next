@@ -38,7 +38,7 @@ const jsonLd = {
     "@type": "Offer",
     price: "0",
     priceCurrency: "USD",
-  },
+  },                                                           
   publisher: {
     "@type": "Organization",
     name: "CalVant",
