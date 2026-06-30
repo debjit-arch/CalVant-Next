@@ -87,8 +87,8 @@ const DemoPage = () => {
     <div className="demo-page">
       <Modal
         isOpen={isModalOpen}
-        title="Success!"
-        message="Thanks! Our team will contact you shortly."
+        title="Success"
+        message="Thank you for your demo request! Our team will contact you shortly."
         onClose={handleCloseModal}
       />
       <header className="demo-header">

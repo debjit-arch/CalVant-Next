@@ -1,23 +1,15 @@
 /**
  * ─────────────────────────────────────────────────────────────────────────────
- * DashboardEngine.jsx  (v7 — free-position, resizable panels — Bigin style)
+ * DashboardEngine.jsx  (v9 — KPI duration unified with chart groupBy)
  * ─────────────────────────────────────────────────────────────────────────────
- * Changes from v6:
- * 1. Replaced HTML5 drag-reorder with react-grid-layout:
- * - panels can be dropped ANYWHERE on the canvas (free x/y), not just
- * swapped into the existing flow order
- * - panels are resizable from all 8 handles (corners + edges)
- * - while dragging/resizing, faint grid cells render behind the panels
- * so you can see exactly where a panel will land (the "indicator")
- * 2. Layout (x, y, w, h) is stored per-panel as panel.layout and persisted
- * with the rest of the view, same as colSpan/rowSpan used to be.
- * Old panels without a layout get one auto-generated on first load so
- * nothing breaks for existing dashboards.
- * 3. "Add Components" now drops the new panel into the first open grid space
- * and the grid briefly highlights it so it's obvious where it landed.
- * 4. Notification dots mapped to newly added panels via newPanelIds/onPanelSeen.
- *
- * Requires: react-grid-layout  (npm install react-grid-layout)
+ * v9 changes:
+ *   - KPI panels (StatCard/ScoreGauge/TargetMeter) no longer use a separate
+ *     getKpiResultsForWindow / DEFAULT_KPI_DURATION day-count concept. They
+ *     now use the SAME granularity vocabulary as charts (Day/Week/Month/
+ *     Year), stored as panel.duration.granularity, resolved via
+ *     getResultsForWindow(granularity, 1, criteriaFilters) — i.e. "the
+ *     latest single bucket of that granularity" (By Month = latest
+ *     snapshot within the current month).
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
@@ -37,7 +29,7 @@ import "react-grid-layout/css/styles.css";
 import "react-resizable/css/styles.css";
 import {
   LayoutDashboard, Pencil, Trash2, Copy, Maximize2, Printer,
-  X as XIcon, GripVertical, Calendar,
+  X as XIcon, GripVertical,
 } from "lucide-react";
 import { resolveComponent } from "./kpiRegistry";
 import {
@@ -47,9 +39,13 @@ import {
   resolveTableRows,
   resolveFrameworkTable,
   resolveByPath,
+  resolveByUserValues,
   isObjectMap,
+  applyChartGrouping,
+  applyMapGrouping,
 } from "./dataExtractors";
 import PanelBuilderModal from "./PanelBuilderModal";
+import { resolveTargetUsers } from "./targetAudience";
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -70,18 +66,7 @@ const CHART_TYPES = new Set([
   "TrendLineChart", "TrendAreaChart", "TrendBarChart", "DonutStatusChart",
 ]);
 
-// ─── per-panel duration ─────────────────────────────────────────────────────
-const PANEL_INTERVALS = [
-  { key: "7d",     label: "7D"  },
-  { key: "14d",    label: "14D" },
-  { key: "90d",    label: "90D" },
-  { key: "custom", label: "Custom" },
-];
-const DEFAULT_PANEL_INTERVAL = { key: "7d", customFrom: "", customTo: "" };
-
-function ensurePanelInterval(panel) {
-  return panel.interval?.key ? panel.interval : DEFAULT_PANEL_INTERVAL;
-}
+const KPI_TYPES = new Set(["StatCard", "ScoreGauge", "TargetMeter"]);
 
 function panelSignature(panel) {
   const props = panel.props ?? {};
@@ -152,23 +137,38 @@ function findOpenSlot(layouts, w = DEFAULT_W, h = DEFAULT_H) {
 // ─── data resolution ──────────────────────────────────────────────────────────
 function resolveKpiData(kpiConfig, result) {
   const { componentType, props = {} } = kpiConfig;
+  const grouping = props.grouping ?? {}; // { sortBy, maxGrouping } — Chart "More Options"
   switch (componentType) {
     case "StatCard":
     case "ScoreGauge":
+      return resolveSingleValue(result, props.extractor ?? kpiConfig.extractor ?? "");
     case "TargetMeter": {
       const extractor = props.extractor ?? kpiConfig.extractor ?? "";
-      return resolveSingleValue(result, extractor);
+      const base = resolveSingleValue(result, extractor);
+      const userIds = props.targetFor?.userIds ?? [];
+      if (!userIds.length) return base;
+      const byUser = resolveByUserValues(result, extractor, userIds);
+      // byUser is null when data.tasks.byEmployee isn't present at all (e.g.
+      // a non-task data source, or backend not yet updated) — in that case we
+      // fall through to the old shared-value placeholder behaviour rather
+      // than attaching an empty object that would look like "real but empty".
+      return byUser ? { ...base, byUser } : base;
     }
     case "TrendLineChart":
     case "TrendAreaChart":
     case "TrendBarChart": {
-      return resolveTrendSeries(result, props.series ?? [], props.labelExtractor);
+      const resolved = resolveTrendSeries(result, props.series ?? [], props.labelExtractor);
+      if (!grouping.sortBy && !grouping.maxGrouping) return resolved;
+      const primaryKey = resolved.expandedSeries?.[0]?.key;
+      return { ...resolved, points: applyChartGrouping(resolved.points, { ...grouping, primaryKey }) };
     }
     case "DonutStatusChart":
     case "DepartmentBreakdown": {
       const extractor = props.extractor ?? kpiConfig.extractor ?? "";
       if (props.staticSlices) return { slices: props.staticSlices };
-      return resolveMapValue(result, extractor);
+      const resolved = resolveMapValue(result, extractor);
+      if (!resolved.slices) return resolved;
+      return { ...resolved, slices: applyMapGrouping(resolved.slices, grouping) };
     }
     case "TableWidget": {
       const extractor = props.extractor ?? kpiConfig.extractor ?? "";
@@ -196,7 +196,7 @@ const KpiWrapper = memo(function KpiWrapper({ kpiConfig, results, comparisonResu
 
   const compResult = useMemo(() => comparisonResults?.[0] ?? null, [comparisonResults]);
 
-  const resolvedData = useMemo(() => {
+  const resolvedDataBase = useMemo(() => {
     if (!result) return null;
     try { return resolveKpiData(kpiConfig, result); } catch { return null; }
   }, [result, kpiConfig]);
@@ -205,6 +205,35 @@ const KpiWrapper = memo(function KpiWrapper({ kpiConfig, results, comparisonResu
     if (!compResult) return null;
     try { return resolveKpiData(kpiConfig, compResult); } catch { return null; }
   }, [compResult, kpiConfig]);
+
+  // Resolve targetFor user IDs → display names for Target Meter panels.
+  // resolveKpiData is synchronous and can't make a network call, so this
+  // runs separately and merges the names into resolvedData once available.
+  const userIds = kpiConfig.componentType === "TargetMeter"
+    ? kpiConfig.props?.targetFor?.userIds ?? []
+    : [];
+  const userIdsKey = userIds.join(",");
+  const [userLabels, setUserLabels] = useState({});
+
+  useEffect(() => {
+    if (!userIds.length) { setUserLabels({}); return; }
+    let cancelled = false;
+    resolveTargetUsers(userIds)
+      .then((rows) => {
+        if (cancelled) return;
+        const map = {};
+        rows.forEach((u) => { map[u.id] = u.name ?? u.email ?? u.id; });
+        setUserLabels(map);
+      })
+      .catch(() => { if (!cancelled) setUserLabels({}); });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userIdsKey]);
+
+  const resolvedData = useMemo(() => {
+    if (!resolvedDataBase) return resolvedDataBase;
+    return userIds.length ? { ...resolvedDataBase, userLabels } : resolvedDataBase;
+  }, [resolvedDataBase, userLabels, userIdsKey]);
 
   return (
     <Suspense fallback={<SkeletonCard />}>
@@ -224,71 +253,6 @@ function SkeletonCard() {
     <div className="h-full rounded-2xl bg-slate-50 animate-pulse flex flex-col gap-3 p-5">
       <div className="h-3 w-1/3 bg-slate-200 rounded-full" />
       <div className="flex-1 bg-slate-100 rounded-xl" />
-    </div>
-  );
-}
-
-// ─── Per-panel duration picker ────────────────────────────────────────────────
-function IntervalPicker({ value, onChange, compact = false }) {
-  const interval = value?.key ?? DEFAULT_PANEL_INTERVAL.key;
-  const customFrom = value?.customFrom ?? "";
-  const customTo = value?.customTo ?? "";
-  const [showCustom, setShowCustom] = useState(false);
-
-  const selectKey = (key) => {
-    if (key === "custom") {
-      setShowCustom((v) => !v);
-      onChange({ key: "custom", customFrom, customTo });
-      return;
-    }
-    setShowCustom(false);
-    onChange({ key, customFrom: "", customTo: "" });
-  };
-
-  return (
-    <div className="relative" data-html2canvas-ignore="true">
-      <div className={`flex bg-slate-100 rounded-lg p-0.5 gap-0.5 ${compact ? "" : "scale-95"}`}>
-        {PANEL_INTERVALS.map((opt) => (
-          <button
-            key={opt.key}
-            onClick={(e) => { e.stopPropagation(); selectKey(opt.key); }}
-            className={`px-1.5 py-1 rounded-md text-[10px] font-bold transition-all flex items-center gap-0.5 ${
-              interval === opt.key ? "bg-white text-slate-800 shadow-sm" : "text-slate-400 hover:text-slate-600"
-            }`}
-          >
-            {opt.key === "custom" && <Calendar size={9} />}
-            {opt.label}
-          </button>
-        ))}
-      </div>
-
-      <AnimatePresence>
-        {showCustom && interval === "custom" && (
-          <motion.div
-            initial={{ opacity: 0, y: -4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -4 }}
-            transition={{ duration: 0.12 }}
-            onClick={(e) => e.stopPropagation()}
-            className="absolute right-0 top-full mt-1 z-20 bg-white rounded-xl border border-slate-200 shadow-lg p-2.5 flex items-center gap-1.5 whitespace-nowrap"
-          >
-            <input
-              type="date"
-              value={customFrom}
-              onChange={(e) => onChange({ key: "custom", customFrom: e.target.value, customTo })}
-              className="text-[10px] border border-slate-200 rounded-md px-1.5 py-1 bg-white text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-300"
-            />
-            <span className="text-[10px] text-slate-300">–</span>
-            <input
-              type="date"
-              value={customTo}
-              min={customFrom}
-              onChange={(e) => onChange({ key: "custom", customFrom, customTo: e.target.value })}
-              className="text-[10px] border border-slate-200 rounded-md px-1.5 py-1 bg-white text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-300"
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }
@@ -333,7 +297,7 @@ function FullscreenOverlay({ panel, results, comparisonResults, loading, onClose
 // ─── Panel card ───────────────────────────────────────────────────────────────
 const PanelCard = memo(function PanelCard({
   panel, results, comparisonResults, loading,
-  onEdit, onDelete, onClone, onIntervalChange, justAdded,
+  onEdit, onDelete, onClone, justAdded,
   isNew, onHover
 }) {
   const [fullscreen, setFullscreen] = useState(false);
@@ -355,6 +319,22 @@ const PanelCard = memo(function PanelCard({
     setTimeout(() => { w.print(); w.close(); }, 400);
   };
   const isSmall = panel.layout?.w < 3;
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const confirmTimeoutRef = useRef(null);
+
+  useEffect(() => () => { if (confirmTimeoutRef.current) clearTimeout(confirmTimeoutRef.current); }, []);
+
+  const handleDeleteClick = () => {
+    if (!confirmingDelete) {
+      setConfirmingDelete(true);
+      confirmTimeoutRef.current = setTimeout(() => setConfirmingDelete(false), 3000);
+      return;
+    }
+    if (confirmTimeoutRef.current) clearTimeout(confirmTimeoutRef.current);
+    setConfirmingDelete(false);
+    onDelete();
+  };
+
   return (
     <>
       <div 
@@ -380,11 +360,6 @@ const PanelCard = memo(function PanelCard({
           <GripVertical size={14} />
         </div>
 
-        {/* Per-panel duration picker */}
-        <div className="absolute top-2 left-8 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
-          <IntervalPicker value={ensurePanelInterval(panel)} onChange={onIntervalChange} />
-        </div>
-
         {/* Action bar */}
         <div className="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5 bg-white/90 backdrop-blur-sm rounded-xl border border-slate-100 shadow-sm px-1 py-0.5">
           <ActionBtn icon={Pencil}    title="Edit"       onClick={onEdit}                color="indigo" />
@@ -392,7 +367,17 @@ const PanelCard = memo(function PanelCard({
           <ActionBtn icon={Maximize2} title="Fullscreen" onClick={() => setFullscreen(true)} color="sky" />
           <ActionBtn icon={Printer}   title="Print"      onClick={handlePrint}           color="slate"  />
           <div className="w-px h-4 bg-slate-200 mx-0.5" />
-          <ActionBtn icon={Trash2}    title="Delete"     onClick={onDelete}              color="rose"   />
+          {confirmingDelete ? (
+            <button
+              onClick={handleDeleteClick}
+              title="Click again to confirm delete"
+              className="px-1.5 h-6 rounded-lg flex items-center gap-1 text-[10px] font-bold bg-rose-50 text-rose-600 border border-rose-200 animate-pulse"
+            >
+              <Trash2 size={11} /> Sure?
+            </button>
+          ) : (
+            <ActionBtn icon={Trash2} title="Delete" onClick={handleDeleteClick} color="rose" />
+          )}
         </div>
 
         {/* In PanelCard, wrap the KpiWrapper in a div that strictly fills the container */}
@@ -444,8 +429,6 @@ function ActionBtn({ icon: Icon, title, onClick, color }) {
 
 // ─── EmptyCanvas ──────────────────────────────────────────────────────────────
 function EmptyCanvas({ onAddPanel, onSuggestedDashboard }) {
-  const [choice, setChoice] = useState(null);
-
   return (
     <div className="flex flex-col items-center justify-center py-20 gap-6 text-center">
       <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-50 to-blue-50 flex items-center justify-center shadow-inner">
@@ -473,7 +456,7 @@ function EmptyCanvas({ onAddPanel, onSuggestedDashboard }) {
           className="flex flex-col items-center gap-2 px-6 py-5 rounded-2xl border-2 border-slate-200 bg-slate-50 hover:border-slate-400 hover:bg-white transition-all w-44"
         >
           <span className="text-2xl">🎛️</span>
-          <span className="text-sm font-bold text-slate-700">Customized Dashboard</span>
+          <span className="text-sm font-bold text-slate-700">Customized Components</span>
           <span className="text-[11px] text-slate-400 leading-snug">Add KPIs and charts exactly how you want</span>
         </button>
       </div>
@@ -582,16 +565,36 @@ function SuggestedDashboardModal({ onClose, onAppendTemplate, userRole }) {
   const handleAdd = async () => {
     if (!selected || !onAppendTemplate) return;
     setAdding(true);
-    
-    // Map the template panels into the format DashboardEngine expects
-    const panels = selected.panels.map((p) => ({
-      id: `suggested_${selected.id}_${p.title.replace(/\s+/g, '_')}_${Date.now()}`,
-      title: p.title,
-      componentType: p.componentType,
-      props: { extractor: p.extractor },
-      interval: { key: "7d", customFrom: "", customTo: "" },
-    }));
-    
+
+    // Map the template panels into the FULL panel shape PanelBuilderModal
+    // expects, not just { title, componentType, props:{extractor} }.
+    // Without these fields, editing a template-added panel later drops it
+    // into PanelBuilderModal with an empty module / missing duration /
+    // missing series, which fails validation or renders no data.
+    const KPI_TYPES = new Set(["StatCard", "ScoreGauge", "TargetMeter"]);
+    const TREND_TYPES = new Set(["TrendLineChart", "TrendBarChart"]);
+
+    const panels = selected.panels.map((p) => {
+      const id = `suggested_${selected.id}_${p.title.replace(/\s+/g, '_')}_${Date.now()}`;
+      const module = p.extractor.split(".")[0];
+      const isKpi = KPI_TYPES.has(p.componentType);
+      const isTrend = TREND_TYPES.has(p.componentType);
+
+      const props = isTrend
+        ? { series: [{ key: "series1", label: p.title, extractor: p.extractor, color: "#6366f1" }] }
+        : { extractor: p.extractor };
+
+      return {
+        id,
+        title: p.title,
+        componentType: p.componentType,
+        module,
+        ...(isTrend ? { groupBy: "day" } : {}),
+        ...(isKpi ? { duration: { granularity: "day" } } : {}),
+        props,
+      };
+    });
+
     onAppendTemplate(panels);
     setAddedIds(new Set(panels.map((p) => p.id)));
     setAdding(false);
@@ -711,10 +714,12 @@ export default function DashboardEngine({
   comparisonResults = [],
   getComparisonForWindow,
   getResultsForWindow,
+  dimensionOptions,
   loading,
   viewsLoading = false,
   error,
   userRole = "",
+  orgId,
   newPanelIds = new Set(),
   onPanelSeen,
 }) {
@@ -784,12 +789,22 @@ export default function DashboardEngine({
     return map;
   }, [panelsWithLayout, getComparisonForWindow, comparisonResults]);
 
+  // Per-panel results — ONE windowing concept for everything, driven by
+  // getResultsForWindow(granularity, maxGrouping, criteriaFilters):
+  //   - Charts/maps: granularity = panel.groupBy (day/week/month/year),
+  //     maxGrouping = panel.props.grouping.maxGrouping (5..75 periods).
+  //   - KPIs (StatCard/ScoreGauge/TargetMeter): granularity =
+  //     panel.duration.granularity (day/week/month/year), maxGrouping = 1
+  //     — i.e. "the latest single bucket of that granularity" (By Month =
+  //     latest snapshot within the current month).
   const resultsByPanel = useMemo(() => {
     const map = {};
     for (const p of panelsWithLayout) {
-      const interval = ensurePanelInterval(p);
+      const isKpi = KPI_TYPES.has(p.componentType);
+      const granularity = isKpi ? (p.duration?.granularity ?? "day") : (p.groupBy ?? "day");
+      const maxGrouping = isKpi ? 1 : p.props?.grouping?.maxGrouping;
       map[p.id] = typeof getResultsForWindow === "function"
-        ? getResultsForWindow(interval.key, interval.customFrom, interval.customTo)
+        ? getResultsForWindow(granularity, maxGrouping, p.criteriaFilters)
         : results;
     }
     return map;
@@ -891,19 +906,15 @@ export default function DashboardEngine({
 
   const clonePanel = useCallback((panel) => {
     if (!view) return;
+    if ((view?.panels?.length ?? 0) >= MAX_PANELS_PER_VIEW) {
+      setShowPanelLimitBanner(true);
+      return;
+    }
     const { minW, minH } = minSizeFor(panel.componentType);
     const slot = findOpenSlot(currentOccupiedLayout(), panel.layout?.w ?? minW, panel.layout?.h ?? minH);
     const cloned = { ...panel, id: `custom_panel_clone_${Date.now()}`, title: `${panel.title} (Copy)`, layout: slot };
     pushViewUpdate({ ...view, panels: [...view.panels, cloned] });
   }, [view, currentOccupiedLayout, pushViewUpdate]);
-
-  const updatePanelInterval = useCallback((panelId, interval) => {
-    if (!view) return;
-    pushViewUpdate({
-      ...view,
-      panels: view.panels.map((p) => (p.id === panelId ? { ...p, interval } : p)),
-    });
-  }, [view, pushViewUpdate]);
 
   useEffect(() => {
     if (!justAddedId) return;
@@ -1005,10 +1016,7 @@ export default function DashboardEngine({
                 onDragStart={() => setIsDragging(true)}
                 onDragStop={(layout) => { setIsDragging(false); commitLayout(layout); }}
                 onResizeStart={() => setIsDragging(true)}
-                onResizeStop={(layout, oldItem, newItem) => {
-                  console.log("OLD:", oldItem);
-                  console.log("NEW:", newItem);
-
+                onResizeStop={(layout) => {
                   setIsDragging(false);
                   commitLayout(layout);
                 }}
@@ -1029,7 +1037,6 @@ export default function DashboardEngine({
                       onEdit={() => { setEditingPanel({ panel }); setShowBuilder(true); }}
                       onDelete={() => deletePanel(panel.id)}
                       onClone={() => clonePanel(panel)}
-                      onIntervalChange={(interval) => updatePanelInterval(panel.id, interval)}
                     />
                   </div>
                 ))}
@@ -1044,6 +1051,8 @@ export default function DashboardEngine({
           <PanelBuilderModal
             editingPanel={editingPanel}
             existingPanels={view?.panels ?? []}
+            dimensionOptions={dimensionOptions}
+            orgId={orgId}
             onClose={() => { setShowBuilder(false); setEditingPanel(null); }}
             onSave={savePanel}
             onAppendTemplate={appendTemplatePanels}

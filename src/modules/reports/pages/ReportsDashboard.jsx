@@ -841,7 +841,7 @@ export default function ReportsDashboard() {
     } catch {}
   }, []);
 
-  const { results, comparisonResults, getComparisonForWindow, getResultsForWindow, dimensionOptions, loading, error, refetch, lastFetched, online } =
+  const { results, comparisonResults, getComparisonForWindow, getResultsForWindow, getKpiResultsForWindow, dimensionOptions, loading, error, refetch, lastFetched, online, orgId } =
     useDashboardData(syntheticConfig, organization, filters, comparisonFilters, dimensionFilters);
 
   const { exportPDF } =
@@ -886,10 +886,6 @@ export default function ReportsDashboard() {
           <div className="flex-1" />
 
           <div className="flex items-center gap-2 flex-wrap">
-            <span className={`text-xs font-bold px-2.5 py-1.5 rounded-full flex items-center gap-1.5 ${online ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"}`}>
-              {online ? <><Wifi size={11} /> Live</> : <><WifiOff size={11} /> Offline</>}
-            </span>
-
             {lastFetched && (
               <span className="text-xs text-slate-400 hidden lg:block">{lastFetched.toLocaleTimeString()}</span>
             )}
@@ -941,10 +937,13 @@ export default function ReportsDashboard() {
                 comparisonResults={comparisonResults}
                 getComparisonForWindow={getComparisonForWindow}
                 getResultsForWindow={getResultsForWindow}
+                getKpiResultsForWindow={getKpiResultsForWindow}
+                dimensionOptions={dimensionOptions}
                 loading={loading}
                 viewsLoading={viewsLoading}
                 error={error}
                 userRole={primaryRole}
+                orgId={organization}
                 newPanelIds={newPanelIds}
                 onPanelSeen={markPanelSeen}
               />

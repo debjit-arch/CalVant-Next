@@ -16,7 +16,7 @@ const Modal = ({ isOpen, title, message, onClose, onConfirm, showCancel }) => {
         alignItems: "center",
         justifyContent: "center",
         zIndex: 1000,
-        color: "#1f2937",
+        color: "#000000",
       }}
     >
       <div
@@ -31,7 +31,7 @@ const Modal = ({ isOpen, title, message, onClose, onConfirm, showCancel }) => {
           color: "#1f2937", // ✅ text color applied once
         }}
       >
-        <h3 style={{ marginBottom: "10px" }}>{title}</h3>
+        <h3 style={{ marginBottom: "10px",color: "#000", }}>{title}</h3>
         <p style={{ marginBottom: "20px" }}>{message}</p>
 
         <div

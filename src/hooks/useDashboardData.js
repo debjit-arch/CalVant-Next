@@ -1,20 +1,25 @@
 /**
  * ─────────────────────────────────────────────────────────────────────────────
- * useDashboardData  (v4 — per-panel duration windows)
+ * useDashboardData  (v6 — grouping-driven panel windows, no polling)
  * ─────────────────────────────────────────────────────────────────────────────
- * New params:
- *   comparisonFilters  { enabled, from, to }   — drives comparisonResults
- *   dimensionFilters   { department, client, branch }  — client-side slice
- *
- * New returns:
- *   comparisonResults     — same shape as `results`, covers the comparison window
- *   getComparisonForWindow(from, to)        — ad-hoc comparison window (per-panel)
- *   getResultsForWindow(interval, from, to) — ad-hoc PRIMARY window (per-panel),
- *     mirrors applyDateWindow/INTERVALS so each panel can run its own 7d/14d/
- *     90d/custom duration independently of the (now removed) global selector.
- *
- * FIX: results are now scoped to config.id (configId) so switching between
- * schedules doesn't mix results from other configs.
+ * v6 changes:
+ *   - getResultsForWindow(granularity, maxGrouping, overrideDimensionFilters)
+ *     drives CHART/MAP panels — the window is "the last `maxGrouping`
+ *     buckets of `granularity` size, counting back from today". E.g.
+ *     granularity="week", maxGrouping=75 → the last 75 weeks.
+ *   - getKpiResultsForWindow(duration, overrideDimensionFilters) drives
+ *     KPI panels (StatCard/ScoreGauge/TargetMeter) — duration is a plain
+ *     {key: "7d"|"14d"|"90d"|"custom", customFrom, customTo} date-range,
+ *     so the KPI's value (and its Comparison Period) reflects "latest
+ *     snapshot within the last N days" rather than the all-time latest.
+ *   - applyDateWindow / the old interval-based panel windowing is gone.
+ *     The page-level `filters.interval` (7d/14d/90d/custom) still drives
+ *     the *primary* `results`/`comparisonResults` used by the header —
+ *     that's unrelated to per-panel duration and untouched here.
+ *   - REMOVED: the 60s background poll and the 10s SSE-error poll fallback.
+ *     Data only refreshes via the SSE "report-update" push or an explicit
+ *     refetch() call (manual refresh button) — no silent interval polling,
+ *     so numbers on screen never change mid-meeting on their own.
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
@@ -47,7 +52,9 @@ function getOrgId(orgId) {
 // ─── dimension filter ─────────────────────────────────────────────────────────
 // Prunes byDepartment / byClient / byBranch maps in result.data to only the
 // selected values. Scalar totals are left unchanged (they reflect whole-org).
-function applyDimensionFilters(rawResults, dimensionFilters) {
+// Exported so DashboardEngine can apply a PER-PANEL criteria filter (set via
+// the panel builder's "Criteria filter" rows) without duplicating this logic.
+export function applyDimensionFilters(rawResults, dimensionFilters) {
   if (!dimensionFilters) return rawResults;
   const { department = [], client = [], branch = [] } = dimensionFilters;
   const hasFilter =
@@ -85,6 +92,36 @@ function applyDimensionFilters(rawResults, dimensionFilters) {
           ),
         );
       }
+
+      // ── Recompute scalar totals from the pruned breakdown map ──────────
+      // Without this, Criteria filter only pruned byDepartment/byClient/
+      // byBranch maps — but most KPI panels (StatCard/ScoreGauge/
+      // TargetMeter) read a scalar like "risks.total", which was never
+      // touched, so the filter silently did nothing for them. Re-derive
+      // count-like scalar fields (total/overdue/totalFindings — anything
+      // summable, not avg/max/percentage/score) from whichever dimension
+      // map was actually filtered.
+      const prunedMapForRecompute =
+        (department.length > 0 && prunedMod.byDepartment) ||
+        (client.length > 0 && prunedMod.byClient) ||
+        (branch.length > 0 && prunedMod.byBranch);
+
+      if (prunedMapForRecompute) {
+        const filteredSum = Object.values(prunedMapForRecompute).reduce(
+          (sum, v) => sum + (Number(v) || 0),
+          0,
+        );
+        for (const fieldKey of Object.keys(prunedMod)) {
+          const isCountField =
+            typeof prunedMod[fieldKey] === "number" &&
+            /^(total|count|overdue)/i.test(fieldKey) &&
+            !/avg|max|percentage|score/i.test(fieldKey);
+          if (isCountField) {
+            prunedMod[fieldKey] = filteredSum;
+          }
+        }
+      }
+
       filteredData[moduleKey] = prunedMod;
     }
     return { ...r, data: filteredData };
@@ -98,7 +135,7 @@ function applyConfigScope(rawResults, configId) {
   return rawResults.filter((r) => r.configId === configId);
 }
 
-// ─── date window filter ───────────────────────────────────────────────────────
+// ─── date window filter (page-level header filter only) ──────────────────────
 function applyDateWindow(rawResults, filters) {
   if (!filters?.interval || filters.interval === "all") return rawResults;
 
@@ -168,14 +205,52 @@ function extractDimensionOptions(rawResults) {
   };
 }
 
-function bucketByDay(results) {
+// ─── period bucketing (day / week / month / year) ────────────────────────────
+// Buckets `results` by the requested granularity. Last snapshot written to a
+// given period wins — i.e. for "month" we keep the most recent generatedAt
+// within that month, which is also the correct "running total" value (a
+// running total's last value IS its sum-to-date — nothing more to sum).
+function periodKeyAndLabel(generatedAt, granularity) {
+  const d = new Date(generatedAt);
+  switch (granularity) {
+    case "year": {
+      const y = d.getFullYear();
+      return { key: `${y}`, label: `${y}` };
+    }
+    case "month": {
+      const y = d.getFullYear();
+      const m = d.getMonth();
+      const label = d.toLocaleDateString("en-GB", { month: "short", year: "numeric" });
+      return { key: `${y}-${String(m).padStart(2, "0")}`, label };
+    }
+    case "week": {
+      // ISO-ish week bucket: Monday-start week, keyed by that Monday's date.
+      const monday = new Date(d);
+      const day = (monday.getDay() + 6) % 7; // 0 = Monday
+      monday.setDate(monday.getDate() - day);
+      monday.setHours(0, 0, 0, 0);
+      const key = monday.toISOString().slice(0, 10);
+      const label = `Wk of ${monday.toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}`;
+      return { key, label };
+    }
+    case "day":
+    default: {
+      const key = d.toISOString().slice(0, 10);
+      const label = d.toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
+      return { key, label };
+    }
+  }
+}
+
+function bucketByPeriod(results, granularity = "day") {
   const map = new Map();
   for (const r of results) {
-    const day = new Date(r.generatedAt).toISOString().slice(0, 10); // "2026-06-08"
-    map.set(day, r); // last write wins — most recent snapshot of that day
+    const { key, label } = periodKeyAndLabel(r.generatedAt, granularity);
+    // last write wins — most recent snapshot within that period
+    map.set(key, { ...r, _periodLabel: label });
   }
   return [...map.values()].sort(
-    (a, b) => new Date(a.generatedAt) - new Date(b.generatedAt)
+    (a, b) => new Date(a.generatedAt) - new Date(b.generatedAt),
   );
 }
 
@@ -248,7 +323,7 @@ export function useDashboardData(
     fetch_();
   }, [fetch_]);
 
-  // ── ad-hoc comparison window (per-panel) ──────────────────────────────────
+  // ── ad-hoc comparison window (per-panel KPI "Compare to") ──────────────────
   const getComparisonForWindow = useCallback((from, to) => {
     if (!from) return [];
     const fromDate = new Date(from);
@@ -262,29 +337,54 @@ export function useDashboardData(
     });
 
     const dimFiltered = applyDimensionFilters(windowedRaw, dimensionFilters);
-    return toResultsShape(bucketByDay(dimFiltered), dimensionFilters);
+    return toResultsShape(bucketByPeriod(dimFiltered, "day"), dimensionFilters);
   }, [rawResults, dimensionFilters]);
 
-  // ── ad-hoc PRIMARY window (per-panel duration: 7d/14d/90d/custom) ─────────
-  // Mirrors applyDateWindow, but callable on demand with an arbitrary
-  // {interval, customFrom, customTo} so each panel can run its own duration
-  // independently of the page-level `filters` state.
-  const getResultsForWindow = useCallback((interval, customFrom, customTo) => {
+  // ── per-panel PRIMARY window (grouping-driven) — CHARTS / MAPS ─────────────
+  // granularity: "day" | "week" | "month" | "year" — how points are bucketed.
+  // maxGrouping: how many of the most-recent buckets to keep (5..75).
+  // overrideDimensionFilters: a single panel's own Criteria Filter
+  // (department/client/branch), independent of the dashboard-wide FilterBar.
+  const getResultsForWindow = useCallback((
+    granularity = "day",
+    maxGrouping,
+    overrideDimensionFilters,
+  ) => {
+    const effectiveDimFilters = overrideDimensionFilters ?? dimensionFilters;
+    const dimFiltered = applyDimensionFilters(rawResults, effectiveDimFilters);
+    let bucketed = bucketByPeriod(dimFiltered, granularity);
+    if (maxGrouping) {
+      bucketed = bucketed.slice(-maxGrouping);
+    }
+    return toResultsShape(bucketed, effectiveDimFilters);
+  }, [rawResults, dimensionFilters]);
+
+  // ── per-panel PRIMARY window — KPIs ─────────────────────────────────────────
+  // KPIs (StatCard/ScoreGauge/TargetMeter) need their own duration so the
+  // "current value" and its Comparison Period actually mean something —
+  // e.g. "7D" = the latest snapshot within the last 7 days. This is a plain
+  // date-range filter (mirrors the old applyDateWindow), independent of the
+  // chart grouping/maxGrouping concept above.
+  // duration: { key: "7d"|"14d"|"90d"|"custom", customFrom, customTo }
+  const getKpiResultsForWindow = useCallback((
+    duration,
+    overrideDimensionFilters,
+  ) => {
+    const effectiveDimFilters = overrideDimensionFilters ?? dimensionFilters;
     const windowed = applyDateWindow(rawResults, {
-      interval,
-      customFrom,
-      customTo,
+      interval: duration?.key ?? "7d",
+      customFrom: duration?.customFrom,
+      customTo: duration?.customTo,
     });
-    const dimFiltered = applyDimensionFilters(windowed, dimensionFilters);
-    return toResultsShape(bucketByDay(dimFiltered), dimensionFilters);
+    const dimFiltered = applyDimensionFilters(windowed, effectiveDimFilters);
+    return toResultsShape(bucketByPeriod(dimFiltered, "day"), effectiveDimFilters);
   }, [rawResults, dimensionFilters]);
 
-  // ── SSE subscription ────────────────────────────────────────────────────
+  // ── SSE subscription (the ONLY source of "live" updates — no polling) ─────
   useEffect(() => {
     if (!orgId) return;
     const url = `${BASE_URL}/stream?organization=${encodeURIComponent(orgId)}`;
     const es = new EventSource(url);
-    let pollId = null;
 
     es.addEventListener("report-update", (e) => {
       try {
@@ -305,24 +405,16 @@ export function useDashboardData(
     });
 
     es.onerror = () => {
+      // No interval-based reconnect/poll — connection just goes idle.
+      // Data stays exactly as last fetched until the user hits refresh.
       setOnline(false);
       es.close();
-      pollId = setInterval(fetch_, 10_000);
     };
 
-    return () => {
-      es.close();
-      if (pollId !== null) clearInterval(pollId);
-    };
-  }, [orgId, configId, fetch_, bumpLastFetched]);
+    return () => es.close();
+  }, [orgId, configId, bumpLastFetched]);
 
-  // ── Periodic background refresh ─────────────────────────────────────────
-  useEffect(() => {
-    const id = setInterval(fetch_, 60_000);
-    return () => clearInterval(id);
-  }, [fetch_]);
-
-  // ── Primary results (date window + dimension filter) ─────────────────────
+  // ── Primary results (page-level date window + dimension filter, day-grouped) ─
   const filteredResults = useMemo(
     () => applyDateWindow(rawResults, filters),
     [rawResults, filters],
@@ -334,7 +426,7 @@ export function useDashboardData(
   );
 
   const results = useMemo(
-    () => toResultsShape(bucketByDay(dimensionFiltered), dimensionFilters),
+    () => toResultsShape(bucketByPeriod(dimensionFiltered, "day"), dimensionFilters),
     [dimensionFiltered, dimensionFilters],
   );
 
@@ -357,10 +449,10 @@ export function useDashboardData(
 
     const dimFiltered = applyDimensionFilters(windowedRaw, dimensionFilters);
 
-    return toResultsShape(bucketByDay(dimFiltered), dimensionFilters);
+    return toResultsShape(bucketByPeriod(dimFiltered, "day"), dimensionFilters);
   }, [rawResults, comparisonFilters, dimensionFilters]);
 
-  // ── Available dimension options for FilterBar dropdowns ──────────────────
+  // ── Available dimension options for FilterBar / Criteria Filter dropdowns ─
   const dimensionOptions = useMemo(
     () => extractDimensionOptions(rawResults),
     [rawResults],
@@ -370,6 +462,7 @@ export function useDashboardData(
     results,
     getComparisonForWindow,
     getResultsForWindow,
+    getKpiResultsForWindow,
     comparisonResults,
     dimensionOptions,
     loading,
@@ -377,5 +470,6 @@ export function useDashboardData(
     refetch: fetch_,
     lastFetched,
     online,
+    orgId,
   };
 }
