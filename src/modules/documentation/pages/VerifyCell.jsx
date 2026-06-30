@@ -1386,6 +1386,10 @@ function ScoreBreakdownModal({ result, onClose }) {
                   result.overallScore >= band.min &&
                   (i === 0 || result.overallScore < GRADE_BANDS[i - 1].min);
                 const gradeStatus = band.grade === "A+" ? "Pass" : "Improvement Needed";
+                const rangeLabel =
+                  i === 0 ? `${band.min}–100%`
+                  : i === GRADE_BANDS.length - 1 ? `<${GRADE_BANDS[i - 1].min}%`
+                  : `${band.min}–${GRADE_BANDS[i - 1].min}%`;
                 return (
                   <div key={band.grade} style={{
                     padding: "8px 4px", textAlign: "center",
@@ -1400,6 +1404,12 @@ function ScoreBreakdownModal({ result, onClose }) {
                     </div>
                     <div style={{
                       fontSize: 9, fontWeight: 600, marginTop: 2,
+                      color: isCurrentGrade ? band.color : "#c4c9d4",
+                    }}>
+                      {rangeLabel}
+                    </div>
+                    <div style={{
+                      fontSize: 9, fontWeight: 600, marginTop: 1,
                       color: isCurrentGrade ? band.color : "#c4c9d4",
                     }}>
                       {gradeStatus}
