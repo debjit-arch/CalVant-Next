@@ -1080,16 +1080,12 @@ const CRITERIA_CONFIG = [
 ];
 
 // ── Grade system ──────────────────────────────────────────────────────────────
-// UAT feedback: A+ = 90–100, A = 80–90, B = 70–80, C+ = 60–70, C = 50–60,
-//               D+ = 40–50, D = 0–40
+// UAT v2 feedback: A+ = 90–100, A = 70–90, B = 50–70, C = <50
 const GRADE_BANDS = [
-  { min: 90, grade: "A+", color: "#065f46", bg: "#d1fae5", border: "#6ee7b7", label: "Excellent" },
-  { min: 80, grade: "A",  color: "#0f766e", bg: "#ccfbf1", border: "#5eead4", label: "Very Good" },
-  { min: 70, grade: "B",  color: "#1d4ed8", bg: "#dbeafe", border: "#93c5fd", label: "Good"      },
-  { min: 60, grade: "C+", color: "#4338ca", bg: "#e0e7ff", border: "#a5b4fc", label: "Fair"      },
-  { min: 50, grade: "C",  color: "#854d0e", bg: "#fef9c3", border: "#fde047", label: "Marginal"  },
-  { min: 40, grade: "D+", color: "#92400e", bg: "#fef3c7", border: "#fcd34d", label: "Weak"      },
-  { min:  0, grade: "D",  color: "#991b1b", bg: "#fee2e2", border: "#fca5a5", label: "Poor"      },
+  { min: 90, grade: "A+", color: "#065f46", bg: "#d1fae5", border: "#6ee7b7" },
+  { min: 70, grade: "A",  color: "#0f766e", bg: "#ccfbf1", border: "#5eead4" },
+  { min: 50, grade: "B",  color: "#854d0e", bg: "#fef9c3", border: "#fde047" },
+  { min:  0, grade: "C",  color: "#991b1b", bg: "#fee2e2", border: "#fca5a5" },
 ];
 
 function getGrade(score) {
@@ -1119,7 +1115,12 @@ function splitFeedbackIntoBullets(fb) {
   return fb
     .split(regex)
     .map(s => s.trim().replace(/\.$/, "").trim())
-    .filter(Boolean);
+    // Safety net: strip any stray "Recommendation: ..." clause that may
+    // still be embedded inside a bullet from older/cached audit results.
+    .map(s => s.replace(/\s*Recommendation:.*$/i, "").trim())
+    .filter(Boolean)
+    // Cap to top 3 issues so the modal doesn't overwhelm the reviewer.
+    .slice(0, 3);
 }
 
 // ── VerifyCell ────────────────────────────────────────────────────────────────
@@ -1245,88 +1246,28 @@ function ScoreBreakdownModal({ result, onClose }) {
             </div>
           </div>
 
-          {/* Grade + % in header */}
+          {/* Grade only — no % shown here */}
           <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
-            <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
-              <span style={{ fontSize: 36, fontWeight: 900, lineHeight: 1, color: grade.color }}>
-                {grade.grade}
-              </span>
-              <span style={{ fontSize: 16, fontWeight: 700, color: "#6b7280" }}>
-                {pct}%
-              </span>
-            </div>
+            <span style={{ fontSize: 36, fontWeight: 900, lineHeight: 1, color: grade.color }}>
+              {grade.grade}
+            </span>
             <span style={{
               fontSize: 10, fontWeight: 700, letterSpacing: "0.06em",
               padding: "2px 10px", borderRadius: 20,
-              background: grade.bg, color: grade.color, border: `1.5px solid ${grade.border}`,
+              background: passed ? "#d1fae5" : "#fee2e2",
+              color: passed ? "#065f46" : "#991b1b",
+              border: `1.5px solid ${passed ? "#6ee7b7" : "#fca5a5"}`,
             }}>
-              {grade.label}
+              {passed ? "Pass" : "Improvement Needed"}
             </span>
           </div>
         </div>
 
         <div style={{ padding: "18px 24px 20px", display: "flex", flexDirection: "column", gap: 16 }}>
 
-          {/* ── Title Score ─────────────────────────────────────────────── */}
-          <Section label="Title Score">
-            <div style={{
-              display: "flex", alignItems: "flex-start", gap: 10,
-              padding: "12px 14px", borderRadius: 10,
-              background: result.titleMatch ? "#f0fdf4" : "#fff5f5",
-              border: `1.5px solid ${result.titleMatch ? "#86efac" : "#fca5a5"}`,
-            }}>
-              <div style={{
-                width: 28, height: 28, borderRadius: 8, flexShrink: 0,
-                background: result.titleMatch ? "#dcfce7" : "#fee2e2",
-                display: "flex", alignItems: "center", justifyContent: "center",
-              }}>
-                {result.titleMatch
-                  ? <CheckCircle2 size={15} style={{ color: "#16a34a" }} />
-                  : <XCircle      size={15} style={{ color: "#dc2626" }} />}
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{
-                  fontSize: 13, fontWeight: 700,
-                  color: result.titleMatch ? "#15803d" : "#b91c1c", marginBottom: 4,
-                }}>
-                  {result.titleMatch ? "Title Matched" : "Title Mismatch"}
-                </div>
-                <div style={{ fontSize: 11.5, color: "#4b5563", lineHeight: 1.5 }}>
-                  <span style={{ fontWeight: 600 }}>MLD:</span>{" "}
-                  <span style={{ color: "#111827" }}>"{result.mldDocName}"</span>
-                </div>
-                <div style={{ fontSize: 11.5, color: "#4b5563", lineHeight: 1.5, marginTop: 1 }}>
-                  <span style={{ fontWeight: 600 }}>Extracted:</span>{" "}
-                  <span style={{ color: "#111827" }}>"{result.extractedDocTitle || "—"}"</span>
-                </div>
-                {!result.titleMatch && (
-                  <div style={{
-                    marginTop: 6, fontSize: 11, color: "#b91c1c",
-                    background: "#fee2e2", borderRadius: 6, padding: "4px 8px",
-                    display: "inline-block",
-                  }}>
-                    Document cannot be approved until title matches.
-                  </div>
-                )}
-              </div>
-            </div>
-          </Section>
-
-          {/* ── Content Score ───────────────────────────────────────────── */}
-          <Section label="Content Score">
-
-            <div style={{
-              display: "flex", alignItems: "center", justifyContent: "space-between",
-              marginBottom: 10,
-            }}>
-              <span style={{ fontSize: 12, color: "#6b7280", fontWeight: 600 }}>
-                Overall content score
-              </span>
-              <span style={{ fontSize: 14, fontWeight: 800, color: grade.color }}>
-                {pct}%
-              </span>
-            </div>
-
+          {/* ── Findings ─────────────────────────────────────────────────── */}
+          <Section label="Findings">
+            {/* Score bar kept as quiet context, no "Content Score" heading */}
             <div style={{
               height: 6, borderRadius: 99, background: "#f3f4f6",
               marginBottom: 14, overflow: "hidden",
@@ -1335,13 +1276,37 @@ function ScoreBreakdownModal({ result, onClose }) {
                 height: "100%", borderRadius: 99,
                 width: `${Math.min(result.overallScore, 100)}%`,
                 background: result.overallScore >= APPROVAL_THRESHOLD ? "#10b981"
-                           : result.overallScore >= 60 ? "#f59e0b" : "#ef4444",
+                           : result.overallScore >= 50 ? "#f59e0b" : "#ef4444",
                 transition: "width 0.4s ease",
               }} />
             </div>
 
             {/* Per-criterion rows — feedback only, no % or bar per line */}
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+
+              {/* Document Title — same card style as the criteria below it */}
+              <div style={{
+                padding: "10px 12px", borderRadius: 8,
+                background: "#f9fafb", border: "1px solid #f3f4f6",
+              }}>
+                <div style={{ fontSize: 12.5, fontWeight: 700, color: "#374151", marginBottom: 6, textAlign: "left" }}>
+                  Document Title
+                </div>
+                {result.titleMatch ? (
+                  <div style={{
+                    fontSize: 11, color: "#16a34a",
+                    display: "flex", alignItems: "center", gap: 4,
+                  }}>
+                    <CheckCircle2 size={11} />
+                    No issues found
+                  </div>
+                ) : (
+                  <div style={{ fontSize: 11.5, color: "#b91c1c", lineHeight: 1.5, textAlign: "left" }}>
+                    Mismatch: expected "{result.mldDocName}" but found "{result.extractedDocTitle || "—"}"
+                  </div>
+                )}
+              </div>
+
               {CRITERIA_CONFIG.map(({ key, label, max: defaultMax }) => {
                 const achieved     = breakdown[key] ?? 0;
                 const maxPts       = maxBreakdown[key] ?? defaultMax;
@@ -1359,7 +1324,7 @@ function ScoreBreakdownModal({ result, onClose }) {
                   }}>
                     {/* Criterion label — no score/bar on the right */}
                     <div style={{
-                      fontSize: 12.5, fontWeight: 700, color: "#374151",
+                      fontSize: 12.5, fontWeight: 700, color: "#374151", textAlign: "left",
                       marginBottom: (!isFullScore && fb) ? 6 : 0,
                     }}>
                       {label}
@@ -1381,46 +1346,29 @@ function ScoreBreakdownModal({ result, onClose }) {
                           display: "flex", flexDirection: "column", gap: 4,
                         }}>
                           {bulletPoints.map((point, i) => (
-                            <li key={i} style={{
-                              fontSize: 11.5, color: "#6b7280",
-                              lineHeight: 1.55, listStyleType: "disc",
-                              textAlign: "left",
-                            }}>
-                              {point}
-                            </li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <div style={{
-                          fontSize: 11.5, color: "#6b7280",
-                          lineHeight: 1.5, marginTop: 2, textAlign: "left",
-                        }}>
-                          {fb}
-                        </div>
-                      )
-                    )}
-                  </div>
-                );
-              })}
+                          <li key={i} style={{
+                            fontSize: 11.5, color: "#6b7280",
+                            lineHeight: 1.55, listStyleType: "disc",
+                            textAlign: "left",
+                          }}>
+                            {point}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <div style={{
+                        fontSize: 11.5, color: "#6b7280",
+                        lineHeight: 1.5, marginTop: 2, textAlign: "left",
+                      }}>
+                        {fb}
+                      </div>
+                    )
+                  )}
+                </div>
+              );
+            })}
             </div>
           </Section>
-
-          {/* ── Pass / Fail banner ──────────────────────────────────────── */}
-          <div style={{
-            padding: "10px 14px", borderRadius: 8,
-            background: passed ? "#f0fdf4" : "#fff5f5",
-            border: `1.5px solid ${passed ? "#86efac" : "#fca5a5"}`,
-            fontSize: 12.5, fontWeight: 600,
-            color: passed ? "#15803d" : "#b91c1c",
-            display: "flex", alignItems: "center", gap: 8,
-          }}>
-            {passed
-              ? <CheckCircle2 size={15} style={{ flexShrink: 0 }} />
-              : <XCircle      size={15} style={{ flexShrink: 0 }} />}
-            {passed
-              ? "Passes approval — title matched and content score meets the required threshold."
-              : `Cannot approve — content score ${pct}% is below the required threshold, or title does not match.`}
-          </div>
 
           {/* ── Grade reference table ────────────────────────────────────── */}
           <div style={{ borderRadius: 10, border: "1px solid #e5e7eb", overflow: "hidden" }}>
@@ -1432,11 +1380,12 @@ function ScoreBreakdownModal({ result, onClose }) {
             }}>
               Grade Reference
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)" }}>
               {GRADE_BANDS.map((band, i) => {
                 const isCurrentGrade =
                   result.overallScore >= band.min &&
                   (i === 0 || result.overallScore < GRADE_BANDS[i - 1].min);
+                const gradeStatus = band.grade === "A+" ? "Pass" : "Improvement Needed";
                 return (
                   <div key={band.grade} style={{
                     padding: "8px 4px", textAlign: "center",
@@ -1453,7 +1402,7 @@ function ScoreBreakdownModal({ result, onClose }) {
                       fontSize: 9, fontWeight: 600, marginTop: 2,
                       color: isCurrentGrade ? band.color : "#c4c9d4",
                     }}>
-                      {band.min === 0 ? "<40%" : `≥${band.min}%`}
+                      {gradeStatus}
                     </div>
                   </div>
                 );
@@ -1468,7 +1417,7 @@ function ScoreBreakdownModal({ result, onClose }) {
             display: "flex", gap: 10, alignItems: "flex-start",
           }}>
             <span style={{ fontSize: 16, flexShrink: 0 }}>⚠️</span>
-            <p style={{ margin: 0, fontSize: 11, color: "#92400e", lineHeight: 1.6 }}>
+            <p style={{ margin: 0, fontSize: 11, color: "#92400e", lineHeight: 1.6, textAlign: "left" }}>
               <strong>AI-generated assessment.</strong> This quality check is produced by a large
               language model and may contain errors or omissions. Scores are indicative, not
               definitive. Always have a qualified compliance officer or document owner review
