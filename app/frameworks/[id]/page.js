@@ -1,21 +1,73 @@
-// app/frameworks/[id]/page.jsx
-import dynamic from "next/dynamic";
+import { notFound, redirect } from "next/navigation";
 import { getPageMetadata } from "@/utils/getPageMetadata";
+import { resolveStaticRoute } from "@/utils/frameworkStaticRoutes";
+import FrameworkPageClient from "./FrameworkPageClient";
+
+const API_BASE =
+  process.env.NEXT_PUBLIC_API_URL || "https://api.calvant.com/framework/api";
+
+// Native fetch here is automatically memoized per-request by Next.js —
+// generateMetadata and Page both call this with the same args, so it
+// only actually hits the network once per request.
+async function getFramework(id) {
+  try {
+    const res = await fetch(`${API_BASE}/frameworks/${id}`, {
+      next: { revalidate: 3600 },
+    });
+    if (!res.ok) return null;
+    return res.json();
+  } catch {
+    return null;
+  }
+}
 
 export async function generateMetadata({ params }) {
   const { id } = params;
+  const framework = await getFramework(id);
+  const pc = framework?.pageContent;
+
+  if (!framework) {
+    return getPageMetadata(`/frameworks/${id}`, {
+      title: "Framework not found | CalVant",
+      description: "This compliance framework could not be found.",
+    });
+  }
+
+  const title = pc?.heroTitle
+    ? `${pc.heroTitle} ${pc.heroTitleHighlight || ""} | CalVant`.trim()
+    : `${framework.name || framework.label} Compliance | CalVant`;
+
+  const description =
+    pc?.heroDescription ||
+    `Learn how CalVant helps you operationalize ${framework.name || framework.label} compliance.`;
+
   return getPageMetadata(`/frameworks/${id}`, {
-    title: `Framework Compliance | CalVant`,
-    description: `Learn about compliance with CalVant.`,
-    alternates: { canonical: `${process.env.NEXT_PUBLIC_SITE_URL}/frameworks/${id}` },
+    title,
+    description,
+    alternates: {
+      canonical: `${process.env.NEXT_PUBLIC_SITE_URL}/frameworks/${id}`,
+    },
   });
 }
 
-const FrameworkPageClient = dynamic(
-  () => import("./FrameworkPageClient"),
-  { ssr: false }
-);
+export default async function Page({ params }) {
+  const { id } = params;
+  const framework = await getFramework(id);
 
-export default function Page({ params }) {
-  return <FrameworkPageClient frameworkId={params.id} />;
+  if (!framework) {
+    notFound();
+  }
+
+  // No CMS content? Send a real HTTP redirect to the static page if one
+  // exists, before any HTML streams. This happens server-side — no JS
+  // execution required for crawlers or slow clients to land in the
+  // right place.
+  if (!framework.pageContent) {
+    const staticRoute = resolveStaticRoute(framework);
+    if (staticRoute) {
+      redirect(staticRoute);
+    }
+  }
+
+  return <FrameworkPageClient framework={framework} />;
 }

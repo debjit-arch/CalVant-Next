@@ -1,10 +1,8 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import React from "react";
 import Image from "next/image";
 import Link from "next/link";
-import axios from "axios";
 import {
   Shield,
   Globe,
@@ -31,10 +29,6 @@ import {
 } from "lucide-react";
 import "./framework-page.css";
 import { useIsMobile } from "@/hooks/useIsMobile";
-import { resolveStaticRoute } from "@/utils/frameworkStaticRoutes";
-
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL || "https://api.calvant.com/framework/api";
 
 // ── Icon resolver ─────────────────────────────────────────────────────────────
 const ICON_MAP = {
@@ -76,39 +70,13 @@ const getStoredUser = () => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-export default function FrameworkPageClient({ frameworkId }) {
-  const router = useRouter();
+// `framework` arrives pre-fetched from the server component — no loading state,
+// no client-side axios call, no spinner. The page is fully formed HTML on
+// first paint.
+export default function FrameworkPageClient({ framework }) {
   const isMobile = useIsMobile();
-  const [framework, setFramework] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [redirecting, setRedirecting] = useState(false);
   const storedUser = getStoredUser();
   const isLoggedIn = !!storedUser;
-
-  useEffect(() => {
-    window.scrollTo(0, 0);
-  }, []);
-
-  useEffect(() => {
-    if (!frameworkId) return;
-    axios
-      .get(`${API_BASE}/frameworks/${frameworkId}`)
-      .then((res) => setFramework(res.data))
-      .catch(() => setFramework(null))
-      .finally(() => setLoading(false));
-  }, [frameworkId]);
-
-  // ── If there's no CMS pageContent, fall back to a static page if one exists ──
-  useEffect(() => {
-    if (loading || !framework) return;
-    if (framework.pageContent) return; // real dynamic content exists, render normally
-
-    const staticRoute = resolveStaticRoute(framework);
-    if (staticRoute) {
-      setRedirecting(true);
-      router.replace(staticRoute);
-    }
-  }, [loading, framework, router]);
 
   const goTo = (path) => {
     window.location.href = path;
@@ -118,29 +86,11 @@ export default function FrameworkPageClient({ frameworkId }) {
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
   };
 
-  // ── Loading / redirecting to a static page ──────────────────────────
-  if (loading || redirecting) {
-    return (
-      <div className="fw-loading">
-        <div className="fw-spinner" />
-      </div>
-    );
-  }
-
-  // ── Not found ─────────────────────────────────────────────────────
-  if (!framework) {
-    return (
-      <div className="fw-not-found">
-        <h2>Framework not found</h2>
-        <p>The framework you're looking for doesn't exist.</p>
-        <Link href="/">← Back to home</Link>
-      </div>
-    );
-  }
-
   const pc = framework.pageContent;
 
-  // ── Coming soon (only reached if there's neither pageContent nor a static page) ──
+  // This branch should rarely render now — the server component redirects
+  // before getting here when pageContent is missing and a static page exists.
+  // It's kept as a safety net for frameworks with neither.
   if (!pc) {
     return (
       <div className="fw-coming-soon">
@@ -157,7 +107,6 @@ export default function FrameworkPageClient({ frameworkId }) {
     );
   }
 
-  // ── Full page ─────────────────────────────────────────────────────
   return (
     <div
       className="fw-root"

@@ -1,7 +1,5 @@
 // utils/frameworkStaticRoutes.js
 
-// ── Map framework identifiers to your existing static app-router pages ──
-// Add a new entry here the moment you build a static page for a framework.
 export const STATIC_FRAMEWORK_ROUTES = {
   soc2: "/soc2",
   "soc-2": "/soc2",
@@ -16,7 +14,6 @@ export const STATIC_FRAMEWORK_ROUTES = {
   "ksa-pdpl": "/ksa-pdpl",
 };
 
-// Normalizes code/slug/name so "SOC 2", "SOC_2", "soc-2" all match the same key
 export const normalize = (str) =>
   (str || "")
     .toString()
@@ -24,7 +21,6 @@ export const normalize = (str) =>
     .replace(/[\s_]+/g, "-")
     .replace(/[^a-z0-9-]/g, "");
 
-// Returns the static route for a framework, or null if none exists
 export const resolveStaticRoute = (framework) => {
   if (!framework) return null;
 
@@ -50,8 +46,6 @@ export const resolveStaticRoute = (framework) => {
   return null;
 };
 
-// True if this framework has SOMETHING to show — either CMS pageContent
-// or a hand-built static page. Used to decide whether it belongs in nav.
 export const hasRenderablePage = (framework) => {
   if (!framework) return false;
   if (framework.pageContent) return true;
