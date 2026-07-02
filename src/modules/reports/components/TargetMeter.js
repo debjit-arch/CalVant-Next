@@ -258,7 +258,14 @@ const TargetMeter = memo(function TargetMeter({ kpiConfig, resolvedData, compari
   const { bar: barClass, text: textClass, hex } = BAR_COLORS[color] ?? BAR_COLORS.indigo;
   const pct = useMemo(() => pctOf(value, target), [value, target]);
 
-  const isMultiple = meterType === "multiple_bar" || targetType === "individual";
+  // Which body renders is decided solely by the meter type the user picked
+  // in the panel builder (Dial Gauge / Traffic Lights / Single Bar / Multiple
+  // Bar). `targetType` ("common" vs "individual") only affects which target
+  // value(s) are used — it must NOT also gate which body renders, or picking
+  // "Individual Target" on a Dial Gauge / Traffic Lights / Single Bar panel
+  // renders BOTH that gauge AND the per-user row list stacked underneath it
+  // (the org-wide gauge plus a duplicate breakdown below).
+  const isMultiple = meterType === "multiple_bar";
   const hidePctInHeader = meterType === "dial_gauge" || meterType === "traffic_lights" || isMultiple;
 
   return (

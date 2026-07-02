@@ -42,6 +42,7 @@ import {
   Search,
   Eye,
   Trash2,
+  Settings,          // ← add this
 } from "lucide-react";
 
 import DashboardEngine from "../components/DashboardEngine";
@@ -89,19 +90,55 @@ function getToken() {
   }
 }
 
+// Mirrors backend WeekRangeUtil — used as a fallback so the badge still shows
+// something sensible even before primaryConfig.weekRangeLabel comes back from
+// the API (or for configs saved before that field existed).
+const WEEK_DAY_ORDER = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"];
+function clientWeekRangeLabel(weekStartDay, weekEndDay) {
+  try {
+    const startIdx = WEEK_DAY_ORDER.indexOf(weekStartDay || "MONDAY");
+    const endIdx = WEEK_DAY_ORDER.indexOf(weekEndDay || "SUNDAY");
+    if (startIdx === -1) return "";
+    const today = new Date();
+    const todayIdx = (today.getDay() + 6) % 7;
+    const diffToStart = (todayIdx - startIdx + 7) % 7;
+    const start = new Date(today);
+    start.setDate(start.getDate() - diffToStart);
+
+    let span = endIdx === -1 ? 6 : ((endIdx - startIdx) % 7 + 7) % 7;
+    if (span === 0) span = 6;
+
+    const end = new Date(start);
+    end.setDate(end.getDate() + span);
+    const fmt = (d) => d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+    return `${fmt(start)} - ${fmt(end)}`;
+  } catch {
+    return "";
+  }
+}
+
 async function fetchOrCreatePrimaryConfig(organization, userId, token) {
+  if (!organization) {
+    return { ok: false, reason: "NO_ORG", cfg: null };
+  }
   try {
     const qs = new URLSearchParams({ organization });
     if (userId) qs.set("userId", userId);
     const res = await fetch(`${BASE_URL}/config/primary?${qs.toString()}`, {
       headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      return { ok: false, reason: `HTTP_${res.status}`, cfg: null };
+    }
     const json = await res.json();
     const cfg = json?.data ?? null;
-    return cfg ? { ...cfg, id: cfg.id ?? cfg._id } : null;
-  } catch {
-    return null;
+    return {
+      ok: true,
+      reason: null,
+      cfg: cfg ? { ...cfg, id: cfg.id ?? cfg._id } : null,
+    };
+  } catch (e) {
+    return { ok: false, reason: "NETWORK_ERROR", cfg: null };
   }
 }
 
@@ -626,6 +663,32 @@ function LoadingState() {
   );
 }
 
+function ErrorState({ reason, onRetry }) {
+  const message =
+    reason === "NO_ORG"
+      ? "We couldn't determine your organization. Try signing in again."
+      : "We couldn't load your dashboard. This is usually a temporary connection issue.";
+
+  return (
+    <div className="flex-1 flex flex-col items-center justify-center gap-4 p-12 text-center">
+      <div className="w-12 h-12 rounded-full bg-rose-50 flex items-center justify-center">
+        <WifiOff size={20} className="text-rose-400" />
+      </div>
+      <div>
+        <p className="text-sm font-semibold text-slate-600">{message}</p>
+        <p className="text-xs text-slate-400 mt-1">Check your connection and try again.</p>
+      </div>
+      <motion.button
+        whileTap={{ scale: 0.97 }}
+        onClick={onRetry}
+        className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-xs font-semibold text-indigo-600 transition-colors"
+      >
+        <RefreshCw size={13} /> Retry
+      </motion.button>
+    </div>
+  );
+}
+
 // ─── NEW-PANEL TRACKING ─────────────────────────────────────────────────────────
 function diffNewPanelIds(previousViews, nextViews) {
   const prevMap = new Map(previousViews.map((v) => [v.id, v]));
@@ -658,6 +721,7 @@ export default function ReportsDashboard() {
 
   const [primaryConfig, setPrimaryConfig] = useState(null);
   const [configLoading, setConfigLoading] = useState(true);
+  const [configError, setConfigError] = useState(null);
   const [configBootstrapped, setConfigBootstrapped] = useState(false);
   const [availableSources, setAvailableSources] = useState([]);
   const [totalViewCount, setTotalViewCount] = useState(0);
@@ -685,15 +749,17 @@ export default function ReportsDashboard() {
   );
 
   const syntheticConfig = useMemo(() => {
-    if (!primaryConfig) return null;
-    return {
-      id: primaryConfig.id,
-      label: primaryConfig.reportName,
-      dataSources: primaryConfig.dataSources ?? [],
-      dataModule: null,
-      views: [],
-    };
-  }, [primaryConfig]);
+  if (!primaryConfig) return null;
+  return {
+    id: primaryConfig.id,
+    label: primaryConfig.reportName,
+    dataSources: primaryConfig.dataSources ?? [],
+    dataModule: null,
+    weekStartDay: primaryConfig.weekStartDay ?? "MONDAY",   // ← add this
+    weekEndDay: primaryConfig.weekEndDay ?? "SUNDAY",
+    views: [],
+  };
+}, [primaryConfig]);
 
   const filters = useMemo(() => ({ interval, customFrom, customTo }), [interval, customFrom, customTo]);
   const hasActiveDashboard = !!primaryConfig;
@@ -793,29 +859,50 @@ export default function ReportsDashboard() {
     [primaryConfig, organization, customViews, activeViewId],
   );
 
+  const loadPrimaryConfig = useCallback(async () => {
+    setConfigLoading(true);
+    setConfigError(null);
+
+    const { ok, reason, cfg } = await fetchOrCreatePrimaryConfig(
+      organization,
+      user?.id || user?.userId,
+      getToken(),
+    );
+
+    setPrimaryConfig(cfg);
+    setConfigError(ok ? null : reason);
+    setConfigLoading(false);
+
+    if (cfg?.id) {
+      generateNowRemote(cfg.id, getToken());
+      setViewsLoading(true);
+      const { views, totalCount } = await fetchScheduleViews(cfg.id, user?.email || "", getToken());
+      setCustomViews(views);
+      setTotalViewCount(totalCount);
+      if (views.length > 0) setActiveViewId(views[0].id);
+      setViewsLoading(false);
+    }
+
+    const mapped = INTERVAL_TYPE_TO_KEY[cfg?.intervalType] ?? "7d";
+    setIntervalKey(mapped);
+  }, [organization, user]);
+
   useEffect(() => {
-    if (configBootstrapped || !organization) return;
+    if (configBootstrapped) return;
     setConfigBootstrapped(true);
 
-    (async () => {
-      const cfg = await fetchOrCreatePrimaryConfig(organization, user?.id || user?.userId, getToken());
-      setPrimaryConfig(cfg);
+    if (!organization) {
+      // No org resolved from session — surface it instead of spinning forever.
       setConfigLoading(false);
+      setConfigError("NO_ORG");
+      return;
+    }
+    loadPrimaryConfig();
+  }, [configBootstrapped, organization, loadPrimaryConfig]);
 
-      if (cfg?.id) {
-        generateNowRemote(cfg.id, getToken());
-        setViewsLoading(true);
-        const { views, totalCount } = await fetchScheduleViews(cfg.id, user?.email || "", getToken());
-        setCustomViews(views);
-        setTotalViewCount(totalCount);
-        if (views.length > 0) setActiveViewId(views[0].id);
-        setViewsLoading(false);
-      }
-
-      const mapped = INTERVAL_TYPE_TO_KEY[cfg?.intervalType] ?? "7d";
-      setIntervalKey(mapped);
-    })();
-  }, [configBootstrapped, organization, user]);
+  const handleRetryConfig = useCallback(() => {
+    loadPrimaryConfig();
+  }, [loadPrimaryConfig]);
 
   const fetchAvailableSources = useCallback(async () => {
     try {
@@ -879,8 +966,30 @@ export default function ReportsDashboard() {
               totalViewCount={totalViewCount}
             />
           )}
+          {hasActiveDashboard && (
+            <motion.button
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setShowConfigModal(true)}
+              className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 transition-colors border border-slate-200 flex-shrink-0"
+              title="Edit schedule & week settings"
+            >
+              <Settings size={13} className="text-slate-500" />
+            </motion.button>
+          )}
           {!hasActiveDashboard && !configLoading && (
-            <span className="text-sm font-semibold text-slate-400">No dashboard</span>
+            <span className="text-sm font-semibold text-slate-400">
+              {configError ? "Couldn't load dashboard" : "No dashboard"}
+            </span>
+          )}
+
+          {hasActiveDashboard && (
+            <span
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-50 border
+                border-indigo-100 text-indigo-600 text-[11px] font-semibold flex-shrink-0"
+              title={`Week starts ${primaryConfig?.weekStartDay ?? "MONDAY"}`}
+            >
+              {primaryConfig?.weekRangeLabel || clientWeekRangeLabel(primaryConfig?.weekStartDay, primaryConfig?.weekEndDay)}
+            </span>
           )}
 
           <div className="flex-1" />
@@ -919,8 +1028,10 @@ export default function ReportsDashboard() {
       </header>
 
       <main className="flex-1 p-5 overflow-y-auto flex flex-col">
-        {configLoading || !primaryConfig ? (
+        {configLoading ? (
           <LoadingState />
+        ) : !primaryConfig ? (
+          <ErrorState reason={configError} onRetry={handleRetryConfig} />
         ) : (
           <div ref={exportAreaRef} className="pb-4">
             <motion.div
