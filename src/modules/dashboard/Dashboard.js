@@ -4,6 +4,7 @@ import Image from "next/image";
 import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { FRAMEWORK_CONFIG } from "../../context/frameworkService";
+import { hasRenderablePage } from "@/utils/frameworkStaticRoutes";
 import "./Dashboard.css";
 import {
   ShieldCheck,
@@ -645,14 +646,12 @@ const Dashboard = () => {
     fetch(`${API_BASE}/framework/api/frameworks`)
       .then((res) => (res.ok ? res.json() : []))
       .then((data) => {
-        console.log("frameworks data:", data[0]); // ← add this temporarily
         setFrameworkNavOptions(
           data
-            .filter((fw) => fw.label)
+            .filter((fw) => fw.label && hasRenderablePage(fw))
             .map((fw) => ({ label: fw.label, route: `/frameworks/${fw.id}` })),
         );
       })
-
       .catch(() => {}); // fail silently — nav just won't show dropdown items
   }, []);
 
