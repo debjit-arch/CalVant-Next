@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import axios from "axios";
@@ -30,6 +31,7 @@ import {
 } from "lucide-react";
 import "./framework-page.css";
 import { useIsMobile } from "@/hooks/useIsMobile";
+import { resolveStaticRoute } from "@/utils/frameworkStaticRoutes";
 
 const API_BASE =
   process.env.NEXT_PUBLIC_API_URL || "https://api.calvant.com/framework/api";
@@ -75,9 +77,11 @@ const getStoredUser = () => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 export default function FrameworkPageClient({ frameworkId }) {
+  const router = useRouter();
   const isMobile = useIsMobile();
   const [framework, setFramework] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [redirecting, setRedirecting] = useState(false);
   const storedUser = getStoredUser();
   const isLoggedIn = !!storedUser;
 
@@ -94,6 +98,18 @@ export default function FrameworkPageClient({ frameworkId }) {
       .finally(() => setLoading(false));
   }, [frameworkId]);
 
+  // ── If there's no CMS pageContent, fall back to a static page if one exists ──
+  useEffect(() => {
+    if (loading || !framework) return;
+    if (framework.pageContent) return; // real dynamic content exists, render normally
+
+    const staticRoute = resolveStaticRoute(framework);
+    if (staticRoute) {
+      setRedirecting(true);
+      router.replace(staticRoute);
+    }
+  }, [loading, framework, router]);
+
   const goTo = (path) => {
     window.location.href = path;
   };
@@ -102,8 +118,8 @@ export default function FrameworkPageClient({ frameworkId }) {
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
   };
 
-  // ── Loading ───────────────────────────────────────────────────────
-  if (loading) {
+  // ── Loading / redirecting to a static page ──────────────────────────
+  if (loading || redirecting) {
     return (
       <div className="fw-loading">
         <div className="fw-spinner" />
@@ -124,7 +140,7 @@ export default function FrameworkPageClient({ frameworkId }) {
 
   const pc = framework.pageContent;
 
-  // ── Coming soon ───────────────────────────────────────────────────
+  // ── Coming soon (only reached if there's neither pageContent nor a static page) ──
   if (!pc) {
     return (
       <div className="fw-coming-soon">
