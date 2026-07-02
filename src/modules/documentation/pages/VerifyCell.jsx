@@ -1298,7 +1298,7 @@ function ScoreBreakdownModal({ result, onClose }) {
                     display: "flex", alignItems: "center", gap: 4,
                   }}>
                     <CheckCircle2 size={11} />
-                    No issues found
+                    No issues found   
                   </div>
                 ) : (
                   <div style={{ fontSize: 11.5, color: "#b91c1c", lineHeight: 1.5, textAlign: "left" }}>
