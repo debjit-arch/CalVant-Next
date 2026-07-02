@@ -44,8 +44,30 @@ function addYears(d, n) {
   return copy;
 }
 
+const WEEK_DAY_ORDER = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"];
+
+// The org's most recently completed calendar week, aligned to weekStartDay
+// (e.g. Sat -> Fri) rather than a naive "yesterday minus 6" rolling window —
+// two orgs with different week-start days now get different (correct) ranges
+// for the same preset.
+function previousCalendarWeekRange(weekStartDay) {
+  const startIdx = WEEK_DAY_ORDER.indexOf(weekStartDay || "MONDAY");
+  const today = new Date();
+  const todayIdx = (today.getDay() + 6) % 7; // JS getDay(): 0=Sun -> Mon=0..Sun=6
+  const diffToCurrentWeekStart = (todayIdx - startIdx + 7) % 7;
+  const currentWeekStart = new Date(today);
+  currentWeekStart.setDate(currentWeekStart.getDate() - diffToCurrentWeekStart);
+
+  const start = new Date(currentWeekStart);
+  start.setDate(start.getDate() - 7);
+  const end = new Date(start);
+  end.setDate(end.getDate() + 6);
+  return { from: toISO(start), to: toISO(end) };
+}
+
 // Previous Week: yesterday-6 .. yesterday
-function previousWeekRange() {
+function previousWeekRange(weekStartDay) {
+  if (weekStartDay) return previousCalendarWeekRange(weekStartDay);
   const end = yesterday();
   const start = new Date(end);
   start.setDate(start.getDate() - 6);
@@ -53,18 +75,18 @@ function previousWeekRange() {
 }
 
 // Same Week Last Month: previous-week range, shifted back one month
-function sameWeekLastMonthRange() {
-  const end = addMonths(yesterday(), -1);
-  const start = new Date(end);
-  start.setDate(start.getDate() - 6);
+function sameWeekLastMonthRange(weekStartDay) {
+  const base = previousWeekRange(weekStartDay);
+  const start = addMonths(new Date(base.from), -1);
+  const end = addMonths(new Date(base.to), -1);
   return { from: toISO(start), to: toISO(end) };
 }
 
 // Same Week Last Year: previous-week range, shifted back one year
-function sameWeekLastYearRange() {
-  const end = addYears(yesterday(), -1);
-  const start = new Date(end);
-  start.setDate(start.getDate() - 6);
+function sameWeekLastYearRange(weekStartDay) {
+  const base = previousWeekRange(weekStartDay);
+  const start = addYears(new Date(base.from), -1);
+  const end = addYears(new Date(base.to), -1);
   return { from: toISO(start), to: toISO(end) };
 }
 
@@ -74,21 +96,21 @@ const PRESETS = [
   { key: "same_week_last_year", label: "Same Week Last Year", getRange: sameWeekLastYearRange },
 ];
 
-function defaultRange() {
-  return previousWeekRange();
+function defaultRange(weekStartDay) {
+  return previousWeekRange(weekStartDay);
 }
 
-export default function ComparisonBar({ value, onChange }) {
+export default function ComparisonBar({ value, onChange, weekStartDay }) {
   const enabled = value?.enabled ?? false;
-  const from = value?.from ?? defaultRange().from;
-  const to = value?.to ?? defaultRange().to;
+  const from = value?.from ?? defaultRange(weekStartDay).from;
+  const to = value?.to ?? defaultRange(weekStartDay).to;
 
   const toggle = () => {
     if (enabled) {
       onChange({ ...value, enabled: false });
       return;
     }
-    const range = value?.from && value?.to ? { from: value.from, to: value.to } : defaultRange();
+    const range = value?.from && value?.to ? { from: value.from, to: value.to } : defaultRange(weekStartDay);
     onChange({ enabled: true, ...range });
   };
 
@@ -96,18 +118,18 @@ export default function ComparisonBar({ value, onChange }) {
   const setTo = (v) => onChange({ ...value, to: v });
 
   const applyPreset = (preset) => {
-    const range = preset.getRange();
+    const range = preset.getRange(weekStartDay);
     onChange({ enabled: true, ...range });
   };
 
   // detect which preset is currently active (if any)
   const activePresetKey = useMemo(() => {
     const found = PRESETS.find((p) => {
-      const r = p.getRange();
+      const r = p.getRange(weekStartDay);
       return r.from === from && r.to === to;
     });
     return found?.key ?? null;
-  }, [from, to]);
+  }, [from, to, weekStartDay]);
 
   const rangeLabel = useMemo(() => {
     try {

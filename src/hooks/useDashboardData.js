@@ -210,7 +210,9 @@ function extractDimensionOptions(rawResults) {
 // given period wins — i.e. for "month" we keep the most recent generatedAt
 // within that month, which is also the correct "running total" value (a
 // running total's last value IS its sum-to-date — nothing more to sum).
-function periodKeyAndLabel(generatedAt, granularity) {
+const WEEK_DAY_ORDER = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"];
+
+function periodKeyAndLabel(generatedAt, granularity, weekStartDay = "MONDAY", weekEndDay = "SUNDAY") {
   const d = new Date(generatedAt);
   switch (granularity) {
     case "year": {
@@ -224,13 +226,25 @@ function periodKeyAndLabel(generatedAt, granularity) {
       return { key: `${y}-${String(m).padStart(2, "0")}`, label };
     }
     case "week": {
-      // ISO-ish week bucket: Monday-start week, keyed by that Monday's date.
-      const monday = new Date(d);
-      const day = (monday.getDay() + 6) % 7; // 0 = Monday
-      monday.setDate(monday.getDate() - day);
-      monday.setHours(0, 0, 0, 0);
-      const key = monday.toISOString().slice(0, 10);
-      const label = `Wk of ${monday.toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}`;
+      const startIdx = WEEK_DAY_ORDER.indexOf(weekStartDay || "MONDAY");
+      const endIdx = WEEK_DAY_ORDER.indexOf(weekEndDay || "SUNDAY");
+      const safeStartIdx = startIdx === -1 ? 0 : startIdx;
+      const todayIdx = (d.getDay() + 6) % 7;
+      const diff = (todayIdx - safeStartIdx + 7) % 7;
+
+      const start = new Date(d);
+      start.setHours(0, 0, 0, 0);
+      start.setDate(start.getDate() - diff);
+
+      let span = endIdx === -1 ? 6 : ((endIdx - safeStartIdx) % 7 + 7) % 7;
+      if (span === 0) span = 6;
+
+      const end = new Date(start);
+      end.setDate(end.getDate() + span);
+
+      const key = start.toISOString().slice(0, 10);
+      const fmt = (dt) => dt.toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
+      const label = `${fmt(start)} - ${fmt(end)}`;
       return { key, label };
     }
     case "day":
@@ -242,11 +256,10 @@ function periodKeyAndLabel(generatedAt, granularity) {
   }
 }
 
-function bucketByPeriod(results, granularity = "day") {
+function bucketByPeriod(results, granularity = "day", weekStartDay = "MONDAY", weekEndDay = "SUNDAY") {
   const map = new Map();
   for (const r of results) {
-    const { key, label } = periodKeyAndLabel(r.generatedAt, granularity);
-    // last write wins — most recent snapshot within that period
+    const { key, label } = periodKeyAndLabel(r.generatedAt, granularity, weekStartDay, weekEndDay);
     map.set(key, { ...r, _periodLabel: label });
   }
   return [...map.values()].sort(
@@ -264,7 +277,8 @@ export function useDashboardData(
 ) {
   const orgId = useMemo(() => getOrgId(orgIdProp), [orgIdProp]);
   const configId = config?.id ?? null;
-
+  const weekStartDay = config?.weekStartDay ?? "MONDAY";
+  const weekEndDay = config?.weekEndDay ?? "SUNDAY";
   const [rawResults, setRawResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -352,12 +366,12 @@ export function useDashboardData(
   ) => {
     const effectiveDimFilters = overrideDimensionFilters ?? dimensionFilters;
     const dimFiltered = applyDimensionFilters(rawResults, effectiveDimFilters);
-    let bucketed = bucketByPeriod(dimFiltered, granularity);
+    let bucketed = bucketByPeriod(dimFiltered, granularity, weekStartDay, weekEndDay);
     if (maxGrouping) {
       bucketed = bucketed.slice(-maxGrouping);
     }
     return toResultsShape(bucketed, effectiveDimFilters);
-  }, [rawResults, dimensionFilters]);
+  }, [rawResults, dimensionFilters, weekStartDay, weekEndDay]);
 
   // ── per-panel PRIMARY window — KPIs ─────────────────────────────────────────
   // KPIs (StatCard/ScoreGauge/TargetMeter) need their own duration so the

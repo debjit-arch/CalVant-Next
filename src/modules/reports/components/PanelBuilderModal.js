@@ -584,6 +584,60 @@ function VisualizationPreview({ type }) {
   }
 }
 
+// Same idea as VisualizationPreview, but for the four Target Meter sub-types
+// (Dial Gauge / Traffic Lights / Single Bar / Multiple Bar) shown in
+// TargetMeterTypeSection. Static SVG/CSS mockups, not live data.
+function TargetMeterPreview({ type }) {
+  switch (type) {
+    case "dial_gauge":
+      return (
+        <svg viewBox="0 0 40 24" className="w-9 h-6">
+          <path d="M4 21 A16 16 0 0 1 36 21" fill="none" stroke="#e2e8f0" strokeWidth="4" strokeLinecap="round" />
+          <path d="M4 21 A16 16 0 0 1 36 21" fill="none" stroke="#6366f1" strokeWidth="4" strokeLinecap="round"
+                strokeDasharray="32 50.3" />
+          <line x1="20" y1="21" x2="26" y2="9" stroke="#475569" strokeWidth="2" strokeLinecap="round" />
+          <circle cx="20" cy="21" r="1.6" fill="#475569" />
+        </svg>
+      );
+
+    case "traffic_lights":
+      return (
+        <svg viewBox="0 0 40 24" className="w-9 h-6">
+          <path d="M4 21 A16 16 0 0 1 15 6" fill="none" stroke="#f87171" strokeWidth="4" strokeLinecap="round" />
+          <path d="M15 6 A16 16 0 0 1 25 6" fill="none" stroke="#fbbf24" strokeWidth="4" />
+          <path d="M25 6 A16 16 0 0 1 36 21" fill="none" stroke="#34d399" strokeWidth="4" strokeLinecap="round" />
+          <line x1="20" y1="21" x2="27" y2="11" stroke="#1e293b" strokeWidth="2" strokeLinecap="round" />
+          <circle cx="20" cy="21" r="1.6" fill="#1e293b" />
+        </svg>
+      );
+
+    case "single_bar":
+      return (
+        <div className="w-9 h-2 rounded-full bg-slate-200 overflow-hidden">
+          <div className="h-full rounded-full bg-indigo-500" style={{ width: "70%" }} />
+        </div>
+      );
+
+    case "multiple_bar":
+      return (
+        <div className="flex flex-col gap-1 w-9">
+          <div className="w-full h-1.5 rounded-full bg-slate-200 overflow-hidden">
+            <div className="h-full rounded-full bg-indigo-500" style={{ width: "85%" }} />
+          </div>
+          <div className="w-full h-1.5 rounded-full bg-slate-200 overflow-hidden">
+            <div className="h-full rounded-full bg-indigo-400" style={{ width: "55%" }} />
+          </div>
+          <div className="w-full h-1.5 rounded-full bg-slate-200 overflow-hidden">
+            <div className="h-full rounded-full bg-indigo-300" style={{ width: "35%" }} />
+          </div>
+        </div>
+      );
+
+    default:
+      return <span className="text-base">🎯</span>;
+  }
+}
+
 function TargetMeterTypeSection({ value, onChange }) {
   return (
     <div>
@@ -594,12 +648,17 @@ function TargetMeterTypeSection({ value, onChange }) {
             key={t.key}
             type="button"
             onClick={() => onChange(t.key)}
-            className={`px-3 py-2.5 rounded-xl border-2 text-left transition-all ${
+            className={`px-3 py-2.5 rounded-xl border-2 text-left transition-all flex items-center gap-3 ${
               value === t.key ? "border-indigo-400 bg-indigo-50" : "border-slate-150 bg-slate-50 hover:border-indigo-300"
             }`}
           >
-            <p className="text-xs font-semibold text-slate-700">{t.label}</p>
-            <p className="text-[10px] text-slate-400">{t.hint}</p>
+            <span className="flex-shrink-0 w-10 h-10 flex items-center justify-center">
+              <TargetMeterPreview type={t.key} />
+            </span>
+            <span className="min-w-0">
+              <p className="text-xs font-semibold text-slate-700">{t.label}</p>
+              <p className="text-[10px] text-slate-400">{t.hint}</p>
+            </span>
           </button>
         ))}
       </div>

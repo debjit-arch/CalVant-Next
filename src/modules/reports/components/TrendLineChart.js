@@ -113,14 +113,14 @@ const TrendLineChart = memo(function TrendLineChart({
     <ChartShell title={kpiConfig.title} showTitle loading={loading} hasData={points.length > 0}>
       {points.length === 0 ? <EmptyChart /> : (
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={points} margin={{ top: 10, right: 10, left: 0, bottom: 30 }}>
+          <LineChart data={points} margin={{ top: 10, right: 10, left: 24, bottom: 30 }}>
             <CartesianGrid vertical={false} stroke="#f1f5f9" strokeDasharray="3 3" />
             <XAxis
               dataKey="name"
               axisLine={false} tickLine={false}
               tick={{ fill: "#94a3b8", fontSize: 9, fontWeight: 500 }}
               interval={Math.max(0, Math.ceil(points.length / 5) - 1)}
-              angle={-40} textAnchor="end" height={50}
+              angle={-40} textAnchor="end" height={56}
             />
             <YAxis
               axisLine={false} tickLine={false} width={30}
@@ -160,7 +160,7 @@ const TrendLineChart = memo(function TrendLineChart({
                 name={s.label}
                 stroke={s.color}
                 strokeWidth={2.5}
-                dot={false}
+                dot={true}
                 activeDot={{ r: 5, fill: s.color, stroke: "#fff", strokeWidth: 2 }}
               />
             ))}

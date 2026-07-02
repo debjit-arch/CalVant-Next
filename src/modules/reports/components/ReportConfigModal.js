@@ -61,6 +61,37 @@ const INTERVAL_ICONS = {
   YEARLY: "🗓️", HOURLY: "⏰", CUSTOM_DAYS: "⚙️", CUSTOM_MONTHS: "⚙️", CUSTOM_YEARS: "⚙️",
 };
 
+// ─── week-start options ───────────────────────────────────────────────────────
+// Different orgs run their business week differently (e.g. Sat -> Fri instead
+// of the ISO default Mon -> Sun). This is set once here, at setup time, and
+// drives every "weekly" window/label on the dashboard so all orgs aren't
+// forced onto the same calendar week.
+const WEEK_DAY_OPTIONS = [
+  { value: "MONDAY", label: "Mon" },
+  { value: "TUESDAY", label: "Tue" },
+  { value: "WEDNESDAY", label: "Wed" },
+  { value: "THURSDAY", label: "Thu" },
+  { value: "FRIDAY", label: "Fri" },
+  { value: "SATURDAY", label: "Sat" },
+  { value: "SUNDAY", label: "Sun" },
+];
+
+function weekEndLabel(startDay) {
+  const idx = WEEK_DAY_OPTIONS.findIndex((d) => d.value === startDay);
+  if (idx === -1) return "";
+  const endIdx = (idx + 6) % 7;
+  return WEEK_DAY_OPTIONS[endIdx].label;
+}
+
+function weekSpanLabel(startDay, endDay) {
+  const startIdx = WEEK_DAY_OPTIONS.findIndex((d) => d.value === startDay);
+  const endIdx = WEEK_DAY_OPTIONS.findIndex((d) => d.value === endDay);
+  if (startIdx === -1 || endIdx === -1) return "";
+  const diff = ((endIdx - startIdx) % 7 + 7) % 7;
+  const days = diff === 0 ? 7 : diff + 1;
+  return `${days}-day week`;
+}
+
 // ─── helpers ──────────────────────────────────────────────────────────────────
 async function apiCall(method, path, body) {
   const token = getToken();
@@ -98,6 +129,8 @@ export default function ReportConfigModal({
   const [intervalValue, setIntervalValue] = useState(
     config?.intervalValue ?? 1
   );
+  const [weekStartDay, setWeekStartDay] = useState(config?.weekStartDay ?? "MONDAY");
+  const [weekEndDay, setWeekEndDay] = useState(config?.weekEndDay ?? "SUNDAY");
   const [active, setActive] = useState(config?.active ?? true);
 
   const [saving, setSaving] = useState(false);
@@ -127,7 +160,9 @@ export default function ReportConfigModal({
         createdBy: userId,
         dataSources: resolvedDataSources,
         intervalType,
-        intervalValue: selectedInterval?.needsValue ? Math.max(1, intervalValue) : 1,
+        intervalValue: 1,
+        weekStartDay,
+        weekEndDay,
         active,
       };
 
@@ -136,9 +171,7 @@ export default function ReportConfigModal({
         const res = await apiCall("POST", "/config", payload);
         saved = res.data;
       } else {
-        // Backend has no PUT — delete + recreate preserving org/user
-        await apiCall("DELETE", `/config/${config.id}`);
-        const res = await apiCall("POST", "/config", payload);
+        const res = await apiCall("PUT", `/config/${config.id}`, payload);
         saved = res.data;
       }
       onSave(saved);
@@ -148,7 +181,7 @@ export default function ReportConfigModal({
     } finally {
       setSaving(false);
     }
-  }, [reportName, intervalType, intervalValue, active, isCreate, config, organization, userId, selectedInterval, availableSources, onSave, onClose]);
+  }, [reportName, weekStartDay, weekEndDay, isCreate, config, organization, userId, availableSources, onSave, onClose]);
 
   // ── delete ────────────────────────────────────────────────────────────────
   const handleDelete = useCallback(async () => {
@@ -246,69 +279,57 @@ export default function ReportConfigModal({
             />
           </div>
 
-          {/* interval type */}
+          {/* week window */}
           <div>
             <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">
-              Run schedule
+              Week starts on
             </label>
-            <div className="grid grid-cols-3 gap-2">
-              {INTERVAL_OPTIONS.map((opt) => (
+            <div className="grid grid-cols-7 gap-1.5">
+              {WEEK_DAY_OPTIONS.map((d) => (
                 <button
-                  key={opt.value}
-                  onClick={() => setIntervalType(opt.value)}
-                  className={`px-3 py-2.5 rounded-xl border-2 text-xs font-semibold text-left
-                    transition-all
-                    ${intervalType === opt.value
+                  key={d.value}
+                  onClick={() => setWeekStartDay(d.value)}
+                  className={`py-2 rounded-lg border-2 text-[11px] font-semibold transition-all
+                    ${weekStartDay === d.value
                       ? "border-indigo-400 bg-indigo-50 text-indigo-700"
                       : "border-slate-150 bg-slate-50 text-slate-600 hover:border-slate-200 hover:bg-white"
                     }`}
                 >
-                  <span className="block text-base mb-0.5">{INTERVAL_ICONS[opt.value]}</span>
-                  {opt.label}
+                  {d.label}
                 </button>
               ))}
             </div>
           </div>
 
-          {/* custom interval value */}
-          <AnimatePresence>
-            {selectedInterval?.needsValue && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={{ opacity: 0, height: 0 }}
-                className="overflow-hidden"
-              >
-                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">
-                  Every how many {selectedInterval.unit}?
-                </label>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="number"
-                    min="1"
-                    value={intervalValue}
-                    onChange={(e) => setIntervalValue(Math.max(1, parseInt(e.target.value) || 1))}
-                    className="w-24 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold
-                      text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-300 text-center"
-                  />
-                  <span className="text-sm text-slate-500">{selectedInterval.unit}</span>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* next run preview */}
-          {!isCreate && config.nextRunAt && (
-            <div className="flex items-center gap-2 bg-slate-50 border border-slate-100 rounded-xl px-3 py-2.5">
-              <Clock size={13} className="text-slate-400 flex-shrink-0" />
-              <div>
-                <p className="text-xs font-semibold text-slate-600">Next scheduled run</p>
-                <p className="text-xs text-slate-400">
-                  {new Date(config.nextRunAt).toLocaleString()}
-                </p>
-              </div>
+          <div>
+            <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">
+              Week ends on
+            </label>
+            <div className="grid grid-cols-7 gap-1.5">
+              {WEEK_DAY_OPTIONS.map((d) => (
+                <button
+                  key={d.value}
+                  onClick={() => setWeekEndDay(d.value)}
+                  className={`py-2 rounded-lg border-2 text-[11px] font-semibold transition-all
+                    ${weekEndDay === d.value
+                      ? "border-indigo-400 bg-indigo-50 text-indigo-700"
+                      : "border-slate-150 bg-slate-50 text-slate-600 hover:border-slate-200 hover:bg-white"
+                    }`}
+                >
+                  {d.label}
+                </button>
+              ))}
             </div>
-          )}
+            <p className="text-xs text-slate-400 mt-1.5">
+              Your week will run {WEEK_DAY_OPTIONS.find((d) => d.value === weekStartDay)?.label}
+              {" → "}
+              {WEEK_DAY_OPTIONS.find((d) => d.value === weekEndDay)?.label}
+              {" · "}
+              {weekSpanLabel(weekStartDay, weekEndDay)}. Every weekly chart and date range on the
+              dashboard will follow this.
+            </p>
+          </div>
+
 
           {/* hint for create mode */}
           {isCreate && (
