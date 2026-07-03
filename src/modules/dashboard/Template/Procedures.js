@@ -818,7 +818,6 @@ const ProceduresPage = () => {
             <h4>Product</h4>
             <ul>
               <li>
-                <Link href="/features">Features</Link>
               </li>
               <li>
                 <Link href="/risk-assessment">Risk Assessment</Link>

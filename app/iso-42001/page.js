@@ -9,7 +9,7 @@ export async function generateMetadata() {
   });
 }
 
-const ISO_42001 = dynamic(() => import('@/modules/dashboard/FrameWorks/ISO_42001'), { ssr: false });
+const ISO_42001 = dynamic(() => import('@/modules/dashboard/FrameWorks/ISO_42001'));
 
 export default function Page() {
   return (

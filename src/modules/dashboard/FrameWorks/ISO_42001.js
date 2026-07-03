@@ -529,8 +529,6 @@ const ISO_42001 = () => {
           <div className="iso-footer-section">
             <h4>Product</h4>
             <ul>
-              <li><Link href="/features">Features</Link></li>
-              <li><Link href="/pricing">Pricing</Link></li>
               <li><Link href="/policies">Policy templates</Link></li>
             </ul>
           </div>
@@ -539,7 +537,6 @@ const ISO_42001 = () => {
             <ul>
               <li><Link href="/about">About</Link></li>
               <li><Link href="/careers">Careers</Link></li>
-              <li><Link href="/support">Support</Link></li>
             </ul>
           </div>
         </div>
