@@ -142,6 +142,8 @@ const DashboardLoggedIn = () => {
   const dropdownRef = useRef(null);
   const idleTimerRef = useRef(null);
   const lastActivityRef = useRef(Date.now());
+  const [orgPickerOpen, setOrgPickerOpen] = useState(false);
+  const [pendingRoute, setPendingRoute] = useState(null);
 
   const [showChangePassword] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -180,6 +182,24 @@ const {
     window.dispatchEvent(new Event("childOrgChanged"));
     window.location.reload();
   };
+
+  const navigateToModule = useCallback((route) => {
+  if (showOrgSwitcher && !selectedChildOrg) {
+    setPendingRoute(route);
+    setOrgPickerOpen(true);
+    return;
+  }
+  router.push(route);
+}, [showOrgSwitcher, selectedChildOrg, router]);
+
+const handlePickOrgForModule = (org) => {
+  sessionStorage.setItem("selectedChildOrg", JSON.stringify(org));
+  window.dispatchEvent(new Event("childOrgChanged"));
+  setOrgPickerOpen(false);
+  const route = pendingRoute;
+  setPendingRoute(null);
+  if (route) router.push(route);
+};
 
   // Consolidates the array of IDs needed for external API loops
 // Consolidates the array of IDs needed for external API loops
@@ -761,7 +781,7 @@ const orgIdsToFetch = useMemo(() => {
                     <div style={{ width: 1, background: "rgba(226,232,240,0.5)", flexShrink: 0, alignSelf: "stretch" }} />
                     <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, justifyContent: "center" }}>
                       <span style={{ fontSize: "9px", fontWeight: 800, color: tileColor, textTransform: "uppercase", letterSpacing: "0.08em" }}>Active Compliance Standard</span>
-                      <h4 style={{ fontSize: "19px", fontWeight: 800, color: "#1e293b", margin: "2px 0 4px 0", cursor: "pointer", display: "inline-block" }} onClick={() => router.push("/compliances")}>{fw.label}</h4>
+                      <h4 style={{ fontSize: "19px", fontWeight: 800, color: "#1e293b", margin: "2px 0 4px 0", cursor: "pointer", display: "inline-block" }} onClick={() => navigateToModule("/compliances")}>{fw.label}</h4>
                       <p style={{ fontSize: "11px", color: "#64748b", margin: "0 0 12px 0", lineHeight: 1.4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{fw.description || fw.sub || "Continuous security and compliance monitoring"}</p>
                       <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                         <div>
@@ -825,7 +845,7 @@ const orgIdsToFetch = useMemo(() => {
                       const showInnerProgress = visibleFwList.length <= 3;
                       const cardHeight = visibleFwList.length === 2 ? "90px" : visibleFwList.length === 3 ? "56px" : "auto";
                       return (
-                        <div key={fw.code} className={`framework-glass-card ${glowClass} ${isHovered ? "active-glow-item" : ""}`} style={{ padding: "8px 10px", borderRadius: "10px", gap: "10px", height: cardHeight, boxSizing: "border-box", borderColor: isHovered ? tileColor : "rgba(226,232,240,0.8)", background: isHovered ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.7)", boxShadow: isHovered ? `0 6px 14px -3px ${tileColor}18, 0 4px 6px -2px ${tileColor}10` : "none", display: "flex", alignItems: "center" }} onMouseEnter={() => setActiveFw(fw.code)} onMouseLeave={() => setActiveFw(null)} onClick={(e) => { e.stopPropagation(); router.push("/compliances"); }}>
+                        <div key={fw.code} className={`framework-glass-card ${glowClass} ${isHovered ? "active-glow-item" : ""}`} style={{ padding: "8px 10px", borderRadius: "10px", gap: "10px", height: cardHeight, boxSizing: "border-box", borderColor: isHovered ? tileColor : "rgba(226,232,240,0.8)", background: isHovered ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.7)", boxShadow: isHovered ? `0 6px 14px -3px ${tileColor}18, 0 4px 6px -2px ${tileColor}10` : "none", display: "flex", alignItems: "center" }} onMouseEnter={() => setActiveFw(fw.code)} onMouseLeave={() => setActiveFw(null)} onClick={(e) => { e.stopPropagation(); navigateToModule("/compliances"); }}>
                           <CompliancePie compliant={d.fullyCompliant} nonCompliant={d.nonCompliant} partial={d.partial} size={visibleFwList.length === 2 ? 46 : 38} fontSize={visibleFwList.length === 2 ? "11px" : "9px"} showPercentage={true} />
                           <div style={{ minWidth: 0, flex: 1, display: "flex", flexDirection: "column", height: "100%", justifyContent: "space-between", padding: "2px 0" }}>
                             <div>
@@ -851,32 +871,32 @@ const orgIdsToFetch = useMemo(() => {
           </motion.div>
 
           {/* RISK */}
-          <motion.div id="risk-module" initial={hasMounted ? { opacity: 0, y: 20 } : false} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }} whileHover={{ scale: 1.02, boxShadow: "0 12px 24px rgba(59,130,246,0.12)" }} whileTap={{ scale: 0.98 }} onClick={() => router.push("/risk-assessment")} style={{ ...cardStyle, borderLeft: "4px solid #3b82f6" }}>
+          <motion.div id="risk-module" initial={hasMounted ? { opacity: 0, y: 20 } : false} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }} whileHover={{ scale: 1.02, boxShadow: "0 12px 24px rgba(59,130,246,0.12)" }} whileTap={{ scale: 0.98 }} onClick={() => navigateToModule("/risk-assessment")} style={{ ...cardStyle, borderLeft: "4px solid #3b82f6" }}>
             <CardHeader icon={<BarChart3 size={20} color="white" />} iconGradient="linear-gradient(135deg, #3b82f6, #1d4ed8)" title="Risks" total={riskStats.total} totalLabel={isAllSelected ? "Total Risks" : "Filtered Risks"} filterTags selectedFWs={selectedFrameworks} isAllSelected={isAllSelected} tagBg="#e0f2fe" tagColor="#0369a1" tagBorder="#bae6fd" />
             <PieSection data={[{ name: "Low", value: riskStats.low }, { name: "Medium", value: riskStats.medium }, { name: "High", value: riskStats.high + riskStats.critical }]} cells={[<Cell key="l" fill="#22c55e" />, <Cell key="m" fill="#f59e0b" />, <Cell key="h" fill="#ef4444" />]} legend={[["#22c55e", riskStats.low, "Low"], ["#f59e0b", riskStats.medium, "Med"], ["#ef4444", riskStats.high + riskStats.critical, "High"], ["#9ca3af", riskStats.open, "Open"]]} />
           </motion.div>
 
           {/* TASK */}
-          <motion.div id="task-module" initial={hasMounted ? { opacity: 0, y: 20 } : false} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.4 }} whileHover={{ scale: 1.02, boxShadow: "0 12px 24px rgba(245,158,11,0.12)" }} whileTap={{ scale: 0.98 }} onClick={() => router.push("/task-management")} style={{ ...cardStyle, borderLeft: "4px solid #f59e0b" }}>
+          <motion.div id="task-module" initial={hasMounted ? { opacity: 0, y: 20 } : false} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.4 }} whileHover={{ scale: 1.02, boxShadow: "0 12px 24px rgba(245,158,11,0.12)" }} whileTap={{ scale: 0.98 }} onClick={() => navigateToModule("/task-management")} style={{ ...cardStyle, borderLeft: "4px solid #f59e0b" }}>
             <CardHeader icon={<CheckSquare size={20} color="white" />} iconGradient="linear-gradient(135deg, #f59e0b, #d97706)" title="Tasks" total={taskStats.total} totalLabel="Total Tasks" filterTags={false} isAllSelected={isAllSelected} />
             <PieSection data={[{ name: "Done", value: taskStats.completed }, { name: "Pending", value: taskStats.total - (taskStats.pendingApproval + taskStats.completed) }]} cells={[<Cell key="d" fill="#22c55e" />, <Cell key="p" fill="#f59e0b" />]} legend={[["#22c55e", taskStats.completed, "Done"], ["#f59e0b", taskStats.total - (taskStats.pendingApproval + taskStats.completed), "Pending"]]} />
           </motion.div>
 
           {/* AUDITS */}
-          <motion.div id="gap-module" initial={hasMounted ? { opacity: 0, y: 20 } : false} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.2 }} whileHover={{ scale: 1.02, boxShadow: "0 12px 24px rgba(16,185,129,0.12)" }} whileTap={{ scale: 0.98 }} onClick={() => router.push("/gap-assessment")} style={{ ...cardStyle, borderLeft: "4px solid #10b981" }}>
+          <motion.div id="gap-module" initial={hasMounted ? { opacity: 0, y: 20 } : false} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.2 }} whileHover={{ scale: 1.02, boxShadow: "0 12px 24px rgba(16,185,129,0.12)" }} whileTap={{ scale: 0.98 }} onClick={() => navigateToModule("/gap-assessment")} style={{ ...cardStyle, borderLeft: "4px solid #10b981" }}>
             <CardHeader icon={<ClipboardCheck size={16} color="white" />} iconGradient="linear-gradient(135deg, #10b981, #059669)" title="Audits" total={auditStats.total} totalLabel={isAllSelected ? "Total Audits" : "Filtered Audits"} filterTags selectedFWs={selectedFrameworks} isAllSelected={isAllSelected} tagBg="#ecfdf5" tagColor="#059669" tagBorder="#d1fae5" />
             <PieSection data={[{ name: "Assessed", value: gapStats.closed }, { name: "Pending", value: gapStats.open }]} cells={[<Cell key="a" fill="#22c55e" />, <Cell key="p" fill="#ef4444" />]} legend={[["#22c55e", gapStats.closed, "Assessed"], ["#ef4444", gapStats.open, "Pending"]]} />
           </motion.div>
 
           {/* POLICIES */}
-          <motion.div id="doc-module" initial={hasMounted ? { opacity: 0, y: 20 } : false} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.25 }} whileHover={{ scale: 1.02, boxShadow: "0 12px 24px rgba(139,92,246,0.12)" }} whileTap={{ scale: 0.98 }} onClick={() => router.push("/documentation")} style={{ ...cardStyle, borderLeft: "4px solid #8b5cf6" }}>
+          <motion.div id="doc-module" initial={hasMounted ? { opacity: 0, y: 20 } : false} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.25 }} whileHover={{ scale: 1.02, boxShadow: "0 12px 24px rgba(139,92,246,0.12)" }} whileTap={{ scale: 0.98 }} onClick={() => navigateToModule("/documentation")} style={{ ...cardStyle, borderLeft: "4px solid #8b5cf6" }}>
             <CardHeader icon={<FileText size={16} color="white" />} iconGradient="linear-gradient(135deg, #8b5cf6, #7c3aed)" title="Policies" total={documentStats.total} totalLabel={isAllSelected ? "Total Policies" : "Filtered Policies"} filterTags selectedFWs={selectedFrameworks} isAllSelected={isAllSelected} tagBg="#f3e8ff" tagColor="#7c3aed" tagBorder="#ddd6fe" />
             <PieSection data={[{ name: "Uploaded", value: documentStats.uploaded }, { name: "Pending", value: documentStats.pending }]} cells={[<Cell key="u" fill="#22c55e" />, <Cell key="p" fill="#ef4444" />]} legend={[["#22c55e", documentStats.uploaded, "Uploaded"], ["#ef4444", documentStats.pending, "Pending"]]} />
           </motion.div>
 
           {/* DPIA */}
           {showDpia && (
-            <motion.div id="dpia-module" initial={hasMounted ? { opacity: 0, y: 20 } : false} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.3 }} whileHover={{ scale: 1.02, boxShadow: "0 12px 24px rgba(14,165,233,0.12)" }} whileTap={{ scale: 0.98 }} onClick={() => router.push("/dpia")} style={{ ...cardStyle, borderLeft: "4px solid #0ea5e9" }}>
+            <motion.div id="dpia-module" initial={hasMounted ? { opacity: 0, y: 20 } : false} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.3 }} whileHover={{ scale: 1.02, boxShadow: "0 12px 24px rgba(14,165,233,0.12)" }} whileTap={{ scale: 0.98 }} onClick={() => navigateToModule("/dpia")} style={{ ...cardStyle, borderLeft: "4px solid #0ea5e9" }}>
               <CardHeader icon={<ShieldCheck size={16} color="white" />} iconGradient="linear-gradient(135deg, #0ea5e9, #0284c7)" title="DPIA" total={dpiaStats.total} totalLabel="Total Assessments" filterTags={false} isAllSelected={isAllSelected} />
               <PieSection data={getPieChartData([{ name: "Submitted", value: dpiaStats.submitted }, { name: "In Progress", value: dpiaStats.inProgress }, { name: "Draft", value: dpiaStats.draft }])} cells={getPieChartData([{ color: "#10b981" }, { color: "#6366f1" }, { color: "#f59e0b" }]).map((e, i) => <Cell key={i} fill={e.color} />)} legend={[["#10b981", dpiaStats.submitted, "Submitted"], ["#6366f1", dpiaStats.inProgress, "In Progress"], ["#f59e0b", dpiaStats.draft, "Draft"]]} />
             </motion.div>
@@ -884,7 +904,7 @@ const orgIdsToFetch = useMemo(() => {
 
           {/* TPRM */}
           {showTprm && (
-            <motion.div id="tprm-module" initial={hasMounted ? { opacity: 0, y: 20 } : false} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.5 }} whileHover={{ scale: 1.02, boxShadow: "0 12px 24px rgba(99,102,241,0.12)" }} whileTap={{ scale: 0.98 }} onClick={() => router.push("/tprm")} style={{ ...cardStyle, borderLeft: "4px solid #6366f1" }}>
+            <motion.div id="tprm-module" initial={hasMounted ? { opacity: 0, y: 20 } : false} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.5 }} whileHover={{ scale: 1.02, boxShadow: "0 12px 24px rgba(99,102,241,0.12)" }} whileTap={{ scale: 0.98 }} onClick={() => navigateToModule("/tprm")} style={{ ...cardStyle, borderLeft: "4px solid #6366f1" }}>
               <CardHeader icon={<ShieldCheck size={16} color="white" />} iconGradient="linear-gradient(135deg, #6366f1, #4f46e5)" title="TPRM" total={tprmStats.total} totalLabel="Total Assessments" filterTags={false} isAllSelected={isAllSelected} />
               <PieSection data={[{ name: "Approved", value: tprmStats.approved }, { name: "Submitted", value: tprmStats.submitted }, { name: "Sent", value: tprmStats.sent }, { name: "Rejected", value: tprmStats.rejected }]} cells={[<Cell key="ap" fill="#10b981" />, <Cell key="su" fill="#f59e0b" />, <Cell key="se" fill="#3b82f6" />, <Cell key="re" fill="#ef4444" />]} legend={[["#10b981", tprmStats.approved, "Approved"], ["#f59e0b", tprmStats.submitted, "Submitted"], ["#3b82f6", tprmStats.sent, "Sent"]]} />
             </motion.div>
@@ -892,13 +912,56 @@ const orgIdsToFetch = useMemo(() => {
 
           {/* AIIA */}
           {showAiia && (
-            <motion.div id="aiia-module" initial={hasMounted ? { opacity: 0, y: 20 } : false} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.55 }} whileHover={{ scale: 1.02, boxShadow: "0 12px 24px rgba(217,70,239,0.12)" }} whileTap={{ scale: 0.98 }} onClick={() => router.push("/aiia")} style={{ ...cardStyle, borderLeft: "4px solid #d946ef" }}>
+            <motion.div id="aiia-module" initial={hasMounted ? { opacity: 0, y: 20 } : false} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.55 }} whileHover={{ scale: 1.02, boxShadow: "0 12px 24px rgba(217,70,239,0.12)" }} whileTap={{ scale: 0.98 }} onClick={() => navigateToModule("/aiia")} style={{ ...cardStyle, borderLeft: "4px solid #d946ef" }}>
               <CardHeader icon={<Brain size={16} color="white" />} iconGradient="linear-gradient(135deg, #d946ef, #a21caf)" title="AIIA" total={aiiaStats.total} totalLabel="Total Assessments" filterTags={false} isAllSelected={isAllSelected} />
               <PieSection data={getPieChartData([{ name: "Approved", value: aiiaStats.approved }, { name: "Submitted", value: aiiaStats.submitted }, { name: "Draft", value: aiiaStats.draft }])} cells={getPieChartData([{ color: "#10b981" }, { color: "#6366f1" }, { color: "#f59e0b" }]).map((e, i) => <Cell key={i} fill={e.color} />)} legend={[["#10b981", aiiaStats.approved, "Approved"], ["#6366f1", aiiaStats.submitted, "Submitted"], ["#f59e0b", aiiaStats.draft, "Draft"]]} />
             </motion.div>
           )}
         </div>
       </main>
+
+      {orgPickerOpen && (
+  <div
+    style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 5000 }}
+    onClick={() => { setOrgPickerOpen(false); setPendingRoute(null); }}
+  >
+    <div
+      onClick={(e) => e.stopPropagation()}
+      style={{ background: "white", borderRadius: 12, padding: 24, width: 360, maxWidth: "90vw", maxHeight: "70vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}
+    >
+      <h3 style={{ fontSize: 16, fontWeight: 700, color: "#0f172a", margin: "0 0 4px 0" }}>
+        Select an organization
+      </h3>
+      <p style={{ fontSize: 12, color: "#64748b", margin: "0 0 16px 0" }}>
+        You're viewing consolidated data across multiple organizations. Choose one to continue.
+      </p>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {childOrgs.length === 0 && (
+          <div style={{ fontSize: 12, color: "#94a3b8", padding: "8px 0" }}>
+            Loading organizations…
+          </div>
+        )}
+        {childOrgs.map((org) => (
+          <button
+            key={org._id || org.id}
+            onClick={() => handlePickOrgForModule(org)}
+            style={{ textAlign: "left", padding: "10px 12px", borderRadius: 8, border: "1px solid #e2e8f0", background: "#f8fafc", cursor: "pointer", fontSize: 13, fontWeight: 600, color: "#0f172a" }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "#eef2ff")}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "#f8fafc")}
+          >
+            {org.name}
+          </button>
+        ))}
+      </div>
+      <button
+        onClick={() => { setOrgPickerOpen(false); setPendingRoute(null); }}
+        style={{ marginTop: 16, width: "100%", padding: "8px 12px", borderRadius: 8, border: "none", background: "transparent", color: "#64748b", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
+      >
+        Cancel
+      </button>
+    </div>
+  </div>
+)}
 
       <footer className="w-full bg-white border-t border-gray-200 mt-auto px-4 py-5 sm:px-3 sm:py-4">
         <div className="w-full max-w-[1400px] mx-auto 2xl:max-w-[1600px]">

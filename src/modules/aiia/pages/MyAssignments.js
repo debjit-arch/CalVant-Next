@@ -54,8 +54,10 @@ function MyAssignments({ onSelectAssignment }) {
 
   // ── Card click ─────────────────────────────────────────────────────────────
   // When rendered inside the dashboard modal → delegate up via onSelectAssignment
-  // which will close the modal and push the route with assignment in state.
-  // When rendered as a standalone page (no prop) → internal detail rendering.
+  // which will close the modal and push the route.
+  // When rendered as a standalone page (no prop) → navigate to the detail route,
+  // which fetches the assignment by id itself (Next.js router.push doesn't carry
+  // react-router-style state, so we can't pass the object through navigation).
   const handleCardClick = (assignment) => {
     captureActivity({
       action: "AIIA_ASSESSMENT_VIEWED",
@@ -66,11 +68,7 @@ function MyAssignments({ onSelectAssignment }) {
     if (onSelectAssignment) {
       onSelectAssignment(assignment);
     } else {
-      // standalone: push route with state so AssignmentDetailRoute can read it
-      router.push({
-        pathname: `/aiia/my-assignments/${assignment._id || assignment.id}`,
-        state: { assignment },
-      });
+      router.push(`/aiia/my-assignments/${assignment._id || assignment.id}`);
     }
   };
 
@@ -88,12 +86,15 @@ function MyAssignments({ onSelectAssignment }) {
     );
   }
 
-  const pending = assignments.filter((a) => a.status === "DRAFT");
-  const completed = assignments.filter(
-    (a) =>
-      a.status === "SUBMITTED" ||
-      a.status === "APPROVED" ||
-      a.status === "REJECTED",
+  // Anything not explicitly a "completed" state counts as pending — this way
+  // legacy/unexpected status values (e.g. records created before the status
+  // was standardized to DRAFT) still show up instead of silently vanishing.
+  const COMPLETED_STATUSES = ["SUBMITTED", "APPROVED", "REJECTED"];
+  const pending = assignments.filter(
+    (a) => !COMPLETED_STATUSES.includes(a.status),
+  );
+  const completed = assignments.filter((a) =>
+    COMPLETED_STATUSES.includes(a.status),
   );
   const displayed = activeTab === "pending" ? pending : completed;
 
@@ -128,7 +129,14 @@ function MyAssignments({ onSelectAssignment }) {
           icon: <AlertTriangle size={13} />,
         };
       default:
-        return { label: status, color: "#6b7280", bg: "#f3f4f6", icon: null };
+        // Any non-completed status (e.g. legacy "ASSIGNED" records) reads
+        // as "still needs action", matching the pending bucket above.
+        return {
+          label: "Action Required",
+          color: "#f59e0b",
+          bg: "#fef3c7",
+          icon: <Clock size={13} />,
+        };
     }
   };
 
@@ -240,7 +248,7 @@ function MyAssignments({ onSelectAssignment }) {
         <div className="assignments-list">
           {displayed.map((assignment) => {
             const meta = getStatusMeta(assignment.status);
-            const isDone = assignment.status !== "DRAFT";
+            const isDone = COMPLETED_STATUSES.includes(assignment.status);
             return (
               <div
                 key={assignment.id || assignment._id}

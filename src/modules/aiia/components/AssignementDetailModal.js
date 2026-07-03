@@ -319,7 +319,7 @@ function AssignmentDetailPage({ assignment, onBack, onSaved }) {
 
   const handleBack = () => {
     if (onBack) onBack();
-    else router.goBack();
+    else router.back();
   };
 
   // ── Mini stat cards for the header ───────────────────────────────────────
