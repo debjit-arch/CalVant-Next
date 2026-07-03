@@ -9,13 +9,13 @@ export async function generateMetadata() {
   });
 }
 
-const GDPR = dynamic(() => import('@/modules/dashboard/FrameWorks/GDPR'), { ssr: false });
+const GDPR = dynamic(() => import('@/modules/dashboard/FrameWorks/GDPR'));
 
 export default function Page() {
   return (
     <>
       <h1 style={{ position: 'absolute', width: '1px', height: '1px', overflow: 'hidden', clip: 'rect(0,0,0,0)', whiteSpace: 'nowrap' }}>
-        GDPR Compliance | CalVant
+        EU GDPR Compliance Management Platform | CalVant
       </h1>
       <GDPR />
     </>

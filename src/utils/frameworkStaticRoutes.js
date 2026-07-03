@@ -1,7 +1,7 @@
 // utils/frameworkStaticRoutes.js
 
 export const STATIC_FRAMEWORK_ROUTES = {
-  soc2: "/soc2",
+  soc2: "/soc-2",
   "soc-2": "/soc2",
   iso27001: "/iso-27001",
   "iso-27001": "/iso-27001",

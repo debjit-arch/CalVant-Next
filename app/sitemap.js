@@ -70,7 +70,7 @@ export default function sitemap() {
       priority: 0.8,
     },
     {
-      url: `${baseUrl}/soc2`,
+      url: `${baseUrl}/soc-2`,
       lastModified,
       changeFrequency: 'monthly',
       priority: 0.8,

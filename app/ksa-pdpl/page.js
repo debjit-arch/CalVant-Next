@@ -9,13 +9,13 @@ export async function generateMetadata() {
   });
 }
 
-const KSA_PDPL = dynamic(() => import('@/modules/dashboard/FrameWorks/KSA_PDPL'), { ssr: false });
+const KSA_PDPL = dynamic(() => import('@/modules/dashboard/FrameWorks/KSA_PDPL'));
 
 export default function Page() {
   return (
     <>
       <h1 style={{ position: 'absolute', width: '1px', height: '1px', overflow: 'hidden', clip: 'rect(0,0,0,0)', whiteSpace: 'nowrap' }}>
-        KSA PDPL Compliance | CalVant
+        Saudi Arabia KSA PDPL Compliance Software | CalVant
       </h1>
       <KSA_PDPL />
     </>

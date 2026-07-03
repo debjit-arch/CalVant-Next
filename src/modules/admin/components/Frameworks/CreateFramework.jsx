@@ -40,7 +40,7 @@ const COMMON_FRAMEWORKS = [
   },
   {
     code: "SOC2", name: "SOC 2", version: "2017", type: "Standard",
-    label: "SOC 2", color: "#ff9900", path: "/soc2",
+    label: "SOC 2", color: "#ff9900", path: "/soc-2",
     sub: "Trust Services", description: "Trust Services Criteria",
     riskTypes: ["Security", "Cyber", "Privacy"], annexSectionTypes: ["COMMON_CRITERIA", "ADDITIONAL_CRITERIA"],
     isMapped: true, mappingSources: ["ISO27001", "ISO27701"],
