@@ -54,8 +54,10 @@ function MyAssignments({ onSelectAssignment }) {
 
   // ── Card click ─────────────────────────────────────────────────────────────
   // When rendered inside the dashboard modal → delegate up via onSelectAssignment
-  // which will close the modal and push the route with assignment in state.
-  // When rendered as a standalone page (no prop) → internal detail rendering.
+  // which will close the modal and push the route.
+  // When rendered as a standalone page (no prop) → navigate to the detail route,
+  // which fetches the assignment by id itself (Next.js router.push doesn't carry
+  // react-router-style state, so we can't pass the object through navigation).
   const handleCardClick = (assignment) => {
     captureActivity({
       action: "AIIA_ASSESSMENT_VIEWED",
@@ -66,11 +68,7 @@ function MyAssignments({ onSelectAssignment }) {
     if (onSelectAssignment) {
       onSelectAssignment(assignment);
     } else {
-      // standalone: push route with state so AssignmentDetailRoute can read it
-      router.push({
-        pathname: `/aiia/my-assignments/${assignment._id || assignment.id}`,
-        state: { assignment },
-      });
+      router.push(`/aiia/my-assignments/${assignment._id || assignment.id}`);
     }
   };
 

@@ -2027,7 +2027,7 @@ function AssignmentDetailPage({ assignment, onBack, onSaved }) {
             style={S.backBtn}
             onClick={() => {
               if (onBack) onBack();
-              else router.goBack();
+              else router.back();
             }}
           >
             <ArrowLeft size={13} /> Back
