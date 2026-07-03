@@ -831,13 +831,13 @@ const NAV_ITEMS = [
     expandable: true,
     moduleKey: "aiia",
   },
-  // {
-  //   icon: Report,
-  //   label: "Reports",
-  //   path: "/reports",
-  //   expandable: true,
-  //   moduleKey: "",
-  // },
+  {
+    icon: Report,
+    label: "Reports",
+    path: "/reports",
+    expandable: false,
+    moduleKey: "",
+  },
   {
     // ── Admin Panel entry point — root & super_admin only ──
     icon: Settings,

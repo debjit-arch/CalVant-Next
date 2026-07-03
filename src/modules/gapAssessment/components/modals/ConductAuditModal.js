@@ -1212,13 +1212,10 @@ export function ConductAuditModal(props) {
                         <button
                           onClick={function () {
                             var myControlIds = (audit.controls || [])
-                              .filter(function (c) {
-                                return c.assignedTo === userId;
-                              })
-                              .map(function (c) {
-                                return c.controlId;
-                              });
-                            router.push("gap-assessment/new", {
+                              .filter(function (c) { return c.assignedTo === userId; })
+                              .map(function (c) { return c.controlId; });
+
+                            var auditContext = {
                               auditId: audit.id,
                               auditType: audit.auditType,
                               frameworkCode: audit.frameworkCode,
@@ -1226,9 +1223,7 @@ export function ConductAuditModal(props) {
                               soc2Criteria: audit.soc2Criteria || "",
                               assignedControlIds: myControlIds,
                               existingScores: (audit.controls || [])
-                                .filter(function (c) {
-                                  return c.assignedTo === userId;
-                                })
+                                .filter(function (c) { return c.assignedTo === userId; })
                                 .reduce(function (acc, c) {
                                   acc[c.controlId] = {
                                     docScore: c.docScore || "",
@@ -1237,33 +1232,11 @@ export function ConductAuditModal(props) {
                                   };
                                   return acc;
                                 }, {}),
-                            });
+                            };
+
+                            sessionStorage.setItem("cv_auditContext", JSON.stringify(auditContext));
+                            router.push("/gap-assessment/new");
                             onClose();
-                          }}
-                          style={{
-                            flex: 1,
-                            padding: "10px 0",
-                            border: "none",
-                            borderRight: isLeadAuditor
-                              ? "1px solid #f1f5f9"
-                              : "none",
-                            borderBottomLeftRadius: 14,
-                            borderBottomRightRadius: isLeadAuditor ? 0 : 14,
-                            background: "#f8fafc",
-                            cursor: "pointer",
-                            fontSize: 12,
-                            fontWeight: 700,
-                            color: "#2563eb",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            gap: 6,
-                          }}
-                          onMouseEnter={function (e) {
-                            e.currentTarget.style.background = "#eff6ff";
-                          }}
-                          onMouseLeave={function (e) {
-                            e.currentTarget.style.background = "#f8fafc";
                           }}
                         >
                           <ChevronRight size={13} />
