@@ -28,7 +28,7 @@ import {
   useFramework,
   ALL_FRAMEWORKS,
 } from "../../../../context/FrameworkContex";
-import { captureActivity, ACTIONS } from "../../../../services/activities";
+import { captureActivity, ACTIONS, MODULES } from "../../../../services/activities";
 
 // ── CONDUCT_CAT_COLORS is intentionally hardcoded ────────────────────────────
 // This is category-level UI theming (ISMS Core, People Controls, etc.),
@@ -712,7 +712,7 @@ export function ConductAuditModal(props) {
   // ── Logging ───────────────────────────────────────────────────────────────
   useEffect(function () {
     captureActivity({
-      action: ACTIONS.CLICK,
+      action: ACTIONS.VISITED,
       item: [{ detail: "Audit · Viewed 'Conduct Audit' list" }],
       url: "/gap-assessment",
     });
@@ -861,7 +861,7 @@ export function ConductAuditModal(props) {
     Promise.all(promises)
       .then(function () {
         captureActivity({
-          action: ACTIONS.UPDATE,
+          action: ACTIONS.UPDATED,
           item: [
             {
               detail: "Audit · Submitted audit session scores",
