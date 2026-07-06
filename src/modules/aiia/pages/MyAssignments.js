@@ -352,7 +352,7 @@ import AssignmentDetailPage from "../components/AssignementDetailPage";
 // every other module (Risk, Task). CONFIRM whether this resolves to the same
 // shared file or a separate/stale copy — if it's a duplicate, delete it and
 // point this import at the real shared service instead.
-import { captureActivity, ACTIONS, MODULES } from "../../../services/activities";
+import { captureActivity, ACTIONS, MODULES } from "../../admin/shell/services/activities";
 import "./MyAssignments.css";
 
 function MyAssignments({ onSelectAssignment }) {

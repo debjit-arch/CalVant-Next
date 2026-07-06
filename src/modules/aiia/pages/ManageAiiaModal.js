@@ -508,7 +508,7 @@ import { stage1Api } from '../services/aiiaApi';
 // context fields folded into `item` as an array-of-object.
 // CONFIRM: same as flagged in MyAssignments.jsx — verify this import path
 // resolves to the real shared activities.js, not a separate/stale copy.
-import { captureActivity, ACTIONS, MODULES } from '../../../services/activities';
+import { captureActivity, ACTIONS, MODULES } from '../../admin/shell/services/activities';
 
 const AIIA_URL = '/aiia/manage';
 

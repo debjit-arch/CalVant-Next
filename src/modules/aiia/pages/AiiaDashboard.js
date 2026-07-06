@@ -1156,7 +1156,8 @@ import { stage1Api, stage2Api, risksApi } from "../services/aiiaApi";
 // to match that same coverage.
 // CONFIRM: same import-path question as flagged in MyAssignments.jsx and
 // ManageAiiaModal.jsx — verify this resolves to the real shared activities.js.
-import { captureActivity, ACTIONS, MODULES } from "../../../services/activities";
+import { captureActivity, ACTIONS, MODULES } from "../../admin/shell/services/activities";
+//import { captureActivity, ACTIONS, MODULES } from "@/services/activities";
 
 const AIIA_URL = "/aiia";
 
