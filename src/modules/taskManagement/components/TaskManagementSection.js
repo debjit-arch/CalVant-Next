@@ -2205,15 +2205,26 @@ export default function TaskManagement({ riskFormData = {}, auditFormData = {} }
   }, [users]);
 
   const inlineUpdate = useCallback(async (taskId, patch) => {
-    const task = tasks.find((t) => t.taskId === taskId);
-    if (!task) return;
-    const updated = { ...task, ...patch, updatedAt: new Date().toISOString() };
-    try {
-      await taskService.updateTask(taskId, updated, currentUserName);
-      setTasks((prev) => prev.map((t) => (t.taskId === taskId ? updated : t)));
-      if (selectedTask?.taskId === taskId) setSelectedTask(updated);
-    } catch { alert("Failed to update"); }
-  }, [tasks, currentUserName, selectedTask]);
+  const task = tasks.find((t) => t.taskId === taskId);
+  if (!task) return;
+  const updated = { ...task, ...patch, updatedAt: new Date().toISOString() };
+  try {
+    await taskService.updateTask(taskId, updated, currentUserName);
+    setTasks((prev) => prev.map((t) => (t.taskId === taskId ? updated : t)));
+    if (selectedTask?.taskId === taskId) setSelectedTask(updated);
+
+    // ── LOG: MODIFIED — inline field edit (assignee/priority), but skip
+    // when this is a status change, since confirmStatusChange() already
+    // logs that case separately as UPDATED to avoid double-logging.
+    if (!("status" in patch)) {
+      captureActivity({
+        action: ACTIONS.MODIFIED,
+        module: MODULES.TASK,
+        item: `${taskId} - ${Object.keys(patch).join(", ")} changed`,
+      });
+    }
+  } catch { alert("Failed to update"); }
+}, [tasks, currentUserName, selectedTask]);
 
   const requestStatusChange = useCallback((taskId, newStatus) => {
     const task = tasks.find((t) => t.taskId === taskId);
