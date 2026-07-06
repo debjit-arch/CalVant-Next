@@ -286,7 +286,7 @@ const AppRoutes = () => {
       <Route path="/iso-27001" component={ISO_27001} />
       <Route path="/iso-27701" component={ISO_27701} />
       <Route path="/iso-42001" component={ISO_42001} />
-      <Route path="/soc2" component={SOC2} />
+      <Route path="/soc-2" component={SOC2} />
       <Route path="/ksa-pdpl" component={KSA_PDPL} />
       <Route path="/gdpr" component={GDPR} />
       <Route path="/dpdpa" component={DPDPA} />

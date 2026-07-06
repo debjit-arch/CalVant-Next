@@ -895,8 +895,20 @@ const CategoryBlock = ({
 const NewAssessment = () => {
   const router = useRouter();
   const pathname = usePathname();
-  const auditContext = location.state || null;
-  const isAuditMode = !!(auditContext && auditContext.auditId);
+  const [auditContext] = useState(() => {
+  if (typeof window === "undefined") return null;
+  try {
+    const stored = sessionStorage.getItem("cv_auditContext");
+    if (stored) {
+      sessionStorage.removeItem("cv_auditContext");
+      return JSON.parse(stored);
+    }
+  } catch (e) {
+    console.error("Failed to read audit context:", e);
+  }
+  return null;
+});
+const isAuditMode = !!(auditContext && auditContext.auditId);
 
   const [lastSaved, setLastSaved] = useState(Date.now());
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -1454,10 +1466,9 @@ const NewAssessment = () => {
           .filter(Boolean);
 
         let filtered = controls;
-        if (isAuditMode && assignedIds && assignedIds.length > 0) {
+        if (isAuditMode) {
           filtered = controls.filter(
-            (c) =>
-              assignedIds.indexOf(c._id || c.controlId || c.id || "") !== -1,
+            (c) => assignedIds.indexOf(c._id || c.controlId || c.id || "") !== -1,
           );
         }
 

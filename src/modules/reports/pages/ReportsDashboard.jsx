@@ -928,9 +928,8 @@ export default function ReportsDashboard() {
     } catch {}
   }, []);
 
-  const { results, comparisonResults, getComparisonForWindow, getResultsForWindow, getKpiResultsForWindow, dimensionOptions, loading, error, refetch, lastFetched, online, orgId } =
+  const { results, comparisonResults, getComparisonForWindow, getResultsForWindow, getKpiResultsForWindow, getRiskPeriodSeries, getRiskSnapshot, riskDimensionOptions, getAuditPeriodSeries, getAuditSnapshot, auditDimensionOptions, getTaskPeriodSeries, getTaskSnapshot, taskDimensionOptions, dimensionOptions, loading, error, refetch, lastFetched, online, orgId } =
     useDashboardData(syntheticConfig, organization, filters, comparisonFilters, dimensionFilters);
-
   const { exportPDF } =
     useDashboardExport({ config: syntheticConfig, results, comparisonResults });
 
@@ -1049,6 +1048,15 @@ export default function ReportsDashboard() {
                 getComparisonForWindow={getComparisonForWindow}
                 getResultsForWindow={getResultsForWindow}
                 getKpiResultsForWindow={getKpiResultsForWindow}
+                getRiskPeriodSeries={getRiskPeriodSeries}
+                getRiskSnapshot={getRiskSnapshot}
+                riskDimensionOptions={riskDimensionOptions}
+                getAuditPeriodSeries={getAuditPeriodSeries}
+                getAuditSnapshot={getAuditSnapshot}
+                auditDimensionOptions={auditDimensionOptions}
+                getTaskPeriodSeries={getTaskPeriodSeries}
+                getTaskSnapshot={getTaskSnapshot}
+                taskDimensionOptions={taskDimensionOptions}
                 dimensionOptions={dimensionOptions}
                 loading={loading}
                 viewsLoading={viewsLoading}

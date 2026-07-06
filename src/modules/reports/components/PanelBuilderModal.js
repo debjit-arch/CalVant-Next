@@ -38,7 +38,7 @@ import { fetchAssignableUsers, filterUsersByRole, ASSIGNABLE_ROLES } from "./tar
 const PANEL_CATEGORIES = [
   { id: "kpi",          label: "KPI",           icon: "🔢", description: "Single-value visualizations" },
   { id: "chart",        label: "Charts",        icon: "📊", description: "Trend & analytical charts"    },
-  { id: "target_meter", label: "Target Meter",  icon: "📏", description: "Progress toward a goal value" },
+  // { id: "target_meter", label: "Target Meter",  icon: "📏", description: "Progress toward a goal value" },
 ];
 
 const COMPONENT_TYPES = [
@@ -74,6 +74,27 @@ const CRITERIA_DIMENSIONS = [
   { key: "department", label: "Department" },
   { key: "client",     label: "Client"     },
   { key: "branch",     label: "Branch"     },
+];
+
+// Risks module doesn't have byDepartment/byClient/byBranch maps (it's a raw
+// record list) and has no client/branch fields at all — so it gets its own
+// dimension set, switched in based on the selected module (see isRiskModule).
+const RISK_CRITERIA_DIMENSIONS = [
+  { key: "department", label: "Department", hint: "also determines which risk owner is shown" },
+  { key: "riskLevel",  label: "Risk Level" },
+  { key: "riskType",   label: "Type" },
+];
+
+const AUDIT_CRITERIA_DIMENSIONS = [
+  { key: "status",        label: "Status" },
+  { key: "auditType",     label: "Type" },
+  { key: "frameworkCode", label: "Framework" },
+];
+
+const TASK_CRITERIA_DIMENSIONS = [
+  { key: "status",        label: "Status" },
+  { key: "employee",      label: "Owner" },
+  { key: "relatedModule", label: "Related Module" },
 ];
 
 // Mirrors DashboardEngine's panelSignature — two panels are "the same panel"
@@ -118,8 +139,10 @@ function FieldLabel({ children, hint }) {
 
 function ExtractorSelect({ value, onChange, scalarOnly = false, moduleFilter = "", placeholder = "Select a data field…" }) {
   const MAP_EXTRACTORS = new Set([
-    "risks.byStatus","risks.byDepartment","audit.byStatus","audit.byDepartment",
-    "tasks.byStatus","tasks.byDepartment","dpia.byStatus","dpia.byDepartment",
+    "risks.risksByTreatmentType",
+    "audit.byStatus", "audit.byType", "audit.byFramework",
+    "tasks.byStatus", "tasks.byModule",
+    "dpia.byStatus", "dpia.byDepartment",
   ]);
 
   const byScope = scalarOnly
@@ -199,6 +222,7 @@ function SeriesRow({ series, index, onChange, onRemove, canRemove, moduleFilter 
       </div>
       <ExtractorSelect
         value={series.extractor}
+        scalarOnly
         moduleFilter={moduleFilter}
         onChange={(v) => {
           onChange(index, "extractor", v);
@@ -273,14 +297,8 @@ function DurationSection({ granularity, onChange }) {
 }
 
 // ─── Criteria filter (AND-conjunction, Bigin style) ───────────────────────────
-function CriteriaFilterSection({ rows, onChange, dimensionOptions }) {
-  const VALUE_OPTIONS = {
-    department: dimensionOptions?.departments ?? [],
-    client: dimensionOptions?.clients ?? [],
-    branch: dimensionOptions?.branches ?? [],
-  };
-
-  const addRow = () => onChange([...rows, { dimension: "department", values: [] }]);
+function CriteriaFilterSection({ rows, onChange, dimensions, valueOptions }) {
+  const addRow = () => onChange([...rows, { dimension: dimensions[0]?.key ?? "department", values: [] }]);
   const updateRow = (i, field, value) =>
     onChange(rows.map((r, idx) => (idx === i ? { ...r, [field]: value } : r)));
   const removeRow = (i) => onChange(rows.filter((_, idx) => idx !== i));
@@ -298,7 +316,8 @@ function CriteriaFilterSection({ rows, onChange, dimensionOptions }) {
       ) : (
         <div className="space-y-2">
           {rows.map((row, i) => {
-            const options = VALUE_OPTIONS[row.dimension] ?? [];
+            const options = valueOptions[row.dimension] ?? [];
+            const dim = dimensions.find((d) => d.key === row.dimension);
             return (
               <div key={i} className="rounded-xl border border-slate-100 bg-slate-50/80 p-2.5 space-y-2">
                 <div className="flex items-center gap-2">
@@ -308,7 +327,7 @@ function CriteriaFilterSection({ rows, onChange, dimensionOptions }) {
                     onChange={(e) => updateRow(i, "dimension", e.target.value)}
                     className="flex-1 border border-slate-200 rounded-lg px-2 py-1.5 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-indigo-300"
                   >
-                    {CRITERIA_DIMENSIONS.map((d) => (
+                    {dimensions.map((d) => (
                       <option key={d.key} value={d.key}>{d.label}</option>
                     ))}
                   </select>
@@ -317,8 +336,9 @@ function CriteriaFilterSection({ rows, onChange, dimensionOptions }) {
                     <Minus size={13} />
                   </button>
                 </div>
+                {dim?.hint && <p className="text-[10px] text-slate-400 -mt-1">{dim.hint}</p>}
                 <div className="flex flex-wrap gap-1.5">
-                  {options.length === 0 && <span className="text-[10px] text-slate-400">No {row.dimension} values found in current data.</span>}
+                  {options.length === 0 && <span className="text-[10px] text-slate-400">No {dim?.label ?? row.dimension} values found in current data.</span>}
                   {options.map((opt) => {
                     const checked = row.values.includes(opt);
                     return (
@@ -744,7 +764,7 @@ function SetTargetForSection({ targetFor, onTargetForChange, selectedRole, onRol
 }
 
 // ─── main modal ───────────────────────────────────────────────────────────────
-export default function PanelBuilderModal({ editingPanel = null, existingPanels = [], dimensionOptions = {}, orgId, onClose, onSave }) {
+export default function PanelBuilderModal({ editingPanel = null, existingPanels = [], dimensionOptions = {}, riskDimensionOptions = {}, auditDimensionOptions = {}, taskDimensionOptions = {}, orgId, onClose, onSave }) {
   const isEdit = !!editingPanel;
   const ep = editingPanel?.panel ?? null;
 
@@ -1110,6 +1130,7 @@ const initialCategory = useMemo(() => {
                       setModule(e.target.value);
                       setSingleExtractor("");
                       setSeries((prev) => prev.map((s) => ({ ...s, extractor: "" })));
+                      setCriteriaRows([]); // dimension set differs per module (e.g. risks has no client/branch)
                     }}
                     className="w-full border border-slate-200 bg-white rounded-xl px-3 py-2.5 text-sm text-slate-700
                       focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 transition-all cursor-pointer"
@@ -1150,8 +1171,44 @@ const initialCategory = useMemo(() => {
                   </div>
                 )}
 
-                {/* Criteria filter — Department / Client / Branch, AND-conjunction */}
-                <CriteriaFilterSection rows={criteriaRows} onChange={setCriteriaRows} dimensionOptions={dimensionOptions} />
+                {/* Criteria filter — dimension set depends on module: risks uses its own
+                    raw-record fields (department/riskLevel/riskType), everything else uses
+                    the generic precomputed department/client/branch maps. */}
+                <CriteriaFilterSection
+                  rows={criteriaRows}
+                  onChange={setCriteriaRows}
+                  dimensions={
+                    module === "risks" ? RISK_CRITERIA_DIMENSIONS :
+                    module === "audit" ? AUDIT_CRITERIA_DIMENSIONS :
+                    module === "tasks" ? TASK_CRITERIA_DIMENSIONS :
+                    CRITERIA_DIMENSIONS
+                  }
+                  valueOptions={
+                    module === "risks"
+                      ? {
+                          department: riskDimensionOptions?.departments ?? [],
+                          riskLevel: riskDimensionOptions?.riskLevels ?? [],
+                          riskType: riskDimensionOptions?.riskTypes ?? [],
+                        }
+                      : module === "audit"
+                      ? {
+                          status: auditDimensionOptions?.statuses ?? [],
+                          auditType: auditDimensionOptions?.auditTypes ?? [],
+                          frameworkCode: auditDimensionOptions?.frameworks ?? [],
+                        }
+                      : module === "tasks"
+                      ? {
+                          status: taskDimensionOptions?.statuses ?? [],
+                          employee: taskDimensionOptions?.owners ?? [],
+                          relatedModule: taskDimensionOptions?.relatedModules ?? [],
+                        }
+                      : {
+                          department: dimensionOptions?.departments ?? [],
+                          client: dimensionOptions?.clients ?? [],
+                          branch: dimensionOptions?.branches ?? [],
+                        }
+                  }
+                />
 
                 {isTarget && (
                   <SetTargetForSection

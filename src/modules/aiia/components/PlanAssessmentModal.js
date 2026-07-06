@@ -191,7 +191,7 @@ function PlanAssessmentModal({ onClose, onSaved }) {
         foreseableMisuse: form.foreseableMisuse,
         assignedRiskOwners: form.riskOwners,
         dateOfAssessment: form.dateOfAssessment,
-        status: "ASSIGNED",
+        status: "DRAFT",
         aiSystemOwner: user?.name || user?.username || "System",
       };
       //  `${process.env.NEXT_PUBLIC_CFTB}/aiia-service/api/stage1/create`,

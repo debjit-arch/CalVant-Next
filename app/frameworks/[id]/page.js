@@ -3,8 +3,9 @@ import { getPageMetadata } from "@/utils/getPageMetadata";
 import { resolveStaticRoute } from "@/utils/frameworkStaticRoutes";
 import FrameworkPageClient from "./FrameworkPageClient";
 
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL || "https://api.calvant.com/framework/api";
+export const dynamic = "force-dynamic";
+
+const API_BASE = "https://api.calvant.com/framework/api";
 
 // Native fetch here is automatically memoized per-request by Next.js —
 // generateMetadata and Page both call this with the same args, so it
@@ -13,10 +14,20 @@ async function getFramework(id) {
   try {
     const res = await fetch(`${API_BASE}/frameworks/${id}`, {
       next: { revalidate: 3600 },
+      headers: {
+        Origin: process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
+      },
     });
-    if (!res.ok) return null;
-    return res.json();
-  } catch {
+    if (!res.ok) {
+      const body = await res.text();
+      console.error(`[getFramework] non-ok response: ${res.status} ${res.statusText} for id=${id}`);
+      console.error(`[getFramework] response body:`, body);
+      return null;
+    }
+    const data = await res.json();
+    return data;
+  } catch (err) {
+    console.error(`[getFramework] fetch threw for id=${id}:`, err);
     return null;
   }
 }
@@ -52,7 +63,9 @@ export async function generateMetadata({ params }) {
 
 export default async function Page({ params }) {
   const { id } = params;
+    console.log("PAGE HIT for id:", id);
   const framework = await getFramework(id);
+  console.log("framework result:", framework);
 
   if (!framework) {
     notFound();

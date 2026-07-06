@@ -68,6 +68,7 @@ const CHART_TYPES = new Set([
 
 const KPI_TYPES = new Set(["StatCard", "ScoreGauge", "TargetMeter"]);
 
+const TREND_COMPONENT_TYPES = new Set(["TrendLineChart", "TrendAreaChart", "TrendBarChart"]);
 function panelSignature(panel) {
   const props = panel.props ?? {};
   if (Array.isArray(props.series) && props.series.length) {
@@ -102,20 +103,26 @@ const FOOTPRINTS = {
 };
 
 function ensureLayout(panel, fallbackIndex = 0) {
-  const footprint = FOOTPRINTS[panel.componentType] || FOOTPRINTS.default; 
-  // If the panel already has a layout, use it UNLESS it's the "old" default (w:3)
-  // and it should be the new "small" default (w:2).
-  if (panel.layout?.w && panel.layout?.w !== 3) {
-      return clampLayout(panel.layout, panel.componentType);
+  const footprint = FOOTPRINTS[panel.componentType] || FOOTPRINTS.default;
+  // Only fall back to a fresh default position when the panel has no
+  // stored layout yet. The old check (`w !== 3`) treated any panel
+  // whose stored width happened to be 3 as "unmigrated," discarding a
+  // just-computed x/y on the very next render — if that discarded
+  // position was what kept two panels out of the same column, the
+  // "needs repair" check below tripped again, causing an infinite
+  // pushViewUpdate → PUT → re-render → repair loop (the runaway
+  // `views?organization=...` requests in the Network tab).
+  if (panel.layout && Number.isFinite(panel.layout.w) && Number.isFinite(panel.layout.h)) {
+    return clampLayout(panel.layout, panel.componentType);
   }
   const { minW, minH } = minSizeFor(panel.componentType);
   const w = Math.max(footprint.w, minW);
   const h = Math.max(footprint.h, minH);
-  
+
   const perRow = Math.floor(GRID_COLS.lg / w) || 1;
   const x = (fallbackIndex % perRow) * w;
   const y = Math.floor(fallbackIndex / perRow) * h;
-  
+
   return clampLayout({ x, y, w, h }, panel.componentType);
 }
 
@@ -714,6 +721,15 @@ export default function DashboardEngine({
   comparisonResults = [],
   getComparisonForWindow,
   getResultsForWindow,
+  getRiskPeriodSeries,
+  getRiskSnapshot,
+  riskDimensionOptions,
+  getAuditPeriodSeries,
+  getAuditSnapshot,
+  auditDimensionOptions,
+  getTaskPeriodSeries,
+  getTaskSnapshot,
+  taskDimensionOptions,
   dimensionOptions,
   loading,
   viewsLoading = false,
@@ -803,17 +819,61 @@ export default function DashboardEngine({
       const isKpi = KPI_TYPES.has(p.componentType);
       const granularity = isKpi ? (p.duration?.granularity ?? "day") : (p.groupBy ?? "day");
       const maxGrouping = isKpi ? 1 : p.props?.grouping?.maxGrouping;
+
+      const isTrendComponent = TREND_COMPONENT_TYPES.has(p.componentType);
+
+      if (p.module === "risks") {
+        map[p.id] = isTrendComponent && typeof getRiskPeriodSeries === "function"
+          ? getRiskPeriodSeries(granularity, maxGrouping, p.criteriaFilters)
+          : typeof getRiskSnapshot === "function" ? getRiskSnapshot(p.criteriaFilters) : [];
+        continue;
+      }
+
+      if (p.module === "audit") {
+        map[p.id] = isTrendComponent && typeof getAuditPeriodSeries === "function"
+          ? getAuditPeriodSeries(granularity, maxGrouping, p.criteriaFilters)
+          : typeof getAuditSnapshot === "function" ? getAuditSnapshot(p.criteriaFilters) : [];
+        continue;
+      }
+
+      if (p.module === "tasks") {
+        map[p.id] = isTrendComponent && typeof getTaskPeriodSeries === "function"
+          ? getTaskPeriodSeries(granularity, maxGrouping, p.criteriaFilters)
+          : typeof getTaskSnapshot === "function" ? getTaskSnapshot(p.criteriaFilters) : [];
+        continue;
+      }
+
       map[p.id] = typeof getResultsForWindow === "function"
         ? getResultsForWindow(granularity, maxGrouping, p.criteriaFilters)
         : results;
     }
     return map;
-  }, [panelsWithLayout, getResultsForWindow, results]);
+  }, [panelsWithLayout, getResultsForWindow, getRiskPeriodSeries, getRiskSnapshot, getAuditPeriodSeries, getAuditSnapshot, getTaskPeriodSeries, getTaskSnapshot, results]);
+const lastRepairSignatureRef = useRef(null);
+
+  // Reset the breaker whenever the active view changes, so switching
+  // dashboards doesn't inherit a stale signature that blocks a
+  // legitimate repair on a different view.
+  useEffect(() => {
+    lastRepairSignatureRef.current = null;
+  }, [view?.id]);
 
   useEffect(() => {
     if (!needsLayoutRepairRef.current || !view) return;
     const repairedPanels = needsLayoutRepairRef.current;
     needsLayoutRepairRef.current = null;
+
+    const signature = repairedPanels
+      .map((p) => `${p.id}:${p.layout.x},${p.layout.y},${p.layout.w},${p.layout.h}`)
+      .join("|");
+    if (signature === lastRepairSignatureRef.current) {
+      // Already pushed this exact layout — the detector is re-flagging
+      // an already-repaired layout. Stop instead of re-issuing the same
+      // PUT indefinitely.
+      return;
+    }
+    lastRepairSignatureRef.current = signature;
+
     pushViewUpdate({ ...view, panels: repairedPanels.map(({ layout, ...rest }) => ({ ...rest, layout })) });
   }, [panelsWithLayout, view, pushViewUpdate]);
 
@@ -1052,6 +1112,9 @@ export default function DashboardEngine({
             editingPanel={editingPanel}
             existingPanels={view?.panels ?? []}
             dimensionOptions={dimensionOptions}
+            riskDimensionOptions={riskDimensionOptions}
+            auditDimensionOptions={auditDimensionOptions}
+            taskDimensionOptions={taskDimensionOptions}
             orgId={orgId}
             onClose={() => { setShowBuilder(false); setEditingPanel(null); }}
             onSave={savePanel}

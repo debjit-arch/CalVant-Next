@@ -40,153 +40,74 @@ export const DASHBOARD_TEMPLATES = {
 
   // ── 1. RISK DASHBOARD ──────────────────────────────────────────────────────
   risks: {
-    id: "risks",
-    label: "Risk Dashboard",
-    description: "Monitor open risks, severity scores and departmental exposure",
-    icon: "AlertTriangle",
-    accent: "#ef4444",
-    gradient: "from-rose-500 to-red-600",
-    dataModule: "risks",           // which key inside result.data to use
-    endpoint: resultsEndpoint,     // (org) => url  — evaluated at runtime
-    views: [
-      {
-        id: "risks-overview",
-        label: "Overview",
-        icon: "LayoutDashboard",
-        layout: { columns: 3, rows: "auto", gap: 16 },
-        panels: [
-          {
-            id: "risk-stat-total",
-            colSpan: 1, rowSpan: 1,
-            kpis: [{
-              id: "kpi-risk-total",
-              componentType: "StatCard",
-              title: "Total Risks",
-              icon: "AlertTriangle",
-              color: "rose",
-              props: { extractor: "risks.total", trend: true },
-            }],
-          },
-          {
-            id: "risk-stat-open",
-            colSpan: 1, rowSpan: 1,
-            kpis: [{
-              id: "kpi-risk-open",
-              componentType: "StatCard",
-              title: "Open",
-              icon: "AlertCircle",
-              color: "orange",
-              props: { extractor: "risks.byStatus.Open", trend: true },
-            }],
-          },
-          {
-            id: "risk-stat-avg",
-            colSpan: 1, rowSpan: 1,
-            kpis: [{
-              id: "kpi-risk-avg",
-              componentType: "StatCard",
-              title: "Avg Score",
-              icon: "BarChart3",
-              color: "amber",
-              props: { extractor: "risks.avgScore", format: "decimal", trend: true },
-            }],
-          },
-          {
-            id: "risk-trend-panel",
-            colSpan: 2, rowSpan: 2,
-            kpis: [{
-              id: "kpi-risk-trend",
-              componentType: "TrendAreaChart",
-              title: "Risk Trend",
-              props: {
-                series: [
-                  { key: "total",  label: "Total",  extractor: "risks.total",           color: "#ef4444" },
-                  { key: "open",   label: "Open",   extractor: "risks.byStatus.Open",   color: "#f97316" },
-                ],
-              },
-            }],
-          },
-          {
-            id: "risk-donut-panel",
-            colSpan: 1, rowSpan: 2,
-            kpis: [{
-              id: "kpi-risk-status",
-              componentType: "DonutStatusChart",
-              title: "By Status",
-              props: { extractor: "risks.byStatus" },
-            }],
-          },
-        ],
-      },
-      {
-        id: "risks-scores",
-        label: "Scores",
-        icon: "Gauge",
-        layout: { columns: 2, rows: "auto", gap: 16 },
-        panels: [
-          {
-            id: "risk-score-gauge",
-            colSpan: 1, rowSpan: 1,
-            kpis: [{
-              id: "kpi-risk-gauge",
-              componentType: "ScoreGauge",
-              title: "Current Risk Score",
-              props: { extractor: "risks.avgScore", max: 10 },
-            }],
-          },
-          {
-            id: "risk-dept-breakdown",
-            colSpan: 1, rowSpan: 1,
-            kpis: [{
-              id: "kpi-risk-dept",
-              componentType: "DepartmentBreakdown",
-              title: "By Department",
-              props: { extractor: "risks.byDepartment", accent: "#ef4444" },
-            }],
-          },
-          {
-            id: "risk-bar-scores",
-            colSpan: 2, rowSpan: 1,
-            kpis: [{
-              id: "kpi-risk-bar",
-              componentType: "TrendBarChart",
-              title: "Score Over Time",
-              props: {
-                series: [
-                  { key: "avg", label: "Avg Score", extractor: "risks.avgScore", color: "#f59e0b" },
-                  { key: "max", label: "Max Score", extractor: "risks.maxScore", color: "#ef4444" },
-                ],
-              },
-            }],
-          },
-        ],
-      },
-      {
-        id: "risks-department",
-        label: "Departments",
-        icon: "Building2",
-        layout: { columns: 1, rows: "auto", gap: 16 },
-        panels: [
-          {
-            id: "risk-dept-table",
-            colSpan: 1, rowSpan: 1,
-            kpis: [{
-              id: "kpi-risk-table",
-              componentType: "TableWidget",
-              title: "Risk Register by Department",
-              props: {
-                extractor: "risks.byDepartment",
-                columns: [
-                  { key: "department", label: "Department" },
-                  { key: "value",      label: "Risk Count", align: "right" },
-                ],
-              },
-            }],
-          },
-        ],
-      },
-    ],
-  },
+      id: "risks",
+      label: "Risk Dashboard",
+      description: "Monitor risks identified, in mitigation, and by treatment type",
+      icon: "AlertTriangle",
+      accent: "#ef4444",
+      gradient: "from-rose-500 to-red-600",
+      dataModule: "risks",
+      endpoint: resultsEndpoint,
+      views: [
+        {
+          id: "risks-overview",
+          label: "Overview",
+          icon: "LayoutDashboard",
+          layout: { columns: 3, rows: "auto", gap: 16 },
+          panels: [
+            {
+              id: "risk-stat-identified",
+              colSpan: 1, rowSpan: 1,
+              kpis: [{
+                id: "kpi-risk-identified",
+                componentType: "StatCard",
+                title: "Risks Identified",
+                icon: "AlertTriangle",
+                color: "rose",
+                props: { extractor: "risks.risksIdentifiedCount", trend: true },
+              }],
+            },
+            {
+              id: "risk-stat-mitigation",
+              colSpan: 1, rowSpan: 1,
+              kpis: [{
+                id: "kpi-risk-mitigation",
+                componentType: "StatCard",
+                title: "In Mitigation",
+                icon: "AlertCircle",
+                color: "orange",
+                props: { extractor: "risks.risksInMitigationCount", trend: true },
+              }],
+            },
+            {
+              id: "risk-trend-panel",
+              colSpan: 2, rowSpan: 2,
+              kpis: [{
+                id: "kpi-risk-trend",
+                componentType: "TrendAreaChart",
+                title: "Risks Identified & In Mitigation",
+                props: {
+                  series: [
+                    { key: "identified", label: "Identified",  extractor: "risks.risksIdentifiedCount",   color: "#ef4444" },
+                    { key: "mitigation", label: "In Mitigation", extractor: "risks.risksInMitigationCount", color: "#f97316" },
+                  ],
+                },
+              }],
+            },
+            {
+              id: "risk-donut-panel",
+              colSpan: 1, rowSpan: 2,
+              kpis: [{
+                id: "kpi-risk-treatment",
+                componentType: "DonutStatusChart",
+                title: "By Treatment Type",
+                props: { extractor: "risks.risksByTreatmentType" },
+              }],
+            },
+          ],
+        },
+      ],
+    },
 
   // ── 2. COMPLIANCE DASHBOARD ────────────────────────────────────────────────
   compliance: {
@@ -1048,11 +969,9 @@ export const AVAILABLE_COMPONENTS = [
 
 /** All module data paths users can pick from in the builder */
 export const AVAILABLE_EXTRACTORS = [
-  { extractor: "risks.total",              label: "Risks · Total"              },
-  { extractor: "risks.avgScore",           label: "Risks · Avg Score"          },
-  { extractor: "risks.maxScore",           label: "Risks · Max Score"          },
-  { extractor: "risks.byStatus",           label: "Risks · By Status"          },
-  { extractor: "risks.byDepartment",       label: "Risks · By Department"      },
+  { extractor: "risks.risksIdentifiedCount",  label: "Risks · Identified (per period)"   },
+  { extractor: "risks.risksInMitigationCount", label: "Risks · In Mitigation (per period)" },
+  { extractor: "risks.risksByTreatmentType",  label: "Risks · By Treatment Type"},
   { extractor: "compliance.totalControls",                label: "Compliance · Total Controls"        },
   { extractor: "compliance.applicableControls",           label: "Compliance · Applicable"            },
   { extractor: "compliance.implementedControls",          label: "Compliance · Implemented"           },

@@ -475,7 +475,7 @@ const DPDPA = () => {
               <li><Link href="/iso-27001">ISO 27001</Link></li>
               <li><Link href="/iso-27701">ISO 27701</Link></li>
               <li><Link href="/iso-42001">ISO 42001</Link></li>
-              <li><Link href="/soc2">SOC 2</Link></li>
+              <li><Link href="/soc-2">SOC 2</Link></li>
               <li><Link href="/gdpr">GDPR</Link></li>
               <li><Link href="/ksa-pdpl">KSA PDPL</Link></li>
               <li><Link href="/dpdpa">DPDPA</Link></li>
@@ -484,8 +484,6 @@ const DPDPA = () => {
           <div className="iso-footer-section">
             <h4>Product</h4>
             <ul>
-              <li><Link href="/features">Features</Link></li>
-              <li><Link href="/pricing">Pricing</Link></li>
               <li><Link href="/policies">Policy templates</Link></li>
             </ul>
           </div>
@@ -494,7 +492,6 @@ const DPDPA = () => {
             <ul>
               <li><Link href="/about">About</Link></li>
               <li><Link href="/careers">Careers</Link></li>
-              <li><Link href="/support">Support</Link></li>
             </ul>
           </div>
         </div>
