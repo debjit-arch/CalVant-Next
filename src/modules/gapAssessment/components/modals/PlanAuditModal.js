@@ -168,7 +168,7 @@ function cascadeForward(field, newValue, form) {
     case "reportingEndDate":   re  = corrected; break;
     default: break;
   }
-
+  
   if (field === "stage1StartDate" || field === "stage1EndDate") {
     if (s1e) {
       const newS2s  = addWorkDays(new Date(s1e), 1);
