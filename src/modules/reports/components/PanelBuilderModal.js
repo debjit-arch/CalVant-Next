@@ -32,6 +32,7 @@ import {
   TARGET_METER_TYPES, TARGET_FOR_OPTIONS, TARGET_TYPE_OPTIONS,
 } from "./dashboardSchema";
 import { fetchAssignableUsers, filterUsersByRole, ASSIGNABLE_ROLES } from "./targetAudience";
+import { GRANULARITY_DAYS, resolveComparisonWindow } from "./comparisonWindow";
 
 // ─── constants ────────────────────────────────────────────────────────────────
 
@@ -64,11 +65,9 @@ const MAP_TYPES   = new Set(["DonutStatusChart", "DepartmentBreakdown"]);
 
 const SERIES_COLORS = ["#6366f1","#ef4444","#10b981","#f59e0b","#3b82f6","#a855f7","#06b6d4","#f97316"];
 
-// Approximate day-span per granularity, used only to size the Comparison
-// Period baseline (e.g. "Previous Period" for a monthly KPI looks ~30 days
-// back). The actual KPI value itself is "latest snapshot in the current
-// <granularity> bucket" — see DashboardEngine's resultsByPanel.
-const GRANULARITY_DAYS = { day: 1, week: 7, month: 30, year: 365 };
+// GRANULARITY_DAYS now lives in ./comparisonWindow (shared with DashboardEngine,
+// which must resolve the same presets at read-time rather than trusting
+// whatever was frozen into the panel at save time).
 
 const CRITERIA_DIMENSIONS = [
   { key: "department", label: "Department" },
@@ -474,34 +473,9 @@ function ComparisonSection({ comparison, onChange }) {
   );
 }
 
-// ─── compute concrete from/to dates for a Compare To preset ─────────────────
-// Used at save time so non-custom presets resolve to a real date window
-// (the engine's comparison machinery only understands {from, to}).
-// `durationDays` comes from GRANULARITY_DAYS[panel's selected Duration
-// granularity] — e.g. "By Month" → ~30 days — instead of a hardcoded value.
-function resolveComparisonWindow(comparison, durationDays = 7) {
-  if (comparison.compareTo === "custom" || !comparison.compareTo) {
-    return { from: comparison.from, to: comparison.to };
-  }
-  const today = new Date();
-  const days = durationDays || 7;
-
-  if (comparison.compareTo === "same_period_last_year") {
-    const from = new Date(today); from.setFullYear(from.getFullYear() - 1); from.setDate(from.getDate() - days);
-    const to = new Date(today); to.setFullYear(to.getFullYear() - 1);
-    return { from: from.toISOString().slice(0, 10), to: to.toISOString().slice(0, 10) };
-  }
-  if (comparison.compareTo === "previous_relative_period") {
-    // Same calendar period one cycle back (e.g. last month)
-    const from = new Date(today); from.setMonth(from.getMonth() - 1); from.setDate(from.getDate() - days);
-    const to = new Date(today); to.setMonth(to.getMonth() - 1);
-    return { from: from.toISOString().slice(0, 10), to: to.toISOString().slice(0, 10) };
-  }
-  // previous_period — the window immediately preceding the current lookback window
-  const from = new Date(today); from.setDate(from.getDate() - days * 2);
-  const to = new Date(today); to.setDate(to.getDate() - days);
-  return { from: from.toISOString().slice(0, 10), to: to.toISOString().slice(0, 10) };
-}
+// resolveComparisonWindow is now imported from ./comparisonWindow and is
+// used here ONLY to render a live preview on the Review step — it is no
+// longer used to bake concrete dates into the saved panel (see handleSave).
 
 function ReviewRow({ label, value, mono }) {
   // 1. If it's a null or undefined, render a placeholder
@@ -955,11 +929,19 @@ const initialCategory = useMemo(() => {
     // KPI duration — the only duration concept KPI panels have, same
     // granularity vocabulary as the chart X-axis (day/week/month/year).
     const duration = isKpiCategory ? { granularity: kpiGranularity } : undefined;
-    const durationDays = GRANULARITY_DAYS[kpiGranularity] ?? 7;
 
-    // Resolve the Compare To preset into a concrete from/to window (custom stays as-is)
-    const resolvedComparison = comparison.enabled
-      ? { ...comparison, ...resolveComparisonWindow(comparison, durationDays) }
+    // Persist the comparison config as the PRESET, not a resolved date
+    // window. "Previous Period" / "Previous Relative Period" / "Same Period
+    // Last Year" are all relative to "today" — if we bake them into a
+    // concrete {from, to} here and store that forever, the panel silently
+    // goes stale the moment a day passes without re-saving it (DashboardEngine
+    // now recomputes the real window on every render via resolveComparisonWindow,
+    // using the panel's own duration granularity). "Custom" is the one case
+    // that's genuinely a fixed, user-picked range, so its from/to ARE persisted.
+    const storedComparison = comparison.enabled
+      ? (comparison.compareTo === "custom"
+          ? { enabled: true, compareTo: "custom", objective: comparison.objective, from: comparison.from, to: comparison.to }
+          : { enabled: true, compareTo: comparison.compareTo, objective: comparison.objective })
       : comparison;
 
     const panel = {
@@ -971,8 +953,9 @@ const initialCategory = useMemo(() => {
       ...(isTrend ? { groupBy } : {}),
       ...(duration ? { duration } : {}),
       props,
-      // Store comparison config on the panel itself (KPI only)
-      ...(comparison.enabled ? { comparison: resolvedComparison } : {}),
+      // Store comparison config on the panel itself (KPI only) — preset key
+      // only for relative presets; see storedComparison comment above.
+      ...(comparison.enabled ? { comparison: storedComparison } : {}),
     };
 
     // Block adding (not editing) a panel that already exists on the
@@ -1403,12 +1386,20 @@ const initialCategory = useMemo(() => {
                   </div>
                 </div>
 
-                  {/* Comparison Section */}
+                  {/* Comparison Section — the {from,to} shown here is a live
+                      preview only (computed against today, right now) and is
+                      NOT what gets persisted for relative presets. The actual
+                      window is recomputed the same way by DashboardEngine on
+                      every render, so it never goes stale. */}
                   {comparison.enabled && (
                     <div className="px-4 py-3 flex items-center gap-2">
                       <GitCompareArrows size={11} className="text-violet-500 flex-shrink-0" />
                       <span className="text-[11px] text-slate-500">
                         Comparison: {COMPARE_TO_OPTIONS.find((o) => o.key === comparison.compareTo)?.label ?? "Custom"}
+                        {(() => {
+                          const preview = resolveComparisonWindow(comparison, GRANULARITY_DAYS[kpiGranularity] ?? 7);
+                          return preview.from && preview.to ? ` (${preview.from} → ${preview.to})` : "";
+                        })()}
                       </span>
                     </div>
                   )}

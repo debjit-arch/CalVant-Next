@@ -14,6 +14,11 @@
  *   resolvedData.value     – current scalar value
  *   resolvedData.delta     – number | null  (pre-computed by extractor)
  *   comparisonData.value   – comparison period scalar value (when Compare active)
+ *   comparisonWindow       – { from, to, presetLabel, rangeLabel } | null —
+ *                            the resolved date window the comparison value
+ *                            actually came from, so the label can read
+ *                            "vs 23 Jun – 30 Jun" instead of an unexplained
+ *                            "vs comparison" (see comparisonWindow.js)
  *   loading                – boolean
  * ─────────────────────────────────────────────────────────────────────────────
  */
@@ -58,6 +63,7 @@ const StatCard = memo(function StatCard({
   kpiConfig,
   resolvedData,
   comparisonData,
+  comparisonWindow,
   loading,
 }) {
   const { title, icon, color = "slate", props = {} } = kpiConfig;
@@ -133,10 +139,20 @@ const StatCard = memo(function StatCard({
         )}
       </div>
 
-      {/* Comparison row — only when comparisonData is present */}
+      {/* Comparison row — only when comparisonData is present. The label
+          shows the ACTUAL resolved window ("vs 23 Jun – 30 Jun") rather than
+          a generic "vs comparison" — end users have no way to guess what a
+          preset name like "Previous Period" resolves to on any given day,
+          so we just show them the dates. The preset name is still available
+          as a hover tooltip for anyone who wants it. */}
       {!loading && compValue != null && (
-        <div className="flex items-center justify-between pt-1.5 border-t border-slate-100 mt-0.5">
-          <span className="text-[10px] text-slate-400 font-medium">vs comparison</span>
+        <div
+          className="flex items-center justify-between pt-1.5 border-t border-slate-100 mt-0.5"
+          title={comparisonWindow?.presetLabel ? `${comparisonWindow.presetLabel} · ${comparisonWindow.from} – ${comparisonWindow.to}` : undefined}
+        >
+          <span className="text-[10px] text-slate-400 font-medium">
+            {comparisonWindow?.rangeLabel ? `vs ${comparisonWindow.rangeLabel}` : "vs comparison"}
+          </span>
           <div className="flex items-center gap-2">
             <span className="text-[11px] text-slate-500 font-semibold">
               {formatValue(compValue, format)}

@@ -46,6 +46,8 @@ import {
 } from "./dataExtractors";
 import PanelBuilderModal from "./PanelBuilderModal";
 import { resolveTargetUsers } from "./targetAudience";
+import { resolveComparisonWindow, getDurationDaysForPanel, formatComparisonRange } from "./comparisonWindow";
+import { COMPARE_TO_OPTIONS } from "./dashboardSchema";
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -191,7 +193,7 @@ function resolveKpiData(kpiConfig, result) {
 }
 
 // ─── KpiWrapper ───────────────────────────────────────────────────────────────
-const KpiWrapper = memo(function KpiWrapper({ kpiConfig, results, comparisonResults, loading }) {
+const KpiWrapper = memo(function KpiWrapper({ kpiConfig, results, comparisonResults, comparisonWindow, loading }) {
   const Component = useMemo(() => resolveComponent(kpiConfig.componentType), [kpiConfig.componentType]);
 
   const result = useMemo(() => {
@@ -248,6 +250,7 @@ const KpiWrapper = memo(function KpiWrapper({ kpiConfig, results, comparisonResu
         kpiConfig={kpiConfig}
         resolvedData={resolvedData}
         comparisonData={comparisonData}
+        comparisonWindow={comparisonWindow}
         loading={loading || !result}
       />
     </Suspense>
@@ -265,7 +268,7 @@ function SkeletonCard() {
 }
 
 // ─── Fullscreen overlay ───────────────────────────────────────────────────────
-function FullscreenOverlay({ panel, results, comparisonResults, loading, onClose }) {
+function FullscreenOverlay({ panel, results, comparisonResults, comparisonWindow, loading, onClose }) {
   if (typeof document === "undefined") return null;
   
   // We add a dedicated container class to ensure it ignores parent styles
@@ -292,6 +295,7 @@ function FullscreenOverlay({ panel, results, comparisonResults, loading, onClose
             kpiConfig={panel}
             results={results}
             comparisonResults={comparisonResults}
+            comparisonWindow={comparisonWindow}
             loading={loading}
           />
         </div>
@@ -303,7 +307,7 @@ function FullscreenOverlay({ panel, results, comparisonResults, loading, onClose
 
 // ─── Panel card ───────────────────────────────────────────────────────────────
 const PanelCard = memo(function PanelCard({
-  panel, results, comparisonResults, loading,
+  panel, results, comparisonResults, comparisonWindow, loading,
   onEdit, onDelete, onClone, justAdded,
   isNew, onHover
 }) {
@@ -394,6 +398,7 @@ const PanelCard = memo(function PanelCard({
               kpiConfig={panel}
               results={results}
               comparisonResults={comparisonResults}
+              comparisonWindow={comparisonWindow}
               loading={loading}
             />
           </div>
@@ -406,6 +411,7 @@ const PanelCard = memo(function PanelCard({
             panel={panel}
             results={results}
             comparisonResults={comparisonResults}
+            comparisonWindow={comparisonWindow}
             loading={loading}
             onClose={() => setFullscreen(false)}
           />
@@ -720,6 +726,9 @@ export default function DashboardEngine({
   results,
   comparisonResults = [],
   getComparisonForWindow,
+  getRiskComparisonForWindow,
+  getAuditComparisonForWindow,
+  getTaskComparisonForWindow,
   getResultsForWindow,
   getRiskPeriodSeries,
   getRiskSnapshot,
@@ -791,19 +800,71 @@ export default function DashboardEngine({
     [panelsWithLayout]
   );
 
+  // Resolved window + human-readable label per panel, purely for DISPLAY —
+  // this is what lets a StatCard show "vs 23 Jun – 30 Jun" instead of an
+  // unexplained "vs comparison" figure. Kept separate from
+  // comparisonResultsByPanel (which does the actual data fetch) so it isn't
+  // recomputed whenever the getter callbacks change identity.
+  const comparisonWindowByPanel = useMemo(() => {
+    const map = {};
+    for (const p of panelsWithLayout) {
+      if (!p.comparison?.enabled) continue;
+      const { from, to } = resolveComparisonWindow(p.comparison, getDurationDaysForPanel(p));
+      if (!from || !to) continue;
+      const presetLabel = COMPARE_TO_OPTIONS.find((o) => o.key === p.comparison.compareTo)?.label ?? "Custom";
+      map[p.id] = { from, to, presetLabel, rangeLabel: formatComparisonRange(from, to) };
+    }
+    return map;
+  }, [panelsWithLayout]);
+
   const comparisonResultsByPanel = useMemo(() => {
     const map = {};
     for (const p of panelsWithLayout) {
-      if (p.comparison?.enabled && p.comparison?.from) {
-        map[p.id] = typeof getComparisonForWindow === "function"
-          ? getComparisonForWindow(p.comparison.from, p.comparison.to)
-          : [];
+      if (p.comparison?.enabled) {
+        // Resolve the window HERE, on every render, against "today" — not
+        // whatever was frozen into the panel at Save time. Relative presets
+        // ("Previous Period" / "Previous Relative Period" / "Same Period
+        // Last Year") are meant to roll forward every day; only "custom"
+        // is a fixed range, and that case still reads directly from
+        // p.comparison.from/to inside resolveComparisonWindow.
+        const { from, to } = resolveComparisonWindow(p.comparison, getDurationDaysForPanel(p));
+        if (!from || !to) { map[p.id] = comparisonResults; continue; }
+
+        // Risks/audit/tasks are live-only modules — never in rawResults —
+        // so their comparison window must be fetched via the module-specific
+        // getters (own date field + own criteria shape), not the generic
+        // report-snapshot getComparisonForWindow, which will always return
+        // [] for these modules. Same dispatch pattern as resultsByPanel below.
+        if (p.module === "risks") {
+          map[p.id] = typeof getRiskComparisonForWindow === "function"
+            ? getRiskComparisonForWindow(from, to, p.criteriaFilters)
+            : [];
+        } else if (p.module === "audit") {
+          map[p.id] = typeof getAuditComparisonForWindow === "function"
+            ? getAuditComparisonForWindow(from, to, p.criteriaFilters)
+            : [];
+        } else if (p.module === "tasks") {
+          map[p.id] = typeof getTaskComparisonForWindow === "function"
+            ? getTaskComparisonForWindow(from, to, p.criteriaFilters)
+            : [];
+        } else {
+          map[p.id] = typeof getComparisonForWindow === "function"
+            ? getComparisonForWindow(from, to)
+            : [];
+        }
       } else {
         map[p.id] = comparisonResults;
       }
     }
     return map;
-  }, [panelsWithLayout, getComparisonForWindow, comparisonResults]);
+  }, [
+    panelsWithLayout,
+    getComparisonForWindow,
+    getRiskComparisonForWindow,
+    getAuditComparisonForWindow,
+    getTaskComparisonForWindow,
+    comparisonResults,
+  ]);
 
   // Per-panel results — ONE windowing concept for everything, driven by
   // getResultsForWindow(granularity, maxGrouping, criteriaFilters):
@@ -823,23 +884,53 @@ export default function DashboardEngine({
       const isTrendComponent = TREND_COMPONENT_TYPES.has(p.componentType);
 
       if (p.module === "risks") {
-        map[p.id] = isTrendComponent && typeof getRiskPeriodSeries === "function"
-          ? getRiskPeriodSeries(granularity, maxGrouping, p.criteriaFilters)
-          : typeof getRiskSnapshot === "function" ? getRiskSnapshot(p.criteriaFilters) : [];
+        if (isTrendComponent) {
+          map[p.id] = typeof getRiskPeriodSeries === "function"
+            ? getRiskPeriodSeries(granularity, maxGrouping, p.criteriaFilters)
+            : [];
+        } else if (isKpi) {
+          // StatCard/ScoreGauge/TargetMeter: the "current value" must use the
+          // SAME duration window as the Comparison Period (maxGrouping=1 →
+          // the latest single bucket of panel.duration.granularity), or the
+          // KPI ends up comparing an all-time total against a 1-day window
+          // and produces a nonsensical delta (e.g. 56 vs 1 → "+5500%").
+          map[p.id] = typeof getRiskPeriodSeries === "function"
+            ? getRiskPeriodSeries(granularity, 1, p.criteriaFilters)
+            : typeof getRiskSnapshot === "function" ? getRiskSnapshot(p.criteriaFilters) : [];
+        } else {
+          // Donut/Table/DepartmentBreakdown — all-time distribution snapshot.
+          map[p.id] = typeof getRiskSnapshot === "function" ? getRiskSnapshot(p.criteriaFilters) : [];
+        }
         continue;
       }
 
       if (p.module === "audit") {
-        map[p.id] = isTrendComponent && typeof getAuditPeriodSeries === "function"
-          ? getAuditPeriodSeries(granularity, maxGrouping, p.criteriaFilters)
-          : typeof getAuditSnapshot === "function" ? getAuditSnapshot(p.criteriaFilters) : [];
+        if (isTrendComponent) {
+          map[p.id] = typeof getAuditPeriodSeries === "function"
+            ? getAuditPeriodSeries(granularity, maxGrouping, p.criteriaFilters)
+            : [];
+        } else if (isKpi) {
+          map[p.id] = typeof getAuditPeriodSeries === "function"
+            ? getAuditPeriodSeries(granularity, 1, p.criteriaFilters)
+            : typeof getAuditSnapshot === "function" ? getAuditSnapshot(p.criteriaFilters) : [];
+        } else {
+          map[p.id] = typeof getAuditSnapshot === "function" ? getAuditSnapshot(p.criteriaFilters) : [];
+        }
         continue;
       }
 
       if (p.module === "tasks") {
-        map[p.id] = isTrendComponent && typeof getTaskPeriodSeries === "function"
-          ? getTaskPeriodSeries(granularity, maxGrouping, p.criteriaFilters)
-          : typeof getTaskSnapshot === "function" ? getTaskSnapshot(p.criteriaFilters) : [];
+        if (isTrendComponent) {
+          map[p.id] = typeof getTaskPeriodSeries === "function"
+            ? getTaskPeriodSeries(granularity, maxGrouping, p.criteriaFilters)
+            : [];
+        } else if (isKpi) {
+          map[p.id] = typeof getTaskPeriodSeries === "function"
+            ? getTaskPeriodSeries(granularity, 1, p.criteriaFilters)
+            : typeof getTaskSnapshot === "function" ? getTaskSnapshot(p.criteriaFilters) : [];
+        } else {
+          map[p.id] = typeof getTaskSnapshot === "function" ? getTaskSnapshot(p.criteriaFilters) : [];
+        }
         continue;
       }
 
@@ -1090,6 +1181,7 @@ const lastRepairSignatureRef = useRef(null);
                       panel={panel}
                       results={resultsByPanel[panel.id] ?? results}
                       comparisonResults={comparisonResultsByPanel[panel.id] ?? comparisonResults}
+                      comparisonWindow={comparisonWindowByPanel[panel.id] ?? null}
                       loading={loading}
                       justAdded={justAddedId === panel.id}
                       isNew={newPanelIds?.has(panel.id)}

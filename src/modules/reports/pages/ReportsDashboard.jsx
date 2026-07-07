@@ -928,7 +928,7 @@ export default function ReportsDashboard() {
     } catch {}
   }, []);
 
-  const { results, comparisonResults, getComparisonForWindow, getResultsForWindow, getKpiResultsForWindow, getRiskPeriodSeries, getRiskSnapshot, riskDimensionOptions, getAuditPeriodSeries, getAuditSnapshot, auditDimensionOptions, getTaskPeriodSeries, getTaskSnapshot, taskDimensionOptions, dimensionOptions, loading, error, refetch, lastFetched, online, orgId } =
+  const { results, comparisonResults, getComparisonForWindow, getRiskComparisonForWindow, getAuditComparisonForWindow, getTaskComparisonForWindow, getResultsForWindow, getKpiResultsForWindow, getRiskPeriodSeries, getRiskSnapshot, riskDimensionOptions, getAuditPeriodSeries, getAuditSnapshot, auditDimensionOptions, getTaskPeriodSeries, getTaskSnapshot, taskDimensionOptions, dimensionOptions, loading, error, refetch, lastFetched, online, orgId } =
     useDashboardData(syntheticConfig, organization, filters, comparisonFilters, dimensionFilters);
   const { exportPDF } =
     useDashboardExport({ config: syntheticConfig, results, comparisonResults });
@@ -1046,6 +1046,9 @@ export default function ReportsDashboard() {
                 results={results}
                 comparisonResults={comparisonResults}
                 getComparisonForWindow={getComparisonForWindow}
+                getRiskComparisonForWindow={getRiskComparisonForWindow}
+                getAuditComparisonForWindow={getAuditComparisonForWindow}
+                getTaskComparisonForWindow={getTaskComparisonForWindow}
                 getResultsForWindow={getResultsForWindow}
                 getKpiResultsForWindow={getKpiResultsForWindow}
                 getRiskPeriodSeries={getRiskPeriodSeries}
