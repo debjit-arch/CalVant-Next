@@ -969,8 +969,8 @@ export const AVAILABLE_COMPONENTS = [
 
 /** All module data paths users can pick from in the builder */
 export const AVAILABLE_EXTRACTORS = [
-  { extractor: "risks.risksIdentifiedCount",  label: "Risks · Identified (per period)"   },
-  { extractor: "risks.risksInMitigationCount", label: "Risks · In Mitigation (per period)" },
+  { extractor: "risks.risksIdentifiedCount",  label: "Risks · Identified"   },
+  { extractor: "risks.risksInMitigationCount", label: "Risks · In Mitigation" },
   { extractor: "risks.risksByTreatmentType",  label: "Risks · By Treatment Type"},
   { extractor: "compliance.totalControls",                label: "Compliance · Total Controls"        },
   { extractor: "compliance.applicableControls",           label: "Compliance · Applicable"            },

@@ -1,25 +1,24 @@
 /**
  * ─────────────────────────────────────────────────────────────────────────────
- * useDashboardData  (v6 — grouping-driven panel windows, no polling)
+ * useDashboardData  (v7 — per-module KPI comparison windows)
  * ─────────────────────────────────────────────────────────────────────────────
- * v6 changes:
- *   - getResultsForWindow(granularity, maxGrouping, overrideDimensionFilters)
- *     drives CHART/MAP panels — the window is "the last `maxGrouping`
- *     buckets of `granularity` size, counting back from today". E.g.
- *     granularity="week", maxGrouping=75 → the last 75 weeks.
- *   - getKpiResultsForWindow(duration, overrideDimensionFilters) drives
- *     KPI panels (StatCard/ScoreGauge/TargetMeter) — duration is a plain
- *     {key: "7d"|"14d"|"90d"|"custom", customFrom, customTo} date-range,
- *     so the KPI's value (and its Comparison Period) reflects "latest
- *     snapshot within the last N days" rather than the all-time latest.
- *   - applyDateWindow / the old interval-based panel windowing is gone.
- *     The page-level `filters.interval` (7d/14d/90d/custom) still drives
- *     the *primary* `results`/`comparisonResults` used by the header —
- *     that's unrelated to per-panel duration and untouched here.
- *   - REMOVED: the 60s background poll and the 10s SSE-error poll fallback.
- *     Data only refreshes via the SSE "report-update" push or an explicit
- *     refetch() call (manual refresh button) — no silent interval polling,
- *     so numbers on screen never change mid-meeting on their own.
+ * v7 changes (fix: KPI Comparison Period not working for risks/audit/tasks):
+ *   - getComparisonForWindow(from, to) only ever read `rawResults`, which no
+ *     longer contains risk/audit/task data (those are LIVE_ONLY_SOURCES — see
+ *     fetchLiveRisks/fetchLiveAudits/fetchLiveTasks below). Any KPI panel on
+ *     the "risks"/"audit"/"tasks" module got `[]` back for its comparison
+ *     window every time, so the Comparison Period bar never showed a delta.
+ *   - Added getRiskComparisonForWindow / getAuditComparisonForWindow /
+ *     getTaskComparisonForWindow(from, to, overrideDimensionFilters), mirroring
+ *     getComparisonForWindow's date-range semantics but reading liveRisks /
+ *     liveAudits / liveTasks and filtering by each record's own date field
+ *     (date / openingMeetingDate / createdAt respectively) plus that module's
+ *     own criteria shape (department/riskLevel/riskType,
+ *     status/auditType/frameworkCode, status/employee/relatedModule) — same
+ *     filtering rules already used by getRiskSnapshot/getAuditSnapshot/
+ *     getTaskSnapshot, just scoped to a date window first.
+ *   - DashboardEngine now dispatches comparison-window fetching by
+ *     panel.module, the same way it already dispatches resultsByPanel.
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
@@ -155,6 +154,25 @@ function applyDateWindow(rawResults, filters) {
   if (!days) return rawResults;
   const cutoff = new Date(Date.now() - days * 86_400_000);
   return rawResults.filter((r) => new Date(r.generatedAt) >= cutoff);
+}
+
+// ─── generic own-date-range filter (for LIVE risk/audit/task records) ───────
+// Mirrors the from/to windowing already used by getComparisonForWindow, but
+// generalized to any flat record array + whichever field holds that record's
+// own date (risks: "date", audits: "openingMeetingDate", tasks: "createdAt")
+// instead of a report snapshot's `generatedAt`.
+function filterRecordsByDateRange(records, dateField, from, to) {
+  if (!from) return records;
+  const fromDate = new Date(from);
+  fromDate.setHours(0, 0, 0, 0);
+  const toDate = to ? new Date(to) : new Date();
+  toDate.setHours(23, 59, 59, 999);
+  return records.filter((r) => {
+    const raw = r?.[dateField];
+    if (!raw) return false;
+    const d = new Date(raw);
+    return d >= fromDate && d <= toDate;
+  });
 }
 
 // ─── shape into results array ────────────────────────────────────────────────
@@ -589,6 +607,10 @@ export function useDashboardData(
   }, [fetch_]);
 
   // ── ad-hoc comparison window (per-panel KPI "Compare to") ──────────────────
+  // NOTE: only valid for report-snapshot-backed modules. Risks/audit/tasks
+  // are live-only and never appear in rawResults — use
+  // getRiskComparisonForWindow / getAuditComparisonForWindow /
+  // getTaskComparisonForWindow for those modules instead (see below).
   const getComparisonForWindow = useCallback((from, to) => {
     if (!from) return [];
     const fromDate = new Date(from);
@@ -604,6 +626,78 @@ export function useDashboardData(
     const dimFiltered = applyDimensionFilters(windowedRaw, dimensionFilters);
     return toResultsShape(bucketByPeriod(dimFiltered, "day"), dimensionFilters);
   }, [rawResults, dimensionFilters]);
+
+  // ── per-module comparison windows — risks / audit / tasks ─────────────────
+  // Same [from, to] semantics as getComparisonForWindow above, but scoped to
+  // each module's own live records + own-date field + own criteria shape
+  // (identical filtering rules to getRiskSnapshot/getAuditSnapshot/
+  // getTaskSnapshot), so KPI panels on these modules get a real Comparison
+  // Period instead of always reading an empty rawResults window.
+  const getRiskComparisonForWindow = useCallback((from, to, overrideDimensionFilters) => {
+    if (!from) return [];
+    const cf = overrideDimensionFilters ?? {};
+    const dept = cf.department ?? [];
+    const riskLevel = cf.riskLevel ?? [];
+    const riskType = cf.riskType ?? [];
+
+    const windowed = filterRecordsByDateRange(liveRisks, "date", from, to);
+    const scoped = windowed.filter((r) => {
+      if (dept.length && !dept.includes(r.department)) return false;
+      if (riskLevel.length && !riskLevel.includes(r.riskLevel)) return false;
+      if (riskType.length && !(Array.isArray(r.riskType) && r.riskType.some((t) => riskType.includes(t)))) return false;
+      return true;
+    });
+
+    return [{
+      reportId: "risk-comparison-snapshot",
+      generatedAt: to ?? new Date().toISOString(),
+      data: riskBucketToData(scoped),
+    }];
+  }, [liveRisks]);
+
+  const getAuditComparisonForWindow = useCallback((from, to, overrideDimensionFilters) => {
+    if (!from) return [];
+    const cf = overrideDimensionFilters ?? {};
+    const status = cf.status ?? [];
+    const auditType = cf.auditType ?? [];
+    const frameworkCode = cf.frameworkCode ?? [];
+
+    const windowed = filterRecordsByDateRange(liveAudits, "openingMeetingDate", from, to);
+    const scoped = windowed.filter((a) => {
+      if (status.length && !status.includes(a.status)) return false;
+      if (auditType.length && !auditType.includes(a.auditType)) return false;
+      if (frameworkCode.length && !frameworkCode.includes(a.frameworkCode)) return false;
+      return true;
+    });
+
+    return [{
+      reportId: "audit-comparison-snapshot",
+      generatedAt: to ?? new Date().toISOString(),
+      data: auditBucketToData(scoped),
+    }];
+  }, [liveAudits]);
+
+  const getTaskComparisonForWindow = useCallback((from, to, overrideDimensionFilters) => {
+    if (!from) return [];
+    const cf = overrideDimensionFilters ?? {};
+    const status = cf.status ?? [];
+    const employee = cf.employee ?? [];
+    const relatedModule = cf.relatedModule ?? [];
+
+    const windowed = filterRecordsByDateRange(liveTasks, "createdAt", from, to);
+    const scoped = windowed.filter((t) => {
+      if (status.length && !status.includes(t.status)) return false;
+      if (employee.length && !employee.includes(t.employee)) return false;
+      if (relatedModule.length && !relatedModule.includes(t.relatedModule)) return false;
+      return true;
+    });
+
+    return [{
+      reportId: "task-comparison-snapshot",
+      generatedAt: to ?? new Date().toISOString(),
+      data: taskBucketToData(scoped),
+    }];
+  }, [liveTasks]);
 
   // ── per-panel PRIMARY window (grouping-driven) — CHARTS / MAPS ─────────────
   // granularity: "day" | "week" | "month" | "year" — how points are bucketed.
@@ -909,6 +1003,9 @@ export function useDashboardData(
   return {
     results,
     getComparisonForWindow,
+    getRiskComparisonForWindow,
+    getAuditComparisonForWindow,
+    getTaskComparisonForWindow,
     getResultsForWindow,
     getRiskPeriodSeries,
     getRiskSnapshot,

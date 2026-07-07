@@ -46,6 +46,7 @@ import {
 } from "./dataExtractors";
 import PanelBuilderModal from "./PanelBuilderModal";
 import { resolveTargetUsers } from "./targetAudience";
+import { resolveComparisonWindow, getDurationDaysForPanel } from "./comparisonWindow";
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -720,6 +721,9 @@ export default function DashboardEngine({
   results,
   comparisonResults = [],
   getComparisonForWindow,
+  getRiskComparisonForWindow,
+  getAuditComparisonForWindow,
+  getTaskComparisonForWindow,
   getResultsForWindow,
   getRiskPeriodSeries,
   getRiskSnapshot,
@@ -794,16 +798,51 @@ export default function DashboardEngine({
   const comparisonResultsByPanel = useMemo(() => {
     const map = {};
     for (const p of panelsWithLayout) {
-      if (p.comparison?.enabled && p.comparison?.from) {
-        map[p.id] = typeof getComparisonForWindow === "function"
-          ? getComparisonForWindow(p.comparison.from, p.comparison.to)
-          : [];
+      if (p.comparison?.enabled) {
+        // Resolve the window HERE, on every render, against "today" — not
+        // whatever was frozen into the panel at Save time. Relative presets
+        // ("Previous Period" / "Previous Relative Period" / "Same Period
+        // Last Year") are meant to roll forward every day; only "custom"
+        // is a fixed range, and that case still reads directly from
+        // p.comparison.from/to inside resolveComparisonWindow.
+        const { from, to } = resolveComparisonWindow(p.comparison, getDurationDaysForPanel(p));
+        if (!from || !to) { map[p.id] = comparisonResults; continue; }
+
+        // Risks/audit/tasks are live-only modules — never in rawResults —
+        // so their comparison window must be fetched via the module-specific
+        // getters (own date field + own criteria shape), not the generic
+        // report-snapshot getComparisonForWindow, which will always return
+        // [] for these modules. Same dispatch pattern as resultsByPanel below.
+        if (p.module === "risks") {
+          map[p.id] = typeof getRiskComparisonForWindow === "function"
+            ? getRiskComparisonForWindow(from, to, p.criteriaFilters)
+            : [];
+        } else if (p.module === "audit") {
+          map[p.id] = typeof getAuditComparisonForWindow === "function"
+            ? getAuditComparisonForWindow(from, to, p.criteriaFilters)
+            : [];
+        } else if (p.module === "tasks") {
+          map[p.id] = typeof getTaskComparisonForWindow === "function"
+            ? getTaskComparisonForWindow(from, to, p.criteriaFilters)
+            : [];
+        } else {
+          map[p.id] = typeof getComparisonForWindow === "function"
+            ? getComparisonForWindow(from, to)
+            : [];
+        }
       } else {
         map[p.id] = comparisonResults;
       }
     }
     return map;
-  }, [panelsWithLayout, getComparisonForWindow, comparisonResults]);
+  }, [
+    panelsWithLayout,
+    getComparisonForWindow,
+    getRiskComparisonForWindow,
+    getAuditComparisonForWindow,
+    getTaskComparisonForWindow,
+    comparisonResults,
+  ]);
 
   // Per-panel results — ONE windowing concept for everything, driven by
   // getResultsForWindow(granularity, maxGrouping, criteriaFilters):
@@ -823,23 +862,53 @@ export default function DashboardEngine({
       const isTrendComponent = TREND_COMPONENT_TYPES.has(p.componentType);
 
       if (p.module === "risks") {
-        map[p.id] = isTrendComponent && typeof getRiskPeriodSeries === "function"
-          ? getRiskPeriodSeries(granularity, maxGrouping, p.criteriaFilters)
-          : typeof getRiskSnapshot === "function" ? getRiskSnapshot(p.criteriaFilters) : [];
+        if (isTrendComponent) {
+          map[p.id] = typeof getRiskPeriodSeries === "function"
+            ? getRiskPeriodSeries(granularity, maxGrouping, p.criteriaFilters)
+            : [];
+        } else if (isKpi) {
+          // StatCard/ScoreGauge/TargetMeter: the "current value" must use the
+          // SAME duration window as the Comparison Period (maxGrouping=1 →
+          // the latest single bucket of panel.duration.granularity), or the
+          // KPI ends up comparing an all-time total against a 1-day window
+          // and produces a nonsensical delta (e.g. 56 vs 1 → "+5500%").
+          map[p.id] = typeof getRiskPeriodSeries === "function"
+            ? getRiskPeriodSeries(granularity, 1, p.criteriaFilters)
+            : typeof getRiskSnapshot === "function" ? getRiskSnapshot(p.criteriaFilters) : [];
+        } else {
+          // Donut/Table/DepartmentBreakdown — all-time distribution snapshot.
+          map[p.id] = typeof getRiskSnapshot === "function" ? getRiskSnapshot(p.criteriaFilters) : [];
+        }
         continue;
       }
 
       if (p.module === "audit") {
-        map[p.id] = isTrendComponent && typeof getAuditPeriodSeries === "function"
-          ? getAuditPeriodSeries(granularity, maxGrouping, p.criteriaFilters)
-          : typeof getAuditSnapshot === "function" ? getAuditSnapshot(p.criteriaFilters) : [];
+        if (isTrendComponent) {
+          map[p.id] = typeof getAuditPeriodSeries === "function"
+            ? getAuditPeriodSeries(granularity, maxGrouping, p.criteriaFilters)
+            : [];
+        } else if (isKpi) {
+          map[p.id] = typeof getAuditPeriodSeries === "function"
+            ? getAuditPeriodSeries(granularity, 1, p.criteriaFilters)
+            : typeof getAuditSnapshot === "function" ? getAuditSnapshot(p.criteriaFilters) : [];
+        } else {
+          map[p.id] = typeof getAuditSnapshot === "function" ? getAuditSnapshot(p.criteriaFilters) : [];
+        }
         continue;
       }
 
       if (p.module === "tasks") {
-        map[p.id] = isTrendComponent && typeof getTaskPeriodSeries === "function"
-          ? getTaskPeriodSeries(granularity, maxGrouping, p.criteriaFilters)
-          : typeof getTaskSnapshot === "function" ? getTaskSnapshot(p.criteriaFilters) : [];
+        if (isTrendComponent) {
+          map[p.id] = typeof getTaskPeriodSeries === "function"
+            ? getTaskPeriodSeries(granularity, maxGrouping, p.criteriaFilters)
+            : [];
+        } else if (isKpi) {
+          map[p.id] = typeof getTaskPeriodSeries === "function"
+            ? getTaskPeriodSeries(granularity, 1, p.criteriaFilters)
+            : typeof getTaskSnapshot === "function" ? getTaskSnapshot(p.criteriaFilters) : [];
+        } else {
+          map[p.id] = typeof getTaskSnapshot === "function" ? getTaskSnapshot(p.criteriaFilters) : [];
+        }
         continue;
       }
 
