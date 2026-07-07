@@ -28,6 +28,30 @@ export function getDurationDaysForPanel(panel) {
 }
 
 /**
+ * Format a {from, to} ISO date pair into a short, human-readable range for
+ * display next to a KPI's comparison delta — e.g. "23 Jun – 30 Jun" or
+ * "23 Jun 2025 – 30 Jun 2025" when the range falls outside the current year.
+ * This is what actually makes the comparison legible to an end user: instead
+ * of an unexplained "vs comparison" figure, they see the exact window it
+ * came from.
+ */
+export function formatComparisonRange(from, to) {
+  if (!from || !to) return "";
+  try {
+    const f = new Date(from);
+    const t = new Date(to);
+    const currentYear = new Date().getFullYear();
+    const needsYear = f.getFullYear() !== currentYear || t.getFullYear() !== currentYear || f.getFullYear() !== t.getFullYear();
+    const opts = needsYear
+      ? { day: "2-digit", month: "short", year: "numeric" }
+      : { day: "2-digit", month: "short" };
+    return `${f.toLocaleDateString("en-GB", opts)} – ${t.toLocaleDateString("en-GB", opts)}`;
+  } catch {
+    return "";
+  }
+}
+
+/**
  * Resolve a comparison config into a concrete { from, to } window, computed
  * against the CURRENT date. Safe to call on every render — it does not
  * mutate or depend on any previously-resolved dates.

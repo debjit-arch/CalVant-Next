@@ -46,7 +46,8 @@ import {
 } from "./dataExtractors";
 import PanelBuilderModal from "./PanelBuilderModal";
 import { resolveTargetUsers } from "./targetAudience";
-import { resolveComparisonWindow, getDurationDaysForPanel } from "./comparisonWindow";
+import { resolveComparisonWindow, getDurationDaysForPanel, formatComparisonRange } from "./comparisonWindow";
+import { COMPARE_TO_OPTIONS } from "./dashboardSchema";
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -192,7 +193,7 @@ function resolveKpiData(kpiConfig, result) {
 }
 
 // ─── KpiWrapper ───────────────────────────────────────────────────────────────
-const KpiWrapper = memo(function KpiWrapper({ kpiConfig, results, comparisonResults, loading }) {
+const KpiWrapper = memo(function KpiWrapper({ kpiConfig, results, comparisonResults, comparisonWindow, loading }) {
   const Component = useMemo(() => resolveComponent(kpiConfig.componentType), [kpiConfig.componentType]);
 
   const result = useMemo(() => {
@@ -249,6 +250,7 @@ const KpiWrapper = memo(function KpiWrapper({ kpiConfig, results, comparisonResu
         kpiConfig={kpiConfig}
         resolvedData={resolvedData}
         comparisonData={comparisonData}
+        comparisonWindow={comparisonWindow}
         loading={loading || !result}
       />
     </Suspense>
@@ -266,7 +268,7 @@ function SkeletonCard() {
 }
 
 // ─── Fullscreen overlay ───────────────────────────────────────────────────────
-function FullscreenOverlay({ panel, results, comparisonResults, loading, onClose }) {
+function FullscreenOverlay({ panel, results, comparisonResults, comparisonWindow, loading, onClose }) {
   if (typeof document === "undefined") return null;
   
   // We add a dedicated container class to ensure it ignores parent styles
@@ -293,6 +295,7 @@ function FullscreenOverlay({ panel, results, comparisonResults, loading, onClose
             kpiConfig={panel}
             results={results}
             comparisonResults={comparisonResults}
+            comparisonWindow={comparisonWindow}
             loading={loading}
           />
         </div>
@@ -304,7 +307,7 @@ function FullscreenOverlay({ panel, results, comparisonResults, loading, onClose
 
 // ─── Panel card ───────────────────────────────────────────────────────────────
 const PanelCard = memo(function PanelCard({
-  panel, results, comparisonResults, loading,
+  panel, results, comparisonResults, comparisonWindow, loading,
   onEdit, onDelete, onClone, justAdded,
   isNew, onHover
 }) {
@@ -395,6 +398,7 @@ const PanelCard = memo(function PanelCard({
               kpiConfig={panel}
               results={results}
               comparisonResults={comparisonResults}
+              comparisonWindow={comparisonWindow}
               loading={loading}
             />
           </div>
@@ -407,6 +411,7 @@ const PanelCard = memo(function PanelCard({
             panel={panel}
             results={results}
             comparisonResults={comparisonResults}
+            comparisonWindow={comparisonWindow}
             loading={loading}
             onClose={() => setFullscreen(false)}
           />
@@ -795,6 +800,23 @@ export default function DashboardEngine({
     [panelsWithLayout]
   );
 
+  // Resolved window + human-readable label per panel, purely for DISPLAY —
+  // this is what lets a StatCard show "vs 23 Jun – 30 Jun" instead of an
+  // unexplained "vs comparison" figure. Kept separate from
+  // comparisonResultsByPanel (which does the actual data fetch) so it isn't
+  // recomputed whenever the getter callbacks change identity.
+  const comparisonWindowByPanel = useMemo(() => {
+    const map = {};
+    for (const p of panelsWithLayout) {
+      if (!p.comparison?.enabled) continue;
+      const { from, to } = resolveComparisonWindow(p.comparison, getDurationDaysForPanel(p));
+      if (!from || !to) continue;
+      const presetLabel = COMPARE_TO_OPTIONS.find((o) => o.key === p.comparison.compareTo)?.label ?? "Custom";
+      map[p.id] = { from, to, presetLabel, rangeLabel: formatComparisonRange(from, to) };
+    }
+    return map;
+  }, [panelsWithLayout]);
+
   const comparisonResultsByPanel = useMemo(() => {
     const map = {};
     for (const p of panelsWithLayout) {
@@ -1159,6 +1181,7 @@ const lastRepairSignatureRef = useRef(null);
                       panel={panel}
                       results={resultsByPanel[panel.id] ?? results}
                       comparisonResults={comparisonResultsByPanel[panel.id] ?? comparisonResults}
+                      comparisonWindow={comparisonWindowByPanel[panel.id] ?? null}
                       loading={loading}
                       justAdded={justAddedId === panel.id}
                       isNew={newPanelIds?.has(panel.id)}
