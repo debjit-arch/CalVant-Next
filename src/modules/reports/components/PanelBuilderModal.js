@@ -97,7 +97,7 @@ const TASK_CRITERIA_DIMENSIONS = [
   { key: "relatedModule", label: "Related Module" },
 ];
 
-// Mirrors DashboardEngine's panelSignature — two panels are "the same panel"
+// Mirrors DashboardEngine's panelSignature — two panels are "the same panel testing it out"
 // if they're the same component type showing the same underlying data
 // field(s), regardless of generated id/title.
 function panelSignature(panel) {
