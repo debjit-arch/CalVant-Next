@@ -509,7 +509,7 @@
 
 //   const [tasks, setTasks] = useState([]);
 
-  
+
 //   const [departments, setDepartments] = useState([]);
 //   const [users, setUsers] = useState([]);
 //   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -2124,7 +2124,7 @@ export default function TaskManagement({ riskFormData = {}, auditFormData = {} }
 
   const [tasks, setTasks] = useState([]);
 
-  
+
   const [departments, setDepartments] = useState([]);
   const [users, setUsers] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -2205,26 +2205,26 @@ export default function TaskManagement({ riskFormData = {}, auditFormData = {} }
   }, [users]);
 
   const inlineUpdate = useCallback(async (taskId, patch) => {
-  const task = tasks.find((t) => t.taskId === taskId);
-  if (!task) return;
-  const updated = { ...task, ...patch, updatedAt: new Date().toISOString() };
-  try {
-    await taskService.updateTask(taskId, updated, currentUserName);
-    setTasks((prev) => prev.map((t) => (t.taskId === taskId ? updated : t)));
-    if (selectedTask?.taskId === taskId) setSelectedTask(updated);
+    const task = tasks.find((t) => t.taskId === taskId);
+    if (!task) return;
+    const updated = { ...task, ...patch, updatedAt: new Date().toISOString() };
+    try {
+      await taskService.updateTask(taskId, updated, currentUserName);
+      setTasks((prev) => prev.map((t) => (t.taskId === taskId ? updated : t)));
+      if (selectedTask?.taskId === taskId) setSelectedTask(updated);
 
-    // ── LOG: MODIFIED — inline field edit (assignee/priority), but skip
-    // when this is a status change, since confirmStatusChange() already
-    // logs that case separately as UPDATED to avoid double-logging.
-    if (!("status" in patch)) {
-      captureActivity({
-        action: ACTIONS.MODIFIED,
-        module: MODULES.TASK,
-        item: `${taskId} - ${Object.keys(patch).join(", ")} changed`,
-      });
-    }
-  } catch { alert("Failed to update"); }
-}, [tasks, currentUserName, selectedTask]);
+      // ── LOG: MODIFIED — inline field edit (assignee/priority), but skip
+      // when this is a status change, since confirmStatusChange() already
+      // logs that case separately as UPDATED to avoid double-logging.
+      if (!("status" in patch)) {
+        captureActivity({
+          action: ACTIONS.MODIFIED,
+          module: MODULES.TASK,
+          item: `${taskId} - ${Object.keys(patch).join(", ")} changed`,
+        });
+      }
+    } catch { alert("Failed to update"); }
+  }, [tasks, currentUserName, selectedTask]);
 
   const requestStatusChange = useCallback((taskId, newStatus) => {
     const task = tasks.find((t) => t.taskId === taskId);
@@ -2727,7 +2727,12 @@ export default function TaskManagement({ riskFormData = {}, auditFormData = {} }
                         const serialNo = (currentPage - 1) * TASKS_PER_PAGE + displayIndex + 1;
                         const isOverdue = task.endDate && new Date(task.endDate) < new Date() && task.status !== STATUS.DONE;
                         const source = getSourceModule(task);
-                        const sourceId = task.riskId || (task.auditId ? (audits.find((a) => a.id === task.auditId)?.auditId || task.auditId) : null) ||task.dpiaRefId || task.dpiaId || null;
+                        const sourceId = task.riskId
+                          || (task.auditId ? (audits.find((a) => a.id === task.auditId)?.auditId || task.auditId) : null)
+                          || task.dpiaRefId || task.dpiaId
+                          || task.aiiaRefId || task.aiiaId
+                          || task.controlId   // ✅ covers both Policy and Compliance — already populated by AddTaskModal
+                          || null;
                         const isReporter = !canEdit;
                         const isSelected = selectedTask?.taskId === task.taskId;
 
