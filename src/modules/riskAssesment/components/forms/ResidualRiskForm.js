@@ -4,7 +4,9 @@ import SelectField from "../inputs/SelectField";
 import Joyride, { STATUS } from "react-joyride";
 
 const ResidualRiskForm = ({ formData = {}, handleInputChange }) => {
-  useEffect(() => window.scrollTo(0, 0), []);
+  useEffect(() => {
+  window.scrollTo(0, 0);
+}, []);
 
   const [runTour, setRunTour] = useState(false);
   const residualRiskSteps = [
