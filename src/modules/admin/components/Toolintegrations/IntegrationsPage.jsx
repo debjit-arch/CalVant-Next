@@ -1,7 +1,8 @@
+// //Working model
 // // src/modules/admin/components/Integrations/IntegrationsPage.jsx
 // 'use client';
 // import { useState, useEffect } from 'react';
-// import { jwtDecode } from 'jwt-decode';
+// import axios from 'axios';
 // import {
 //   Box, Typography, Paper, Button, Chip, IconButton,
 //   Alert, CircularProgress, Card, CardContent, CardActions,
@@ -12,14 +13,11 @@
 // import DeleteIcon           from '@mui/icons-material/Delete';
 // import SyncIcon             from '@mui/icons-material/Sync';
 // import PowerSettingsNewIcon from '@mui/icons-material/PowerSettingsNew';
-// import CloudIcon            from '@mui/icons-material/Cloud';
-// import StorageIcon          from '@mui/icons-material/Storage';
 // import ExtensionIcon        from '@mui/icons-material/Extension';
 
 // import integrationApi          from './integrationApi';
 // import BuiltInProviderForm     from './BuiltInProviderForm';
 // import CustomIntegrationDialog from './CustomIntegrationDialog';
-
 
 // // ── Provider metadata ─────────────────────────────────────────────────────────
 // const BUILT_IN_PROVIDERS = [
@@ -145,28 +143,14 @@
 //         </Box>
 
 //         <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap', mt: 1 }}>
-//           <Chip
-//             label={item.type}
-//             size="small"
-//             color={TYPE_COLORS[item.type] ?? 'default'}
-//             variant="outlined"
-//             sx={{ height: 20, fontSize: '0.65rem' }}
-//           />
-//           <Chip
-//             label={item.authType}
-//             size="small"
-//             variant="outlined"
-//             sx={{ height: 20, fontSize: '0.65rem' }}
-//           />
+//           <Chip label={item.type} size="small" color={TYPE_COLORS[item.type] ?? 'default'} variant="outlined" sx={{ height: 20, fontSize: '0.65rem' }} />
+//           <Chip label={item.authType} size="small" variant="outlined" sx={{ height: 20, fontSize: '0.65rem' }} />
 //         </Box>
 
 //         {item.description && (
 //           <Typography variant="caption" color="text.secondary" display="block" mt={1} sx={{
-//             lineHeight: 1.4,
-//             overflow: 'hidden',
-//             display: '-webkit-box',
-//             WebkitLineClamp: 2,
-//             WebkitBoxOrient: 'vertical',
+//             lineHeight: 1.4, overflow: 'hidden',
+//             display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
 //           }}>
 //             {item.description}
 //           </Typography>
@@ -183,11 +167,7 @@
 
 //       <CardActions sx={{ px: 1.5, py: 0.75, gap: 0.5 }}>
 //         <Tooltip title={item.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}>
-//           <IconButton
-//             size="small"
-//             onClick={() => onToggle(item.id)}
-//             sx={{ color: item.status === 'ACTIVE' ? '#22c55e' : 'text.disabled' }}
-//           >
+//           <IconButton size="small" onClick={() => onToggle(item.id)} sx={{ color: item.status === 'ACTIVE' ? '#22c55e' : 'text.disabled' }}>
 //             <PowerSettingsNewIcon sx={{ fontSize: 16 }} />
 //           </IconButton>
 //         </Tooltip>
@@ -209,12 +189,39 @@
 
 // // ── Main page ─────────────────────────────────────────────────────────────────
 // export default function IntegrationsPage() {
-//   const tenantId = (() => {
-//     try {
-//       const token = sessionStorage.getItem('token');
-//       return token ? jwtDecode(token).organization : null;
-//     } catch { return null; }
-//   })();
+
+//   // ── Resolve tenantId the same way RiskAssessmentTable does ───────────────
+//   // Read from sessionStorage cache first (already set by compliance page),
+//   // otherwise fetch from user-service. Never use JWT.organization directly
+//   // because that is the MongoDB _id, not the tenantId string.
+//   const [tenantId,  setTenantId]  = useState(null);
+//   const [tenantErr, setTenantErr] = useState(false);
+
+//   useEffect(() => {
+//     const resolve = async () => {
+//       // Fast path — already resolved by another page in this session
+//       const cached = sessionStorage.getItem('tenantId');
+//       if (cached) { setTenantId(cached); return; }
+
+//       try {
+//         const user  = JSON.parse(sessionStorage.getItem('user') || '{}');
+//         const orgId = user?.organization?._id ?? user?.organization;
+//         if (!orgId) { setTenantErr(true); return; }
+
+//         const res = await axios.get(
+//           `https://api.calvant.com/user-service/api/organizations/${orgId}/tenant`,
+//           { headers: { Authorization: `Bearer ${sessionStorage.getItem('token')}` } }
+//         );
+//         const tid = res.data;
+//         sessionStorage.setItem('tenantId', tid);
+//         setTenantId(tid);
+//       } catch (err) {
+//         console.error('Failed to resolve tenantId:', err);
+//         setTenantErr(true);
+//       }
+//     };
+//     resolve();
+//   }, []);
 
 //   // 0–3 = built-in providers, 4 = custom tools
 //   const [activeNav,     setActiveNav]     = useState(0);
@@ -229,20 +236,20 @@
 //   useEffect(() => { if (tenantId) loadAll(); }, [tenantId]);
 
 //   const loadAll = async () => {
-//   setLoading(true);
-//   try {
-//     const [config, customs] = await Promise.all([
-//       integrationApi.getBuiltInConfig(tenantId),
-//       integrationApi.getAllCustom(tenantId),
-//     ]);
-//     setBuiltInConfig(config ?? {});
-//     setCustomList(Array.isArray(customs) ? customs : customs?.data ?? customs?.items ?? []);
-//   } catch {
-//     setSyncAlert({ type: 'error', message: 'Failed to load integrations.' });
-//   } finally {
-//     setLoading(false);
-//   }
-// };
+//     setLoading(true);
+//     try {
+//       const [config, customs] = await Promise.all([
+//         integrationApi.getBuiltInConfig(tenantId),
+//         integrationApi.getAllCustom(tenantId),
+//       ]);
+//       setBuiltInConfig(config ?? {});
+//       setCustomList(Array.isArray(customs) ? customs : customs?.data ?? customs?.items ?? []);
+//     } catch {
+//       setSyncAlert({ type: 'error', message: 'Failed to load integrations.' });
+//     } finally {
+//       setLoading(false);
+//     }
+//   };
 
 //   // Built-in handlers
 //   const handleSave = async (provider, payload) => {
@@ -289,9 +296,16 @@
 //     }
 //   };
 
-//   if (!tenantId) return (
+//   // ── Guards ────────────────────────────────────────────────────────────────
+//   if (tenantErr) return (
 //     <Box sx={{ p: 4 }}>
-//       <Alert severity="error">Session expired. Please log in again.</Alert>
+//       <Alert severity="error">Could not resolve tenant. Please log in again.</Alert>
+//     </Box>
+//   );
+
+//   if (!tenantId) return (
+//     <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 300 }}>
+//       <CircularProgress size={32} />
 //     </Box>
 //   );
 
@@ -305,7 +319,7 @@
 //   const activeCustom     = customList.filter(c => c.status === 'ACTIVE').length;
 //   const totalConnected   = connectedBuiltIn + activeCustom;
 
-//   const isCustomTab = activeNav === 4;
+//   const isCustomTab    = activeNav === 4;
 //   const activeProvider = !isCustomTab ? BUILT_IN_PROVIDERS[activeNav] : null;
 
 //   return (
@@ -334,12 +348,7 @@
 //             onClick={handleSync}
 //             disabled={syncing || totalConnected === 0}
 //             size="small"
-//             sx={{
-//               textTransform: 'none',
-//               fontWeight: 600,
-//               borderRadius: '8px',
-//               fontSize: '0.82rem',
-//             }}
+//             sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px', fontSize: '0.82rem' }}
 //           >
 //             {syncing ? 'Syncing…' : 'Run compliance sync'}
 //           </Button>
@@ -347,11 +356,7 @@
 //       </Box>
 
 //       {syncAlert && (
-//         <Alert
-//           severity={syncAlert.type}
-//           sx={{ mb: 2, borderRadius: '10px' }}
-//           onClose={() => setSyncAlert(null)}
-//         >
+//         <Alert severity={syncAlert.type} sx={{ mb: 2, borderRadius: '10px' }} onClose={() => setSyncAlert(null)}>
 //           {syncAlert.message}
 //         </Alert>
 //       )}
@@ -359,22 +364,10 @@
 //       {/* Main layout: sidebar + content */}
 //       <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
 
-//         {/* ── Left sidebar ─────────────────────────────────────────────────── */}
-//         <Paper variant="outlined" sx={{
-//           width: 200,
-//           flexShrink: 0,
-//           borderRadius: '14px',
-//           border: '1px solid #e8edf2',
-//           overflow: 'hidden',
-//         }}>
-//           {/* Built-in section */}
+//         {/* ── Left sidebar ──────────────────────────────────────────────── */}
+//         <Paper variant="outlined" sx={{ width: 200, flexShrink: 0, borderRadius: '14px', border: '1px solid #e8edf2', overflow: 'hidden' }}>
 //           <Box sx={{ p: 1.5, pb: 1 }}>
-//             <Typography
-//               variant="caption"
-//               fontWeight={700}
-//               color="text.disabled"
-//               sx={{ letterSpacing: '0.08em', fontSize: '0.68rem', px: 0.5 }}
-//             >
+//             <Typography variant="caption" fontWeight={700} color="text.disabled" sx={{ letterSpacing: '0.08em', fontSize: '0.68rem', px: 0.5 }}>
 //               BUILT-IN
 //             </Typography>
 //           </Box>
@@ -392,14 +385,8 @@
 
 //           <Divider />
 
-//           {/* Custom tools section */}
 //           <Box sx={{ p: 1.5, pb: 1, pt: 1.5 }}>
-//             <Typography
-//               variant="caption"
-//               fontWeight={700}
-//               color="text.disabled"
-//               sx={{ letterSpacing: '0.08em', fontSize: '0.68rem', px: 0.5 }}
-//             >
+//             <Typography variant="caption" fontWeight={700} color="text.disabled" sx={{ letterSpacing: '0.08em', fontSize: '0.68rem', px: 0.5 }}>
 //               CUSTOM TOOLS
 //             </Typography>
 //           </Box>
@@ -407,116 +394,58 @@
 //             <Box
 //               onClick={() => setActiveNav(4)}
 //               sx={{
-//                 display: 'flex',
-//                 alignItems: 'center',
-//                 gap: 1.5,
-//                 px: 2,
-//                 py: 1.5,
-//                 borderRadius: '10px',
-//                 cursor: 'pointer',
+//                 display: 'flex', alignItems: 'center', gap: 1.5,
+//                 px: 2, py: 1.5, borderRadius: '10px', cursor: 'pointer',
 //                 transition: 'all 0.15s ease',
-//                 background: isCustomTab
-//                   ? 'linear-gradient(135deg, #6366f118 0%, #6366f108 100%)'
-//                   : 'transparent',
+//                 background: isCustomTab ? 'linear-gradient(135deg, #6366f118 0%, #6366f108 100%)' : 'transparent',
 //                 borderLeft: isCustomTab ? '3px solid #6366f1' : '3px solid transparent',
-//                 '&:hover': {
-//                   background: isCustomTab
-//                     ? 'linear-gradient(135deg, #6366f118 0%, #6366f108 100%)'
-//                     : '#f8fafc',
-//                 },
+//                 '&:hover': { background: isCustomTab ? 'linear-gradient(135deg, #6366f118 0%, #6366f108 100%)' : '#f8fafc' },
 //               }}
 //             >
 //               <ExtensionIcon sx={{ fontSize: 16, color: isCustomTab ? '#6366f1' : 'text.disabled' }} />
-//               <Typography
-//                 variant="body2"
-//                 fontWeight={isCustomTab ? 700 : 500}
-//                 color={isCustomTab ? 'text.primary' : 'text.secondary'}
-//                 fontSize="0.85rem"
-//                 sx={{ flex: 1 }}
-//               >
+//               <Typography variant="body2" fontWeight={isCustomTab ? 700 : 500} color={isCustomTab ? 'text.primary' : 'text.secondary'} fontSize="0.85rem" sx={{ flex: 1 }}>
 //                 My tools
 //               </Typography>
 //               {customList.length > 0 && (
-//                 <Chip
-//                   label={customList.length}
-//                   size="small"
-//                   color="primary"
-//                   sx={{ height: 16, fontSize: '0.6rem', minWidth: 20 }}
-//                 />
+//                 <Chip label={customList.length} size="small" color="primary" sx={{ height: 16, fontSize: '0.6rem', minWidth: 20 }} />
 //               )}
 //             </Box>
 //           </Box>
 //         </Paper>
 
-//         {/* ── Right content panel ───────────────────────────────────────────── */}
-//         <Paper variant="outlined" sx={{
-//           flex: 1,
-//           borderRadius: '14px',
-//           border: '1px solid #e8edf2',
-//           overflow: 'hidden',
-//         }}>
-//           {/* Panel header */}
-//           <Box sx={{
-//             px: 3, py: 2.5,
-//             borderBottom: '1px solid #f1f5f9',
-//             display: 'flex',
-//             alignItems: 'center',
-//             justifyContent: 'space-between',
-//             background: '#fafbfc',
-//           }}>
+//         {/* ── Right content panel ───────────────────────────────────────── */}
+//         <Paper variant="outlined" sx={{ flex: 1, borderRadius: '14px', border: '1px solid #e8edf2', overflow: 'hidden' }}>
+//           <Box sx={{ px: 3, py: 2.5, borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fafbfc' }}>
 //             {isCustomTab ? (
 //               <>
 //                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
 //                   <ExtensionIcon sx={{ color: '#6366f1', fontSize: 20 }} />
 //                   <Box>
-//                     <Typography fontWeight={700} fontSize="0.95rem" color="text.primary">
-//                       Custom integrations
-//                     </Typography>
-//                     <Typography variant="caption" color="text.secondary">
-//                       Connect any tool not listed above
-//                     </Typography>
+//                     <Typography fontWeight={700} fontSize="0.95rem" color="text.primary">Custom integrations</Typography>
+//                     <Typography variant="caption" color="text.secondary">Connect any tool not listed above</Typography>
 //                   </Box>
 //                 </Box>
 //                 <Button
-//                   variant="contained"
-//                   size="small"
-//                   startIcon={<AddIcon />}
+//                   variant="contained" size="small" startIcon={<AddIcon />}
 //                   onClick={() => { setEditing(null); setDialogOpen(true); }}
-//                   sx={{
-//                     textTransform: 'none',
-//                     fontWeight: 600,
-//                     borderRadius: '8px',
-//                     fontSize: '0.82rem',
-//                     background: '#6366f1',
-//                     '&:hover': { background: '#4f46e5' },
-//                   }}
+//                   sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px', fontSize: '0.82rem', background: '#6366f1', '&:hover': { background: '#4f46e5' } }}
 //                 >
 //                   Add tool
 //                 </Button>
 //               </>
 //             ) : (
 //               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-//                 <Box sx={{
-//                   width: 36, height: 36, borderRadius: '10px',
-//                   background: `${activeProvider.accent}15`,
-//                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-//                   fontSize: '1.2rem',
-//                 }}>
+//                 <Box sx={{ width: 36, height: 36, borderRadius: '10px', background: `${activeProvider.accent}15`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem' }}>
 //                   {activeProvider.icon}
 //                 </Box>
 //                 <Box>
-//                   <Typography fontWeight={700} fontSize="0.95rem" color="text.primary">
-//                     {activeProvider.label}
-//                   </Typography>
-//                   <Typography variant="caption" color="text.secondary">
-//                     {activeProvider.description}
-//                   </Typography>
+//                   <Typography fontWeight={700} fontSize="0.95rem" color="text.primary">{activeProvider.label}</Typography>
+//                   <Typography variant="caption" color="text.secondary">{activeProvider.description}</Typography>
 //                 </Box>
 //               </Box>
 //             )}
 //           </Box>
 
-//           {/* Panel body */}
 //           <Box sx={{ p: 3 }}>
 //             {!isCustomTab && (
 //               <BuiltInProviderForm
@@ -531,17 +460,10 @@
 //             {isCustomTab && (
 //               <>
 //                 {customList.length === 0 ? (
-//                   <Box sx={{
-//                     textAlign: 'center', py: 8,
-//                     color: 'text.secondary',
-//                   }}>
+//                   <Box sx={{ textAlign: 'center', py: 8, color: 'text.secondary' }}>
 //                     <ExtensionIcon sx={{ fontSize: 40, color: '#e2e8f0', mb: 2, display: 'block', mx: 'auto' }} />
-//                     <Typography variant="body2" fontWeight={500} color="text.secondary">
-//                       No custom tools connected yet
-//                     </Typography>
-//                     <Typography variant="caption" color="text.disabled">
-//                       Click "Add tool" to connect Okta, Slack, Salesforce, or any other service.
-//                     </Typography>
+//                     <Typography variant="body2" fontWeight={500} color="text.secondary">No custom tools connected yet</Typography>
+//                     <Typography variant="caption" color="text.disabled">Click "Add tool" to connect Okta, Slack, Salesforce, or any other service.</Typography>
 //                   </Box>
 //                 ) : (
 //                   <Grid container spacing={2}>
@@ -573,7 +495,6 @@
 //   );
 // }
 
-
 // src/modules/admin/components/Integrations/IntegrationsPage.jsx
 'use client';
 import { useState, useEffect } from 'react';
@@ -595,6 +516,10 @@ import BuiltInProviderForm     from './BuiltInProviderForm';
 import CustomIntegrationDialog from './CustomIntegrationDialog';
 
 // ── Provider metadata ─────────────────────────────────────────────────────────
+// `key` = URL segment used by the backend (/api/integrations/{tenantId}/{key})
+// `configKey` = field name in the masked config JSON response, only needed
+//   when it differs from `key` (JumpCloud is the one exception — backend
+//   route is lowercase "jumpcloud" but the JSON field is camelCase "jumpCloud").
 const BUILT_IN_PROVIDERS = [
   {
     key: 'aws',
@@ -627,6 +552,71 @@ const BUILT_IN_PROVIDERS = [
     accent: '#E84C3D',
     icon: '👥',
     description: 'Core HR, Leave, Attendance',
+  },
+  {
+    key: 'vault',
+    label: 'HashiCorp Vault',
+    shortLabel: 'Vault',
+    accent: '#000000',
+    icon: '🔐',
+    description: 'Secrets, dynamic credentials, PKI',
+  },
+  {
+    key: 'jumpcloud',
+    configKey: 'jumpCloud',
+    label: 'JumpCloud',
+    shortLabel: 'JumpCloud',
+    accent: '#14283D',
+    icon: '🟢',
+    description: 'Device & identity management',
+  },
+  {
+    key: 'otx',
+    label: 'OTX AlienVault',
+    shortLabel: 'OTX',
+    accent: '#00A8E0',
+    icon: '🛡️',
+    description: 'Threat intelligence feed',
+  },
+  {
+    key: 'gophish',
+    label: 'GoPhish',
+    shortLabel: 'GoPhish',
+    accent: '#5D4E8C',
+    icon: '🎣',
+    description: 'Phishing simulation & training',
+  },
+  {
+    key: 'snyk',
+    label: 'Snyk',
+    shortLabel: 'Snyk',
+    accent: '#4C4A73',
+    icon: '🐍',
+    description: 'Code & dependency scanning',
+  },
+  {
+    key: 'cloudflare',
+    label: 'Cloudflare',
+    shortLabel: 'Cloudflare',
+    accent: '#F38020',
+    icon: '🟧',
+    description: 'WAF, firewall, TLS enforcement',
+  },
+  {
+    key: 'notion',
+    label: 'Notion',
+    shortLabel: 'Notion',
+    accent: '#000000',
+    icon: '📝',
+    description: 'Policy & documentation tracking',
+  },
+  {
+    key: 'wazuh',
+    label: 'Wazuh',
+    shortLabel: 'Wazuh',
+    accent: '#3253DC',
+    icon: '🦉',
+    description: 'Vulnerability & log monitoring',
   },
 ];
 
@@ -774,7 +764,6 @@ export default function IntegrationsPage() {
 
   useEffect(() => {
     const resolve = async () => {
-      // Fast path — already resolved by another page in this session
       const cached = sessionStorage.getItem('tenantId');
       if (cached) { setTenantId(cached); return; }
 
@@ -798,7 +787,9 @@ export default function IntegrationsPage() {
     resolve();
   }, []);
 
-  // 0–3 = built-in providers, 4 = custom tools
+  // 0..N-1 = built-in providers, N = custom tools (N = BUILT_IN_PROVIDERS.length)
+  const CUSTOM_TAB_INDEX = BUILT_IN_PROVIDERS.length;
+
   const [activeNav,     setActiveNav]     = useState(0);
   const [builtInConfig, setBuiltInConfig] = useState({});
   const [customList,    setCustomList]    = useState([]);
@@ -890,11 +881,11 @@ export default function IntegrationsPage() {
     </Box>
   );
 
-  const connectedBuiltIn = BUILT_IN_PROVIDERS.filter(p => !!builtInConfig[p.key]).length;
+  const connectedBuiltIn = BUILT_IN_PROVIDERS.filter(p => !!builtInConfig[p.configKey ?? p.key]).length;
   const activeCustom     = customList.filter(c => c.status === 'ACTIVE').length;
   const totalConnected   = connectedBuiltIn + activeCustom;
 
-  const isCustomTab    = activeNav === 4;
+  const isCustomTab    = activeNav === CUSTOM_TAB_INDEX;
   const activeProvider = !isCustomTab ? BUILT_IN_PROVIDERS[activeNav] : null;
 
   return (
@@ -946,13 +937,13 @@ export default function IntegrationsPage() {
               BUILT-IN
             </Typography>
           </Box>
-          <Box sx={{ px: 1, pb: 1 }}>
+          <Box sx={{ px: 1, pb: 1, maxHeight: 520, overflowY: 'auto' }}>
             {BUILT_IN_PROVIDERS.map((provider, i) => (
               <NavItem
                 key={provider.key}
                 provider={provider}
                 isSelected={activeNav === i}
-                isConnected={!!builtInConfig[provider.key]}
+                isConnected={!!builtInConfig[provider.configKey ?? provider.key]}
                 onClick={() => setActiveNav(i)}
               />
             ))}
@@ -967,7 +958,7 @@ export default function IntegrationsPage() {
           </Box>
           <Box sx={{ px: 1, pb: 1.5 }}>
             <Box
-              onClick={() => setActiveNav(4)}
+              onClick={() => setActiveNav(CUSTOM_TAB_INDEX)}
               sx={{
                 display: 'flex', alignItems: 'center', gap: 1.5,
                 px: 2, py: 1.5, borderRadius: '10px', cursor: 'pointer',
@@ -1025,6 +1016,7 @@ export default function IntegrationsPage() {
             {!isCustomTab && (
               <BuiltInProviderForm
                 providerKey={activeProvider.key}
+                configKey={activeProvider.configKey ?? activeProvider.key}
                 savedConfig={builtInConfig}
                 onSave={handleSave}
                 onRemove={handleRemove}
