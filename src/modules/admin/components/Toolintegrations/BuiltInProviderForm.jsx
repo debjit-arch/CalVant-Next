@@ -56,11 +56,101 @@ const PROVIDERS = {
       { key: 'attendanceApiKey', label: 'Attendance Key',   secret: true  },
     ],
   },
+  vault: {
+    label: 'HashiCorp Vault',
+    accent: '#000000',
+    note: 'Enable AppRole auth in Vault, then paste the Role ID and Secret ID below along with the Vault address.',
+    fields: [
+      { key: 'address',  label: 'Vault Address', secret: false, placeholder: 'https://vault.yourcompany.com:8200' },
+      { key: 'roleId',   label: 'Role ID',        secret: false },
+      { key: 'secretId', label: 'Secret ID',      secret: true  },
+      { key: 'namespace',label: 'Namespace (optional)', secret: false },
+    ],
+  },
+  jumpcloud: {
+    label: 'JumpCloud',
+    accent: '#14283D',
+    note: 'Register an OAuth2 client in the JumpCloud admin console, then paste the Client ID and Secret below.',
+    fields: [
+      { key: 'clientId',     label: 'Client ID',     secret: false },
+      { key: 'clientSecret', label: 'Client Secret', secret: true  },
+      { key: 'orgId',        label: 'Org ID',        secret: false },
+    ],
+  },
+  otx: {
+    label: 'OTX AlienVault',
+    accent: '#00A8E0',
+    note: 'Generate an API key from your OTX account settings page.',
+    fields: [
+      { key: 'apiKey', label: 'API Key', secret: true },
+    ],
+  },
+  gophish: {
+    label: 'GoPhish',
+    accent: '#5D4E8C',
+    note: 'Use the API key from your GoPhish admin panel (Settings → API Key).',
+    fields: [
+      { key: 'baseUrl', label: 'GoPhish URL', secret: false, placeholder: 'https://gophish.yourcompany.com' },
+      { key: 'apiKey',  label: 'API Key',      secret: true  },
+    ],
+  },
+  snyk: {
+    label: 'Snyk',
+    accent: '#4C4A73',
+    note: 'Create a service account token from your Snyk organization settings.',
+    fields: [
+      { key: 'orgId', label: 'Organization ID', secret: false },
+      { key: 'token', label: 'API Token',       secret: true  },
+    ],
+  },
+  cloudflare: {
+    label: 'Cloudflare',
+    accent: '#F38020',
+    note: 'Create a scoped API token under My Profile → API Tokens with Zone:Read and Firewall:Edit permissions.',
+    fields: [
+      { key: 'apiToken', label: 'API Token', secret: true  },
+      { key: 'zoneId',   label: 'Zone ID',   secret: false },
+    ],
+  },
+  notion: {
+    label: 'Notion',
+    accent: '#000000',
+    note: 'Create an internal integration in Notion, share the relevant pages with it, then paste the token below.',
+    fields: [
+      { key: 'integrationToken', label: 'Integration Token', secret: true },
+      { key: 'databaseId',       label: 'Database ID',       secret: false },
+    ],
+  },
+  wazuh: {
+    label: 'Wazuh',
+    accent: '#3253DC',
+    note: 'Use API credentials from your Wazuh manager configuration.',
+    fields: [
+      { key: 'apiUrl',   label: 'Wazuh API URL', secret: false, placeholder: 'https://wazuh.yourcompany.com:55000' },
+      { key: 'username', label: 'Username',      secret: false },
+      { key: 'password', label: 'Password',      secret: true  },
+    ],
+  },
 };
 
-export default function BuiltInProviderForm({ providerKey, savedConfig, onSave, onRemove, onTest }) {
-  const provider    = PROVIDERS[providerKey];
-  const saved       = savedConfig?.[providerKey];
+
+export default function BuiltInProviderForm({ providerKey, configKey, savedConfig, onSave, onRemove, onTest }) {
+  const provider = PROVIDERS[providerKey];
+
+  // Guard: if a provider is listed in IntegrationsPage.jsx's BUILT_IN_PROVIDERS
+  // but has no matching entry in PROVIDERS above, show a friendly message
+  // instead of crashing the whole page.
+  if (!provider) {
+    return (
+      <Alert severity="warning" sx={{ borderRadius: '8px' }}>
+        No configuration form has been defined for "{providerKey}" yet.
+      </Alert>
+    );
+  }
+
+  // Use configKey (e.g. "jumpCloud") when it differs from the URL key
+  // (e.g. "jumpcloud"); falls back to providerKey for everything else.
+  const saved       = savedConfig?.[configKey ?? providerKey];
   const isConnected = !!saved;
 
   const initForm = () => {
