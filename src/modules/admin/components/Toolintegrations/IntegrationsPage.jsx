@@ -1,4 +1,4 @@
-// //Working model
+// //working Model
 // // src/modules/admin/components/Integrations/IntegrationsPage.jsx
 // 'use client';
 // import { useState, useEffect } from 'react';
@@ -20,6 +20,10 @@
 // import CustomIntegrationDialog from './CustomIntegrationDialog';
 
 // // ── Provider metadata ─────────────────────────────────────────────────────────
+// // `key` = URL segment used by the backend (/api/integrations/{tenantId}/{key})
+// // `configKey` = field name in the masked config JSON response, only needed
+// //   when it differs from `key` (JumpCloud is the one exception — backend
+// //   route is lowercase "jumpcloud" but the JSON field is camelCase "jumpCloud").
 // const BUILT_IN_PROVIDERS = [
 //   {
 //     key: 'aws',
@@ -52,6 +56,71 @@
 //     accent: '#E84C3D',
 //     icon: '👥',
 //     description: 'Core HR, Leave, Attendance',
+//   },
+//   {
+//     key: 'vault',
+//     label: 'HashiCorp Vault',
+//     shortLabel: 'Vault',
+//     accent: '#000000',
+//     icon: '🔐',
+//     description: 'Secrets, dynamic credentials, PKI',
+//   },
+//   {
+//     key: 'jumpcloud',
+//     configKey: 'jumpCloud',
+//     label: 'JumpCloud',
+//     shortLabel: 'JumpCloud',
+//     accent: '#14283D',
+//     icon: '🟢',
+//     description: 'Device & identity management',
+//   },
+//   {
+//     key: 'otx',
+//     label: 'OTX AlienVault',
+//     shortLabel: 'OTX',
+//     accent: '#00A8E0',
+//     icon: '🛡️',
+//     description: 'Threat intelligence feed',
+//   },
+//   {
+//     key: 'gophish',
+//     label: 'GoPhish',
+//     shortLabel: 'GoPhish',
+//     accent: '#5D4E8C',
+//     icon: '🎣',
+//     description: 'Phishing simulation & training',
+//   },
+//   {
+//     key: 'snyk',
+//     label: 'Snyk',
+//     shortLabel: 'Snyk',
+//     accent: '#4C4A73',
+//     icon: '🐍',
+//     description: 'Code & dependency scanning',
+//   },
+//   {
+//     key: 'cloudflare',
+//     label: 'Cloudflare',
+//     shortLabel: 'Cloudflare',
+//     accent: '#F38020',
+//     icon: '🟧',
+//     description: 'WAF, firewall, TLS enforcement',
+//   },
+//   {
+//     key: 'notion',
+//     label: 'Notion',
+//     shortLabel: 'Notion',
+//     accent: '#000000',
+//     icon: '📝',
+//     description: 'Policy & documentation tracking',
+//   },
+//   {
+//     key: 'wazuh',
+//     label: 'Wazuh',
+//     shortLabel: 'Wazuh',
+//     accent: '#3253DC',
+//     icon: '🦉',
+//     description: 'Vulnerability & log monitoring',
 //   },
 // ];
 
@@ -199,7 +268,6 @@
 
 //   useEffect(() => {
 //     const resolve = async () => {
-//       // Fast path — already resolved by another page in this session
 //       const cached = sessionStorage.getItem('tenantId');
 //       if (cached) { setTenantId(cached); return; }
 
@@ -223,7 +291,9 @@
 //     resolve();
 //   }, []);
 
-//   // 0–3 = built-in providers, 4 = custom tools
+//   // 0..N-1 = built-in providers, N = custom tools (N = BUILT_IN_PROVIDERS.length)
+//   const CUSTOM_TAB_INDEX = BUILT_IN_PROVIDERS.length;
+
 //   const [activeNav,     setActiveNav]     = useState(0);
 //   const [builtInConfig, setBuiltInConfig] = useState({});
 //   const [customList,    setCustomList]    = useState([]);
@@ -315,11 +385,11 @@
 //     </Box>
 //   );
 
-//   const connectedBuiltIn = BUILT_IN_PROVIDERS.filter(p => !!builtInConfig[p.key]).length;
+//   const connectedBuiltIn = BUILT_IN_PROVIDERS.filter(p => !!builtInConfig[p.configKey ?? p.key]).length;
 //   const activeCustom     = customList.filter(c => c.status === 'ACTIVE').length;
 //   const totalConnected   = connectedBuiltIn + activeCustom;
 
-//   const isCustomTab    = activeNav === 4;
+//   const isCustomTab    = activeNav === CUSTOM_TAB_INDEX;
 //   const activeProvider = !isCustomTab ? BUILT_IN_PROVIDERS[activeNav] : null;
 
 //   return (
@@ -371,13 +441,13 @@
 //               BUILT-IN
 //             </Typography>
 //           </Box>
-//           <Box sx={{ px: 1, pb: 1 }}>
+//           <Box sx={{ px: 1, pb: 1, maxHeight: 520, overflowY: 'auto' }}>
 //             {BUILT_IN_PROVIDERS.map((provider, i) => (
 //               <NavItem
 //                 key={provider.key}
 //                 provider={provider}
 //                 isSelected={activeNav === i}
-//                 isConnected={!!builtInConfig[provider.key]}
+//                 isConnected={!!builtInConfig[provider.configKey ?? provider.key]}
 //                 onClick={() => setActiveNav(i)}
 //               />
 //             ))}
@@ -392,7 +462,7 @@
 //           </Box>
 //           <Box sx={{ px: 1, pb: 1.5 }}>
 //             <Box
-//               onClick={() => setActiveNav(4)}
+//               onClick={() => setActiveNav(CUSTOM_TAB_INDEX)}
 //               sx={{
 //                 display: 'flex', alignItems: 'center', gap: 1.5,
 //                 px: 2, py: 1.5, borderRadius: '10px', cursor: 'pointer',
@@ -450,6 +520,7 @@
 //             {!isCustomTab && (
 //               <BuiltInProviderForm
 //                 providerKey={activeProvider.key}
+//                 configKey={activeProvider.configKey ?? activeProvider.key}
 //                 savedConfig={builtInConfig}
 //                 onSave={handleSave}
 //                 onRemove={handleRemove}
