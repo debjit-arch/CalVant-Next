@@ -471,7 +471,7 @@
 // export default LoginPage;
 
 "use client";
-import React, { useState } from "react";
+import React, { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import axios from "axios";
 import "./loginPage.css";
@@ -479,7 +479,7 @@ import HamburgerMenu from "../../../components/navigations/HamburgerMenu";
 import { useSession } from "@/context/SessionContext";
 import { resetActivitySession } from "../../admin/shell/services/activities";
 
-const LoginPage = () => {
+const LoginPageInner = () => {
   const [email, setEmail] = useState("");
   const [region, setRegion] = useState("");
   const [password, setPassword] = useState("");
@@ -950,4 +950,10 @@ const LoginPage = () => {
   );
 };
 
-export default LoginPage;
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen" />}>
+      <LoginPageInner />
+    </Suspense>
+  );
+}

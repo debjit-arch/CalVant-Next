@@ -45,9 +45,9 @@
 "use client";
 import { useSession } from "@/context/SessionContext";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 
-export default function ProtectedPage({ children }) {
+function ProtectedPageInner({ children }) {
   const { isAuthenticated } = useSession();
   const router = useRouter();
   const pathname = usePathname();
@@ -90,4 +90,12 @@ export default function ProtectedPage({ children }) {
   if (isAuthenticated === false) return null;
 
   return children;
+}
+
+export default function ProtectedPage({ children }) {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-slate-50" />}>
+      <ProtectedPageInner>{children}</ProtectedPageInner>
+    </Suspense>
+  );
 }
