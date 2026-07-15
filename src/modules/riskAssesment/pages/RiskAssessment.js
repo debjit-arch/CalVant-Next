@@ -8,6 +8,8 @@ import React, {
 import { useRouter } from "next/navigation";
 import riskService from "../services/riskService";
 import { useFramework } from "../../../context/FrameworkContex";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import {
   BarChart3,
   FileText,
@@ -20,6 +22,8 @@ import {
   Circle,
   XCircle,
   RefreshCw,
+  BookOpen, 
+  X
 } from "lucide-react";
 
 import {
@@ -58,6 +62,46 @@ function riskMatchesFilter(risk, allowedRiskTypes) {
   return types.some((t) => normalizedAllowed.has(t));
 }
 // ─────────────────────────────────────────────────────────────────────────────
+
+const RISK_HELP_CONTENT = `
+# Risk Module
+
+Everything you need to identify, assess, treat, and track risks in CalVant.
+
+## Getting started
+
+- [Getting Started with the Risk Module](01-getting-started-risk-module.md)
+- [Understanding the Risk Dashboard](02-risk-dashboard-overview.md)
+
+## Creating and managing risks
+
+- [Step 1: Starting a Risk Assessment](03-new-risk-step1-risk-assessment.md)
+- [Step 2: Building a Treatment Plan](04-new-risk-step2-treatment-planning.md)
+- [Step 3: Assigning Tasks](05-new-risk-step3-task-management.md)
+- [Using Risk Templates (Sample Risks)](06-use-risk-templates.md)
+- [Viewing Your Saved Risk Assessments](07-view-saved-risk-assessments.md)
+- [Viewing and Editing Risk Details](08-view-edit-risk-details.md)
+
+## Compliance reporting
+
+- [Generating a Statement of Applicability (SoA)](09-generate-soa.md)
+
+## Reference
+
+- [Risk Levels & Statuses Explained](10-risk-levels-and-statuses.md)
+- [Troubleshooting the Risk Module](11-troubleshooting-risk-module.md)
+
+---
+
+*Looking for the Audit or Policy module? Those help center collections are coming soon.*
+`;
+
+
+
+
+
+
+
 
 const RiskAssessment = () => {
   const router = useRouter();
@@ -106,7 +150,7 @@ const RiskAssessment = () => {
   const [allRisks, setAllRisks] = useState([]);
 
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-
+  const [showHelpDoc, setShowHelpDoc] = useState(false);
   // ── Framework-filtered view of risks ──────────────────────────────────────
   const filteredRisks = useMemo(() => {
     if (!allowedRiskTypes) return allRisks;
@@ -578,6 +622,18 @@ const RiskAssessment = () => {
                 <RefreshCw size={15} className="text-slate-500" />
               </motion.button>
               <motion.button
+                onClick={() => {
+                  captureActivity({ action: ACTIONS.CLICK, module: MODULES.RISK, item: "Open Help Doc", url: "/risk-assessment" });
+                  setShowHelpDoc(true);
+                }}
+                title="Help Documentation"
+                className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 transition-colors border border-slate-200 flex items-center justify-center"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <BookOpen size={15} className="text-slate-500" />
+              </motion.button>
+              <motion.button
                 className="px-5 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white text-sm font-semibold rounded-xl shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 flex items-center gap-2"
                 onClick={() => {
                   captureActivity({ action: ACTIONS.CLICK, module: MODULES.RISK, item: "Open Guide", url: "/risk-assessment" });
@@ -898,7 +954,85 @@ const RiskAssessment = () => {
             </motion.div>
           </div>
         </div>
-      </main>
+</main>
+
+      {/* Help Documentation Modal */}
+      <AnimatePresence>
+        {showHelpDoc && (
+          <motion.div
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowHelpDoc(false)}
+          >
+            <motion.div
+              className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col"
+              initial={{ opacity: 0, y: 20, scale: 0.97 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 10, scale: 0.97 }}
+              transition={{ duration: 0.25 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+                <div className="flex items-center gap-2">
+                  <BookOpen size={18} className="text-blue-500" />
+                  <h3 className="text-base font-semibold text-slate-800">
+                    Risk Module Help
+                  </h3>
+                </div>
+                <button
+                  onClick={() => setShowHelpDoc(false)}
+                  className="p-1.5 rounded-lg hover:bg-slate-200 transition-colors"
+                >
+                  <X size={16} className="text-slate-500" />
+                </button>
+              </div>
+
+              {/* Rendered markdown */}
+              <div className="overflow-y-auto px-6 py-5 prose-sm">
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    h1: ({ node, ...props }) => (
+                      <h1 className="text-xl font-bold text-slate-900 mb-2" {...props} />
+                    ),
+                    h2: ({ node, ...props }) => (
+                      <h2 className="text-base font-semibold text-slate-800 mt-5 mb-2" {...props} />
+                    ),
+                    p: ({ node, ...props }) => (
+                      <p className="text-sm text-slate-600 mb-3 leading-relaxed" {...props} />
+                    ),
+                    ul: ({ node, ...props }) => (
+                      <ul className="list-disc list-inside space-y-1.5 mb-3" {...props} />
+                    ),
+                    li: ({ node, ...props }) => (
+                      <li className="text-sm text-slate-700" {...props} />
+                    ),
+                    a: ({ node, ...props }) => (
+                      
+                      <a  className="text-blue-600 hover:text-blue-700 hover:underline font-medium cursor-pointer"
+                        {...props}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          // TODO: once you upload the linked docs, route to them here
+                        }}
+                      />
+                    ),
+                    hr: () => <hr className="my-4 border-slate-100" />,
+                    em: ({ node, ...props }) => (
+                      <em className="text-xs text-slate-400" {...props} />
+                    ),
+                  }}
+                >
+                  {RISK_HELP_CONTENT}
+                </ReactMarkdown>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Footer */}
       <footer className="bg-white/90 backdrop-blur-md border-t border-slate-100/50 shadow-lg px-6 py-4 lg:px-8 lg:py-5 sticky bottom-0 z-50">
