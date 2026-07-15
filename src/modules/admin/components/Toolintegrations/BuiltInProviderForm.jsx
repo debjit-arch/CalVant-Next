@@ -1,3 +1,4 @@
+
 // // src/modules/admin/components/Integrations/BuiltInProviderForm.jsx
 // import { useState } from 'react';
 // import {
@@ -59,28 +60,24 @@
 //   vault: {
 //     label: 'HashiCorp Vault',
 //     accent: '#000000',
-//     note: 'Enable AppRole auth in Vault, then paste the Role ID and Secret ID below along with the Vault address.',
+//     note: 'Point to your self-hosted Vault instance and provide a token with read access to sys/mounts, sys/audit, and auth/token/lookup-self.',
 //     fields: [
-//       { key: 'address',  label: 'Vault Address', secret: false, placeholder: 'https://vault.yourcompany.com:8200' },
-//       { key: 'roleId',   label: 'Role ID',        secret: false },
-//       { key: 'secretId', label: 'Secret ID',      secret: true  },
-//       { key: 'namespace',label: 'Namespace (optional)', secret: false },
+//       { key: 'baseUrl',    label: 'Vault Base URL', secret: false, placeholder: 'https://vault.yourcompany.com:8200' },
+//       { key: 'vaultToken', label: 'Vault Token',    secret: true  },
 //     ],
 //   },
 //   jumpcloud: {
 //     label: 'JumpCloud',
 //     accent: '#14283D',
-//     note: 'Register an OAuth2 client in the JumpCloud admin console, then paste the Client ID and Secret below.',
+//     note: 'Find your API key under Settings → Administrators → your profile → Enable API access.',
 //     fields: [
-//       { key: 'clientId',     label: 'Client ID',     secret: false },
-//       { key: 'clientSecret', label: 'Client Secret', secret: true  },
-//       { key: 'orgId',        label: 'Org ID',        secret: false },
+//       { key: 'apiKey', label: 'API Key', secret: true },
 //     ],
 //   },
 //   otx: {
 //     label: 'OTX AlienVault',
 //     accent: '#00A8E0',
-//     note: 'Generate an API key from your OTX account settings page.',
+//     note: 'Generate an API key from your OTX account settings page (free tier, no usage limits).',
 //     fields: [
 //       { key: 'apiKey', label: 'API Key', secret: true },
 //     ],
@@ -88,47 +85,47 @@
 //   gophish: {
 //     label: 'GoPhish',
 //     accent: '#5D4E8C',
-//     note: 'Use the API key from your GoPhish admin panel (Settings → API Key).',
+//     note: 'Point to your self-hosted GoPhish instance and provide the Authorization API key from Settings.',
 //     fields: [
-//       { key: 'baseUrl', label: 'GoPhish URL', secret: false, placeholder: 'https://gophish.yourcompany.com' },
-//       { key: 'apiKey',  label: 'API Key',      secret: true  },
+//       { key: 'baseUrl', label: 'GoPhish Base URL', secret: false, placeholder: 'https://gophish.yourcompany.com' },
+//       { key: 'apiKey',  label: 'API Key',          secret: true  },
 //     ],
 //   },
 //   snyk: {
 //     label: 'Snyk',
 //     accent: '#4C4A73',
-//     note: 'Create a service account token from your Snyk organization settings.',
+//     note: 'Find your Org ID and API token under Account Settings in the Snyk dashboard.',
 //     fields: [
-//       { key: 'orgId', label: 'Organization ID', secret: false },
-//       { key: 'token', label: 'API Token',       secret: true  },
+//       { key: 'orgId',  label: 'Organization ID', secret: false },
+//       { key: 'apiKey', label: 'API Token',       secret: true  },
 //     ],
 //   },
 //   cloudflare: {
 //     label: 'Cloudflare',
 //     accent: '#F38020',
-//     note: 'Create a scoped API token under My Profile → API Tokens with Zone:Read and Firewall:Edit permissions.',
+//     note: 'Create a scoped API Token (Zone → Firewall Services, SSL and Certificates, Analytics — all Read) for your specific zone, then paste the Zone ID from your domain overview page.',
 //     fields: [
-//       { key: 'apiToken', label: 'API Token', secret: true  },
 //       { key: 'zoneId',   label: 'Zone ID',   secret: false },
+//       { key: 'apiToken', label: 'API Token', secret: true  },
 //     ],
 //   },
 //   notion: {
 //     label: 'Notion',
 //     accent: '#000000',
-//     note: 'Create an internal integration in Notion, share the relevant pages with it, then paste the token below.',
+//     note: 'Create an internal integration at notion.so/my-integrations, share the target database with it, then paste the token and database ID below.',
 //     fields: [
-//       { key: 'integrationToken', label: 'Integration Token', secret: true },
 //       { key: 'databaseId',       label: 'Database ID',       secret: false },
+//       { key: 'integrationToken', label: 'Integration Token', secret: true  },
 //     ],
 //   },
 //   wazuh: {
 //     label: 'Wazuh',
 //     accent: '#3253DC',
-//     note: 'Use API credentials from your Wazuh manager configuration.',
+//     note: 'Use your Wazuh manager URL and API credentials (default API port is 55000).',
 //     fields: [
-//       { key: 'apiUrl',   label: 'Wazuh API URL', secret: false, placeholder: 'https://wazuh.yourcompany.com:55000' },
-//       { key: 'username', label: 'Username',      secret: false },
-//       { key: 'password', label: 'Password',      secret: true  },
+//       { key: 'baseUrl',  label: 'Wazuh Base URL', secret: false, placeholder: 'https://wazuh.yourcompany.com:55000' },
+//       { key: 'username', label: 'Username',       secret: false },
+//       { key: 'password', label: 'Password',       secret: true  },
 //     ],
 //   },
 // };
