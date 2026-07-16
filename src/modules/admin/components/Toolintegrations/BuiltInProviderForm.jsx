@@ -475,6 +475,27 @@ const PROVIDERS = {
       { key: 'password', label: 'Password',       secret: true  },
     ],
   },
+  // ── NEW: Confluence ──────────────────────────────────────────────────────
+  confluence: {
+    label: 'Confluence',
+    accent: '#172B4D',
+    note: 'Generate an API token from id.atlassian.com/manage-profile/security/api-tokens, then pair it with your Atlassian account email and Confluence site URL.',
+    fields: [
+      { key: 'siteUrl',  label: 'Site URL', secret: false, placeholder: 'https://yourcompany.atlassian.net' },
+      { key: 'email',    label: 'Atlassian Account Email', secret: false, placeholder: 'you@yourcompany.com' },
+      { key: 'apiToken', label: 'API Token', secret: true  },
+    ],
+  },
+  // ── NEW: pfSense ─────────────────────────────────────────────────────────
+  pfsense: {
+    label: 'pfSense',
+    accent: '#212121',
+    note: 'Requires the pfSense-API community package installed on your firewall. Point to your pfSense base URL and provide the API key from your pfSense-API configuration.',
+    fields: [
+      { key: 'baseUrl', label: 'pfSense Base URL', secret: false, placeholder: 'https://firewall.yourcompany.com' },
+      { key: 'apiKey',  label: 'API Key',          secret: true  },
+    ],
+  },
 };
 
 

@@ -268,6 +268,22 @@ export const BUILT_IN_PROVIDERS = [
     logoUrl: '/logos/wazuh.svg',
     description: 'Vulnerability & log monitoring',
   },
+  {
+  key: 'confluence',
+  label: 'Confluence',
+  description: 'Policy & documentation tracking',
+  Icon: ShieldIcon, // or whatever fallback icon import you use elsewhere
+  logoUrl: '/logos/confluence.svg',
+  accent: '#172B4D',
+},
+{
+  key: 'pfsense',
+  label: 'pfSense',
+  description: 'Firewall rules & network segmentation',
+  Icon: VisibilityIcon, // fallback icon
+  logoUrl: '/logos/pfsense.svg',
+  accent: '#212121',
+},
 ];
 
 export const TYPE_COLORS = {
