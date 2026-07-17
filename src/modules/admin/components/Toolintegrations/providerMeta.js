@@ -1,140 +1,4 @@
-// // src/modules/admin/components/Integrations/providerMeta.js
-// //
-// // Single source of truth for built-in provider metadata: which icon to show,
-// // the brand accent color, the short blurb on the card, and the mapping
-// // between the backend URL segment (`key`) and the masked-config JSON field
-// // (`configKey`, only set when it differs from `key`).
-// //
-// // Both IntegrationsPage.jsx (card grid) and BuiltInProviderForm.jsx (the
-// // config dialog) import from here so the two never drift out of sync.
 
-// import CloudQueueIcon      from '@mui/icons-material/CloudQueue';
-// import WorkspacesIcon      from '@mui/icons-material/Workspaces';
-// import WindowIcon          from '@mui/icons-material/Window';
-// import BadgeIcon           from '@mui/icons-material/Badge';
-// import LockIcon            from '@mui/icons-material/Lock';
-// import DevicesOtherIcon    from '@mui/icons-material/DevicesOther';
-// import GppMaybeIcon        from '@mui/icons-material/GppMaybe';
-// import PhishingIcon        from '@mui/icons-material/Phishing';
-// import BugReportIcon       from '@mui/icons-material/BugReport';
-// import ShieldIcon          from '@mui/icons-material/Shield';
-// import ArticleIcon         from '@mui/icons-material/Article';
-// import VisibilityIcon      from '@mui/icons-material/Visibility';
-
-// export const BUILT_IN_PROVIDERS = [
-//   {
-//     key: 'aws',
-//     label: 'Amazon Web Services',
-//     shortLabel: 'AWS',
-//     accent: '#FF9900',
-//     Icon: CloudQueueIcon,
-//     description: 'IAM, S3, CloudTrail, GuardDuty',
-//   },
-//   {
-//     key: 'gws',
-//     label: 'Google Workspace',
-//     shortLabel: 'Google WS',
-//     accent: '#4285F4',
-//     Icon: WorkspacesIcon,
-//     description: 'Admin SDK, Drive, Audit Logs',
-//   },
-//   {
-//     key: 'm365',
-//     label: 'Microsoft 365',
-//     shortLabel: 'M365',
-//     accent: '#0078D4',
-//     Icon: WindowIcon,
-//     description: 'Azure AD, SharePoint, Defender',
-//   },
-//   {
-//     key: 'keka',
-//     label: 'Keka HR',
-//     shortLabel: 'Keka',
-//     accent: '#E84C3D',
-//     Icon: BadgeIcon,
-//     description: 'Core HR, Leave, Attendance',
-//   },
-//   {
-//     key: 'vault',
-//     label: 'HashiCorp Vault',
-//     shortLabel: 'Vault',
-//     accent: '#000000',
-//     Icon: LockIcon,
-//     description: 'Secrets, dynamic credentials, PKI',
-//   },
-//   {
-//     key: 'jumpcloud',
-//     configKey: 'jumpCloud',
-//     label: 'JumpCloud',
-//     shortLabel: 'JumpCloud',
-//     accent: '#14283D',
-//     Icon: DevicesOtherIcon,
-//     description: 'Device & identity management',
-//   },
-//   {
-//     key: 'otx',
-//     label: 'OTX AlienVault',
-//     shortLabel: 'OTX',
-//     accent: '#00A8E0',
-//     Icon: GppMaybeIcon,
-//     description: 'Threat intelligence feed',
-//   },
-//   {
-//     key: 'gophish',
-//     label: 'GoPhish',
-//     shortLabel: 'GoPhish',
-//     accent: '#5D4E8C',
-//     Icon: PhishingIcon,
-//     description: 'Phishing simulation & training',
-//   },
-//   {
-//     key: 'snyk',
-//     label: 'Snyk',
-//     shortLabel: 'Snyk',
-//     accent: '#4C4A73',
-//     Icon: BugReportIcon,
-//     description: 'Code & dependency scanning',
-//   },
-//   {
-//     key: 'cloudflare',
-//     label: 'Cloudflare',
-//     shortLabel: 'Cloudflare',
-//     accent: '#F38020',
-//     Icon: ShieldIcon,
-//     description: 'WAF, firewall, TLS enforcement',
-//   },
-//   {
-//     key: 'notion',
-//     label: 'Notion',
-//     shortLabel: 'Notion',
-//     accent: '#000000',
-//     Icon: ArticleIcon,
-//     description: 'Policy & documentation tracking',
-//   },
-//   {
-//     key: 'wazuh',
-//     label: 'Wazuh',
-//     shortLabel: 'Wazuh',
-//     accent: '#3253DC',
-//     Icon: VisibilityIcon,
-//     description: 'Vulnerability & log monitoring',
-//   },
-// ];
-
-// export const TYPE_COLORS = {
-//   CLOUD: 'primary', HRMS: 'secondary', IAM: 'warning',
-//   TICKETING: 'info', COMMUNICATION: 'success', CUSTOM: 'default',
-// };
-
-// src/modules/admin/components/Integrations/providerMeta.js
-//
-// Single source of truth for built-in provider metadata: which icon to show,
-// the brand accent color, the short blurb on the card, and the mapping
-// between the backend URL segment (`key`) and the masked-config JSON field
-// (`configKey`, only set when it differs from `key`).
-//
-// Both IntegrationsPage.jsx (card grid) and BuiltInProviderForm.jsx (the
-// config dialog) import from here so the two never drift out of sync.
 
 import CloudQueueIcon      from '@mui/icons-material/CloudQueue';
 import WorkspacesIcon      from '@mui/icons-material/Workspaces';
@@ -283,6 +147,23 @@ export const BUILT_IN_PROVIDERS = [
   Icon: VisibilityIcon, // fallback icon
   logoUrl: '/logos/pfsense.svg',
   accent: '#212121',
+},
+{
+  key: 'crowdstrike',
+  label: 'CrowdStrike Falcon',
+  accent: '#E01F27',
+  description: 'Endpoint protection, vulnerability exposure, and threat detections.',
+  Icon: ShieldIcon,
+  logoUrl: '/logos/crowdstrike.svg', 
+},
+{
+  key: 'owaspzap',
+  label: 'OWASP ZAP',
+  accent: '#4B0082',
+  description: 'Dynamic application security testing (DAST) findings by risk.',
+  Icon: BugReportIcon,
+  logoUrl: '/logos/owaspzap.svg', // optional — falls back to Icon if missing
+  configKey: 'owaspZap', 
 },
 ];
 
