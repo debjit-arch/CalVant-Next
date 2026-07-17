@@ -1,4 +1,3 @@
-
 // // src/modules/admin/components/Integrations/BuiltInProviderForm.jsx
 // import { useState } from 'react';
 // import {
@@ -126,6 +125,27 @@
 //       { key: 'baseUrl',  label: 'Wazuh Base URL', secret: false, placeholder: 'https://wazuh.yourcompany.com:55000' },
 //       { key: 'username', label: 'Username',       secret: false },
 //       { key: 'password', label: 'Password',       secret: true  },
+//     ],
+//   },
+//   // ── NEW: Confluence ──────────────────────────────────────────────────────
+//   confluence: {
+//     label: 'Confluence',
+//     accent: '#172B4D',
+//     note: 'Generate an API token from id.atlassian.com/manage-profile/security/api-tokens, then pair it with your Atlassian account email and Confluence site URL.',
+//     fields: [
+//       { key: 'siteUrl',  label: 'Site URL', secret: false, placeholder: 'https://yourcompany.atlassian.net' },
+//       { key: 'email',    label: 'Atlassian Account Email', secret: false, placeholder: 'you@yourcompany.com' },
+//       { key: 'apiToken', label: 'API Token', secret: true  },
+//     ],
+//   },
+//   // ── NEW: pfSense ─────────────────────────────────────────────────────────
+//   pfsense: {
+//     label: 'pfSense',
+//     accent: '#212121',
+//     note: 'Requires the pfSense-API community package installed on your firewall. Point to your pfSense base URL and provide the API key from your pfSense-API configuration.',
+//     fields: [
+//       { key: 'baseUrl', label: 'pfSense Base URL', secret: false, placeholder: 'https://firewall.yourcompany.com' },
+//       { key: 'apiKey',  label: 'API Key',          secret: true  },
 //     ],
 //   },
 // };
@@ -346,6 +366,7 @@
 //   );
 // }
 
+
 // src/modules/admin/components/Integrations/BuiltInProviderForm.jsx
 import { useState } from 'react';
 import {
@@ -475,7 +496,6 @@ const PROVIDERS = {
       { key: 'password', label: 'Password',       secret: true  },
     ],
   },
-  // ── NEW: Confluence ──────────────────────────────────────────────────────
   confluence: {
     label: 'Confluence',
     accent: '#172B4D',
@@ -486,7 +506,6 @@ const PROVIDERS = {
       { key: 'apiToken', label: 'API Token', secret: true  },
     ],
   },
-  // ── NEW: pfSense ─────────────────────────────────────────────────────────
   pfsense: {
     label: 'pfSense',
     accent: '#212121',
@@ -494,6 +513,28 @@ const PROVIDERS = {
     fields: [
       { key: 'baseUrl', label: 'pfSense Base URL', secret: false, placeholder: 'https://firewall.yourcompany.com' },
       { key: 'apiKey',  label: 'API Key',          secret: true  },
+    ],
+  },
+  // ── NEW: CrowdStrike ─────────────────────────────────────────────────────
+  crowdstrike: {
+    label: 'CrowdStrike Falcon',
+    accent: '#E01F27',
+    note: 'Create an OAuth2 API client under Support and resources → API clients and keys in the Falcon console, with Hosts: Read, Vulnerabilities (Spotlight): Read, and Alerts: Read scopes. Base URL depends on your Falcon cloud region.',
+    fields: [
+      { key: 'baseUrl',      label: 'Falcon Base URL', secret: false, placeholder: 'https://api.crowdstrike.com' },
+      { key: 'clientId',     label: 'Client ID',       secret: false },
+      { key: 'clientSecret', label: 'Client Secret',   secret: true  },
+    ],
+  },
+  // ── NEW: OWASP ZAP ───────────────────────────────────────────────────────
+  owaspzap: {
+    label: 'OWASP ZAP',
+    accent: '#4B0082',
+    note: 'Point to your self-hosted ZAP daemon and the API key from Tools → Options → API in the ZAP GUI. Target URL should match the site ZAP has scanned so alerts are scoped correctly.',
+    fields: [
+      { key: 'baseUrl',   label: 'ZAP Base URL', secret: false, placeholder: 'http://zap.yourcompany.com:8080' },
+      { key: 'apiKey',    label: 'API Key',      secret: true  },
+      { key: 'targetUrl', label: 'Target URL (scanned site)', secret: false, placeholder: 'https://app.yourcompany.com' },
     ],
   },
 };
