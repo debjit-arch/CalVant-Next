@@ -19,6 +19,7 @@ import {
   AlertCircle,
   RefreshCw,
   HelpCircle,
+  BookOpen
 } from "lucide-react";
 import Joyride, { STATUS } from "react-joyride";
 import {
@@ -56,6 +57,7 @@ import CompactFrameworkFilter from "../../documentation/pages/CompactFrameworkFi
 // SYSTEM. This page is the Audit module, so all call sites below are
 // tagged MODULES.AUDIT.
 import { captureActivity, ACTIONS, MODULES } from "../../admin/shell/services/activities";
+import HelpDocModal from "@/components/shared/HelpDocModal";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Normalize a raw framework code string for comparison
@@ -122,6 +124,259 @@ function AuditDashboard() {
   const [loadingStats, setLoadingStats] = useState(true);
   const [allAudits, setAllAudits] = useState([]);
   const [run, setRun] = useState(false);
+
+  const [showHelpDoc, setShowHelpDoc] = useState(false);
+
+const AUDIT_HELP_CONTENT = `
+# **calvant** 
+
+Digital Compliance Management 
+
+## **Audit Module** 
+
+### **End-User Guide** 
+
+Version 1.0  |  July 2026 
+
+© 2026 CalVant. All rights reserved. 
+
+_CalVant — Audit Module User Guide_ 
+
+##### **Table of Contents** 
+
+###### **1. Introduc4on** 
+
+###### **2. Accessing the Audit Module** 
+
+###### **3. Key Terminology** 
+
+###### **4. Manual Naviga4on** 
+
+- 4.1 Audit Dashboard (Admin View) 
+
+- 4.2 Planning an Audit 
+
+4.2.1 Step 1 — Audit Details 
+
+4.2.2 Step 2 — Assign Controls 
+
+4.3 Managing Audits 
+
+- 4.4 Audit Reports 
+
+- 4.5 Auditor Dashboard (Auditor View) 
+
+- 4.6 Reviewing Findings 
+
+- 4.7 ConducIng an Audit 
+
+###### **5. Status & Quality Reference** 
+
+###### **6. Tips, Best Prac4ces** 
+
+Page 2 
+
+_CalVant — Audit Module User Guide_ 
+
+#### **Introduction** 
+
+The Audit Module in CalVant helps you plan, schedule, conduct, and report on internal and external audits across your compliance program. It maps every audit to the controls in frameworks such as ISO 27001, ISO 27701, SOC 2, ISO 42001, and PDPL, and gives admins and auditors separate, role-based views of the same audit lifecycle — from planning through findings and reporIng. 
+
+#### **2. Accessing the Audit Module** 
+
+1. Click the Audit icon in the sidebar to land on your Audit Dashboard. Your logged-in user name and role appear in the top-right of the dashboard header. 
+
+2. The dashboard and Quick AcIons differ by role: Admin users see the full Audit Management dashboard (SecIon 4.1); Auditors see a scoped Auditor Dashboard limited to their assigned controls (SecIon 4.5). 
+
+#### **3. Key Terminology** 
+
+A short list of terms that are specific to CalVant's policy workflow rather than self-explanatory from the screen itself: 
+
+|**Term**|**Defni4on**|
+|---|---|
+|Phase RaIo Control|A slider that splits the working days between the Opening and Closure MeeIng<br>Dates into Stage 1 (DocumentaIon), Stage 2 (PracIce), and ReporIng, and auto-<br>calculates each phase's dates.|
+|CAP (CorrecIve AcIon Plan)|The remediaIon plan created for a non-compliant fnding during Review<br>Findings.|
+
+
+
+##### **4. Manual Naviga4on** 
+
+###### **4.1 Audit Dashboard** 
+
+The Audit Dashboard is the home base for the module. It gives an at-a-glance summary of every audit in the organizaIon, along with quick acIons to plan, manage, and report on audits. 
+
+Page 3 
+
+
+
+<!-- Start of picture text -->
+Audit Management<br>Root Dashboard - 0 Root John ©v Guide<br>(=) 0 0 ‘ 0 Audit Status<br>TOTAL PLANNED IN PROGRESS<br>COMPLETED FINDINGS<br>r<br>Quick Actions<br>S Audit| Trends<br>Plan Audit Manage Audits Audit Reports Audits created each month @iaguial 2026 v<br>Schedule & assign View & edit existing audits Viewfindings& scores<br>controls<br>No Trend Date<br><!-- End of picture text -->
+
+x 
+
+
+
+<!-- Start of picture text -->
+9) StepPlan Audit1 of 2 — Audit Details<br>© Global Filter Active: All Frameworks<br>@ Audit Details 2<br>Audit Type<br>Select type...<br>Framework<br>ISO 27001<br>Lead Auditor<br>Select lead auditor...<br>Point of Contact<br>Select contact...<br><!-- End of picture text -->
+
+
+
+<!-- Start of picture text -->
+Select type... v<br>Framework<br>ISO 27001 ~<<br>Lead Auditor<br>Select lead auditor... ~<br>Point of Contact<br>Select contact... -<br>AUDIT ANCHOR DATES<br>Opening Meeting Date Closure Meeting Date<br>+= Phase Ratio Control 33% : 67%<br>Stage 1/ Documentation Stage 2 + Reporting<br>@ Stage 1 (Documentation) @ Stage 2 (Practice) @ Reporting<br>Set Opening and Closure dates to enable phase auto-calculation<br><!-- End of picture text -->
+
+
+
+<!-- Start of picture text -->
+J) StepPlan1 Auditof 2 — Audit Details<br><!-- End of picture text -->
+
+
+
+<!-- Start of picture text -->
+x<br><!-- End of picture text -->
+
+© Global Filter Active: All Frameworks 
+
+Audit Type 
+
+
+
+<!-- Start of picture text -->
+v Select type...<br>Internal<br>External<br>Certification<br>Surveillance<br>Lead Auditor<br><!-- End of picture text -->
+
+
+
+<!-- Start of picture text -->
+(9 PHASE DATES — AUTO-CALCULATED - EDITABLE<br>STAGE 1/ DOCUMENTATION AUDIT<br>Start Date End Date<br>15 Jul 2026 8 17 Jul 2026 8 |<br>STAGE 2/ PRACTICE AUDIT<br>Start Date End Date<br>20 Jul 2026 6 27 Jul 2026 8<br>AUDIT REPORTING<br>Start Date End Date<br>28 Jul 2026 6 30 Jul 2026 6<br><!-- End of picture text -->
+
+x 
+
+
+
+<!-- Start of picture text -->
+17) StepPlan2 Auditof 2 — Assign Controls<br><!-- End of picture text -->
+
+© Global Filter Active: All Frameworks 
+
+Audit Details (2) Assign Controls 
+
+###### S Assign auditors to each control. Auditors must be outside the control's department. 
+
+###### > ISMS Core 0/30 assigned 
+
+###### > Organizational Controls 0/37 assigned 
+
+###### > People Controls 0/8 assigned 
+
+###### > Physical Controls 0/14 assigned 
+
+> Technological Controls 0/34 assigned 
+
+###### € Back 
+
+Assign whole section... v 
+
+Assign whole section... Y 
+
+Assign whole section... v 
+
+Assign whole section... ¥ 
+
+Assign whole section... ¥ 
+
+
+
+<!-- Start of picture text -->
+Create Audit<br><!-- End of picture text -->
+
+
+
+<!-- Start of picture text -->
+Manage Audits<br>Mo of o audits<br>© Showing audits for: All Frameworks<br>All: 0 ISO 27001: 0<br>Planned In Progress Completed<br>Qs Search by type, status, POC...<br><!-- End of picture text -->
+
+
+
+<!-- Start of picture text -->
+x<br><!-- End of picture text -->
+
+No audits found. 
+
+x 
+
+###### Audit Reports 
+
+View completed audit details 
+
+Inprogress’ External | ISO 27001 
+
+External — ISO 27001 ® boc: Harvey Spectre - Lead: Harvey Spectre 15-07-2026 > 30-07-2026 
+
+
+
+<!-- Start of picture text -->
+View Details<br><!-- End of picture text -->
+
+
+
+<!-- Start of picture text -->
+Non-Compliant (0%)<br><!-- End of picture text -->
+
+
+
+<!-- Start of picture text -->
+Audit Management<br>Auditor Dashboard + 1 total Audits Audua i tor Hiarvey Spectspect’ SsGa Guid<br>Controls assigned to Harvey Spectre Audit Status<br>Open "Conduct Audit" to view and score your assigned controls.<br>Total<br>1<br>Quick Actions<br>Conduct Audit Review Findings Audit Trends<br>Submit scores for assigned controls View findings & create CAP Audits created each month 1 total 2026 v<br>Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec<br><!-- End of picture text -->
+
+###### Review Findings 
+
+© Filter: All Frameworks 
+
+1 of 1 audits 
+
+In progress ISO 27001 
+
+External — ISO 27001 
+
+###### Conduct Audit 
+
+
+
+<!-- Start of picture text -->
+© Filter: All Frameworks 1 of 1 audits assigned to you<br>In progress ISO 27001 © You<br>External — ISO 27001<br>0/123<br>My Controls 0/89<br>><br>Conduct Audit. eyo> TTeam Progress<br><!-- End of picture text -->
+
+
+
+<!-- Start of picture text -->
+v © Al Third-Party & Customer<br>A<br>A.10<br>A.10.2<br>Requirement. Document Evidence Practice; Evidence, ScoreDoc ScorePrac Total Doc Remarks Prac Remarks Findingsa * Overall Findingsa<br>The organization shall ensure that responsibilities within their & Upload 2—Con 1— Part 3 n m NoteworthyP yes<br>Al system life cycle are allocated between the organization, its Upload<br>partners, suppliers, customers and third parties<br>A.10.3<br>Requirement. Document Evidence Practice. Evidence. ScoreDoc ScorePrac Total Doc Remarks Prac Remarks Findings. * Overall Findingsee<br>The organization shall establish a process to ensure that its 2 Upload NA v NA Vv 0 Noteworthy><br>usage of services, products or materials provided by suppliers Upload<br>aligns with the organization's approach to the responsible<br>development and use of Al systems.<br><!-- End of picture text -->
+
+_CalVant — Audit Module User Guide_ 
+
+Findings The count of non-compliant controls idenIfied across all audits. 
+
+###### **Audit Status (Card / Report)** 
+
+|**Status**|**Meaning**|
+|---|---|
+|Planned|The audit has been created and controls assigned, but work has not begun.|
+|In Progress|Auditors are acIvely scoring assigned controls.|
+|Completed|All controls have been scored and the audit is closed.|
+
+
+
+The Compliant / Non-Compliant label on an audit card reflects the percentage of assessed controls that passed, shown alongside the progress bar in Audit Reports. 
+
+##### **6. Tips, Best Prac4ces** 
+
+1. Set Opening and Closure MeeIng Dates before adjusIng Phase RaIo Control, so phase dates auto-calculate correctly. 
+
+2. Use Assign whole secIon for standard frameworks, then fine-tune individual control assignments only where independence rules require a different auditor. 
+
+3. Review the Audit Status donut and Findings Ile regularly to spot audits falling behind schedule. 
+
+4. Track My Controls against Overall progress in Conduct Audit, so individual auditor workloads stay visible against the full audit. 
+
+5. Create a CAP as soon as a finding is marked non-compliant in Review Findings, so remediaIon isn't delayed unIl the closure meeIng. 
+
+Page 12
+`;
 
   const steps = [
     {
@@ -506,6 +761,15 @@ function AuditDashboard() {
                 whileTap={{ scale: 0.95 }}
               >
                 <RefreshCw size={15} className="text-slate-500" />
+              </motion.button>
+              <motion.button
+                onClick={() => setShowHelpDoc(true)}
+                title="Help Documentation"
+                className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 transition-colors border border-slate-200 flex items-center justify-center"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <BookOpen size={15} className="text-slate-500" />
               </motion.button>
               <motion.button
                 className="px-5 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white text-sm font-semibold rounded-xl shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 flex items-center gap-2"
@@ -907,6 +1171,13 @@ function AuditDashboard() {
           </div>
         </div>
       </main>
+
+      <HelpDocModal
+        open={showHelpDoc}
+        onClose={() => setShowHelpDoc(false)}
+        title="Gap Assessment Help"
+        content={AUDIT_HELP_CONTENT}
+      />
 
       {/* FOOTER */}
       <footer className="bg-white/90 backdrop-blur-md border-t border-slate-100/50 shadow-lg px-8 py-5 sticky bottom-0 z-50">

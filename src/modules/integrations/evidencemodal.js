@@ -27,6 +27,7 @@ import {
   Cancel as CancelIcon,
   Warning as WarningIcon,
   Functions as FunctionsIcon,
+  ErrorOutline as ErrorOutlineIcon,
 } from "@material-ui/icons";
 
 const PAGE_SIZE = 10;
@@ -45,20 +46,42 @@ const formatKey = (key) =>
     .trim()
     .replace(/\b\w/g, (c) => c.toUpperCase());
 
+// Stringify any scalar-ish value for display in a generic table cell.
+const displayValue = (v) => {
+  if (v === null || v === undefined || v === "") return "N/A";
+  if (typeof v === "boolean") return v ? "Yes" : "No";
+  if (typeof v === "number") return formatNumber(v);
+  if (typeof v === "object") {
+    try {
+      return JSON.stringify(v);
+    } catch {
+      return String(v);
+    }
+  }
+  return String(v);
+};
+
 // ─── Summary / KV card ───────────────────────────────────────────────────────
-const SummaryCard = ({ data }) => (
+const SummaryCard = ({ data, title }) => (
   <Box mb={2} p={2} style={{ backgroundColor: "#f5f5f5", borderRadius: 8 }}>
+    {title && (
+      <Typography variant="subtitle2" gutterBottom>
+        <strong>{title}</strong>
+      </Typography>
+    )}
     <Box display="flex" flexWrap="wrap" style={{ gap: 16 }}>
-      {Object.entries(data).map(([k, v]) => (
-        <Box key={k} minWidth={120}>
-          <Typography variant="caption" style={{ color: "#888", display: "block" }}>
-            {formatKey(k)}
-          </Typography>
-          <Typography variant="body2" style={{ fontWeight: 600 }}>
-            {String(v)}
-          </Typography>
-        </Box>
-      ))}
+      {Object.entries(data)
+        .filter(([, v]) => v !== undefined)
+        .map(([k, v]) => (
+          <Box key={k} minWidth={120}>
+            <Typography variant="caption" style={{ color: "#888", display: "block" }}>
+              {formatKey(k)}
+            </Typography>
+            <Typography variant="body2" style={{ fontWeight: 600 }}>
+              {displayValue(v)}
+            </Typography>
+          </Box>
+        ))}
     </Box>
   </Box>
 );
@@ -81,26 +104,224 @@ const BoolBadge = ({ value, trueLabel = "Yes", falseLabel = "No" }) =>
     />
   );
 
+// ─── Generic auto-column table (fallback renderer for shapes with no bespoke UI) ──
+// Infers columns from the union of keys across the first few items so any
+// array-of-objects evidence renders as a real table instead of being dropped
+// or dumped as raw JSON.
+const inferColumns = (items, maxCols = 6) => {
+  const seen = new Set();
+  const cols = [];
+  for (const item of items.slice(0, 25)) {
+    if (item && typeof item === "object" && !Array.isArray(item)) {
+      Object.keys(item).forEach((k) => {
+        if (!seen.has(k) && k !== "_class") {
+          seen.add(k);
+          cols.push(k);
+        }
+      });
+    }
+    if (cols.length >= maxCols) break;
+  }
+  return cols.slice(0, maxCols);
+};
+
+const AutoTable = ({ items }) => {
+  if (!items || items.length === 0) return null;
+  // Array of primitives (strings/numbers) — single column.
+  const allPrimitive = items.every((it) => typeof it !== "object" || it === null);
+  if (allPrimitive) {
+    return (
+      <TableContainer component={Paper} variant="outlined">
+        <Table size="small">
+          <TableBody>
+            {items.map((v, i) => (
+              <TableRow key={i} hover>
+                <TableCell>{displayValue(v)}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    );
+  }
+  const cols = inferColumns(items);
+  if (cols.length === 0) {
+    // Objects with no simple keys at all — show as compact JSON per row.
+    return (
+      <TableContainer component={Paper} variant="outlined">
+        <Table size="small">
+          <TableBody>
+            {items.map((v, i) => (
+              <TableRow key={i} hover>
+                <TableCell style={{ fontFamily: "monospace", fontSize: 11 }}>
+                  {displayValue(v)}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    );
+  }
+  return (
+    <TableContainer component={Paper} variant="outlined">
+      <Table stickyHeader size="small">
+        <TableHead>
+          <TableRow>
+            {cols.map((c) => (
+              <TableCell key={c}>
+                <strong>{formatKey(c)}</strong>
+              </TableCell>
+            ))}
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {items.map((item, i) => (
+            <TableRow key={i} hover>
+              {cols.map((c) => (
+                <TableCell key={c} style={{ fontSize: 12 }}>
+                  {displayValue(item?.[c])}
+                </TableCell>
+              ))}
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </TableContainer>
+  );
+};
+
+// A single "section" inside the generic multi-section fallback: either a
+// list of array items rendered via AutoTable, or a nested plain object
+// rendered as a SummaryCard. Nothing gets silently dropped anymore.
+const AutoSection = ({ title, items, data }) => (
+  <Box mb={2}>
+    <Typography
+      variant="subtitle2"
+      gutterBottom
+      style={{ fontWeight: 700, color: "#334155" }}
+    >
+      {formatKey(title)}
+      {items ? ` (${items.length})` : ""}
+    </Typography>
+    {items ? (
+      items.length > 0 ? (
+        <AutoTable items={items} />
+      ) : (
+        <Typography variant="body2" style={{ color: "#888" }}>
+          No entries.
+        </Typography>
+      )
+    ) : (
+      <SummaryCard data={data} />
+    )}
+  </Box>
+);
+
+// ─── String classification helpers ───────────────────────────────────────────
+// Distinguish a genuine compliance FORMULA ("compliantUsers / totalUsers * 100")
+// from an ERROR / STATUS string ("Macie is not enabled. (Service: Macie2, ...)"
+// or an IAM "not authorized" message). Without this, error strings were being
+// torn apart by the formula tokenizer and shown under a misleading "Compliance
+// Formula" header.
+const ERROR_STRING_PATTERN =
+  /(not enabled|not authorized|access denied|status code\s*:|request id\s*:|exception|graph api error|no .* data from|failed to|unable to)/i;
+
+const looksLikeErrorString = (s) => ERROR_STRING_PATTERN.test(s);
+
+const looksLikeFormula = (s) => {
+  const trimmed = s.trim();
+  if (trimmed.length === 0 || trimmed.length > 200) return false;
+  if (looksLikeErrorString(trimmed)) return false;
+  // Formulas are short expressions built from operators between compact tokens
+  // (identifiers / numbers), e.g. "resolved / total * 100". Prose sentences
+  // (long, many words, ending in punctuation) should not qualify.
+  const hasOperator = /[+\-*/=]/.test(trimmed);
+  const wordCount = trimmed.split(/\s+/).length;
+  return hasOperator && wordCount <= 12;
+};
+
+// ─── Error-object detection ───────────────────────────────────────────────────
+// Evidence collection failures come back as {message}, {error},
+// {collectionTime, error}, or AWS SDK-style {exceptionType, awsErrorCode,
+// awsErrorMessage}. These were previously rendered as an innocuous key/value
+// "metrics" table, indistinguishable from real compliance data.
+const ERROR_KEYS = [
+  "message",
+  "error",
+  "exceptionType",
+  "awsErrorCode",
+  "awsErrorMessage",
+  "errorCode",
+  "errorMessage",
+];
+const META_KEYS = ["collectionTime", "_class", "timestamp"];
+
+const isErrorLikeObject = (evidence) => {
+  if (typeof evidence !== "object" || Array.isArray(evidence) || evidence === null)
+    return false;
+  const keys = Object.keys(evidence).filter((k) => !META_KEYS.includes(k));
+  if (keys.length === 0) return false;
+  const hasErrorKey = keys.some((k) => ERROR_KEYS.includes(k));
+  const allKeysAreErrorOrMeta = keys.every((k) => ERROR_KEYS.includes(k));
+  return hasErrorKey && allKeysAreErrorOrMeta;
+};
+
 // ─── normalise ────────────────────────────────────────────────────────────────
 const normalise = (evidence) => {
-  if (!evidence) return { type: "empty", items: [] };
+  // ── truly empty ───────────────────────────────────────────────────────────
+  if (evidence === null || evidence === undefined || evidence === "")
+    return { type: "empty", items: [] };
 
-  // ── Formula string (plain text, not JSON) ────────────────────────────────
+  // ── numeric evidence (fixes falsy-0 bug: 0 is a legitimate result) ───────
+  if (typeof evidence === "number") {
+    return { type: "scalar_number", value: evidence, items: [] };
+  }
+  if (typeof evidence === "boolean") {
+    return { type: "scalar_bool", value: evidence, items: [] };
+  }
+
+  // ── string evidence ───────────────────────────────────────────────────────
   if (typeof evidence === "string") {
-    // Try to parse as JSON first
     try {
       const parsed = JSON.parse(evidence);
-      // Successfully parsed — recurse with the parsed value
+      // Successfully parsed (including double-encoded strings) — recurse.
       return normalise(parsed);
     } catch {
-      // Not JSON → treat as a plain formula / description string
-      return { type: "formula", text: evidence, items: [] };
+      if (looksLikeErrorString(evidence)) {
+        return { type: "evidence_error", message: evidence, items: [] };
+      }
+      if (looksLikeFormula(evidence)) {
+        return { type: "formula", text: evidence, items: [] };
+      }
+      // Plain informational text — neither a formula nor a recognizable error.
+      return { type: "message", text: evidence, items: [] };
     }
   }
 
   // ── empty array ──────────────────────────────────────────────────────────
   if (Array.isArray(evidence) && evidence.length === 0)
     return { type: "empty", items: [] };
+
+  // ── error-shaped object (collection failure, not real evidence) ─────────
+  if (isErrorLikeObject(evidence)) {
+    const msg =
+      evidence.message ||
+      evidence.error ||
+      evidence.awsErrorMessage ||
+      evidence.errorMessage ||
+      "Evidence collection failed.";
+    return {
+      type: "evidence_error",
+      message: msg,
+      detail: {
+        exceptionType: evidence.exceptionType,
+        awsErrorCode: evidence.awsErrorCode || evidence.errorCode,
+        collectionTime: evidence.collectionTime,
+      },
+      items: [],
+    };
+  }
 
   // ── GCP users  (array with email) ────────────────────────────────────────
   if (Array.isArray(evidence) && evidence[0]?.email) {
@@ -125,6 +346,50 @@ const normalise = (evidence) => {
         lastUsed: u.passwordLastUsed || "Never",
       })),
     };
+  }
+
+  // ── Azure / Entra users (mail / userPrincipalName / displayName) ────────
+  if (
+    Array.isArray(evidence) &&
+    evidence[0] &&
+    (evidence[0].mail || evidence[0].userPrincipalName || evidence[0].displayName)
+  ) {
+    return {
+      type: "azure_users",
+      items: evidence.map((u) => ({
+        name: u.displayName || u.userPrincipalName || u.mail || "N/A",
+        email: u.mail || u.userPrincipalName || "N/A",
+        mfaStatus:
+          u.isMfaRegistered !== undefined
+            ? u.isMfaRegistered
+            : u.mfaEnabled !== undefined
+              ? u.mfaEnabled
+              : undefined,
+      })),
+    };
+  }
+
+  // ── Role / IAM assignments (principalId / roleDefinitionId) ──────────────
+  if (
+    Array.isArray(evidence) &&
+    evidence[0] &&
+    (evidence[0].principalId || evidence[0].roleDefinitionId)
+  ) {
+    return {
+      type: "role_assignments",
+      items: evidence.map((r) => ({
+        principalId: r.principalId || "N/A",
+        roleDefinitionId: r.roleDefinitionId || "N/A",
+        principalType: r.principalType || "N/A",
+        scope: r.scope || "N/A",
+      })),
+    };
+  }
+
+  // ── Generic array of objects with no recognized shape ────────────────────
+  // (was previously dumped as raw JSON; now renders as a real table)
+  if (Array.isArray(evidence)) {
+    return { type: "generic_array", items: evidence };
   }
 
   // ── AWS IAM snapshot ──────────────────────────────────────────────────────
@@ -160,17 +425,79 @@ const normalise = (evidence) => {
     };
   }
 
-  // ── KMS keys ──────────────────────────────────────────────────────────────
-  if (evidence.kmsKeys?.length > 0) {
+  // ── Combined S3 + KMS encryption coverage ────────────────────────────────
+  // Must be checked BEFORE the narrower aws_kms_keys branch below, otherwise
+  // the S3 half of this evidence (encryptedS3Buckets / s3EncryptionPct /
+  // totalS3Buckets) is silently discarded.
+  if (
+    evidence.kmsKeys !== undefined &&
+    (evidence.encryptedS3Buckets !== undefined ||
+      evidence.s3EncryptionPct !== undefined ||
+      evidence.totalS3Buckets !== undefined)
+  ) {
     return {
-      type: "aws_kms_keys",
-      items: evidence.kmsKeys.map((k) => ({
+      type: "encryption_coverage",
+      summary: {
+        totalKmsKeys: evidence.totalKmsKeys ?? (evidence.kmsKeys || []).length,
+        enabledKmsKeys: evidence.enabledKmsKeys,
+        totalS3Buckets: evidence.totalS3Buckets,
+        s3EncryptionPct:
+          evidence.s3EncryptionPct !== undefined
+            ? `${formatNumber(evidence.s3EncryptionPct)}%`
+            : undefined,
+      },
+      kmsItems: (evidence.kmsKeys || []).map((k) => ({
         keyId: k.keyId,
         keySpec: k.keySpec,
         keyState: k.keyState,
         compliant: k.isCompliant,
       })),
+      s3Items: (evidence.encryptedS3Buckets || []).map((b) =>
+        typeof b === "string" ? { bucket: b } : b,
+      ),
+      items: [],
     };
+  }
+
+  // ── Combined ACM + KMS ────────────────────────────────────────────────────
+  if (evidence.kmsKeys !== undefined && evidence.acmCertificates !== undefined) {
+    return {
+      type: "kms_acm_combined",
+      kmsItems: (evidence.kmsKeys || []).map((k) => ({
+        keyId: k.keyId,
+        keySpec: k.keySpec,
+        keyState: k.keyState,
+        compliant: k.isCompliant,
+      })),
+      acmItems: evidence.acmCertificates || [],
+      items: [],
+    };
+  }
+
+  // ── KMS keys (narrow / pure shape only — no other array/object siblings) ──
+  if (evidence.kmsKeys?.length > 0) {
+    const siblingKeys = Object.keys(evidence).filter(
+      (k) => !["kmsKeys", "totalKmsKeys", "enabledKmsKeys", "_class"].includes(k),
+    );
+    const hasOtherArrayOrObject = siblingKeys.some(
+      (k) =>
+        Array.isArray(evidence[k]) ||
+        (typeof evidence[k] === "object" && evidence[k] !== null),
+    );
+    if (!hasOtherArrayOrObject) {
+      return {
+        type: "aws_kms_keys",
+        items: evidence.kmsKeys.map((k) => ({
+          keyId: k.keyId,
+          keySpec: k.keySpec,
+          keyState: k.keyState,
+          compliant: k.isCompliant,
+        })),
+      };
+    }
+    // Otherwise fall through — an unrecognized combined shape will be
+    // picked up by the generic multi-section fallback further down so
+    // nothing is silently dropped.
   }
 
   // ── Config changes ────────────────────────────────────────────────────────
@@ -196,8 +523,9 @@ const normalise = (evidence) => {
     };
   }
 
-  // ── Instance metrics ──────────────────────────────────────────────────────
-  if (evidence.instanceMetrics?.length > 0) {
+  // ── Instance metrics (also covers "instanceBreakdown" shaped uptime combos) ─
+  if (evidence.instanceMetrics?.length > 0 || evidence.instanceBreakdown?.length > 0) {
+    const list = evidence.instanceMetrics || evidence.instanceBreakdown;
     return {
       type: "instance_metrics",
       summary: {
@@ -206,10 +534,12 @@ const normalise = (evidence) => {
         downtimeDatapoints: evidence.downtimeDatapoints,
         startTime: evidence.startTime,
         endTime: evidence.endTime,
+        cloudsContributing: evidence.cloudsContributing,
+        belowTarget: evidence.belowTarget,
       },
-      items: evidence.instanceMetrics.map((m) => ({
-        instanceId: m.instanceId,
-        uptime: m.uptimePercentage,
+      items: list.map((m) => ({
+        instanceId: m.instanceId || m.id || "N/A",
+        uptime: m.uptimePercentage ?? m.uptime,
         totalDatapoints: m.totalDatapoints,
         downtimeDatapoints: m.downtimeDatapoints,
         status: m.status,
@@ -252,14 +582,19 @@ const normalise = (evidence) => {
     }
   }
 
-  // ── Vulnerability findings ────────────────────────────────────────────────
-  if (evidence.vulnerabilityFindings !== undefined || evidence.slaStatus !== undefined) {
-    const findings = evidence.vulnerabilityFindings || [];
+  // ── Vulnerability / SecurityHub findings (covers both shapes) ────────────
+  if (
+    evidence.vulnerabilityFindings !== undefined ||
+    evidence.slaStatus !== undefined ||
+    evidence.findings !== undefined ||
+    evidence.findingCount !== undefined
+  ) {
+    const findings = evidence.vulnerabilityFindings || evidence.findings || [];
     const sla = evidence.slaStatus || {};
     return {
       type: "vulnerability_findings",
       summary: {
-        total: findings.length,
+        total: evidence.findingCount ?? findings.length,
         withinSLAPercentage: sla.withinSLAPercentage,
         breachedSLAPercentage: sla.breachedSLAPercentage,
         breachedCount: (sla.breachedSLA || []).length,
@@ -267,15 +602,15 @@ const normalise = (evidence) => {
         notApplicableCount: (sla.notApplicable || []).length,
       },
       items: findings.map((f) => ({
-        title: f.title,
-        severity: f.severity,
-        status: f.status,
+        title: f.title || f.Title || f.name || "N/A",
+        severity: f.severity || f.Severity?.Label || f.Severity || "N/A",
+        status: f.status || f.RecordState || f.Compliance?.Status || "N/A",
         type: f.type,
         cveId: f.cveId || "N/A",
         cvssScore: f.cvssScore || "N/A",
         firstObservedAt: f.firstObservedAt,
         lastObservedAt: f.lastObservedAt,
-        description: f.description,
+        description: f.description || f.Description,
         remediation: f.remediation,
       })),
     };
@@ -322,18 +657,241 @@ const normalise = (evidence) => {
     };
   }
 
-  // ── Simple scalar metrics (flat object) ──────────────────────────────────
-  if (typeof evidence === "object" && !Array.isArray(evidence)) {
-    const entries = Object.entries(evidence)
-      .filter(([k, v]) => k !== "_class" && typeof v !== "function" && typeof v !== "object")
-      .map(([k, v]) => ({
-        metric: formatKey(k),
-        value: typeof v === "number" ? formatNumber(v) : String(v),
-      }));
-    if (entries.length > 0) return { type: "aws_metrics", items: entries };
+  // ── Privileged roles / users ───────────────────────────────────────────────
+  if (evidence.privilegedRoles !== undefined || evidence.privilegedUsers !== undefined) {
+    const roles = evidence.privilegedRoles || [];
+    const users = evidence.privilegedUsers || [];
+    return {
+      type: "privileged_access",
+      summary: {
+        totalPrivilegedRoles: roles.length,
+        totalPrivilegedUsers: users.length,
+      },
+      roleItems: roles,
+      userItems: users,
+      items: [],
+    };
   }
 
-  // ── Raw JSON fallback ─────────────────────────────────────────────────────
+  // ── S3 Object Lock coverage ────────────────────────────────────────────────
+  if (
+    evidence.buckets !== undefined &&
+    (evidence.coveragePct !== undefined ||
+      evidence.lockEnabledCount !== undefined ||
+      evidence.totalBuckets !== undefined)
+  ) {
+    const buckets = evidence.buckets || [];
+    return {
+      type: "s3_object_lock",
+      summary: {
+        coveragePct:
+          evidence.coveragePct !== undefined
+            ? `${formatNumber(evidence.coveragePct)}%`
+            : undefined,
+        totalBuckets: evidence.totalBuckets ?? buckets.length,
+        lockEnabledCount: evidence.lockEnabledCount,
+      },
+      items: buckets.map((b) =>
+        typeof b === "string"
+          ? { bucket: b }
+          : {
+              bucket: b.bucketName || b.name || "N/A",
+              lockEnabled: b.lockEnabled,
+              mode: b.mode || b.retentionMode,
+            },
+      ),
+    };
+  }
+
+  // ── Backup plans ───────────────────────────────────────────────────────────
+  if (evidence.backupPlans !== undefined) {
+    const plans = evidence.backupPlans || [];
+    return {
+      type: "backup_plans",
+      summary: {
+        totalPlans: evidence.backupPlansCount ?? plans.length,
+        completedJobs: evidence.completedJobs,
+        failedJobs: evidence.failedJobs,
+        successRate:
+          evidence.successRatePct !== undefined
+            ? `${formatNumber(evidence.successRatePct)}%`
+            : undefined,
+      },
+      items: plans.map((p) =>
+        typeof p === "string"
+          ? { plan: p }
+          : { plan: p.backupPlanName || p.name || "N/A", status: p.status },
+      ),
+    };
+  }
+
+  // ── CloudTrail ─────────────────────────────────────────────────────────────
+  if (evidence.trails !== undefined || evidence.activeTrails !== undefined) {
+    const trails = evidence.trails || evidence.activeTrails || [];
+    return {
+      type: "cloudtrail",
+      summary: {
+        totalTrails: evidence.totalTrails ?? trails.length,
+        multiRegionTrails: evidence.multiRegionTrails,
+      },
+      items: trails.map((t) =>
+        typeof t === "string"
+          ? { trail: t }
+          : {
+              trail: t.name || t.trailName || "N/A",
+              multiRegion: t.isMultiRegionTrail ?? t.multiRegion,
+              logging: t.isLogging,
+            },
+      ),
+    };
+  }
+
+  // ── AWS Config rules ───────────────────────────────────────────────────────
+  if (
+    evidence.rules !== undefined &&
+    (evidence.compliancePct !== undefined || evidence.totalRules !== undefined)
+  ) {
+    const rules = evidence.rules || [];
+    return {
+      type: "config_rules",
+      summary: {
+        compliancePct:
+          evidence.compliancePct !== undefined
+            ? `${formatNumber(evidence.compliancePct)}%`
+            : undefined,
+        compliant: (evidence.compliantRules || []).length,
+        nonCompliant: (evidence.nonCompliantRules || []).length,
+        totalRules: evidence.totalRules ?? rules.length,
+      },
+      items: rules.map((r) =>
+        typeof r === "string"
+          ? { rule: r }
+          : {
+              rule: r.configRuleName || r.name || "N/A",
+              compliance: r.complianceType || r.compliance,
+            },
+      ),
+    };
+  }
+
+  // ── ECR scan coverage ──────────────────────────────────────────────────────
+  if (evidence.repositories !== undefined) {
+    const repos = evidence.repositories || [];
+    return {
+      type: "ecr_repos",
+      summary: {
+        totalRepositories: evidence.totalEcrRepositories ?? repos.length,
+        activelyScanned: evidence.activelyScanned,
+      },
+      items: repos.map((r) =>
+        typeof r === "string"
+          ? { repository: r }
+          : {
+              repository: r.repositoryName || r.name || "N/A",
+              scanOnPush: r.scanOnPush,
+            },
+      ),
+    };
+  }
+
+  // ── AI data asset tagging ──────────────────────────────────────────────────
+  if (evidence.aiTaggedBuckets !== undefined || evidence.totalAiDataAssets !== undefined) {
+    const documented = evidence.aiTaggedBuckets || evidence.documentedAiDataAssets || [];
+    const undocumented = evidence.undocumentedAiAssets || [];
+    const asAsset = (a, isDocumented) =>
+      typeof a === "string"
+        ? { asset: a, documented: isDocumented }
+        : { asset: a.name || a.bucketName || "N/A", documented: isDocumented };
+    return {
+      type: "ai_data_assets",
+      summary: {
+        totalAiDataAssets:
+          evidence.totalAiDataAssets ?? documented.length + undocumented.length,
+        documented: documented.length,
+        undocumented: undocumented.length,
+      },
+      items: [
+        ...documented.map((a) => asAsset(a, true)),
+        ...undocumented.map((a) => asAsset(a, false)),
+      ],
+    };
+  }
+
+  // ── VPC flow logs (nested objects, not arrays — must not be dropped) ────
+  if (evidence.flowLogCategories !== undefined || evidence.securityAnalysis !== undefined) {
+    return {
+      type: "nested_sections",
+      sections: [
+        evidence.flowLogCategories && {
+          title: "flowLogCategories",
+          data: evidence.flowLogCategories,
+        },
+        evidence.securityAnalysis && {
+          title: "securityAnalysis",
+          data: evidence.securityAnalysis,
+        },
+      ].filter(Boolean),
+      items: [],
+    };
+  }
+
+  // ── Generic user list (getUserFailed / getUserSuccess / users) ───────────
+  if (
+    evidence.users !== undefined &&
+    (evidence.getUserFailed !== undefined ||
+      evidence.getUserSuccess !== undefined ||
+      evidence.totalUsers !== undefined)
+  ) {
+    const users = evidence.users || [];
+    return {
+      type: "user_list_generic",
+      summary: {
+        totalUsers: evidence.totalUsers ?? users.length,
+        getUserSuccess: evidence.getUserSuccess,
+        getUserFailed: evidence.getUserFailed,
+      },
+      items: users,
+    };
+  }
+
+  // ── Generic multi-section fallback ────────────────────────────────────────
+  // Anything that reaches this point is an object shape we don't have a
+  // bespoke renderer for. Instead of filtering out array/object values (old
+  // behaviour) or dumping raw JSON, split it into scalar summary + one
+  // auto-rendered table per array field + one nested card per object field,
+  // so nothing is silently lost.
+  if (typeof evidence === "object" && !Array.isArray(evidence)) {
+    const keys = Object.keys(evidence).filter((k) => k !== "_class");
+    const scalarEntries = {};
+    const arraySections = [];
+    const objectSections = [];
+    keys.forEach((k) => {
+      const v = evidence[k];
+      if (v === null || v === undefined || typeof v === "function") return;
+      if (Array.isArray(v)) {
+        arraySections.push({ title: k, items: v });
+      } else if (typeof v === "object") {
+        objectSections.push({ title: k, data: v });
+      } else {
+        scalarEntries[k] = v;
+      }
+    });
+    if (
+      Object.keys(scalarEntries).length > 0 ||
+      arraySections.length > 0 ||
+      objectSections.length > 0
+    ) {
+      return {
+        type: "multi_section",
+        scalarEntries,
+        arraySections,
+        objectSections,
+        items: [],
+      };
+    }
+  }
+
+  // ── Raw JSON fallback (only reached for truly unclassifiable shapes) ────
   return {
     type: "raw_json",
     items: [{ data: JSON.stringify(evidence, null, 2) }],
@@ -342,8 +900,6 @@ const normalise = (evidence) => {
 
 // ─── Formula renderer ─────────────────────────────────────────────────────────
 const FormulaDisplay = ({ text }) => {
-  // Split on common delimiters to highlight sub-expressions
-  // e.g. "compliantUsers / totalUsers * 100"
   const parts = text.split(/(\s*[\/\*\+\-\=\(\)]\s*)/g);
 
   const operatorStyle = {
@@ -365,7 +921,6 @@ const FormulaDisplay = ({ text }) => {
 
   return (
     <Box>
-      {/* Icon header */}
       <Box display="flex" alignItems="center" style={{ gap: 10, marginBottom: 20 }}>
         <Box
           style={{
@@ -385,7 +940,6 @@ const FormulaDisplay = ({ text }) => {
         </Typography>
       </Box>
 
-      {/* Formula expression box */}
       <Box
         style={{
           backgroundColor: "#fafafa",
@@ -406,7 +960,6 @@ const FormulaDisplay = ({ text }) => {
         </Box>
       </Box>
 
-      {/* Plain text fallback below for full context */}
       <Box
         style={{
           backgroundColor: "#f8fafc",
@@ -432,6 +985,65 @@ const FormulaDisplay = ({ text }) => {
   );
 };
 
+// ─── Error / collection-failure renderer ─────────────────────────────────────
+const EvidenceErrorDisplay = ({ message, detail }) => (
+  <Box>
+    <Box display="flex" alignItems="center" style={{ gap: 10, marginBottom: 16 }}>
+      <Box
+        style={{
+          width: 40,
+          height: 40,
+          borderRadius: "50%",
+          backgroundColor: "#fdecea",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <ErrorOutlineIcon style={{ color: "#d32f2f", fontSize: 22 }} />
+      </Box>
+      <Box>
+        <Typography style={{ fontWeight: 700, fontSize: 16, color: "#1e293b" }}>
+          Evidence Collection Failed
+        </Typography>
+        <Typography style={{ fontSize: 12, color: "#94a3b8" }}>
+          This control has no compliance evidence because collection errored out.
+        </Typography>
+      </Box>
+    </Box>
+    <Box
+      style={{
+        backgroundColor: "#fdecea",
+        border: "1px solid #f5c6cb",
+        borderRadius: 10,
+        padding: "14px 18px",
+        marginBottom: detail && (detail.exceptionType || detail.awsErrorCode) ? 12 : 0,
+      }}
+    >
+      <Typography
+        style={{
+          fontSize: 13,
+          color: "#721c24",
+          fontFamily: "Consolas, Monaco, monospace",
+          whiteSpace: "pre-wrap",
+          wordBreak: "break-word",
+        }}
+      >
+        {message}
+      </Typography>
+    </Box>
+    {detail && (detail.exceptionType || detail.awsErrorCode || detail.collectionTime) && (
+      <SummaryCard
+        data={{
+          exceptionType: detail.exceptionType,
+          awsErrorCode: detail.awsErrorCode,
+          collectionTime: detail.collectionTime,
+        }}
+      />
+    )}
+  </Box>
+);
+
 // ─── Modal ────────────────────────────────────────────────────────────────────
 const Evidence_Modal = ({ open, onClose, evidence }) => {
   const [page, setPage] = useState(0);
@@ -445,8 +1057,8 @@ const Evidence_Modal = ({ open, onClose, evidence }) => {
     return n;
   }, [evidence, open]);
 
-  const totalPages = Math.ceil(norm.items.length / PAGE_SIZE);
-  const paged = norm.items.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  const totalPages = Math.ceil((norm.items?.length || 0) / PAGE_SIZE);
+  const paged = (norm.items || []).slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   const handleClose = (_, reason) => {
     if (reason !== "backdropClick") onClose();
@@ -456,6 +1068,8 @@ const Evidence_Modal = ({ open, onClose, evidence }) => {
     {
       gcp_users: "users",
       iam_users_list: "users",
+      azure_users: "users",
+      role_assignments: "assignments",
       aws_iam_users: "IAM users",
       aws_kms_keys: "keys",
       aws_config_changes: "events",
@@ -467,24 +1081,53 @@ const Evidence_Modal = ({ open, onClose, evidence }) => {
       aws_metrics: "metrics",
       vulnerability_findings: "findings",
       log_analysis: "log groups",
+      generic_array: "items",
+      s3_object_lock: "buckets",
+      backup_plans: "plans",
+      cloudtrail: "trails",
+      config_rules: "rules",
+      ecr_repos: "repositories",
+      ai_data_assets: "assets",
+      user_list_generic: "users",
     }[norm.type] || "items";
 
   // ── dialog title ─────────────────────────────────────────────────────────
   const dialogTitle =
     norm.type === "formula"
       ? "Control Formula"
-      : `Evidence Details${norm.items.length > 0 ? ` (${norm.items.length} ${countLabel})` : ""}`;
+      : norm.type === "evidence_error"
+        ? "Evidence Collection Error"
+        : norm.type === "message"
+          ? "Evidence"
+          : `Evidence Details${(norm.items?.length || 0) > 0 ? ` (${norm.items.length} ${countLabel})` : ""}`;
+
+  const NO_ITEMS_OK_TYPES = new Set([
+    "env_access",
+    "capacity",
+    "mfa_usage",
+    "vulnerability_findings",
+    "log_analysis",
+    "formula",
+    "evidence_error",
+    "message",
+    "scalar_number",
+    "scalar_bool",
+    "encryption_coverage",
+    "kms_acm_combined",
+    "privileged_access",
+    "nested_sections",
+    "multi_section",
+    "s3_object_lock",
+    "backup_plans",
+    "cloudtrail",
+    "config_rules",
+    "ecr_repos",
+    "ai_data_assets",
+    "user_list_generic",
+  ]);
 
   const renderContent = () => {
-    if (
-      norm.items.length === 0 &&
-      norm.type !== "env_access" &&
-      norm.type !== "capacity" &&
-      norm.type !== "mfa_usage" &&
-      norm.type !== "vulnerability_findings" &&
-      norm.type !== "log_analysis" &&
-      norm.type !== "formula"
-    ) {
+    if ((norm.items?.length || 0) === 0 && !NO_ITEMS_OK_TYPES.has(norm.type)) {
       return (
         <Box p={4} textAlign="center" style={{ color: "#666" }}>
           <Typography variant="h6">No Evidence Data</Typography>
@@ -496,6 +1139,50 @@ const Evidence_Modal = ({ open, onClose, evidence }) => {
     // ── Formula ────────────────────────────────────────────────────────────
     if (norm.type === "formula") {
       return <FormulaDisplay text={norm.text} />;
+    }
+
+    // ── Evidence collection error ─────────────────────────────────────────
+    if (norm.type === "evidence_error") {
+      return <EvidenceErrorDisplay message={norm.message} detail={norm.detail} />;
+    }
+
+    // ── Plain informational message (not error, not formula) ──────────────
+    if (norm.type === "message") {
+      return (
+        <Box
+          style={{
+            backgroundColor: "#f8fafc",
+            border: "1px solid #e2e8f0",
+            borderRadius: 10,
+            padding: "16px 20px",
+          }}
+        >
+          <Typography style={{ fontSize: 13, color: "#334155", whiteSpace: "pre-wrap" }}>
+            {norm.text}
+          </Typography>
+        </Box>
+      );
+    }
+
+    // ── Bare scalar number / boolean (e.g. legitimate "0" result) ──────────
+    if (norm.type === "scalar_number" || norm.type === "scalar_bool") {
+      return (
+        <Box p={3} textAlign="center">
+          <Typography style={{ fontSize: 13, color: "#64748b", marginBottom: 6 }}>
+            Evidence Value
+          </Typography>
+          <Chip
+            label={norm.type === "scalar_bool" ? (norm.value ? "Yes" : "No") : String(norm.value)}
+            style={{
+              fontSize: 20,
+              fontWeight: 700,
+              padding: "18px 14px",
+              backgroundColor: "#e3f2fd",
+              color: "#1565c0",
+            }}
+          />
+        </Box>
+      );
     }
 
     // ── GCP Users ──────────────────────────────────────────────────────────
@@ -548,6 +1235,71 @@ const Evidence_Modal = ({ open, onClose, evidence }) => {
           </Table>
         </TableContainer>
       );
+    }
+
+    // ── Azure / Entra Users ────────────────────────────────────────────────
+    if (norm.type === "azure_users") {
+      return (
+        <TableContainer component={Paper} variant="outlined">
+          <Table stickyHeader size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell><strong>Name</strong></TableCell>
+                <TableCell><strong>Email / UPN</strong></TableCell>
+                <TableCell align="center"><strong>MFA</strong></TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {paged.map((u, i) => (
+                <TableRow key={i} hover>
+                  <TableCell>{u.name}</TableCell>
+                  <TableCell style={{ fontSize: 12 }}>{u.email}</TableCell>
+                  <TableCell align="center">
+                    {u.mfaStatus === undefined ? (
+                      <span style={{ color: "#94a3b8", fontSize: 12 }}>N/A</span>
+                    ) : (
+                      <BoolBadge value={!!u.mfaStatus} />
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      );
+    }
+
+    // ── Role assignments ───────────────────────────────────────────────────
+    if (norm.type === "role_assignments") {
+      return (
+        <TableContainer component={Paper} variant="outlined">
+          <Table stickyHeader size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell><strong>Principal ID</strong></TableCell>
+                <TableCell><strong>Role Definition ID</strong></TableCell>
+                <TableCell><strong>Principal Type</strong></TableCell>
+                <TableCell><strong>Scope</strong></TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {paged.map((r, i) => (
+                <TableRow key={i} hover>
+                  <TableCell style={{ fontFamily: "monospace", fontSize: 11 }}>{r.principalId}</TableCell>
+                  <TableCell style={{ fontFamily: "monospace", fontSize: 11 }}>{r.roleDefinitionId}</TableCell>
+                  <TableCell style={{ fontSize: 11 }}>{r.principalType}</TableCell>
+                  <TableCell style={{ fontSize: 11 }}>{r.scope}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      );
+    }
+
+    // ── Generic array of objects with no recognized shape ─────────────────
+    if (norm.type === "generic_array") {
+      return <AutoTable items={paged} />;
     }
 
     // ── AWS IAM Users snapshot ─────────────────────────────────────────────
@@ -657,6 +1409,119 @@ const Evidence_Modal = ({ open, onClose, evidence }) => {
             </TableBody>
           </Table>
         </TableContainer>
+      );
+    }
+
+    // ── Combined S3 + KMS encryption coverage ──────────────────────────────
+    if (norm.type === "encryption_coverage") {
+      return (
+        <>
+          <SummaryCard title="Encryption Coverage" data={norm.summary} />
+          <AutoSection title="KMS Keys" items={norm.kmsItems} />
+          <AutoSection title="Encrypted S3 Buckets" items={norm.s3Items} />
+        </>
+      );
+    }
+
+    // ── Combined ACM + KMS ──────────────────────────────────────────────────
+    if (norm.type === "kms_acm_combined") {
+      return (
+        <>
+          <AutoSection title="KMS Keys" items={norm.kmsItems} />
+          <AutoSection title="ACM Certificates" items={norm.acmItems} />
+        </>
+      );
+    }
+
+    // ── Privileged access ───────────────────────────────────────────────────
+    if (norm.type === "privileged_access") {
+      return (
+        <>
+          <SummaryCard title="Privileged Access Summary" data={norm.summary} />
+          <AutoSection title="Privileged Roles" items={norm.roleItems} />
+          <AutoSection title="Privileged Users" items={norm.userItems} />
+        </>
+      );
+    }
+
+    // ── Nested (non-array) sections, e.g. VPC flow logs ────────────────────
+    if (norm.type === "nested_sections") {
+      return (
+        <>
+          {norm.sections.map((s, i) => (
+            <AutoSection key={i} title={s.title} data={s.data} />
+          ))}
+        </>
+      );
+    }
+
+    // ── Generic user list ──────────────────────────────────────────────────
+    if (norm.type === "user_list_generic") {
+      return (
+        <>
+          <SummaryCard title="User Summary" data={norm.summary} />
+          <AutoTable items={paged} />
+        </>
+      );
+    }
+
+    // ── S3 Object Lock ──────────────────────────────────────────────────────
+    if (norm.type === "s3_object_lock") {
+      return (
+        <>
+          <SummaryCard title="S3 Object Lock Coverage" data={norm.summary} />
+          <AutoTable items={paged} />
+        </>
+      );
+    }
+
+    // ── Backup plans ────────────────────────────────────────────────────────
+    if (norm.type === "backup_plans") {
+      return (
+        <>
+          <SummaryCard title="Backup Plans" data={norm.summary} />
+          <AutoTable items={paged} />
+        </>
+      );
+    }
+
+    // ── CloudTrail ──────────────────────────────────────────────────────────
+    if (norm.type === "cloudtrail") {
+      return (
+        <>
+          <SummaryCard title="CloudTrail Coverage" data={norm.summary} />
+          <AutoTable items={paged} />
+        </>
+      );
+    }
+
+    // ── Config rules ────────────────────────────────────────────────────────
+    if (norm.type === "config_rules") {
+      return (
+        <>
+          <SummaryCard title="Config Rule Compliance" data={norm.summary} />
+          <AutoTable items={paged} />
+        </>
+      );
+    }
+
+    // ── ECR repositories ────────────────────────────────────────────────────
+    if (norm.type === "ecr_repos") {
+      return (
+        <>
+          <SummaryCard title="ECR Scan Coverage" data={norm.summary} />
+          <AutoTable items={paged} />
+        </>
+      );
+    }
+
+    // ── AI data assets ──────────────────────────────────────────────────────
+    if (norm.type === "ai_data_assets") {
+      return (
+        <>
+          <SummaryCard title="AI Data Asset Tagging" data={norm.summary} />
+          <AutoTable items={paged} />
+        </>
       );
     }
 
@@ -909,7 +1774,9 @@ const Evidence_Modal = ({ open, onClose, evidence }) => {
                       </TableCell>
                       <TableCell style={{ fontFamily: "monospace", fontSize: 10 }}>{f.cveId}</TableCell>
                       <TableCell style={{ fontSize: 10 }}>
-                        <Chip label={f.type === "NETWORK_REACHABILITY" ? "Network" : "Package"} size="small" variant="outlined" style={{ fontSize: 9 }} />
+                        {f.type && (
+                          <Chip label={f.type === "NETWORK_REACHABILITY" ? "Network" : "Package"} size="small" variant="outlined" style={{ fontSize: 9 }} />
+                        )}
                       </TableCell>
                       <TableCell style={{ fontSize: 10, whiteSpace: "nowrap" }}>
                         {f.firstObservedAt ? new Date(f.firstObservedAt).toLocaleDateString() : "N/A"}
@@ -1028,6 +1895,22 @@ const Evidence_Modal = ({ open, onClose, evidence }) => {
             </TableBody>
           </Table>
         </TableContainer>
+      );
+    }
+
+    // ── Generic multi-section fallback (replaces old data-dropping branch) ──
+    if (norm.type === "multi_section") {
+      const hasScalars = Object.keys(norm.scalarEntries).length > 0;
+      return (
+        <>
+          {hasScalars && <SummaryCard data={norm.scalarEntries} />}
+          {norm.arraySections.map((s, i) => (
+            <AutoSection key={`arr-${i}`} title={s.title} items={s.items} />
+          ))}
+          {norm.objectSections.map((s, i) => (
+            <AutoSection key={`obj-${i}`} title={s.title} data={s.data} />
+          ))}
+        </>
       );
     }
 

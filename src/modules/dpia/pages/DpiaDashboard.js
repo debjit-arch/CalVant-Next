@@ -34,6 +34,7 @@ import {
   Layers,
   Search,
   HelpCircle,
+  BookOpen
 } from "lucide-react";
 
 // ── Modal imports ─────────────────────────────────────────────────────────────
@@ -45,6 +46,7 @@ import {
   getAllUsers,
   getDepartments,
 } from "../../departments/services/userService";
+import HelpDocModal from "@/components/shared/HelpDocModal";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function getMonthLabel(dateStr) {
@@ -154,6 +156,306 @@ export default function Dashboard() {
   const [modal, setModal] = useState(null);
   const [riskOwners, setRiskOwners] = useState([]);
   const [run, setRun] = useState(false);
+
+  const [showHelpDoc, setShowHelpDoc] = useState(false);
+
+const DPIA_HELP_CONTENT = `
+# **calvant** 
+
+###### Digital Compliance Management 
+
+## **Impact Assessments Module** 
+
+### **End-User Guide** 
+
+_A step-by-step guide to identifying, assessing, treating, and tracking various types of risks in CalVant (DPIA, AIIA, Risk Assessment, etc)_ 
+
+Version 1.0  |  July 2026 
+
+© 2026 CalVant. All rights reserved. 
+
+##### **Table of Contents** 
+
+###### **1. Introduc4on** 
+
+###### **2. Accessing the Impact Assessment Module** 
+
+###### **3. Key Terminology** 
+
+###### **4. Manual Naviga4on** 
+
+4.1 DPIA Dashboard 
+
+4.2 Planning a DPIA 
+
+4.3 Comple:ng a DPIA 
+
+4.4 Viewing DPIA Assessments 
+
+- 4.5 Managing DPIA Assignments 
+
+- 4.6 AI Impact Assessment (AIIA) Dashboard 
+
+- 4.7 Planning an AI Impact Assessment 
+
+4.8 Comple:ng & Managing an AIIA 
+
+4.9 My Assignments 
+
+###### **5. Status & Quality Reference** 
+
+###### **6. Tips, Best Prac4ces & Troubleshoo4ng** 
+
+###### **7. Addi4onal Inf** 
+
+#### **Introduction** 
+
+The Impact Assessment Module in CalVant helps you iden:fy, evaluate, and document the privacy and AI governance risks associated with your organiza:on's data processing ac:vi:es and AI systems. It supports several  linked assessment types — Risk Assessments, Data Protec:on Impact Assessments and AI Impact Assessments  — aligned to frameworks such as GDPR, DPDPA, KSA PDPL, CCPA, ISO 27701, ISO 42001, EU AI Act, etc. 
+
+#### **2. Accessing the Impact Assessment Module** 
+
+1. Click the DPIA icon in the sidebar to land on your DPIA Dashboard, the risk icon to land on your Risk Dashboard or the AIIA icon to land on your AI Impact Assessment Dashboard. 
+
+#### **3. Key Terminology** 
+
+A short list of terms that are specific to CalVant's policy workflow rather than self-explanatory from the screen itself: 
+
+|**Term**|**Defni4on**|
+|---|---|
+||Data Protec:on Impact Assessment — a structured review of how personal|
+|**DPIA**|data is collected, used, and protected, used to iden:fy privacy risk before<br>high-risk processing begins.|
+||AI Impact Assessment — a structured review of an AI system's business|
+|**AIIA**|objec:ve, intended use, and foreseeable misuse, used to iden:fy AI<br>governance risk before deployment.|
+
+
+
+##### **4. Manual Naviga4on** 
+
+###### **4.1 DPIA Dashboard** 
+
+The DPIA Dashboard is your home base for privacy impact assessments. It gives you an at-a-glance summary of every DPIA in your organiza:on, along with quick ac:ons to browse, plan, and manage them. 
+
+
+
+<!-- Start of picture text -->
+DPIA Dashboard Root John<br>3 0 © 0 ©) 0 Assessment Status<br>TOTAL SUBMITTED IN PROGRESS<br>PENDING<br>Quick Actions<br>@ Assessment Trends<br>View. DPIAs Plan DPIA Assessments by month 0 total<br>Browse all assessments Assign to a risk owner<br>S<br>Manage DPIA<br>View & edit assignments<br><!-- End of picture text -->
+
+
+
+<!-- Start of picture text -->
+Step 1 — Select Assessment<br><!-- End of picture text -->
+
+
+
+<!-- Start of picture text -->
+Q Search assessments...<br>re) DRAFT<br>69E-DPIA-2026-002<br>DRAFT<br>69E-DPIA-2026-001<br><!-- End of picture text -->
+
+Next: Set Details > 
+
+
+
+<!-- Start of picture text -->
+Plan DPIA<br><!-- End of picture text -->
+
+€ Back to List x 
+
+Step 2 — Set Details 
+
+Select Assessment 
+
+So) 69E-DPIA-2026-003DRAFT 
+
+Department * 
+
+Select department... 
+
+
+
+<!-- Start of picture text -->
+& Assign To (Risk Owner) *<br><!-- End of picture text -->
+
+###### Harvey Spectre 
+
+
+
+<!-- Start of picture text -->
+Vv<br>Vv<br><!-- End of picture text -->
+
+(3 Due Date * 
+
+###### dd/mm/yyyy 
+
+
+
+<!-- Start of picture text -->
+A<br><!-- End of picture text -->
+
+Notes / Instructions 
+
+Any context or instructions for the risk owner... 
+
+
+
+<!-- Start of picture text -->
+Assign DPIA<br><!-- End of picture text -->
+
+
+
+
+
+<!-- Start of picture text -->
+<€ Dashboard<br>New DPIA Assessment<br>ID: 6a572d6367f82d36c95e858c<br>Data Protection Compliance — DPIA Assessment<br>Pll Inventory 2 Personal Data Elements 3 DPIA Questionnaire<br>Data subjects & collection Data element checklist Compliance & obligations<br>Stage 1of3<br>Pll Inventory Assessment<br>Gain visibility into personal data collected — data subjects, elements, purposes, storage, recipients, cross-border transfers, retention<br>requirements, and deletion procedures.<br>| © Who is the anticipated Data Subject? (Select all that apply)<br>(CD a.Current employee (CD b. Former Employee (CD c. Customer's Employee<br>(D d. Customer's Customer CD e. Business Contact (C) f. Users<br>OC g. Other<br>| e In what geographies orjurisdictions do the individuals reside? (Select all that apply)<br>OC) a.Europe OC b. Russia OU c. Latin America (D d. Middle East/ Africa 0 e. China<br>0) f. Asia Pacific 0D g.United States (Dh. Canada ©) i. California (DF j. Other<br><!-- End of picture text -->
+
+
+
+<!-- Start of picture text -->
+==<br>-<br>SB AllDPIAassessments Assessmentsfor your organization -O shown<br>fo}TOTAL ASSESSMENTS 2 | fo}SUBMITTED fo}IN PROGRESS | © | fo}HIGH RISK<br>Filter: Submitted (0) In Progress (0) High Risk (0)<br>DPIA Assessments O shown<br>No assessments found<br>Try a different filter or create a new assessment.<br><!-- End of picture text -->
+
+###### Manage DPIA Assignments 
+
+x 
+
+19 assignments 
+
+###### 1) Assignments List Edit Assignment 
+
+Q_ Search by project, assignee, status... 
+
+###### COMPLETED 
+
+693-DPIA-2026-001 Z Assigned to: 69955e31e9c9efb38a262e94 Due: 20-03-2026 
+
+###### ASSIGNED 
+
+693-DPIA-2026-006 Z Assigned to: 69955e31e9c9efb38a262e94 Due: 20-03-2026 
+
+###### ASSIGNED 
+
+693-DPIA-2026-007 a Assigned to: 69940aaa660ec82452ab4485 Due: 20-03-2026 
+
+
+
+<!-- Start of picture text -->
+Al Impactp Assessment Root John © ® Guide:<br>Root Dashboard<br>B Oo Oo aoO Oo Assessment Status<br>TOTAL APPROVED COMPLETED<br>0 0%<br>AVG<br>COMPLETE<br>Quick Actions<br>Assessment Trends<br>Monthly distribution<br>View Assessments Plan Assessment<br>Browse all AIl[A assessments Create a new Al assessment<br>Manage AllA<br>Edit or delete assessments<br><!-- End of picture text -->
+
+
+
+<!-- Start of picture text -->
+Plan Al Assessment x<br>Fill in the details to create a new assessment<br>Al System Name *<br>e.g., Custon Ipp Chatt<br>Department *<br>Select Department... vy<br>Assessment Date<br>15/07/2026 o<br>© Business Objective, Intended Use, and Foreseeable Misuse will be completed<br>by the assigned Risk Owner before they begin the assessment.<br>Cancel<br><!-- End of picture text -->
+
+x 
+
+###### Manage Al Assessments 
+
+
+
+<!-- Start of picture text -->
+€ Back to List. Edit: CalVant<br>Step 1 of 2 — Assessment Details<br><!-- End of picture text -->
+
+
+
+<!-- Start of picture text -->
+Al System Name *<br><!-- End of picture text -->
+
+
+
+<!-- Start of picture text -->
+CalVant<br><!-- End of picture text -->
+
+Department * 
+
+
+
+<!-- Start of picture text -->
+IT Infrastructure<br><!-- End of picture text -->
+
+
+
+<!-- Start of picture text -->
+vy<br><!-- End of picture text -->
+
+###### Business Objective * 
+
+
+
+<!-- Start of picture text -->
+To gain profit<br><!-- End of picture text -->
+
+Intended Use * 
+
+
+
+<!-- Start of picture text -->
+To Check Compliance<br><!-- End of picture text -->
+
+
+
+
+
+<!-- Start of picture text -->
+Foreseeable Misuse<br>Al System Owner Email *<br>johndoe@consultantsfactory.com<br>Assessment Date<br>20/04/2026 o<br>Status<br>DRAFT —_<br>Next: Assign Risk Owners —><br><!-- End of picture text -->
+
+
+
+<!-- Start of picture text -->
+My Assignments G Refresh<br>Al assessments assigned to you for review and completion<br>© 2 Pending @ 0 Completed 2 Total<br>Pending Action 2) Completed<br>E) CalVant20/04/2026 © Action Required<br>To gain profit<br>= Testing © Action Required<br>03/07/2026<br><!-- End of picture text -->
+
+
+
+<!-- Start of picture text -->
+My Assignments G Refresh<br>Al assessments assigned to you for review and completion<br>© 2 Pending G 0 Completed 2 Total<br>Pending Action 2) Completed<br>No completed assignments<br>Completed assessments will appear here once you finish all checklist items<br><!-- End of picture text -->
+
+#### **5. Status & Quality Reference** 
+
+#### **DPIA status** 
+
+|**Status**|**Meaning**|
+|---|---|
+|**Dra]**|The DPIA has been created but not yet assigned to a Risk Owner.|
+|**Assigned**|The DPIA has been sent to a Risk Owner and is awai:ng comple:on.|
+|**Completed**|The Risk Owner has fnished all checklist items.|
+|**Submi^ed**|The completed DPIA has been submi^ed for compliance review.|
+|**In Progress**|The Risk Owner has started but not yet fnished the ques:onnaire.|
+|**High Risk**|The assessment's responses indicate a high-risk processing ac:vity requiring closer<br>review.|
+
+
+
+#### **AIIA Status** 
+
+|**Status**|**Meaning**|
+|---|---|
+|**Dra]**|The assessment has been created; Business Objec:ve, Intended Use, and<br>Foreseeable Misuse are not yet complete.|
+|**Pending / Ac4on Required**|Awai:ng the assigned Risk Owner's input in My Assignments.|
+|**Completed**|The Risk Owner has completed the assessment.|
+|**Approved**|The assessment has been reviewed and approved.|
+
+
+
+#### **6. Tips, Best Practices** 
+
+###### **DPIA Frameworks** 
+
+1. Trigger a DPIA whenever a new or changed processing activity involves large-scale, sensitive, or cross-border personal data, so privacy risk is assessed before processing begins — aligned to obligations under GDPR, DPDPA, KSA PDPL, and similar frameworks. 
+
+2. Complete the PII Inventory stage accurately; the data subjects and geographies selected there determine which jurisdiction-specific obligations apply later in the questionnaire. 
+
+3. Revisit a completed DPIA whenever the underlying processing activity changes materially — new data elements, a new purpose, or a new jurisdiction. 
+
+###### **AAIA Frameworks** 
+
+1. Trigger an AIIA whenever a new AI system is proposed or materially changed, so its business objective, intended use, and foreseeable misuse are documented before deployment — aligned to frameworks such as ISO 42001 and the EU AI Act. 
+
+2. Keep Foreseeable Misuse specific and scenario-based; vague entries weaken the Risk Owner's ability to plan mitigating controls. 
+
+3. Revisit an approved AIIA whenever the AI system is retrained, retuned, or repurposed for a new business objective. 
+
+#### **7. Additional Information** 
+
+1.  Set realistic Due Dates when planning a DPIA or AIIA, so assignments are completed before the associated processing activity or AI system goes live. 
+
+2. Review My Assignments regularly if you are a Risk Owner, so pending DPIAs and AIIAs don't lapse past their due date. 
+`;
+
   const steps = [
     {
       target: "#dashboard-header",
@@ -551,6 +853,15 @@ export default function Dashboard() {
                 />
               </motion.button>
               <motion.button
+                onClick={() => setShowHelpDoc(true)}
+                title="Help Documentation"
+                className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 transition-colors border border-slate-200 flex items-center justify-center"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <BookOpen size={15} className="text-slate-500" />
+              </motion.button>
+              <motion.button
                 className="px-5 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white text-sm font-semibold rounded-xl shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 flex items-center gap-2"
                 onClick={() => {
                   setRun(false);
@@ -854,6 +1165,13 @@ export default function Dashboard() {
           </div>
         </div>
       </main>
+
+      <HelpDocModal
+        open={showHelpDoc}
+        onClose={() => setShowHelpDoc(false)}
+        title="DPIA Help"
+        content={DPIA_HELP_CONTENT}
+      />
 
       {/* ── FOOTER ── */}
       <footer className="bg-white/90 backdrop-blur-md border-t border-slate-100/50 shadow-lg px-8 py-5 sticky bottom-0 z-50">

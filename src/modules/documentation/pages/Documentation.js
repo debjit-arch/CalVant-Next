@@ -7,6 +7,7 @@ import { useFramework, ALL_FRAMEWORKS } from "../../../context/FrameworkContex";
 import Joyride from "react-joyride";
 import CompactFrameworkFilter from "./CompactFrameworkFilter";
 import { captureActivity, ACTIONS } from "../../../services/activities";
+import HelpDocModal from "@/components/shared/HelpDocModal";
 
 import {
   FileText,
@@ -17,6 +18,7 @@ import {
   FolderOpen,
   Archive,
   RefreshCw,
+  BookOpen
 } from "lucide-react";
 import {
   PieChart,
@@ -66,6 +68,169 @@ const Documentation = () => {
   useEffect(() => { setHasMounted(true); }, []);
   const [allDocuments, setAllDocuments] = useState([]);
   const [run, setRun] = useState(false);
+
+  const [showHelpDoc, setShowHelpDoc] = useState(false);
+
+const DOCUMENTATION_HELP_CONTENT = `
+# **calvant** 
+
+Digital Compliance Management 
+
+## **Policy Module** 
+
+### **End-User Guide** 
+
+Version 1.0  |  July 2026 
+
+© 2026 CalVant. All rights reserved. 
+
+Page 1 
+
+# **Table of Contents** 
+
+###### **1. Introduction** 
+
+###### **2. Accessing the Policy Module** 
+
+###### **3. Key Terminology** 
+
+###### **4. Manual Navigation** 
+
+4.1 Policies Dashboard 
+
+4.2 Policies List View (Master List of Documents) 
+
+4.3 Uploading a Policy Document 
+
+4.4 Reviewing, Approving & Quality Check 
+
+4.5 Creating a Task 
+
+4.6 Archiving Policies 
+
+###### **5. Status & Quality Reference** 
+
+###### **6. Tips, Best Practices & Troubleshooting** 
+
+Page 1 
+
+CalVant — Policy Module User Guide 
+
+#### **1. Introduction** 
+
+The Policy Module in CalVant helps you create, upload, review, approve, and track the policy documents required for your compliance and information security program. It maps every policy to the controls in frameworks such as ISO 27001, ISO 27701, SOC 2, ISO 42001, and PDPL, and keeps a version-controlled record of what has been submitted, reviewed, and archived. 
+
+#### **2. Accessing the Policy Module** 
+
+After logging in to CalVant, use the left-hand navigation sidebar to move between modules. The sidebar gives you access to the Home/Dashboard, Risk, Policy, Audit, and other Task modules, along with account settings at the bottom. 
+
+1. Click the Policy icon in the sidebar to land on your Policies Dashboard. 
+
+2. Your logged-in user name and role (e.g., Root) appear in the top-right of the dashboard header. 
+
+#### **3. Key Terminology** 
+
+A short list of terms that are specific to CalVant's policy workflow rather than self-explanatory from the screen itself: 
+
+|**Term**|**Definition**|
+|---|---|
+|**MLD (Master List of**<br>**Documents)**|The complete, filterable list of every policy record in the system — CalVant's<br>working name for the Policies list screen.|
+|**SoA Linked**|A policy connected to an entry in the Statement of Applicability, shown in the<br>header stats and as a green SoA tag on each row.|
+
+
+
+#### **4. Manual Navigation** 
+
+With the vocabulary in place, this section walks through every screen in the module in the order you'll use them day to day — starting at the dashboard and ending at the archive. 
+
+##### **4.1 Policies Dashboard** 
+
+The Policies Dashboard is your home base for the module. It gives you an at-a-glance summary of every policy in your organization, along with quick actions to browse, upload, and manage documents. 
+
+Page 3 
+
+
+
+<!-- Start of picture text -->
+8 Policies Dashboard<br>All + 57 total policies Ea ohn (2<br>TOTALSn DoeUPLOADED DewPENDING BARCHIVED Document Status<br>;uick Actions wep<br>©<br>Upload Trends<br>Documents by month 0 total<br>No Upload Data<br>Documents need to be uploaded to display trends<br><!-- End of picture text -->
+
+
+
+<!-- Start of picture text -->
+€ Back to Dashboard<br>Policies<br>Upload and manage your policies<br>Total: 170 Uploaded:0 SoALinked:68 1SO 27001: 170<br>earch policy, control ID or C-ID. By Framework (27001 > 27701 > SOC2 + 42001 PDPL) ¥ Uploaded: @ ¥ Uploaded X Not Uploaded Showing 170 of 170<br>Policies<br>Control ID Policy Name Related Framework Type Control Code Ownership Department —CalVant Version Status Subm<br>4. Information<br>c-1 ISMS Manual QD Guideline _ Understanding the " Security = To Upload<br>cantont Officer (ISO)<br>4. Information<br>C-1 ISMS Scope Doe Understanding the Security = To Upload<br>cones Officer (ISO)<br>42 Information<br>C-1 ISMS LOG Context & Objectives Log Understanding the Security - To Upload<br>laa baad Officer (ISO)<br>c-2 ISMS Manual Guideline 4.2Understandingcede and the , InformationSecurity - To Upload<br>expectations of Officer (ISO)<br>Policies<br>Upload and manage your policies<br>Total; 170 Uploaded: 0 SOA Linked: 68 180 27001<br>: ¥ By FrameworkPolicy Name (A (27001+ Z)  + 27701 + SOC2 + 42001 + POPL) ) Uploaded oO v Uptecded ) (x Net Uptondes Showing 170 of 170<br>Control ID (# Ase, grouped by framework)<br>Policies Control IO (4 Desc, grouped by framework)<br>SOA Linked First<br>Control 10 SoASoA DateDate (Newest)(Oldest) oe Control Code Ownership Department CalVant Version ‘Status ‘Subm<br>4a Information<br>Cl ISMS Manual @Z> (\s027001 ) Guideline er standing the Security - To Upload<br>—_ Officer (1S0)<br>44 Information<br>Cl ISMS Scope > (18027001 ) 0 handing the Security - To Upload<br>— Officer (ISO)<br>4a Information<br>C1 ISMS LOG Context & Objectives > (8027001) Log anding the Security - To Upload<br>L —— _—_—_.1_l_ Obi 0s.<br><!-- End of picture text -->
+
+###### Policies 
+
+|Department|CalVantVersion|Status|SubmittedBy|Submission Date|Approved By|ReviewDate|Upload|Remarks|QualityCheck|Add Task|
+|---|---|---|---|---|---|---|---|---|---|---|
+|information<br>|||||||||||
+|Security|-|ToUptoad|-|~-|-|-|>Upload|-|||
+|Officer (ISO)|||||||||||
+|information<br>|||||||||||
+|Security|-|ToUptoad|-|=|=|—|}Upload|-|||
+|Officer (ISO)|||||||||||
+|information|||||||||||
+|Security|-|ToUptoad|-|-|—|=|>Upload|=|||
+|Officer (ISO)|||||||||||
+|information|||||||||||
+|Security|=|ToUptoad|=|=|=|-|>Upload|-|||
+|Officer(ISO)|||||||||||
+
+
+
+
+
+<!-- Start of picture text -->
+Policies<br>Department CalVant Version Status Submitted By Submission Date Approved By Review Date Upload Remarks Quality Check Add Task<br>Information<br>Information<br>Information —<br><!-- End of picture text -->
+
+
+
+<!-- Start of picture text -->
+Department *<br>Select department v<br>Assign To<br>Auto Assign (Risk Owner) v<br>Task Description *<br>Policy: ISMS Manual | Control: 4.1 (C-1)<br>Start Date * End Date*<br>15/07/2026 i] ddim yyyy o<br>Priority<br>Remarks<br>Canes!<br><!-- End of picture text -->
+
+
+
+<!-- Start of picture text -->
+IAMS<br>© Archived Policies<br>Policies archived from the MLD are stored here. You can permanently delete them when no longer needed<br>Total Archived:0 Shown: 0<br>0 of 0 archived<br>© Archive<br>* Policy Name CalVant Version Submitted By Department Uploaded On Reason (Remarks) Actions<br>No Archived Po! §<br><!-- End of picture text -->
+
+CalVant — Policy Module User Guide 
+
+###### **Document Status (Dashboard Tiles)** 
+
+|**Status**|**Meaning**|
+|---|---|
+|**Total**|All policies currently tracked in the Master List of Documents.|
+|**Uploaded**|Policies with a file attached and submitted for review.|
+|**Pending**|Policies awaiting upload; shown as To Upload in the list.|
+|**Archived**|Policies removed from the active list and stored in Archived Policies.|
+
+
+
+###### **Row Status (Master List of Documents)** 
+
+|**Status**|**Meaning**|
+|---|---|
+|**To Upload**|No document has been attached to this control yet.|
+|**To Approve**|A document has been uploaded and is awaiting review.|
+|**Approved**|The document has been reviewed and accepted.|
+|**Archived**|The policy has been moved out of the active list.|
+
+
+
+#### **6. Tips, Best Practices** 
+
+1. Use the By Framework sort when preparing for a certification audit, so policies follow the same order as your framework. 
+
+2. Review the Quality Check score and click Re-verify before approving a document, so incomplete files aren't approved by mistake. 
+
+3. Use the Uploaded and Not Uploaded filter chips to focus on outstanding submissions ahead of a review cycle. 
+
+4. Set realistic Start and End Dates when creating a task so follow-up work stays on schedule. 
+
+5. Archive superseded policy versions instead of deleting them, so a Reason and audit trail are preserved. 
+
+Page 9 
+`;
 
   const {
     selectedFrameworks,
@@ -478,6 +643,15 @@ const Documentation = () => {
                 <RefreshCw size={15} className="text-slate-500" />
               </motion.button>
               <motion.button
+                onClick={() => setShowHelpDoc(true)}
+                title="Help Documentation"
+                className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 transition-colors border border-slate-200 flex items-center justify-center"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <BookOpen size={15} className="text-slate-500" />
+              </motion.button>
+              <motion.button
                 className="px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 flex items-center gap-2"
                 onClick={() => {
                   setRun(false);
@@ -809,6 +983,12 @@ const Documentation = () => {
           </div>
         </div>
       </main>
+      <HelpDocModal
+        open={showHelpDoc}
+        onClose={() => setShowHelpDoc(false)}
+        title="Documentation Help"
+        content={DOCUMENTATION_HELP_CONTENT}
+      />
 
       <footer className="bg-white/90 backdrop-blur-md border-t border-slate-100/50 shadow-lg px-8 py-5 sticky bottom-0 z-50">
         <div className="max-w-7xl mx-auto text-center">

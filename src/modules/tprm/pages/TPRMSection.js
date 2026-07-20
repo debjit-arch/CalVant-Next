@@ -34,6 +34,7 @@ import VendorSection from "./VendorSection";
 import TPRMQuestionsModal from "../components/TPRMQuestionModal";
 import ConductTPRMModal from "../components/ConductTPRMModal";
 import TPRMReportModal from "../components/TPRMReportModal";
+import HelpDocModal from "@/components/shared/HelpDocModal";
 
 const TPRMSection = () => {
   const router = useRouter();
@@ -61,6 +62,194 @@ const TPRMSection = () => {
   const [hasMounted, setHasMounted] = useState(false);
   useEffect(() => { setHasMounted(true); }, []); // "questions" | "conduct" | "report"
   const [run, setRun] = useState(false);
+  const [showHelpDoc, setShowHelpDoc] = useState(false);
+
+const TPRM_HELP_CONTENT = `
+# **calvant** 
+
+Digital Compliance Management 
+
+## **Vendor Module** 
+
+### **End-User Guide** 
+
+Version 1.0  |  July 2026 
+
+© 2026 CalVant. All rights reserved. 
+
+#### **Table of Contents** 
+
+###### **1. Introduction** 
+
+###### **2. Accessing the Vendor Module** 
+
+###### **3. Key Terminology** 
+
+###### **4. Manual Navigation** 
+
+4.1 TPRM Dashboard 4 
+
+4.2 Creating a New Vendor Assessment 
+
+4.2.1 Step 1 — Assessment Details 
+
+4.2.2 Step 2 — Select Questions 
+
+4.3 Tracking Sent Assessments 
+
+4.4 Vendor Assessment Portal 
+
+###### **5. Status & Quality Reference** 
+
+###### **6. Tips, Best Practices & Troubleshooting** 
+
+#### **1. Introduction** 
+
+The Vendor Module in CalVant helps you assess, monitor, and manage the risk posed by third-party vendors as part of your Third Party Risk Management (TPRM) program. It lets you build vendor assessments from a structured quesDon bank, send them to vendors, and track each response from submission through to approval. 
+
+#### **2. Accessing the Vendor Module** 
+
+1. Click the Vendor icon in the sidebar to land on your Third Party Risk Management Dashboard 
+
+2. Your logged-in user name and role appear in the top-right of the dashboard header. 
+
+3. Vendors have their own view and access their own assigned assessments through the Vendor Assessment Portal (SecDon 4.4) using their vendor login. 
+
+#### **3. Key Terminology** 
+
+A short list of terms that are specific to CalVant's policy workflow rather than self-explanatory from the screen itself 
+
+|**Field**|**Descrip5on**|
+|---|---|
+|**TPRM**|Third Party Risk Management — the process of assessing and monitoring risk<br>posed by vendors and other third parDes.|
+|**Vendor**|The third-party organizaDon being assessed. A vendor must have TPRM module<br>access before an assessment can be assigned to it.|
+|**Vendor Portal**|The vendor-facing view where an assigned vendor completes and submits an<br>assessment.|
+|**Status Guide**|The reference panel in the Vendor Portal explaining what each assessment status<br>means from the vendor's perspecDve.|
+
+
+
+##### **4. Manual Naviga5on** 
+
+The TPRM Dashboard is your home base for third-party risk management. It gives you an at-a-glance summary of every vendor assessment in your organizaDon, along with quick acDons to manage quesDons, 
+
+
+
+<!-- Start of picture text -->
+Q., Third Party Risk Management Root John © ® Guide<br>Root Dashboard - O total assessments<br>0 0 0 Assessment Status<br>TOTAL SENT SUBMITTED<br>Y)<br>APPROVED REJECTED<br>Quick Actions<br>n | P| @ Assessment Trends<br>Assessments by month 0 total<br>TPRM Questions Plan TPRM Vendor Report<br>View & manage question Create & send View scores & approve<br>bank assessments vendors<br><!-- End of picture text -->
+
+###### Conduct TPRM 
+
+Create new assessment 
+
+###### 1) Assessment Details Select Questions 
+
+Assessment Title * 
+
+- e.g. Q1 2026 Vendor Security Assessment 
+
+- & Assign to Vendor * 
+
+
+
+<!-- Start of picture text -->
+Select vendor... Vv<br>No vendors found with TPRM module access.<br>Due Date *<br>dd/mm/yyyy im<br><!-- End of picture text -->
+
+- f Due Date * 
+
+
+
+<!-- Start of picture text -->
+Next: Select Questions ><br><!-- End of picture text -->
+
+
+
+
+
+<!-- Start of picture text -->
+mm<br><!-- End of picture text -->
+
+###### Conduct TPRM Create new assessment 
+
+© Back to List o x 
+
+
+
+<!-- Start of picture text -->
+Assessment Details<br>Q Search questions... O select all )| 0/56 selected<br>SECTION t ; o7<br>Information Security Governance<br>SECTION 2<br>Data Protection;  & Privacy; on7 Vv<br>SEEN 3 Op<br>Security Controls<br>SECTION 4 o/a Vv<br>Incident Management<br>Title Vendor Due Date Questions<br>A Debjait Tech 31-07-2026 0 selected<br>€ Back YJ Submit<br><!-- End of picture text -->
+
+
+
+<!-- Start of picture text -->
+Conduct TPRM + New Assessment o x<br>0 assessments<br>Due Received Completed<br>No assessments yet<br>Click "New Assessment" to create one<br><!-- End of picture text -->
+
+
+
+<!-- Start of picture text -->
+0 0 0 Assessment Status<br>TOTAL ad PENDING © SUBMITTED<br>0 0 No assessments yet<br>Y<br>APPROVED © | REJECTED<br>Assessments assigned to you will appear here<br>Assessments Sent Submitted Under_review Approved<br>Status Guide<br>@ Pending Answer<br>Admin has sent you a questionnaire to fill<br>No assessments found @ Submitted<br>You have no assessments assigned yet You submitted — admin is reviewing<br>@ Approved<br>Admin has approved your submission<br>@ Rejected<br>Admin has rejected — check comments<br><!-- End of picture text -->
+
+_Figure 5 — Vendor Assessment Portal_ 
+
+**1.** Summary Dles — Total, Pending, SubmiOed, Approved, and Rejected counts for the logged-in vendor. 
+
+**2.** Assessment Status — shows “No assessments yet” unDl an assessment is assigned to the vendor. 
+
+**3.** Assessments panel — filter by All, Sent, SubmiOed, Under_review, or Approved to track progress. 
+
+**4.** Status Guide — explains each status in plain language so the vendor knows what acDon, if any, is required. 
+
+#### **5. Status & Quality Reference** 
+
+###### **TPRM Assessment Status (Admin View)** 
+
+|**Status**|**Meaning**|
+|---|---|
+|**Sent**|The assessment has been sent to the vendor and is awaiDng a response.|
+|**SubmiMed**|The vendor has submiOed the assessment; it is awaiDng admin review.|
+|**Approved**|The submission has been reviewed and approved.|
+|**Rejected**|The submission has been reviewed and rejected.|
+
+
+
+###### **Vendor Portal Status Guide** 
+
+|**Status**|**Meaning**|
+|---|---|
+|**Pending Answer**|The admin has sent the vendor a quesDonnaire to fll out.|
+|**SubmiMed**|The vendor has submiOed the assessment; the admin is reviewing it.|
+|**Approved**|The admin has approved the vendor's submission.|
+|**Rejected**|The admin has rejected the submission; the vendor should check the comments.|
+
+
+
+#### **6. Tips, Best Practices** 
+
+1. Grant a vendor TPRM module access before planning an assessment; otherwise the Assign to Vendor field will show “No vendors found with TPRM module access”. 
+
+2. Use Select All at the secDon level to send a standard, framework-aligned quesDon set, then remove secDons that don't apply to a specific vendor's engagement. 
+
+3. Set realisDc Due Dates in Assessment Details so vendors have adequate Dme to respond before escalaDon is needed. 
+
+4. Review the Vendor Report regularly to idenDfy vendors nearing rejecDon or requiring follow-up. 
+
+5. Share the Status Guide with new vendors so they understand what Pending Answer, SubmiOed, Approved, 
+
+and Rejected mean for their next acDon. 
+
+**T i p :** K e e p t h e q u e s D o 
+
+n b 
+
+a n k 
+
+c 
+
+u 
+
+r r e n t b y r e v i e 
+
+w i n g T P ~~R~~ 
+`;
+
   const [stats, setStats] = useState({
     total: 0,
     draft: 0,
@@ -339,6 +528,16 @@ const TPRMSection = () => {
               </motion.button>
 
               <motion.button
+                onClick={() => setShowHelpDoc(true)}
+                title="Help Documentation"
+                className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 transition-colors border border-slate-200 flex items-center justify-center"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <BookOpen size={15} className="text-slate-500" />
+              </motion.button>
+
+              <motion.button
                 className="px-5 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white text-sm font-semibold rounded-xl shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 flex items-center gap-2"
                 onClick={() => {
                   setRun(false);
@@ -597,6 +796,13 @@ const TPRMSection = () => {
           </div>
         </div>
       </main>
+
+      <HelpDocModal
+        open={showHelpDoc}
+        onClose={() => setShowHelpDoc(false)}
+        title="TPRM Help"
+        content={TPRM_HELP_CONTENT}
+      />
 
       {/* FOOTER */}
       <footer className="bg-white/90 backdrop-blur-md border-t border-slate-100/50 shadow-lg px-8 py-5 sticky bottom-0 z-50">

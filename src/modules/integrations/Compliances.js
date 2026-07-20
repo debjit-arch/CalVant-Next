@@ -15,6 +15,7 @@ import {
   Brain,
   ShieldCheck, // ✅ Added for KSA PDPL
   RefreshCw,
+  BookOpen
 } from "lucide-react";
 import { PieChart, Pie, ResponsiveContainer, Tooltip, Cell } from "recharts";
 import { motion } from "framer-motion";
@@ -30,6 +31,7 @@ import {
   logSelect,
   logClick,
 } from "../../services/activities";
+import HelpDocModal from "@/components/shared/HelpDocModal";
 
 // ── Per-framework mini card ───────────────────────────────────────────────────
 const CompactFrameworkChart = ({
@@ -163,6 +165,118 @@ const Compliances = () => {
   const router = useRouter();
   const [user] = useState(() => JSON.parse(sessionStorage.getItem("user")));
   const [run, setRun] = useState(false);
+
+  const [showHelpDoc, setShowHelpDoc] = useState(false);
+
+const COMPLIANCE_HELP_CONTENT = `
+# **calvant** 
+
+Digital Compliance Management 
+
+## **Complaince Module** 
+
+### **End-User Guide** 
+
+Version 1.0  |  July 2026 
+
+© 2026 CalVant. All rights reserved. 
+
+# **Table of Contents** 
+
+###### **1. Introduction** 
+
+###### **2. Accessing the Policy Module** 
+
+###### **3. Key Terminology** 
+
+###### **4. Manual Navigation** 
+
+4.1 Compliance Dashboard 4.2 Detailed View 
+
+###### **5. Status & Quality Reference** 
+
+###### **6. Tips, Best Practices & Troubleshooting** 
+
+#### **1. Introduction** 
+
+The Compliance Module provides a unified view of compliance requirements across selected frameworks. It enables users to monitor compliance status, review applicable controls, track evidence availability, manage corrective action plans (CAPs), and monitor overall compliance progress. 
+
+#### **2. Accessing the Compliance Module** 
+
+1. Log in to CalVant. 
+
+2. Select Compliance from the left navigation menu. 
+
+3. The Compliance Dashboard opens, displaying overall compliance metrics and framework summaries. 
+
+#### **3. Key Terminology** 
+
+A short list of terms that are specific to CalVant's policy workflow rather than selfexplanatory from the screen itself: 
+
+|**Term**|**Definition**|
+|---|---|
+|**Unified ID**|Unique identifier assigned to a unified control.|
+|**CAP**|Corrective Action Plan|
+
+
+
+#### **4. Manual Navigation** 
+
+#### **4.1 Compliance Dashboard** 
+
+
+
+<!-- Start of picture text -->
+AD Compliance38 total requirements Dashboard- 0% overall compliant Root John | 6a ® Tutorial4<br>Wu 38 © 0 38<br>TOTAL CONTROLS COMPLIANT NON-COMPLIANT<br>ISO 27001 Overall Control Status<br>QQ information Security Management 0%<br>Total requirements 88 @0Compliant @ 38 Non-compliant<br>© Compliant 0)<br>@ Non-compliant 38 0% Score 38 Total<br>@® Detailed View<br>#! Showing unified controls with Unified ID across all frameworks<br>9 Organization ID: 69e84e9dddb69b0340b796dt © SoA: 38 applicable ) @UGEEmns)<br>Search Controls<br>Q Search by Unified ID, control name or metri @& Sync from Cloud (8 Manage cap CG Refresh Snapshot<br>@ Connected (live cloud data) © Not connected (manual upload available) Document Available Document Required<br>Showing 38 requirements (76 total rows) « Filtered to SoA applicable controls<br>Unified ID Requirement ID Frameworks Metric Target Current Evidence / Formula CAP Task<br>4.1<br>oO ¢l Understanding the organization Iso 27001 Set target 0<br>and its context — -<br>B  ISMS LOG Context & Objectives io<br>4.2<br>expectations of interested ,<br>parties<br>B _ ISMS LOG Context & Objectives<br><!-- End of picture text -->
+
+_Figure 2 — Detailed View_ 
+
+1. Search controls using Unified ID, control name or metric. 
+
+2. Use Sync from Cloud to refresh live cloud evidence. 
+
+3. Use Manage CAP to review or manage corrective action plans. 
+
+4. Use Refresh Snapshot to update the compliance view. 
+
+5. Review each requirement, associated framework, metric, target, current status and evidence. 
+
+6. Select Add CAP to create a corrective action plan for a requirement. 
+
+#### **5. Status & Quality Reference** 
+
+##### **Document Status (Dashboard Tiles)** 
+
+|**Status**|**Meaning**|
+|---|---|
+|**Total Control**|Total number of compliance controls tracked for the selected<br><br>|
+|**Compliant**|~~f~~<br>~~k( )~~<br>Controls that currently meet all applicable compliance requirements.|
+|**Non-Compliant**|Controls that require remediation or corrective action.|
+
+
+
+##### **Requirement Status (Detailed View)** 
+
+|**Status**|**Meaning**|
+|---|---|
+|**Compliant**|The requirement currently satisfies the expected compliance criteria|
+|**Non-compliant**|The requirement does not meet the expected compliance criteria and<br>requires remediation.|
+|**Document Available**|The document has been reviewed and accepted.|
+|**Document Required**|Required supporting evidence has not yet been uploaded.|
+
+
+
+#### **6. Tips, Best Practices** 
+
+1. Refresh the snapshot before reviewing compliance results. 
+
+2. Upload supporting evidence before creating CAPs where applicable. 
+
+3. Review non-compliant controls regularly. 
+
+4. Keep framework mappings and evidence current.
+`;
+
   const [hasMounted, setHasMounted] = useState(false);
   useEffect(() => {
     setHasMounted(true);
@@ -436,6 +550,15 @@ const Compliances = () => {
               <RefreshCw size={15} className="text-slate-500" />
             </motion.button>
             <motion.button
+              onClick={() => setShowHelpDoc(true)}
+              title="Help Documentation"
+              className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 transition-colors border border-slate-200 flex items-center justify-center"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <BookOpen size={15} className="text-slate-500" />
+            </motion.button>
+            <motion.button
               className="px-5 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white text-sm font-semibold rounded-xl shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 flex items-center gap-2"
               onClick={() => {
                 setRun(false);
@@ -580,6 +703,13 @@ const Compliances = () => {
           </button>
         </div>
       </main>
+
+      <HelpDocModal
+        open={showHelpDoc}
+        onClose={() => setShowHelpDoc(false)}
+        title="Compliance Help"
+        content={COMPLIANCE_HELP_CONTENT}
+      />
 
       <footer className="w-full bg-white border-t border-gray-200 mt-auto px-4 py-5">
         <div className="text-center text-gray-400 text-[13px]">

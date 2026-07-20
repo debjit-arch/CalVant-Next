@@ -53,149 +53,28 @@ import {
   Description as DescriptionIcon,
   ErrorOutline as ErrorOutlineIcon,
 } from "@material-ui/icons";
-import { ChevronDown, ClipboardList, Brain } from "lucide-react";
+import { ChevronDown, ClipboardList, Brain, Table2Icon } from "lucide-react";
 import Evidence_Modal from "./evidencemodal";
 import taskService from "../taskManagement/services/taskService";
 import documentationService from "../documentation/services/documentationService";
 import { useFramework } from "../../context/FrameworkContex";
+import ComplianceCapSpreadsheet from "./ComplianceCapSpreadsheet";
 
 const MAPPINGS_API = "https://api.calvant.com/framework/api/mappings/framework";
 const CONTROLS_API = "https://api.calvant.com/framework/api/controls/framework";
 
-const FRAMEWORK_CONFIG = {
-  ISO27001: {
-    label: "ISO 27001",
-    description: "Information Security Management",
-    storageKey: "risk_assessment_cache_v1",
-    controlsCacheKey: "iso27001_controls_cache_v1",
-    annexSectionTypes: new Set(["ANNEX_A"]),
-    toMetricKey: (c) => (c?.startsWith("A.") ? c.substring(2) : c),
-    toBareCode: (c) => (c?.startsWith("A.") ? c.substring(2) : c),
-    isMapped: false,
-  },
-  ISO27701: {
-    label: "ISO 27701",
-    description: "Privacy Information Management",
-    storageKey: "risk_assessment_cache_27701_v1",
-    controlsCacheKey: "iso27701_controls_cache_v1",
-    annexSectionTypes: new Set(["Annex_A", "Annex_B", "Annex_A_Security"]),
-    toMetricKey: (c) => c,
-    toBareCode: (c) => c,
-    isMapped: false,
-  },
-  SOC2: {
-    label: "SOC 2",
-    description: "Trust Services Criteria",
-    storageKey: "risk_assessment_cache_soc2_v1",
-    controlsCacheKey: "soc2_controls_cache_v1",
-    annexSectionTypes: new Set(["COMMON_CRITERIA", "ADDITIONAL_CRITERIA"]),
-    toMetricKey: (c) => c,
-    toBareCode: (c) => c,
-    isMapped: true,
-    mappingSources: ["ISO27001", "ISO27701"],
-  },
-  ISO42001: {
-    label: "ISO 42001",
-    description: "AI Management System",
-    storageKey: "risk_assessment_cache_iso42001_v1",
-    controlsCacheKey: "iso42001_controls_cache_v1",
-    annexSectionTypes: new Set(["ANNEX_A", "ANNEX_B", "CORE"]),
-    toMetricKey: (c) => c,
-    toBareCode: (c) => c,
-    isMapped: false,
-  },
-  KSA_PDPL: {
-    label: "KSA PDPL",
-    description: "Personal Data Protection Law",
-    storageKey: "risk_assessment_cache_ksa_pdpl_v1",
-    controlsCacheKey: "ksa_pdpl_controls_cache_v1",
-    annexSectionTypes: new Set(["GENERAL_PROVISIONS"]),
-    toMetricKey: (c) => c,
-    toBareCode: (c) => c,
-    isMapped: false,
-  },
-};
-
 const ALL_FRAMEWORKS_OPTION = "ALL";
 
-const FRAMEWORK_OPTIONS = [
-  {
-    code: ALL_FRAMEWORKS_OPTION,
-    label: "All Frameworks",
-    description: "Unified view across all frameworks",
-    color: "#334155",
-    bg: "#f1f5f9",
-    icon: <AppsIcon style={{ fontSize: 18 }} />,
-  },
-  {
-    code: "ISO27001",
-    label: "ISO 27001",
-    description: "Information Security Management",
-    color: "#1565c0",
-    bg: "#e3f2fd",
-    icon: <SecurityIcon style={{ fontSize: 18 }} />,
-  },
-  {
-    code: "ISO27701",
-    label: "ISO 27701",
-    description: "Privacy Information Management",
-    color: "#6a1b9a",
-    bg: "#f3e5f5",
-    icon: <PrivacyTipIcon style={{ fontSize: 18 }} />,
-  },
-  {
-    code: "SOC2",
-    label: "SOC 2",
-    description: "Trust Services Criteria",
-    color: "#1b5e20",
-    bg: "#e8f5e9",
-    icon: <Soc2Icon style={{ fontSize: 18 }} />,
-  },
-  {
-    code: "ISO42001",
-    label: "ISO 42001",
-    description: "AI Management System",
-    color: "#e65100",
-    bg: "#fff3e0",
-    icon: <Brain size={18} />,
-  },
-  {
-    code: "KSA_PDPL",
-    label: "KSA PDPL",
-    description: "Personal Data Protection Law",
-    color: "#7b3f00",
-    bg: "#fff8f0",
-    icon: <SecurityIcon style={{ fontSize: 18 }} />,
-  },
-];
-
-const FRAMEWORK_BADGE_STYLES = {
-  ISO27001: {
-    bg: "#e3f2fd",
-    border: "#90caf9",
-    color: "#1565c0",
-    label: "ISO 27001",
-  },
-  ISO27701: {
-    bg: "#f3e5f5",
-    border: "#ce93d8",
-    color: "#6a1b9a",
-    label: "ISO 27701",
-  },
-  SOC2: { bg: "#e8f5e9", border: "#a5d6a7", color: "#1b5e20", label: "SOC 2" },
-  ISO42001: {
-    bg: "#fff3e0",
-    border: "#ffcc80",
-    color: "#e65100",
-    label: "ISO 42001",
-  },
-  KSA_PDPL: {
-    bg: "#fff8f0",
-    border: "#f5c68a",
-    color: "#7b3f00",
-    label: "KSA PDPL",
-  },
+const extractArticleKey = (code = "") => {
+  const s = String(code).trim();
+  // Capture: Article-<digits> + optional (digits) + optional (letter)
+  // Stops before any trailing "-Word" descriptor suffix
+  const match = s.match(/^(Article-\d+(?:\(\d+\))?(?:\([a-z]\))?)/i);
+  if (match) return match[1].toUpperCase();
+  // Fallback for non-Article codes
+  return s.toUpperCase().replace(/[^A-Z0-9()]/g, "");
 };
+// ─── Pure helpers ─────────────────────────────────────────────────────────────
 
 const formatPercentage = (value) => {
   if (value === null || value === undefined) return "0.00";
@@ -237,9 +116,16 @@ function soc2SortKey(code = "") {
   );
 }
 
+function unifiedIdSortKey(uid = "") {
+  const match = uid.match(/^([A-Za-z]+)-(\d+)$/);
+  if (match) {
+    return `${match[1].toLowerCase()}:${match[2].padStart(10, "0")}`;
+  }
+  return uid.toLowerCase();
+}
+
 function frameworkSortKey(code = "", fw = "") {
   if (fw === "KSA_PDPL") {
-    // "Article-12" → sort numerically by article number
     const match = code.match(/Article-(\d+)/i);
     return match
       ? `article:${match[1].padStart(6, "0")}`
@@ -271,6 +157,11 @@ function frameworkSortKey(code = "", fw = "") {
   return `${bucket}:${normalized}`;
 }
 
+// Strip leading "A." annex prefix — module-level, never attached to fw objects
+const toBareCode = (c) => (c?.startsWith("A.") ? c.substring(2) : c);
+
+// ─── Sub-components ───────────────────────────────────────────────────────────
+
 const StatusDot = ({ status }) => {
   const config = {
     connected: { color: "#1976d2" },
@@ -294,146 +185,121 @@ const StatusDot = ({ status }) => {
   );
 };
 
-const FrameworkDropdown = ({ selected, onChange }) => {
-  const selectedOption =
-    FRAMEWORK_OPTIONS.find((o) => o.code === selected) || FRAMEWORK_OPTIONS[0];
+// Derive icon for a framework from its metadata — no hardcoded code checks
+const FrameworkIcon = ({ fw, size = 18 }) => {
+  const riskTypes = fw?.riskTypes || [];
+  if (riskTypes.includes("Privacy"))
+    return <PrivacyTipIcon style={{ fontSize: size }} />;
+  if (riskTypes.includes("Artificial Intelligence"))
+    return <Brain size={size} />;
+  if (riskTypes.includes("Trust Services"))
+    return <Soc2Icon style={{ fontSize: size }} />;
+  return <SecurityIcon style={{ fontSize: size }} />;
+};
+
+// Build the framework dropdown options dynamically
+const getFrameworkOptions = (availableFrameworks) => [
+  {
+    code: ALL_FRAMEWORKS_OPTION,
+    label: "All Frameworks",
+    description: "Unified view across all frameworks",
+    color: "#334155",
+    bg: "#f1f5f9",
+    icon: <AppsIcon style={{ fontSize: 18 }} />,
+  },
+  ...(availableFrameworks || []).map((fw) => ({
+    code: fw.code,
+    label: fw.label,
+    description: fw.description || fw.sub || fw.label,
+    color: fw.color || "#1565c0",
+    bg: (fw.color || "#1565c0") + "15",
+    icon: <FrameworkIcon fw={fw} size={18} />,
+  })),
+];
+
+const getFrameworkStyle = (fwCode, availableFrameworks) => {
+  const fw = availableFrameworks?.find((f) => f.code === fwCode);
+  if (!fw)
+    return {
+      bg: "#f1f5f9",
+      border: "#cbd5e1",
+      color: "#475569",
+      label: fwCode,
+    };
+  return {
+    bg: fw.color + "15",
+    border: fw.color + "40",
+    color: fw.color,
+    label: fw.label,
+  };
+};
+
+const MappedSourceBadge = ({
+  sourceCode,
+  sourceFramework,
+  availableFrameworks,
+}) => {
+  const style = getFrameworkStyle(sourceFramework, availableFrameworks);
+  const fw = availableFrameworks?.find((f) => f.code === sourceFramework);
+  const isPrivacy = fw?.riskTypes?.includes("Privacy");
   return (
-    <FormControl variant="outlined" size="small" style={{ minWidth: 260 }}>
-      <InputLabel
+    <Box
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 3,
+        padding: "2px 6px",
+        borderRadius: 4,
+        backgroundColor: style.bg,
+        border: `1px solid ${style.border}`,
+      }}
+    >
+      {isPrivacy ? (
+        <PrivacyTipIcon style={{ fontSize: 9, color: style.color }} />
+      ) : (
+        <SecurityIcon style={{ fontSize: 9, color: style.color }} />
+      )}
+      <Typography
         style={{
+          fontSize: 10,
           fontWeight: 700,
-          fontSize: 13,
-          color: "#475569",
-          backgroundColor: "white",
-          padding: "0 4px",
+          color: style.color,
+          whiteSpace: "nowrap",
         }}
       >
-        Framework
-      </InputLabel>
-      <Select
-        value={selected}
-        onChange={(e) => onChange(e.target.value)}
-        label="Framework"
+        {sourceCode}
+      </Typography>
+    </Box>
+  );
+};
+
+const FrameworkBadge = ({ frameworkCode, availableFrameworks }) => {
+  const style = getFrameworkStyle(frameworkCode, availableFrameworks);
+  if (!style) return null;
+  return (
+    <Box
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 3,
+        padding: "2px 7px",
+        borderRadius: 5,
+        backgroundColor: style.bg,
+        border: `1px solid ${style.border}`,
+        flexShrink: 0,
+      }}
+    >
+      <Typography
         style={{
-          borderRadius: 10,
-          backgroundColor: "white",
+          fontSize: 10,
           fontWeight: 700,
-          fontSize: 14,
-          color: selectedOption.color,
-        }}
-        renderValue={(val) => {
-          const opt = FRAMEWORK_OPTIONS.find((o) => o.code === val);
-          if (!opt) return val;
-          return (
-            <Box display="flex" alignItems="center" style={{ gap: 8 }}>
-              <Box
-                style={{
-                  color: opt.color,
-                  display: "flex",
-                  alignItems: "center",
-                }}
-              >
-                {opt.icon}
-              </Box>
-              <Box>
-                <Typography
-                  style={{
-                    fontWeight: 700,
-                    fontSize: 13,
-                    color: opt.color,
-                    lineHeight: 1.2,
-                  }}
-                >
-                  {opt.label}
-                </Typography>
-                <Typography
-                  style={{
-                    fontSize: 10,
-                    color: `${opt.color}99`,
-                    lineHeight: 1.1,
-                  }}
-                >
-                  {opt.description}
-                </Typography>
-              </Box>
-            </Box>
-          );
-        }}
-        MenuProps={{
-          PaperProps: {
-            style: {
-              borderRadius: 12,
-              boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
-              border: "1px solid #e2e8f0",
-              marginTop: 4,
-            },
-          },
+          color: style.color,
+          letterSpacing: "0.02em",
         }}
       >
-        {FRAMEWORK_OPTIONS.map(
-          ({ code, label, description, color, bg, icon }) => (
-            <MenuItem
-              key={code}
-              value={code}
-              style={{
-                padding: "10px 16px",
-                borderBottom:
-                  code === ALL_FRAMEWORKS_OPTION ? "1px solid #e2e8f0" : "none",
-                backgroundColor: selected === code ? bg : "transparent",
-              }}
-            >
-              <Box display="flex" alignItems="center" style={{ gap: 10 }}>
-                <Box
-                  style={{
-                    color: selected === code ? color : "#94a3b8",
-                    display: "flex",
-                    alignItems: "center",
-                  }}
-                >
-                  {icon}
-                </Box>
-                <Box>
-                  <Typography
-                    style={{
-                      fontWeight: 700,
-                      fontSize: 13,
-                      color: selected === code ? color : "#334155",
-                      lineHeight: 1.2,
-                    }}
-                  >
-                    {label}
-                  </Typography>
-                  <Typography
-                    style={{
-                      fontSize: 11,
-                      color: selected === code ? `${color}99` : "#94a3b8",
-                      lineHeight: 1.2,
-                    }}
-                  >
-                    {description}
-                  </Typography>
-                </Box>
-                {code === ALL_FRAMEWORKS_OPTION && (
-                  <Chip
-                    label="Unified"
-                    size="small"
-                    style={{
-                      marginLeft: "auto",
-                      fontSize: 10,
-                      fontWeight: 700,
-                      height: 20,
-                      backgroundColor: "#f1f5f9",
-                      color: "#475569",
-                      border: "1px solid #e2e8f0",
-                    }}
-                  />
-                )}
-              </Box>
-            </MenuItem>
-          ),
-        )}
-      </Select>
-    </FormControl>
+        {style.label}
+      </Typography>
+    </Box>
   );
 };
 
@@ -674,87 +540,6 @@ const TargetScoreCell = ({
         border: "1px dashed #94a3b8",
       }}
     />
-  );
-};
-
-const MAPPING_SOURCE_STYLES = {
-  ISO27001: {
-    bg: "#e3f2fd",
-    border: "#90caf9",
-    color: "#1565c0",
-    label: "ISO 27001",
-  },
-  ISO27701: {
-    bg: "#f3e5f5",
-    border: "#ce93d8",
-    color: "#6a1b9a",
-    label: "ISO 27701",
-  },
-};
-
-const MappedSourceBadge = ({ sourceCode, sourceFramework }) => {
-  const style =
-    MAPPING_SOURCE_STYLES[sourceFramework] || MAPPING_SOURCE_STYLES.ISO27001;
-  const isPrivacy = sourceFramework === "ISO27701";
-  return (
-    <Box
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 3,
-        padding: "2px 6px",
-        borderRadius: 4,
-        backgroundColor: style.bg,
-        border: `1px solid ${style.border}`,
-      }}
-    >
-      {isPrivacy ? (
-        <PrivacyTipIcon style={{ fontSize: 9, color: style.color }} />
-      ) : (
-        <SecurityIcon style={{ fontSize: 9, color: style.color }} />
-      )}
-      <Typography
-        style={{
-          fontSize: 10,
-          fontWeight: 700,
-          color: style.color,
-          whiteSpace: "nowrap",
-        }}
-      >
-        {sourceCode}
-      </Typography>
-    </Box>
-  );
-};
-
-const FrameworkBadge = ({ frameworkCode }) => {
-  const style = FRAMEWORK_BADGE_STYLES[frameworkCode];
-  if (!style) return null;
-  return (
-    <Box
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 3,
-        padding: "2px 7px",
-        borderRadius: 5,
-        backgroundColor: style.bg,
-        border: `1px solid ${style.border}`,
-        flexShrink: 0,
-      }}
-    >
-      <Typography
-        style={{
-          fontSize: 10,
-          fontWeight: 700,
-          color: style.color,
-          whiteSpace: "nowrap",
-          letterSpacing: 0.2,
-        }}
-      >
-        {style.label}
-      </Typography>
-    </Box>
   );
 };
 
@@ -1095,50 +880,82 @@ function AddTaskModal({
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 const RiskAssessmentTable = () => {
-  const { selectedFrameworks, isAllSelected } = useFramework();
+  // ── 1. Context — must come before any useMemo that references availableFrameworks
+  const { selectedFrameworks, isAllSelected, availableFrameworks } =
+    useFramework();
 
-  const normalizeFw = (raw) =>
-    (raw || "")
-      .trim()
-      .toUpperCase()
-      .replace(/\s+/g, "_")
-      .replace(/[^A-Z0-9_]/g, "");
+  // ── 2. Derive active framework from context selection ────────────────────────
+  const normalizeFw = (raw) => {
+    const trimmed = (raw || "").trim();
+    const ALIASES = {
+      "ISO 27001": "ISO27001",
+      "ISO 27701": "ISO27701",
+      "ISO 42001": "ISO42001",
+      "SOC 2": "SOC2",
+      SOC2: "SOC2",
+      "KSA PDPL": "KSA_PDPL",
+      KSA_PDPL: "KSA_PDPL",
+      ISO27001: "ISO27001",
+      ISO27701: "ISO27701",
+      ISO42001: "ISO42001",
+    };
+    const upper = trimmed.toUpperCase();
+    for (const [alias, key] of Object.entries(ALIASES)) {
+      if (alias.toUpperCase() === upper) return key;
+    }
+    return upper.replace(/\s+/g, "_").replace(/[^A-Z0-9_]/g, "");
+  };
+
   const normalizedSelected = selectedFrameworks.map(normalizeFw);
-  console.log(normalizedSelected);
-  // Derive activeFramework from context
   const isMultiSelect = isAllSelected || normalizedSelected.length > 1;
+  const isAllFrameworks = isMultiSelect;
 
-  // activeFramework is now purely for internal logic (API calls/config)
-  // If multi, we use ALL logic to aggregate data
+  // Default to first available framework's code, never a hardcoded string
   const activeFramework = isMultiSelect
     ? ALL_FRAMEWORKS_OPTION
-    : normalizedSelected[0] || "ISO27001";
+    : normalizedSelected[0] || availableFrameworks[0]?.code || "";
 
-  // Helper to determine if we should show the "Unified/Frameworks" column
-  const isAllFrameworks = isMultiSelect;
-  const [controlLibraries, setControlLibraries] = useState({
-    ISO27001: [],
-    ISO27701: [],
-    SOC2: [],
-    ISO42001: [],
-    KSA_PDPL: [],
-  });
-  const [controlsLoading, setControlsLoading] = useState({
-    ISO27001: true,
-    ISO27701: true,
-    SOC2: true,
-    ISO42001: true,
-    KSA_PDPL: true,
-  });
-  const [apiDataMap, setApiDataMap] = useState({
-    ISO27001: [],
-    ISO27701: [],
-    SOC2: [],
-    ISO42001: [],
-    KSA_PDPL: [],
-  });
-  const [soc2MappingsIndex, setSoc2MappingsIndex] = useState({});
+  // ── 3. Dynamic state — keys seeded from availableFrameworks ─────────────────
+  //    Initialised once; new frameworks added to FRAMEWORK_CONFIG are picked up
+  //    automatically because availableFrameworks drives everything.
+
+  const [controlLibraries, setControlLibraries] = useState({});
+  const [controlsLoading, setControlsLoading] = useState({});
+  const [apiDataMap, setApiDataMap] = useState({});
+
+  // Seed the three maps whenever availableFrameworks changes (e.g. after initial load)
+  useEffect(() => {
+    if (availableFrameworks.length === 0) return;
+    setControlLibraries((prev) => {
+      const next = { ...prev };
+      availableFrameworks.forEach((fw) => {
+        if (!(fw.code in next)) next[fw.code] = [];
+      });
+      return next;
+    });
+    setControlsLoading((prev) => {
+      const next = { ...prev };
+      availableFrameworks.forEach((fw) => {
+        if (!(fw.code in next)) next[fw.code] = true;
+      });
+      return next;
+    });
+    setApiDataMap((prev) => {
+      const next = { ...prev };
+      availableFrameworks.forEach((fw) => {
+        if (!(fw.code in next)) next[fw.code] = [];
+      });
+      return next;
+    });
+  }, [availableFrameworks]);
+
+  // ── 4. Mappings — still needed for SOC2-style cross-framework lookup ─────────
+  //    These are stored per "source framework" pair (e.g. SOC2→ISO27001).
+  //    The index shape: { [sourceControlCode]: [{ code, framework }] }
+  const [mappingsIndex, setMappingsIndex] = useState({}); // keyed by fw code that NEEDS mappings
   const [mappingsLoading, setMappingsLoading] = useState(false);
+
+  // ── 5. Rest of state ─────────────────────────────────────────────────────────
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [search, setSearch] = useState("");
@@ -1177,85 +994,89 @@ const RiskAssessmentTable = () => {
   const [mldDocuments, setMldDocuments] = useState([]);
   const [mldSoas, setMldSoas] = useState([]);
   const [mldDocsLoading, setMldDocsLoading] = useState(false);
-
-  // ── SoA applicable set ───────────────────────────────────────────────────
-  // Keys are "FRAMEWORK:controlCode" for every applicable SoA entry.
-  // null  = still loading (show all while waiting)
-  // Set() = loaded — empty means no entries saved yet (show all)
+  const [showCapSpreadsheet, setShowCapSpreadsheet] = useState(false);
   const [soaApplicableSet, setSoaApplicableSet] = useState(null);
 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
-  const fwConfig = isAllFrameworks ? null : FRAMEWORK_CONFIG[activeFramework];
-  // ── Fetch SoA applicable entries once on mount ───────────────────────────
+
+  // Resolved config for currently active single framework (null when ALL)
+  const fwConfig = isAllFrameworks
+    ? null
+    : availableFrameworks.find((f) => f.code === activeFramework);
+
+  // ── Frameworks that use cross-framework mappings (i.e. they don't have
+  //    native cloud metrics and inherit scores from other frameworks).
+  //    Determined purely from availableFrameworks metadata — no hardcoded codes.
+  //    Convention: a framework is "mapping-only" when its riskTypes does NOT
+  //    include "Information Security" and is NOT "Trust Services" natively.
+  //    For now we detect this by the presence of a `mappingSources` array on
+  //    the framework object (set in frameworkService.js).  Frameworks without
+  //    native cloud integration list their source frameworks there.
+  const mappingOnlyCodes = useMemo(
+    () =>
+      new Set(
+        availableFrameworks
+          .filter(
+            (fw) =>
+              Array.isArray(fw.mappingSources) && fw.mappingSources.length > 0,
+          )
+          .map((fw) => fw.code),
+      ),
+    [availableFrameworks],
+  );
+
+  const isActiveMappingOnly = mappingOnlyCodes.has(activeFramework);
+
+  // ── SoA fetch ────────────────────────────────────────────────────────────────
   useEffect(() => {
     const fetchSoaEntries = async () => {
       try {
         const userData = JSON.parse(sessionStorage.getItem("user") || "{}");
         const orgId =
           userData?.organization?._id ?? userData?.organization ?? null;
-
-        const entries = await documentationService.getSoAEntries();
-
-        // Build "FRAMEWORK:controlCode" keys for every applicable entry
+        const res = await fetch("https://api.calvant.com/control-soa/api/soa", {
+          headers: {
+            Authorization: `Bearer ${sessionStorage.getItem("token")}`,
+          },
+        });
+        const entries = await res.json();
+        const seen = new Set();
+        const deduped = entries.filter((e) => {
+          const eOrg = e.organization?._id ?? e.organization;
+          if (orgId && String(eOrg) !== String(orgId)) return false;
+          const key = `${e.framework}:${String(e.category)}`;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
         const applicable = new Set(
-          entries
-            .filter((e) => {
-              const eOrg = e.organization?._id ?? e.organization;
-              return orgId ? eOrg === orgId : true;
-            })
-            .map((e) => `${e.framework}:${String(e.category)}`),
+          deduped.map((e) => `${e.framework}:${String(e.category)}`),
         );
-
         setSoaApplicableSet(applicable);
-        console.log(
-          "[SoA Filter] ISO42001 entries:",
-          [...applicable].filter((k) => k.startsWith("ISO42001:")),
-        );
-        console.log(
-          "[SoA Filter] ISO27001 entries:",
-          [...applicable].filter((k) => k.startsWith("ISO27001:")),
-        );
-        console.log(
-          "[SoA Filter] ISO27701 entries:",
-          [...applicable].filter((k) => k.startsWith("ISO27701:")),
-        );
       } catch (err) {
         console.error("Failed to fetch SoA entries for filter:", err);
-        // On error fall open — show everything
         setSoaApplicableSet(new Set());
       }
     };
     fetchSoaEntries();
   }, []);
 
-  // ── Helper: is a control applicable in SoA for a given framework? ────────
   const isControlInSoa = useCallback(
     (controlCode, frameworkCode) => {
-      // Still loading or no entries → show all
       if (soaApplicableSet === null || soaApplicableSet.size === 0) return true;
-
-      // Direct match: e.g. "ISO27001:A.5.34" or "ISO42001:4.3" or "SOC2:CC6.1"
       if (soaApplicableSet.has(`${frameworkCode}:${controlCode}`)) return true;
-
-      if (frameworkCode === "ISO27001" || frameworkCode === "ISO27701") {
-        if (controlCode.startsWith("A.")) {
-          // Annex A: only exact "FRAMEWORK:A.x.x" match.
-          // Do NOT strip "A." and check bare — bare codes in SoA are clauses,
-          // not Annex A controls. Stripping causes A.5.3 to match clause 5.3.
-          return false;
-        } else {
-          // Clause: check if SoA accidentally stored it with "A." prefix
-          return soaApplicableSet.has(`${frameworkCode}:A.${controlCode}`);
-        }
+      // ISO annex-A style: try both with and without leading "A."
+      if (controlCode.startsWith("A.")) {
+        return false; // exact match only for annex controls
+      } else {
+        return soaApplicableSet.has(`${frameworkCode}:A.${controlCode}`);
       }
-
-      return false;
     },
     [soaApplicableSet],
   );
 
-  // ── Fetch MLD documents and SoA entries ──────────────────────────────────
+  // ── MLD documents ────────────────────────────────────────────────────────────
   const fetchMldDocs = async () => {
     setMldDocsLoading(true);
     try {
@@ -1295,19 +1116,14 @@ const RiskAssessmentTable = () => {
 
   const hasAnyDocument = useCallback(
     (controlId) => {
-      // Check 1: manual evidence uploaded via compliance upload
       if (manualUploads[controlId]?.fileId) return true;
-
-      // Check 2: SoA document available for this control
       const framework = isAllFrameworks ? null : activeFramework;
       if (!framework) return false;
-
       const withA = controlId.startsWith("A.") ? controlId : `A.${controlId}`;
       const withoutA = controlId.startsWith("A.")
         ? controlId.substring(2)
         : controlId;
       const candidates = [...new Set([controlId, withA, withoutA])];
-
       return candidates.some((code) => {
         const matchingSoas = mldSoas.filter(
           (s) =>
@@ -1320,7 +1136,6 @@ const RiskAssessmentTable = () => {
         });
       });
     },
-    // getLatestDocForSoA is now defined above so this is safe
     [
       manualUploads,
       mldSoas,
@@ -1354,6 +1169,7 @@ const RiskAssessmentTable = () => {
     fetchMldDocs();
   }, []);
 
+  // ── Auditors ─────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!organizationId) return;
     axios
@@ -1372,15 +1188,7 @@ const RiskAssessmentTable = () => {
       .catch(console.error);
   }, [organizationId]);
 
-  // const handleFrameworkChange = (code) => {
-  //   setActiveFramework(code);
-  //   setPage(0);
-  //   setSearch("");
-  //   setManualUploads({});
-  //   setManualScores({});
-  //   setManualTargetScores({});
-  //   setApprovalStatuses({});
-  // };
+  // Reset per-framework UI state when active framework changes
   useEffect(() => {
     setPage(0);
     setSearch("");
@@ -1390,109 +1198,145 @@ const RiskAssessmentTable = () => {
     setApprovalStatuses({});
   }, [activeFramework]);
 
-  const loadControls = async (frameworkCode) => {
-    const cfg = FRAMEWORK_CONFIG[frameworkCode];
-    const cached = localStorage.getItem(cfg.controlsCacheKey);
-    if (cached) {
-      try {
-        setControlLibraries((prev) => ({
-          ...prev,
-          [frameworkCode]: JSON.parse(cached),
-        }));
-        setControlsLoading((prev) => ({ ...prev, [frameworkCode]: false }));
-        return;
-      } catch {
-        localStorage.removeItem(cfg.controlsCacheKey);
+  // ── Load control libraries — fully dynamic ────────────────────────────────
+  const loadControls = useCallback(
+    async (frameworkCode) => {
+      if (availableFrameworks.length === 0) return;
+      const fw = availableFrameworks.find((f) => f.code === frameworkCode);
+      if (!fw) return; // framework not registered — skip silently
+
+      const cacheKey = `${fw.code.toLowerCase()}_controls_cache_v1`;
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) {
+        try {
+          setControlLibraries((prev) => ({
+            ...prev,
+            [frameworkCode]: JSON.parse(cached),
+          }));
+          setControlsLoading((prev) => ({ ...prev, [frameworkCode]: false }));
+          return;
+        } catch {
+          localStorage.removeItem(cacheKey);
+        }
       }
-    }
-    try {
-      const res = await axios.get(`${CONTROLS_API}/${frameworkCode}`, {
-        headers: { Authorization: `Bearer ${sessionStorage.getItem("token")}` },
-      });
-      const controls = res.data || [];
-      setControlLibraries((prev) => ({ ...prev, [frameworkCode]: controls }));
-      localStorage.setItem(cfg.controlsCacheKey, JSON.stringify(controls));
-    } catch (err) {
-      console.error(`Failed to load ${frameworkCode} control library`, err);
-      setSnackbar({
-        open: true,
-        message: `Failed to load ${frameworkCode} control library`,
-        severity: "error",
-      });
-    } finally {
-      setControlsLoading((prev) => ({ ...prev, [frameworkCode]: false }));
-    }
-  };
-
-  const loadSoc2Mappings = async () => {
-    setMappingsLoading(true);
-    try {
-      const [res27001, res27701] = await Promise.all([
-        axios
-          .get(`${MAPPINGS_API}/SOC2/ISO27001`, {
-            headers: {
-              Authorization: `Bearer ${sessionStorage.getItem("token")}`,
-            },
-          })
-          .catch(() => ({ data: [] })),
-        axios
-          .get(`${MAPPINGS_API}/SOC2/ISO27701`, {
-            headers: {
-              Authorization: `Bearer ${sessionStorage.getItem("token")}`,
-            },
-          })
-          .catch(() => ({ data: [] })),
-      ]);
-      const index = {};
-      (res27001.data || []).forEach((m) => {
-        if (!index[m.sourceControlCode]) index[m.sourceControlCode] = [];
-        index[m.sourceControlCode].push({
-          code: m.targetControlCode,
-          framework: "ISO27001",
+      try {
+        const res = await axios.get(`${CONTROLS_API}/${frameworkCode}`, {
+          headers: {
+            Authorization: `Bearer ${sessionStorage.getItem("token")}`,
+          },
         });
-      });
-      (res27701.data || []).forEach((m) => {
-        if (!index[m.sourceControlCode]) index[m.sourceControlCode] = [];
-        index[m.sourceControlCode].push({
-          code: m.targetControlCode,
-          framework: "ISO27701",
+        const controls = res.data || [];
+        setControlLibraries((prev) => ({ ...prev, [frameworkCode]: controls }));
+        localStorage.setItem(cacheKey, JSON.stringify(controls));
+      } catch (err) {
+        console.error(`Failed to load ${frameworkCode} control library`, err);
+        setSnackbar({
+          open: true,
+          message: `Failed to load ${fw.label} control library`,
+          severity: "error",
         });
-      });
-      setSoc2MappingsIndex(index);
-    } catch (err) {
-      console.error("Failed to load SOC2 mappings", err);
-    } finally {
-      setMappingsLoading(false);
-    }
-  };
+      } finally {
+        setControlsLoading((prev) => ({ ...prev, [frameworkCode]: false }));
+      }
+    },
+    [availableFrameworks],
+  );
 
+  // ── Load cross-framework mappings for any mapping-only framework ──────────
+  //    mappingSources is an array of fw codes this framework inherits from,
+  const loadMappingsForFramework = useCallback(
+    async (fwCode) => {
+      const fw = availableFrameworks.find((f) => f.code === fwCode);
+      if (!fw || !fw.mappingSources) return;
+
+      setMappingsLoading(true);
+      try {
+        // Fetch mappings for every source defined in the framework metadata
+        const results = await Promise.all(
+          fw.mappingSources.map(
+            (sourceCode) =>
+              axios
+                .get(`${MAPPINGS_API}/${fwCode}/${sourceCode}`, {
+                  headers: {
+                    Authorization: `Bearer ${sessionStorage.getItem("token")}`,
+                  },
+                })
+                .catch(() => ({ data: [] })), // Graceful fail for missing pairs
+          ),
+        );
+
+        const index = {};
+        results.forEach((res, i) => {
+          const sourceFrameworkCode = fw.mappingSources[i];
+          (res.data || []).forEach((m) => {
+            // Index under BOTH the raw key AND the canonical extracted key
+            // so lookup succeeds whether fwMappings is queried with the raw
+            // library code or the normalized article key.
+            const rawKey = m.sourceControlCode;
+            const canonicalKey = extractArticleKey(m.sourceControlCode);
+            const keysToIndex = new Set([rawKey, canonicalKey]);
+
+            keysToIndex.forEach((key) => {
+              if (!index[key]) index[key] = [];
+              const alreadyExists = index[key].some(
+                (e) =>
+                  e.code === m.targetControlCode &&
+                  e.framework === sourceFrameworkCode,
+              );
+              if (!alreadyExists) {
+                index[key].push({
+                  code: m.targetControlCode,
+                  framework: sourceFrameworkCode,
+                });
+              }
+            });
+          });
+        });
+
+        setMappingsIndex((prev) => ({ ...prev, [fwCode]: index }));
+      } catch (err) {
+        console.error(`Dynamic mapping failed for ${fwCode}:`, err);
+      } finally {
+        setMappingsLoading(false);
+      }
+    },
+    [availableFrameworks],
+  );
+
+  // Kick off all fetches once availableFrameworks is populated
   useEffect(() => {
-    loadControls("ISO27001");
-    loadControls("ISO27701");
-    loadControls("SOC2");
-    loadControls("ISO42001");
-    loadControls("KSA_PDPL");
-    loadSoc2Mappings();
-  }, []);
+    if (availableFrameworks.length === 0) return;
+    availableFrameworks.forEach((fw) => loadControls(fw.code));
+    availableFrameworks
+      .filter((fw) => mappingOnlyCodes.has(fw.code))
+      .forEach((fw) => loadMappingsForFramework(fw.code));
+  }, [
+    availableFrameworks,
+    mappingOnlyCodes,
+    loadControls,
+    loadMappingsForFramework,
+  ]);
 
+  // ── controlMaps: bare-code → library entry, per framework ────────────────
   const controlMaps = useMemo(() => {
+    if (availableFrameworks.length === 0) return {};
     const result = {};
-    for (const code of Object.keys(FRAMEWORK_CONFIG)) {
-      const cfg = FRAMEWORK_CONFIG[code];
+    for (const fw of availableFrameworks) {
       const map = {};
-      (controlLibraries[code] || []).forEach((c) => {
-        map[cfg.toMetricKey(c.controlCode)] = c;
+      (controlLibraries[fw.code] || []).forEach((c) => {
+        map[toBareCode(c.controlCode)] = c;
       });
-      result[code] = map;
+      result[fw.code] = map;
     }
     return result;
-  }, [controlLibraries]);
+  }, [controlLibraries, availableFrameworks]);
 
   const controlMap = useMemo(
     () => (isAllFrameworks ? {} : controlMaps[activeFramework] || {}),
     [controlMaps, activeFramework, isAllFrameworks],
   );
 
+  // ── Tenant ───────────────────────────────────────────────────────────────────
   useEffect(() => {
     const fetchTenantId = async () => {
       try {
@@ -1530,6 +1374,7 @@ const RiskAssessmentTable = () => {
     fetchTenantId();
   }, []);
 
+  // ── Compliance data fetch / sync ─────────────────────────────────────────────
   const fetchComplianceData = async (showLoader = true) => {
     if (!tenantId) {
       setLoading(false);
@@ -1546,46 +1391,40 @@ const RiskAssessmentTable = () => {
         },
       );
       const results = res.data || [];
-      const ksaPdplResults = results.filter(
-        (item) => item.frameworkCode === "KSA_PDPL",
-      );
-      const iso27001Results = results.filter(
-        (item) => item.frameworkCode === "ISO27001",
-      );
-      const iso27701Results = results.filter(
-        (item) => item.frameworkCode === "ISO27701",
-      );
-      const iso42001Results = results.filter(
-        (item) => item.frameworkCode === "ISO42001",
-      );
-      setApiDataMap((prev) => ({
-        ...prev,
-        ISO27001: iso27001Results,
-        ISO27701: iso27701Results,
-        SOC2: results,
-        ISO42001: iso42001Results,
-        KSA_PDPL: ksaPdplResults, // ← add
-      }));
-      localStorage.setItem(
-        FRAMEWORK_CONFIG.KSA_PDPL.storageKey,
-        JSON.stringify(ksaPdplResults),
-      );
-      localStorage.setItem(
-        FRAMEWORK_CONFIG.ISO27001.storageKey,
-        JSON.stringify(iso27001Results),
-      );
-      localStorage.setItem(
-        FRAMEWORK_CONFIG.ISO27701.storageKey,
-        JSON.stringify(iso27701Results),
-      );
-      localStorage.setItem(
-        FRAMEWORK_CONFIG.SOC2.storageKey,
-        JSON.stringify(results),
-      );
-      localStorage.setItem(
-        FRAMEWORK_CONFIG.ISO42001.storageKey,
-        JSON.stringify(iso42001Results),
-      );
+
+      // Distribute results into per-framework buckets dynamically
+      // Each item has a frameworkCode; for frameworks without that field we
+      // fall back to prefix-based heuristics (ISO27001 clause vs annex).
+      const newMap = {};
+      availableFrameworks.forEach((fw) => {
+        newMap[fw.code] = [];
+      });
+
+      results.forEach((item) => {
+        if (item.frameworkCode && newMap[item.frameworkCode] !== undefined) {
+          newMap[item.frameworkCode].push(item);
+        } else {
+          // Legacy heuristic: items without frameworkCode come from ISO27001 sync
+          const isAnnex = item.controlId?.startsWith("A.");
+          if (newMap["ISO27001"] !== undefined && !isAnnex)
+            newMap["ISO27001"].push(item);
+          if (newMap["ISO27701"] !== undefined && isAnnex)
+            newMap["ISO27701"].push(item);
+          // ✅ Mapping-only frameworks (GDPR, SOC2, KSA_PDPL) do NOT store raw items.
+          //    They resolve scores at render time from their mappingSources via mappingsIndex.
+        }
+      });
+
+      setApiDataMap(newMap);
+
+      // Persist caches dynamically
+      availableFrameworks.forEach((fw) => {
+        localStorage.setItem(
+          `risk_assessment_cache_${fw.code.toLowerCase()}_v1`,
+          JSON.stringify(newMap[fw.code] || []),
+        );
+      });
+
       if (showLoader)
         setSnackbar({
           open: true,
@@ -1613,6 +1452,7 @@ const RiskAssessmentTable = () => {
       });
       return;
     }
+    console.log('🔍 Syncing with tenantId:', tenantId, '| type:', typeof tenantId); // ← ADD THIS
     try {
       setLoading(true);
       setSnackbar({
@@ -1648,19 +1488,25 @@ const RiskAssessmentTable = () => {
     }
   };
 
+  // Restore from localStorage caches on mount (dynamic)
   useEffect(() => {
-    for (const code of Object.keys(FRAMEWORK_CONFIG)) {
-      const cached = localStorage.getItem(FRAMEWORK_CONFIG[code].storageKey);
+    if (availableFrameworks.length === 0) return;
+    availableFrameworks.forEach((fw) => {
+      const cached = localStorage.getItem(
+        `risk_assessment_cache_${fw.code.toLowerCase()}_v1`,
+      );
       if (cached) {
         try {
-          setApiDataMap((prev) => ({ ...prev, [code]: JSON.parse(cached) }));
+          setApiDataMap((prev) => ({ ...prev, [fw.code]: JSON.parse(cached) }));
         } catch {
-          localStorage.removeItem(FRAMEWORK_CONFIG[code].storageKey);
+          localStorage.removeItem(
+            `risk_assessment_cache_${fw.code.toLowerCase()}_v1`,
+          );
         }
       }
-    }
+    });
     setLoading(false);
-  }, []);
+  }, [availableFrameworks]); // eslint-disable-line
 
   useEffect(() => {
     if (tenantId) {
@@ -1680,11 +1526,19 @@ const RiskAssessmentTable = () => {
 
   const apiData = isAllFrameworks ? [] : apiDataMap[activeFramework] || [];
 
-  // ── ALL frameworks: build unified view ──────────────────────────────────────
+  // ── Processed data — ALL frameworks (unified view) ───────────────────────────
   const allFrameworksProcessedData = useMemo(() => {
-    if (!isAllFrameworks) return [];
+    if (!isAllFrameworks || availableFrameworks.length === 0) return [];
+
+    // Frameworks with native cloud data (not mapping-only)
+    const nativeFwCodes = availableFrameworks
+      .filter((fw) => !mappingOnlyCodes.has(fw.code) && fw.code !== "SOC2")
+      .map((fw) => fw.code);
+
     const unifiedMap = {};
-    for (const fwCode of ["ISO27001", "ISO27701", "ISO42001", "KSA_PDPL"]) {
+
+    // Seed from all non-SOC2, non-mapping-only libraries
+    nativeFwCodes.forEach((fwCode) => {
       (controlLibraries[fwCode] || []).forEach((c) => {
         const uid = c.unifiedId || c.controlCode;
         if (!unifiedMap[uid]) {
@@ -1714,40 +1568,46 @@ const RiskAssessmentTable = () => {
           unifiedId: c.unifiedId,
         });
       });
-    }
-    (controlLibraries["SOC2"] || []).forEach((c) => {
-      const uid = c.unifiedId || c.controlCode;
-      if (!unifiedMap[uid]) {
-        unifiedMap[uid] = {
-          unifiedId: uid,
-          controlId: uid,
-          controlCode: c.controlCode,
-          controlName: c.title,
-          metric: c.metric,
-          formula: c.formula,
-          documents: c.documents || [],
-          metrics: [],
-          status: "disconnected",
-          frameworks: [],
-          frameworkControls: [],
-          _framework: "SOC2",
-        };
-      }
-      if (!unifiedMap[uid].frameworks.includes("SOC2"))
-        unifiedMap[uid].frameworks.push("SOC2");
-      unifiedMap[uid].frameworkControls.push({
-        frameworkCode: "SOC2",
-        controlCode: c.controlCode,
-        unifiedId: c.unifiedId,
-      });
     });
-    for (const fwCode of ["ISO27001", "ISO27701", "ISO42001", "KSA_PDPL"]) {
-      const cfg = FRAMEWORK_CONFIG[fwCode];
+
+    // Seed SOC2 (always present as a mapping target framework)
+    const soc2Fw = availableFrameworks.find((fw) => fw.code === "SOC2");
+    if (soc2Fw) {
+      (controlLibraries["SOC2"] || []).forEach((c) => {
+        const uid = c.unifiedId || c.controlCode;
+        if (!unifiedMap[uid]) {
+          unifiedMap[uid] = {
+            unifiedId: uid,
+            controlId: uid,
+            controlCode: c.controlCode,
+            controlName: c.title,
+            metric: c.metric,
+            formula: c.formula,
+            documents: c.documents || [],
+            metrics: [],
+            status: "disconnected",
+            frameworks: [],
+            frameworkControls: [],
+            _framework: "SOC2",
+          };
+        }
+        if (!unifiedMap[uid].frameworks.includes("SOC2"))
+          unifiedMap[uid].frameworks.push("SOC2");
+        unifiedMap[uid].frameworkControls.push({
+          frameworkCode: "SOC2",
+          controlCode: c.controlCode,
+          unifiedId: c.unifiedId,
+        });
+      });
+    }
+
+    // Populate metrics from native framework API data
+    nativeFwCodes.forEach((fwCode) => {
       (apiDataMap[fwCode] || []).forEach((item) => {
-        const key = cfg.toBareCode(item.controlId);
+        const key = toBareCode(item.controlId);
         const libEntry = (controlLibraries[fwCode] || []).find(
           (c) =>
-            cfg.toMetricKey(c.controlCode) === key ||
+            toBareCode(c.controlCode) === key ||
             c.controlCode === item.controlId,
         );
         const uid = libEntry?.unifiedId || key;
@@ -1761,248 +1621,255 @@ const RiskAssessmentTable = () => {
           });
         }
       });
-    }
-    const iso27001Data = apiDataMap["ISO27001"] || [];
-    const iso27701Data = apiDataMap["ISO27701"] || [];
-    const isoComplianceLookup = {};
-    iso27001Data.forEach((item) => {
-      const bareCode = FRAMEWORK_CONFIG.ISO27001.toBareCode(item.controlId);
-      if (!isoComplianceLookup[bareCode]) isoComplianceLookup[bareCode] = [];
-      isoComplianceLookup[bareCode].push(item);
-      if (!isoComplianceLookup[item.controlId])
-        isoComplianceLookup[item.controlId] = [];
-      isoComplianceLookup[item.controlId].push(item);
     });
-    const isoPrivacyLookup = {};
-    iso27701Data.forEach((item) => {
-      const key = FRAMEWORK_CONFIG.ISO27701.toBareCode(item.controlId);
-      if (!isoPrivacyLookup[key]) isoPrivacyLookup[key] = [];
-      isoPrivacyLookup[key].push(item);
-      if (!isoPrivacyLookup[item.controlId])
-        isoPrivacyLookup[item.controlId] = [];
-      isoPrivacyLookup[item.controlId].push(item);
-    });
-    (controlLibraries["SOC2"] || []).forEach((c) => {
-      const soc2Code = c.controlCode;
-      const uid = c.unifiedId || soc2Code;
-      if (!unifiedMap[uid]) return;
-      const mappedEntries = soc2MappingsIndex[soc2Code] || [];
-      let hasAnyLiveMetric = false;
-      const fallbackMetrics = [];
-      mappedEntries.forEach(
-        ({ code: sourceCode, framework: sourceFramework }) => {
-          let items = [];
-          if (sourceFramework === "ISO27001") {
-            const bareCode = FRAMEWORK_CONFIG.ISO27001.toBareCode(sourceCode);
-            items =
-              isoComplianceLookup[bareCode] ||
-              isoComplianceLookup[sourceCode] ||
-              [];
-          } else if (sourceFramework === "ISO27701") {
-            const bareCode = FRAMEWORK_CONFIG.ISO27701.toBareCode(sourceCode);
-            items =
-              isoPrivacyLookup[bareCode] || isoPrivacyLookup[sourceCode] || [];
-          }
-          if (items.length > 0) {
-            items.forEach((item) => {
-              const key = `${item.cloud} - ${item.controlName}`;
-              if (!unifiedMap[uid].metrics.find((m) => m.metricName === key)) {
-                unifiedMap[uid].metrics.push({
-                  metricName: key,
-                  currentPerformance: item.score ?? (item.compliant ? 100 : 0),
-                  evidence: item.evidence,
-                  sourceCode,
-                  sourceFramework,
-                });
-              }
-            });
-            hasAnyLiveMetric = true;
-          } else {
-            const iso27001LibraryMetric = {};
-            (controlLibraries["ISO27001"] || []).forEach((lc) => {
-              if (lc.metric) {
-                iso27001LibraryMetric[lc.controlCode] = lc.metric;
-                const bare = FRAMEWORK_CONFIG.ISO27001.toBareCode(
-                  lc.controlCode,
-                );
-                if (bare !== lc.controlCode)
-                  iso27001LibraryMetric[bare] = lc.metric;
-              }
-            });
-            const iso27701LibraryMetric = {};
-            (controlLibraries["ISO27701"] || []).forEach((lc) => {
-              if (lc.metric) iso27701LibraryMetric[lc.controlCode] = lc.metric;
-            });
-            const libMetric =
-              sourceFramework === "ISO27001"
-                ? iso27001LibraryMetric[sourceCode] ||
-                  iso27001LibraryMetric[
-                    FRAMEWORK_CONFIG.ISO27001.toBareCode(sourceCode)
-                  ]
-                : iso27701LibraryMetric[sourceCode];
-            if (
-              libMetric &&
-              !fallbackMetrics.find((f) => f.metricName === libMetric)
-            )
-              fallbackMetrics.push({
-                metricName: libMetric,
-                sourceCode,
-                sourceFramework,
-                isFallback: true,
-              });
-          }
-        },
-      );
-      if (hasAnyLiveMetric) unifiedMap[uid].status = "mapped";
-      else if (fallbackMetrics.length > 0)
-        unifiedMap[uid].fallbackMetrics = fallbackMetrics;
-    });
-    return Object.values(unifiedMap).sort((a, b) => {
-      const FW_ORDER = {
-        ISO27001: 0,
-        ISO27701: 1,
-        SOC2: 2,
-        ISO42001: 3,
-        KSA_PDPL: 4,
-      };
-      const fwA = a.frameworks?.[0] || a._framework || "ISO27001";
-      const fwB = b.frameworks?.[0] || b._framework || "ISO27001";
-      const fd = (FW_ORDER[fwA] ?? 9) - (FW_ORDER[fwB] ?? 9);
-      return fd !== 0
-        ? fd
-        : frameworkSortKey(a.controlCode || a.controlId, fwA).localeCompare(
-            frameworkSortKey(b.controlCode || b.controlId, fwB),
-          );
-    });
-  }, [isAllFrameworks, controlLibraries, apiDataMap, soc2MappingsIndex]);
 
-  // ── Per-framework processed data ─────────────────────────────────────────────
-  const singleFrameworkProcessedData = useMemo(() => {
-    if (isAllFrameworks) return [];
-    const grouped = {};
-    const cfg = FRAMEWORK_CONFIG[activeFramework];
-
-    if (activeFramework === "SOC2") {
-      const iso27001Data = apiDataMap["ISO27001"] || [];
-      const isoComplianceLookup = {};
-      iso27001Data.forEach((item) => {
-        const bareCode = FRAMEWORK_CONFIG.ISO27001.toBareCode(item.controlId);
-        if (!isoComplianceLookup[bareCode]) isoComplianceLookup[bareCode] = [];
-        isoComplianceLookup[bareCode].push(item);
-        if (!isoComplianceLookup[item.controlId])
-          isoComplianceLookup[item.controlId] = [];
-        isoComplianceLookup[item.controlId].push(item);
+    // Build lookup tables from native frameworks for mapping resolution
+    const normalizeCodeForLookup = (c) => {
+      const s = String(c || "").trim();
+      const articleMatch = s.match(/^article[-\s]?(\d+)/i);
+      if (articleMatch) return articleMatch[1].toUpperCase();
+      return s.toUpperCase().replace(/[^A-Z0-9]/g, "");
+    };
+    const lookupByFw = {};
+    nativeFwCodes.forEach((fwCode) => {
+      lookupByFw[fwCode] = {};
+      (apiDataMap[fwCode] || []).forEach((item) => {
+        const raw = item.controlId || "";
+        const bare = toBareCode(raw); // strips leading "A."
+        const withA = raw.startsWith("A.") ? raw : `A.${raw}`;
+        const keysToIndex = new Set([
+          raw,
+          bare,
+          withA,
+          normalizeCodeForLookup(raw),
+          normalizeCodeForLookup(bare),
+        ]);
+        keysToIndex.forEach((k) => {
+          if (!lookupByFw[fwCode][k]) lookupByFw[fwCode][k] = [];
+          lookupByFw[fwCode][k].push(item);
+        });
       });
-      (controlLibraries["SOC2"] || []).forEach((c) => {
+    });
+
+    // Library metric fallback per native framework
+    const libMetricByFw = {};
+    nativeFwCodes.forEach((fwCode) => {
+      libMetricByFw[fwCode] = {};
+      (controlLibraries[fwCode] || []).forEach((lc) => {
+        if (lc.metric) {
+          libMetricByFw[fwCode][lc.controlCode] = lc.metric;
+          const bare = toBareCode(lc.controlCode);
+          if (bare !== lc.controlCode) libMetricByFw[fwCode][bare] = lc.metric;
+        }
+      });
+    });
+
+    // Resolve metrics for mapping-only frameworks via their mappingSources
+    availableFrameworks
+      .filter((fw) => mappingOnlyCodes.has(fw.code))
+      .forEach((fw) => {
+        const fwMappings = mappingsIndex[fw.code] || {};
+        (controlLibraries[fw.code] || []).forEach((c) => {
+          const uid = c.unifiedId || c.controlCode;
+          if (!unifiedMap[uid]) return;
+
+          const mappedEntries = fwMappings[c.controlCode] || [];
+          let hasAnyLiveMetric = false;
+          const fallbackMetrics = [];
+
+          mappedEntries.forEach(
+            ({ code: sourceCode, framework: sourceFramework }) => {
+              const srcLookup = lookupByFw[sourceFramework] || {};
+              const bare = toBareCode(sourceCode);
+              const normKey = normalizeCodeForLookup(sourceCode);
+              const items =
+                srcLookup[sourceCode] ||
+                srcLookup[bare] ||
+                srcLookup[normKey] ||
+                [];
+              if (items.length > 0) {
+                items.forEach((item) => {
+                  const key = `${item.cloud} - ${item.controlName}`;
+                  if (
+                    !unifiedMap[uid].metrics.find((m) => m.metricName === key)
+                  ) {
+                    unifiedMap[uid].metrics.push({
+                      metricName: key,
+                      currentPerformance:
+                        item.score ?? (item.compliant ? 100 : 0),
+                      evidence: item.evidence,
+                      sourceCode,
+                      sourceFramework,
+                    });
+                  }
+                });
+                hasAnyLiveMetric = true;
+              } else {
+                const libMetric =
+                  (libMetricByFw[sourceFramework] || {})[sourceCode] ||
+                  (libMetricByFw[sourceFramework] || {})[bare];
+                if (
+                  libMetric &&
+                  !fallbackMetrics.find((f) => f.metricName === libMetric)
+                ) {
+                  fallbackMetrics.push({
+                    metricName: libMetric,
+                    sourceCode,
+                    sourceFramework,
+                    isFallback: true,
+                  });
+                }
+              }
+            },
+          );
+
+          if (hasAnyLiveMetric) unifiedMap[uid].status = "mapped";
+          else if (fallbackMetrics.length > 0)
+            unifiedMap[uid].fallbackMetrics = fallbackMetrics;
+        });
+      });
+
+    // Deduplicate metrics
+    Object.values(unifiedMap).forEach((entry) => {
+      const seen = new Set();
+      entry.metrics = entry.metrics.filter((m) => {
+        if (seen.has(m.metricName)) return false;
+        seen.add(m.metricName);
+        return true;
+      });
+      if (entry.metrics.length > 0) entry.status = "connected";
+    });
+
+    return Object.values(unifiedMap).sort((a, b) =>
+      unifiedIdSortKey(a.unifiedId || a.controlId).localeCompare(
+        unifiedIdSortKey(b.unifiedId || b.controlId),
+      ),
+    );
+  }, [
+    isAllFrameworks,
+    availableFrameworks,
+    controlLibraries,
+    apiDataMap,
+    mappingsIndex,
+    mappingOnlyCodes,
+  ]);
+
+  // ── Processed data — single framework ────────────────────────────────────────
+  const singleFrameworkProcessedData = useMemo(() => {
+    if (isAllFrameworks || availableFrameworks.length === 0) return [];
+
+    const grouped = {};
+    const isMappingOnly = mappingOnlyCodes.has(activeFramework);
+
+    if (isMappingOnly) {
+      const fw = availableFrameworks.find((f) => f.code === activeFramework);
+      const sources = fw?.mappingSources || [];
+      const fwMappings = mappingsIndex[activeFramework] || {};
+
+      // ✅ Match the normalization logic from your frameworkMappings.js
+      const normalizeCode = (c) => {
+        const s = String(c || "").trim();
+        // Handles "Article-5" -> "5", "Art. 5" -> "5", etc.
+        const articleMatch = s.match(/^article[-\s]?(\d+)/i);
+        if (articleMatch) return articleMatch[1].toUpperCase();
+        return s.toUpperCase().replace(/[^A-Z0-9]/g, "");
+      };
+
+      // 1. Build lookup tables for each source framework with NORMALIZED keys
+      const lookupBySource = {};
+      sources.forEach((srcCode) => {
+        lookupBySource[srcCode] = {};
+        (apiDataMap[srcCode] || []).forEach((item) => {
+          const bare = item.controlId || "";
+          const keysToIndex = new Set([
+            normalizeCode(bare),
+            normalizeCode(bare.startsWith("A.") ? bare.slice(2) : `A.${bare}`),
+          ]);
+          keysToIndex.forEach((k) => {
+            if (!lookupBySource[srcCode][k]) lookupBySource[srcCode][k] = [];
+            lookupBySource[srcCode][k].push(item);
+          });
+        });
+      });
+
+      // 2. Map library items
+      (controlLibraries[activeFramework] || []).forEach((c) => {
         grouped[c.controlCode] = {
-          controlId: c.unifiedId,
+          controlId: c.unifiedId || c.controlCode,
           controlCode: c.controlCode,
+          unifiedId: c.unifiedId || null,
           controlName: c.title,
           metric: c.metric,
           formula: c.formula,
           documents: c.documents || [],
           metrics: [],
           status: "disconnected",
-          _framework: "SOC2",
+          _framework: activeFramework,
         };
       });
-      const iso27701Data = apiDataMap["ISO27701"] || [];
-      const isoPrivacyLookup = {};
-      iso27701Data.forEach((item) => {
-        const key = FRAMEWORK_CONFIG.ISO27701.toBareCode(item.controlId);
-        if (!isoPrivacyLookup[key]) isoPrivacyLookup[key] = [];
-        isoPrivacyLookup[key].push(item);
-        if (!isoPrivacyLookup[item.controlId])
-          isoPrivacyLookup[item.controlId] = [];
-        isoPrivacyLookup[item.controlId].push(item);
-      });
-      const iso27001LibraryMetric = {};
-      (controlLibraries["ISO27001"] || []).forEach((c) => {
-        if (c.metric) {
-          iso27001LibraryMetric[c.controlCode] = c.metric;
-          const bare = FRAMEWORK_CONFIG.ISO27001.toBareCode(c.controlCode);
-          if (bare !== c.controlCode) iso27001LibraryMetric[bare] = c.metric;
-        }
-      });
-      const iso27701LibraryMetric = {};
-      (controlLibraries["ISO27701"] || []).forEach((c) => {
-        if (c.metric) iso27701LibraryMetric[c.controlCode] = c.metric;
-      });
-      Object.keys(grouped).forEach((soc2Code) => {
-        const mappedEntries = soc2MappingsIndex[soc2Code] || [];
+
+      // 3. Resolve metrics through normalized mappings
+      // Replace this block in singleFrameworkProcessedData:
+      // "3. Resolve metrics through normalized mappings"
+
+      Object.keys(grouped).forEach((fwControlCode) => {
+        // extractArticleKey normalizes both sides to the same canonical form:
+        // "Article-5(1)(a)-Lawfulness," → "ARTICLE-5(1)(A)"
+        // "Article-5(1)(a)"             → "ARTICLE-5(1)(A)"  ← mapping key
+        // Exact match is tried first as a fast path.
+        const articleKey = extractArticleKey(fwControlCode);
+        const mappedEntries =
+          fwMappings[fwControlCode] || // exact match first
+          fwMappings[articleKey] || // canonical extracted key
+          [];
+
         let hasAnyLiveMetric = false;
-        const fallbackMetrics = [];
+
         mappedEntries.forEach(
-          ({ code: sourceCode, framework: sourceFramework }) => {
-            let items = [];
-            if (sourceFramework === "ISO27001") {
-              const bareCode = FRAMEWORK_CONFIG.ISO27001.toBareCode(sourceCode);
-              items =
-                isoComplianceLookup[bareCode] ||
-                isoComplianceLookup[sourceCode] ||
-                [];
-            } else if (sourceFramework === "ISO27701") {
-              const bareCode = FRAMEWORK_CONFIG.ISO27701.toBareCode(sourceCode);
-              items =
-                isoPrivacyLookup[bareCode] ||
-                isoPrivacyLookup[sourceCode] ||
-                [];
-            }
+          ({ code: sourceControlCode, framework: sourceFramework }) => {
+            const srcLookup = lookupBySource[sourceFramework] || {};
+            const targetKey = normalizeCode(sourceControlCode);
+            const items = srcLookup[targetKey] || [];
+
             if (items.length > 0) {
               items.forEach((item) => {
-                grouped[soc2Code].metrics.push({
+                grouped[fwControlCode].metrics.push({
                   metricName: `${item.cloud} - ${item.controlName}`,
                   currentPerformance: item.score ?? (item.compliant ? 100 : 0),
                   evidence: item.evidence,
-                  sourceCode,
-                  sourceFramework,
+                  sourceCode: sourceControlCode,
+                  sourceFramework: sourceFramework,
                 });
               });
               hasAnyLiveMetric = true;
-            } else {
-              const libMetric =
-                sourceFramework === "ISO27001"
-                  ? iso27001LibraryMetric[sourceCode] ||
-                    iso27001LibraryMetric[
-                      FRAMEWORK_CONFIG.ISO27001.toBareCode(sourceCode)
-                    ]
-                  : iso27701LibraryMetric[sourceCode];
-              if (
-                libMetric &&
-                !fallbackMetrics.find((f) => f.metricName === libMetric)
-              )
-                fallbackMetrics.push({
-                  metricName: libMetric,
-                  sourceCode,
-                  sourceFramework,
-                  isFallback: true,
-                });
             }
           },
         );
-        if (!hasAnyLiveMetric && fallbackMetrics.length > 0)
-          grouped[soc2Code].fallbackMetrics = fallbackMetrics;
-        if (hasAnyLiveMetric) grouped[soc2Code].status = "mapped";
+
+        if (hasAnyLiveMetric) grouped[fwControlCode].status = "mapped";
       });
+
+      // 4. Deduplicate and Sort
       Object.values(grouped).forEach((group) => {
         const seen = new Set();
         group.metrics = group.metrics.filter((m) => {
-          const key = m.metricName;
+          const key = `${m.sourceFramework}-${m.metricName}`;
           if (seen.has(key)) return false;
           seen.add(key);
           return true;
         });
-        if (group.metrics.length > 0) group.status = "mapped";
       });
+
       return Object.values(grouped).sort((a, b) =>
-        frameworkSortKey(a.controlId, "SOC2").localeCompare(
-          frameworkSortKey(b.controlId, "SOC2"),
+        frameworkSortKey(a.controlId, activeFramework).localeCompare(
+          frameworkSortKey(b.controlId, activeFramework),
         ),
       );
     }
 
+    // ── Native cloud-connected framework (e.g. ISO27001, ISO27701, ISO42001) ──
     (controlLibraries[activeFramework] || []).forEach((c) => {
-      const key = cfg.toMetricKey(c.controlCode);
+      const key = toBareCode(c.controlCode);
       grouped[key] = {
         controlId: key,
         controlCode: c.controlCode,
@@ -2016,19 +1883,24 @@ const RiskAssessmentTable = () => {
         _framework: activeFramework,
       };
     });
+
     apiData.forEach((item) => {
-      const key = cfg.toBareCode(item.controlId);
-      let belongsToFramework = false;
-      if (activeFramework === "ISO27001")
-        belongsToFramework = !item.controlId?.startsWith("A.");
-      else if (activeFramework === "ISO27701")
-        belongsToFramework = item.controlId?.startsWith("A.");
-      else if (activeFramework === "ISO42001")
-        belongsToFramework = item.frameworkCode === "ISO42001";
-      else if (activeFramework === "KSA_PDPL")
-        belongsToFramework = item.frameworkCode === "KSA_PDPL";
-      else belongsToFramework = true;
+      const key = toBareCode(item.controlId);
+
+      // Determine whether this API result belongs to the active framework.
+      // Prefer the explicit frameworkCode on the item; fall back to structural heuristics.
+      let belongsToFramework;
+      if (item.frameworkCode) {
+        belongsToFramework = item.frameworkCode === activeFramework;
+      } else {
+        // Legacy heuristic: ISO27001 = non-annex, ISO27701 = annex-A
+        const isAnnex = item.controlId?.startsWith("A.");
+        if (activeFramework === "ISO27001") belongsToFramework = !isAnnex;
+        else if (activeFramework === "ISO27701") belongsToFramework = isAnnex;
+        else belongsToFramework = true;
+      }
       if (!belongsToFramework) return;
+
       if (!grouped[key]) {
         grouped[key] = {
           controlId: key,
@@ -2049,6 +1921,17 @@ const RiskAssessmentTable = () => {
         evidence: item.evidence,
       });
     });
+
+    Object.values(grouped).forEach((group) => {
+      const seen = new Set();
+      group.metrics = group.metrics.filter((m) => {
+        if (seen.has(m.metricName)) return false;
+        seen.add(m.metricName);
+        return true;
+      });
+      if (group.metrics.length > 0) group.status = "connected";
+    });
+
     return Object.values(grouped).sort((a, b) =>
       frameworkSortKey(a.controlId, activeFramework).localeCompare(
         frameworkSortKey(b.controlId, activeFramework),
@@ -2056,44 +1939,43 @@ const RiskAssessmentTable = () => {
     );
   }, [
     isAllFrameworks,
+    availableFrameworks,
     controlLibraries,
     apiData,
     apiDataMap,
     activeFramework,
-    soc2MappingsIndex,
+    mappingsIndex,
+    mappingOnlyCodes,
   ]);
 
   const processedData = isAllFrameworks
     ? allFrameworksProcessedData
     : singleFrameworkProcessedData;
 
-  // ── filteredData: SoA filter first, then search ───────────────────────────
-  // SoA filter rules:
-  //   • Single framework → keep only controls applicable for activeFramework
-  //   • ALL frameworks   → keep if applicable in ANY of the group's frameworks
-  //   • soaApplicableSet null or empty → show all (loading / no entries yet)
-  // Update your filteredData useMemo:
+  // ── Filtered data ─────────────────────────────────────────────────────────────
   const filteredData = useMemo(() => {
     let data = processedData;
 
-    // 1. Filter by Framework Selection
-    // If "Select All" isn't checked, only show controls belonging to selected frameworks
+    // 1. Framework selection filter
     if (!isAllSelected) {
       data = data.filter((group) => {
-        // For unified rows, check if any of the frameworks in that row are in our selection
         const rowFrameworks = group.frameworks || [group._framework];
         return rowFrameworks.some((fw) => normalizedSelected.includes(fw));
       });
     }
 
-    // 2. SoA applicability filter (Keep your existing logic)
+    // 2. SoA applicability filter
     if (soaApplicableSet !== null && soaApplicableSet.size > 0) {
       data = data.filter((group) => {
         if (isAllFrameworks) {
-          return (group.frameworks || []).some((fw) =>
-            isControlInSoa(group.controlCode || group.controlId, fw),
-          );
+          return (group.frameworks || []).some((fw) => {
+            // Show all controls for mapping-only frameworks regardless of SoA
+            if (mappingOnlyCodes.has(fw)) return true;
+            return isControlInSoa(group.controlCode || group.controlId, fw);
+          });
         }
+        // Show all controls for mapping-only frameworks regardless of SoA
+        if (mappingOnlyCodes.has(activeFramework)) return true;
         return isControlInSoa(
           group.controlCode || group.controlId,
           activeFramework,
@@ -2101,7 +1983,7 @@ const RiskAssessmentTable = () => {
       });
     }
 
-    // 3. Search filter (Keep your existing logic)
+    // 3. Text search
     const filtered = !search.trim()
       ? data
       : data.filter(
@@ -2124,13 +2006,34 @@ const RiskAssessmentTable = () => {
     isControlInSoa,
     normalizedSelected,
     isAllSelected,
+    mappingOnlyCodes,
   ]);
 
-  // ── Build flat rows ──────────────────────────────────────────────────────────
+  const soaApplicableCountForFramework = useMemo(() => {
+    if (!soaApplicableSet || soaApplicableSet.size === 0) return 0;
+    if (mappingOnlyCodes.has(activeFramework) || isAllFrameworks)
+      return filteredData.length;
+    return [...soaApplicableSet].filter((key) =>
+      key.startsWith(`${activeFramework}:`),
+    ).length;
+  }, [
+    soaApplicableSet,
+    activeFramework,
+    isAllFrameworks,
+    filteredData.length,
+    mappingOnlyCodes,
+  ]);
+
+  // ── Flat rows for pagination ──────────────────────────────────────────────────
   const allFlatRows = useMemo(() => {
     const rows = [];
     for (const group of filteredData) {
-      const hasDocs = (group.documents || []).some((d) => d.doc);
+      const uniqueDocs = [
+        ...new Map(
+          (group.documents || []).filter((d) => d.doc).map((d) => [d.doc, d]),
+        ).values(),
+      ];
+      const hasDocs = uniqueDocs.length > 0;
       if (group.metrics.length === 0) {
         rows.push({ group, metric: null, isFirst: true, isLast: true });
         if (hasDocs)
@@ -2145,8 +2048,7 @@ const RiskAssessmentTable = () => {
         group.metrics.forEach((metric, idx) => {
           const isLast = idx === group.metrics.length - 1;
           rows.push({ group, metric, isFirst: idx === 0, isLast });
-          // FIXED — only push doc row after the very last metric row
-          if (isLast && hasDocs && idx === group.metrics.length - 1)
+          if (isLast && hasDocs)
             rows.push({
               group,
               metric: null,
@@ -2167,6 +2069,7 @@ const RiskAssessmentTable = () => {
     [allFlatRows, page, rowsPerPage],
   );
 
+  // ── File handlers ─────────────────────────────────────────────────────────────
   const handleViewFile = async (controlId, fileId, fileName) => {
     try {
       setPdfModal({ open: true, url: null, fileName });
@@ -2201,6 +2104,7 @@ const RiskAssessmentTable = () => {
 
   const handleDeleteFile = (controlId, fileId, fileName) =>
     setConfirmDelete({ open: true, controlId, fileId, fileName });
+
   const handleDeleteConfirmed = async () => {
     const { controlId, fileId } = confirmDelete;
     setConfirmDelete({
@@ -2336,14 +2240,12 @@ const RiskAssessmentTable = () => {
 
   const handleScoreChange = (controlId, value) =>
     setManualScores((prev) => ({ ...prev, [controlId]: value }));
+
   const handleScoreSave = async (controlId, frameworkForControl) => {
     setEditingControl(null);
     const numeric = parseFloat(manualScores[controlId]);
     if (isNaN(numeric) || numeric < 0 || numeric > 100) return;
-
-    // Use the specific framework of the control rather than the global 'activeFramework'
     const targetFw = frameworkForControl || activeFramework;
-
     try {
       await axios.post(
         `https://api.calvant.com/compliance-brain/compliance/${tenantId}/${targetFw}/${controlId}/current-score`,
@@ -2395,7 +2297,6 @@ const RiskAssessmentTable = () => {
     }
   };
 
-  // AFTER — filters by frameworkCode so scores don't bleed across frameworks
   const fetchAllTargetScores = async () => {
     if (!tenantId) return;
     try {
@@ -2411,9 +2312,7 @@ const RiskAssessmentTable = () => {
       const targetMap = {},
         currentMap = {},
         approvalMap = {};
-
       scores
-        // Only include scores for the currently active framework
         .filter(
           (ts) => !ts.frameworkCode || ts.frameworkCode === activeFramework,
         )
@@ -2433,7 +2332,6 @@ const RiskAssessmentTable = () => {
             currentMap[ts.controlId] = ts.currentScore;
           if (ts.approvalStatus) approvalMap[ts.controlId] = ts.approvalStatus;
         });
-
       setManualTargetScores(targetMap);
       setManualScores(currentMap);
       setApprovalStatuses(approvalMap);
@@ -2448,15 +2346,18 @@ const RiskAssessmentTable = () => {
     return { backgroundColor: "#F44336", color: "white" };
   };
 
+  // ── Loading state ─────────────────────────────────────────────────────────────
   const anyControlsLoading = Object.values(controlsLoading).some(Boolean);
   const isLoading =
     loading ||
     (isAllFrameworks ? anyControlsLoading : controlsLoading[activeFramework]) ||
-    (activeFramework === "SOC2" && mappingsLoading);
+    mappingsLoading;
+
   const selectedOption =
-    FRAMEWORK_OPTIONS.find((o) => o.code === activeFramework) ||
-    FRAMEWORK_OPTIONS[0];
-  const tabColor = selectedOption.color;
+    getFrameworkOptions(availableFrameworks).find(
+      (o) => o.code === activeFramework,
+    ) || getFrameworkOptions(availableFrameworks)[0];
+  const tabColor = selectedOption?.color || "#334155";
   const colSpanCount = isAllFrameworks ? 10 : 9;
 
   const docCellStyle = (docIdx, controlDocs, extra = {}) => ({
@@ -2466,421 +2367,408 @@ const RiskAssessmentTable = () => {
     ...extra,
   });
 
+  // ── Render ────────────────────────────────────────────────────────────────────
   return (
-    <Box style={{ paddingTop: 24, paddingBottom: 16 }}>
-      <Container maxWidth="xl">
-        <Box
-          display="flex"
-          alignItems="center"
-          style={{ gap: 12, marginBottom: 20 }}
-        >
-          {/* <FrameworkDropdown
-            selected={activeFramework}
-            onChange={handleFrameworkChange}
-          /> */}
-          {isAllFrameworks && (
-            <Box
-              style={{
-                padding: "6px 14px",
-                borderRadius: 8,
-                backgroundColor: "#f1f5f9",
-                border: "1px solid #e2e8f0",
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-              }}
-            >
-              <AppsIcon style={{ fontSize: 14, color: "#64748b" }} />
-              <Typography
-                style={{ fontSize: 12, color: "#475569", fontWeight: 600 }}
-              >
-                Showing unified controls with{" "}
-                <strong style={{ color: "#334155" }}>Unified ID</strong> across
-                all frameworks
-              </Typography>
-            </Box>
-          )}
-        </Box>
-
-        {tenantId && (
-          <Paper
-            elevation={0}
-            style={{
-              padding: "12px 20px",
-              marginBottom: 16,
-              borderRadius: 10,
-              backgroundColor: "#e3f2fd",
-              border: "1px solid #90caf9",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-            }}
-          >
-            <Box display="flex" alignItems="center" style={{ gap: 8 }}>
-              <span style={{ fontSize: 20 }}>🏢</span>
-              <span style={{ fontSize: 14, color: "#1565c0", fontWeight: 600 }}>
-                Organization ID: <strong>{tenantId}</strong>
-              </span>
-            </Box>
-            <Box display="flex" alignItems="center" style={{ gap: 8 }}>
-              {activeFramework === "SOC2" && (
-                <Chip
-                  label="Scores from ISO 27001 & ISO 27701"
-                  size="small"
-                  style={{
-                    backgroundColor: "#e8f5e9",
-                    color: "#1b5e20",
-                    fontWeight: 600,
-                    fontSize: 11,
-                    border: "1px solid #a5d6a7",
-                  }}
-                />
-              )}
-              {activeFramework === "ISO42001" && (
-                <Chip
-                  label="AI Management System Controls"
-                  size="small"
-                  style={{
-                    backgroundColor: "#fff3e0",
-                    color: "#e65100",
-                    fontWeight: 600,
-                    fontSize: 11,
-                    border: "1px solid #ffcc80",
-                  }}
-                />
-              )}
-              {activeFramework === "KSA_PDPL" && (
-                <Chip
-                  label="KSA Personal Data Protection Law"
-                  size="small"
-                  style={{
-                    backgroundColor: "#fff8f0",
-                    color: "#7b3f00",
-                    fontWeight: 600,
-                    fontSize: 11,
-                    border: "1px solid #f5c68a",
-                  }}
-                />
-              )}
-              {isAllFrameworks && (
-                <Chip
-                  label="Unified view — all frameworks"
-                  size="small"
-                  style={{
-                    backgroundColor: "#f1f5f9",
-                    color: "#334155",
-                    fontWeight: 600,
-                    fontSize: 11,
-                    border: "1px solid #cbd5e1",
-                  }}
-                />
-              )}
-              {/* SoA filter indicator */}
-              {soaApplicableSet !== null && soaApplicableSet.size > 0 && (
-                <Chip
-                  label={`📑 SoA: ${filteredData.length} applicable`}
-                  size="small"
-                  style={{
-                    backgroundColor: "#f0fdf4",
-                    color: "#15803d",
-                    fontWeight: 600,
-                    fontSize: 11,
-                    border: "1px solid #86efac",
-                  }}
-                />
-              )}
-              <Chip
-                label={selectedOption.label}
-                size="small"
-                style={{
-                  fontWeight: 700,
-                  backgroundColor: tabColor,
-                  color: "white",
-                  fontSize: 12,
-                }}
-              />
-            </Box>
-          </Paper>
-        )}
-
-        {tenantError && (
-          <Paper
-            elevation={0}
-            style={{
-              padding: "16px 20px",
-              marginBottom: 16,
-              borderRadius: 10,
-              backgroundColor: "#ffebee",
-              border: "1px solid #ef5350",
-            }}
-          >
-            <Box display="flex" alignItems="center" style={{ gap: 8 }}>
-              <span style={{ fontSize: 20 }}>⚠️</span>
-              <span style={{ fontSize: 14, color: "#c62828", fontWeight: 500 }}>
-                {tenantError}
-              </span>
-            </Box>
-          </Paper>
-        )}
-
-        <Paper
-          elevation={0}
+    <>
+      {showCapSpreadsheet && (
+        <div
           style={{
-            padding: isMobile ? "20px 16px" : "32px 24px",
-            marginBottom: 24,
-            borderRadius: 12,
-            background: "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)",
-            border: "1px solid #e2e8f0",
+            position: "fixed",
+            inset: 0,
+            zIndex: 1250,
+            background: "#f1f5f9",
+            overflow: "hidden",
           }}
         >
-          <Box
-            display="flex"
-            flexDirection={isMobile ? "column" : "row"}
-            style={{ gap: 16 }}
-            alignItems={isMobile ? "stretch" : "center"}
-            justifyContent="space-between"
-          >
-            <Box flex={1}>
-              <TextField
-                fullWidth
-                label={
-                  <span
-                    style={{
-                      fontSize: isMobile ? "16px" : "18px",
-                      fontWeight: 700,
-                      color: "#1e293b",
-                    }}
-                  >
-                    Search Controls
-                  </span>
-                }
-                value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
-                  setPage(0);
-                }}
-                placeholder={
-                  isAllFrameworks
-                    ? "Search by Unified ID, control name or metric"
-                    : `Search ${fwConfig?.label} controls by ID or name`
-                }
-                variant="outlined"
-                size="medium"
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchIcon style={{ fontSize: 24, color: "#64748b" }} />
-                    </InputAdornment>
-                  ),
-                  endAdornment: search && (
-                    <InputAdornment position="end">
-                      <IconButton
-                        size="small"
-                        onClick={() => {
-                          setSearch("");
-                          setPage(0);
-                        }}
-                      >
-                        <ClearIcon />
-                      </IconButton>
-                    </InputAdornment>
-                  ),
-                }}
-                InputLabelProps={{
-                  style: {
-                    fontSize: isMobile ? "16px" : "18px",
-                    fontWeight: 700,
-                  },
-                }}
-                sx={{
-                  "& .MuiOutlinedInput-root": {
-                    borderRadius: 12,
-                    backgroundColor: "white",
-                    fontSize: isMobile ? "15px" : "16px",
-                  },
-                }}
-              />
-            </Box>
-            <Box
-              display="flex"
-              style={{ gap: 8 }}
-              flexWrap="wrap"
-              justifyContent={isMobile ? "center" : "flex-end"}
-            >
-              <Button
-                variant="contained"
-                style={{
-                  backgroundColor: tenantId ? "#7b1fa2" : "#bdbdbd",
-                  color: "white",
-                  minWidth: 150,
-                  height: 42,
-                  borderRadius: 10,
-                  textTransform: "none",
-                  fontSize: "14px",
-                  fontWeight: 600,
-                  cursor: tenantId ? "pointer" : "not-allowed",
-                }}
-                startIcon={<CloudSyncIcon />}
-                onClick={syncComplianceData}
-                disabled={!tenantId || isLoading}
-              >
-                Sync from Cloud
-              </Button>
-              <Button
-                variant="contained"
-                color="primary"
-                startIcon={<RefreshIcon />}
-                onClick={() => fetchComplianceData(true)}
-                disabled={!tenantId || isLoading}
-                size="large"
-                style={{
-                  minWidth: 140,
-                  height: 42,
-                  borderRadius: 10,
-                  textTransform: "none",
-                  fontSize: "14px",
-                  fontWeight: 600,
-                }}
-              >
-                Refresh Snapshot
-              </Button>
-            </Box>
-          </Box>
+          <ComplianceCapSpreadsheet
+            filteredData={filteredData}
+            manualScores={manualScores}
+            manualTargetScores={manualTargetScores}
+            auditors={auditors}
+            tenantId={tenantId}
+            activeFramework={activeFramework}
+            isAllFrameworks={isAllFrameworks}
+            taskService={taskService}
+            onBack={() => setShowCapSpreadsheet(false)}
+          />
+        </div>
+      )}
+
+      <Box style={{ paddingTop: 24, paddingBottom: 16 }}>
+        <Container maxWidth="xl">
           <Box
             display="flex"
             alignItems="center"
-            style={{ gap: 20, marginTop: 14 }}
-            flexWrap="wrap"
+            style={{ gap: 12, marginBottom: 20 }}
           >
-            <Box display="flex" alignItems="center" style={{ gap: 7 }}>
-              <StatusDot status="connected" />
-              <Typography style={{ fontSize: 12, color: "#64748b" }}>
-                Connected (live cloud data)
-              </Typography>
-            </Box>
-            {activeFramework === "SOC2" ? (
-              <Box display="flex" alignItems="center" style={{ gap: 7 }}>
-                <StatusDot status="mapped" />
-                <Typography style={{ fontSize: 12, color: "#64748b" }}>
-                  Mapped (inherited from ISO 27001 / ISO 27701)
-                </Typography>
-              </Box>
-            ) : (
-              <Box display="flex" alignItems="center" style={{ gap: 7 }}>
-                <StatusDot status="disconnected" />
-                <Typography style={{ fontSize: 12, color: "#64748b" }}>
-                  Not connected (manual upload available)
+            {isAllFrameworks && (
+              <Box
+                style={{
+                  padding: "6px 14px",
+                  borderRadius: 8,
+                  backgroundColor: "#f1f5f9",
+                  border: "1px solid #e2e8f0",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                }}
+              >
+                <AppsIcon style={{ fontSize: 14, color: "#64748b" }} />
+                <Typography
+                  style={{ fontSize: 12, color: "#475569", fontWeight: 600 }}
+                >
+                  Showing unified controls with{" "}
+                  <strong style={{ color: "#334155" }}>Unified ID</strong>{" "}
+                  across all frameworks
                 </Typography>
               </Box>
             )}
-            {/* <Box display="flex" alignItems="center" style={{ gap: 7 }}>
-              <StatusDot status="disconnected" />
-              <Typography style={{ fontSize: 12, color: "#64748b" }}>
-                No data available
-              </Typography>
-            </Box> */}
-            <Box display="flex" alignItems="center" style={{ gap: 7 }}>
-              <Box
-                style={{
-                  width: 10,
-                  height: 10,
-                  borderRadius: 2,
-                  backgroundColor: "#dcfce7",
-                  border: "1px solid #86efac",
-                }}
-              />
-              <Typography style={{ fontSize: 12, color: "#64748b" }}>
-                Document Available
-              </Typography>
-            </Box>
-            <Box display="flex" alignItems="center" style={{ gap: 7 }}>
-              <Box
-                style={{
-                  width: 10,
-                  height: 10,
-                  borderRadius: 2,
-                  backgroundColor: "#fef9c3",
-                  border: "1px solid #fde047",
-                }}
-              />
-              <Typography style={{ fontSize: 12, color: "#64748b" }}>
-                Document Required
-              </Typography>
-            </Box>
           </Box>
-          {totalRows > 0 && (
-            <Box mt={1} style={{ color: "#64748b", fontSize: 13 }}>
-              Showing {filteredData.length} requirements ({totalRows} total
-              rows)
-              {search && (
-                <span style={{ color: "#1976d2", fontWeight: 600 }}>
-                  {" "}
-                  • "{search}"
-                </span>
-              )}
-              {soaApplicableSet !== null && soaApplicableSet.size > 0 && (
-                <span style={{ color: "#15803d", fontWeight: 600 }}>
-                  {" "}
-                  • Filtered to SoA applicable controls
-                </span>
-              )}
-            </Box>
-          )}
-        </Paper>
 
-        <Paper elevation={2} style={{ padding: 24, borderRadius: 12 }}>
-          {isLoading ? (
+          {tenantId && (
+            <Paper
+              elevation={0}
+              style={{
+                padding: "12px 20px",
+                marginBottom: 16,
+                borderRadius: 10,
+                backgroundColor: "#e3f2fd",
+                border: "1px solid #90caf9",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
+            >
+              <Box display="flex" alignItems="center" style={{ gap: 8 }}>
+                <span style={{ fontSize: 20 }}>🏢</span>
+                <span
+                  style={{ fontSize: 14, color: "#1565c0", fontWeight: 600 }}
+                >
+                  Organization ID: <strong>{tenantId}</strong>
+                </span>
+              </Box>
+              <Box display="flex" alignItems="center" style={{ gap: 8 }}>
+                {soaApplicableSet !== null && soaApplicableSet.size > 0 && (
+                  <Chip
+                    label={`📑 SoA: ${soaApplicableCountForFramework} applicable`}
+                    size="small"
+                    style={{
+                      backgroundColor: "#f0fdf4",
+                      color: "#15803d",
+                      fontWeight: 600,
+                      fontSize: 11,
+                      border: "1px solid #86efac",
+                    }}
+                  />
+                )}
+                <Chip
+                  label={selectedOption?.label || activeFramework}
+                  size="small"
+                  style={{
+                    fontWeight: 700,
+                    backgroundColor: tabColor,
+                    color: "white",
+                    fontSize: 12,
+                  }}
+                />
+              </Box>
+            </Paper>
+          )}
+
+          {tenantError && (
+            <Paper
+              elevation={0}
+              style={{
+                padding: "16px 20px",
+                marginBottom: 16,
+                borderRadius: 10,
+                backgroundColor: "#ffebee",
+                border: "1px solid #ef5350",
+              }}
+            >
+              <Box display="flex" alignItems="center" style={{ gap: 8 }}>
+                <span style={{ fontSize: 20 }}>⚠️</span>
+                <span
+                  style={{ fontSize: 14, color: "#c62828", fontWeight: 500 }}
+                >
+                  {tenantError}
+                </span>
+              </Box>
+            </Paper>
+          )}
+
+          <Paper
+            elevation={0}
+            style={{
+              padding: isMobile ? "20px 16px" : "32px 24px",
+              marginBottom: 24,
+              borderRadius: 12,
+              background: "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)",
+              border: "1px solid #e2e8f0",
+            }}
+          >
             <Box
               display="flex"
-              flexDirection="column"
-              justifyContent="center"
-              alignItems="center"
-              height={300}
+              flexDirection={isMobile ? "column" : "row"}
               style={{ gap: 16 }}
+              alignItems={isMobile ? "stretch" : "center"}
+              justifyContent="space-between"
             >
-              <CircularProgress size={48} thickness={4} />
-              <div style={{ fontSize: 16, color: "#64748b", fontWeight: 500 }}>
-                {anyControlsLoading
-                  ? `Loading ${isAllFrameworks ? "all framework" : fwConfig?.label} control libraries...`
-                  : mappingsLoading
-                    ? "Loading SOC2 mappings..."
-                    : "Loading compliance data..."}
-              </div>
+              <Box flex={1}>
+                <TextField
+                  fullWidth
+                  label={
+                    <span
+                      style={{
+                        fontSize: isMobile ? "16px" : "18px",
+                        fontWeight: 700,
+                        color: "#1e293b",
+                      }}
+                    >
+                      Search Controls
+                    </span>
+                  }
+                  value={search}
+                  onChange={(e) => {
+                    setSearch(e.target.value);
+                    setPage(0);
+                  }}
+                  placeholder={
+                    isAllFrameworks
+                      ? "Search by Unified ID, control name or metric"
+                      : `Search ${fwConfig?.label || activeFramework} controls by ID or name`
+                  }
+                  variant="outlined"
+                  size="medium"
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <SearchIcon
+                          style={{ fontSize: 24, color: "#64748b" }}
+                        />
+                      </InputAdornment>
+                    ),
+                    endAdornment: search && (
+                      <InputAdornment position="end">
+                        <IconButton
+                          size="small"
+                          onClick={() => {
+                            setSearch("");
+                            setPage(0);
+                          }}
+                        >
+                          <ClearIcon />
+                        </IconButton>
+                      </InputAdornment>
+                    ),
+                  }}
+                  InputLabelProps={{
+                    style: {
+                      fontSize: isMobile ? "16px" : "18px",
+                      fontWeight: 700,
+                    },
+                  }}
+                  sx={{
+                    "& .MuiOutlinedInput-root": {
+                      borderRadius: 12,
+                      backgroundColor: "white",
+                      fontSize: isMobile ? "15px" : "16px",
+                    },
+                  }}
+                />
+              </Box>
+              <Box
+                display="flex"
+                style={{ gap: 8 }}
+                flexWrap="wrap"
+                justifyContent={isMobile ? "center" : "flex-end"}
+              >
+                <Button
+                  variant="contained"
+                  style={{
+                    backgroundColor: tenantId ? "#7b1fa2" : "#bdbdbd",
+                    color: "white",
+                    minWidth: 150,
+                    height: 42,
+                    borderRadius: 10,
+                    textTransform: "none",
+                    fontSize: "14px",
+                    fontWeight: 600,
+                    cursor: tenantId ? "pointer" : "not-allowed",
+                  }}
+                  startIcon={<CloudSyncIcon />}
+                  onClick={syncComplianceData}
+                  disabled={!tenantId || isLoading}
+                >
+                  Sync from Cloud
+                </Button>
+                <Button
+                  variant="contained"
+                  startIcon={<Table2Icon />}
+                  onClick={() => setShowCapSpreadsheet(true)}
+                  disabled={filteredData.length === 0}
+                  size="large"
+                  style={{
+                    minWidth: 170,
+                    height: 42,
+                    borderRadius: 10,
+                    textTransform: "none",
+                    fontSize: "14px",
+                    fontWeight: 700,
+                    background:
+                      filteredData.length > 0
+                        ? "linear-gradient(135deg, #4f46e5, #7c3aed)"
+                        : "#e2e8f0",
+                    color: filteredData.length > 0 ? "#fff" : "#94a3b8",
+                    boxShadow:
+                      filteredData.length > 0
+                        ? "0 2px 10px rgba(99,102,241,0.3)"
+                        : "none",
+                  }}
+                >
+                  Manage CAP
+                </Button>
+                <Button
+                  variant="contained"
+                  color="primary"
+                  startIcon={<RefreshIcon />}
+                  onClick={() => fetchComplianceData(true)}
+                  disabled={!tenantId || isLoading}
+                  size="large"
+                  style={{
+                    minWidth: 140,
+                    height: 42,
+                    borderRadius: 10,
+                    textTransform: "none",
+                    fontSize: "14px",
+                    fontWeight: 600,
+                  }}
+                >
+                  Refresh Snapshot
+                </Button>
+              </Box>
             </Box>
-          ) : (
-            <>
-              <div style={{ overflowX: "auto", borderRadius: 8 }}>
-                <Table stickyHeader>
-                  <TableHead>
-                    <TableRow>
-                      <TableCell
-                        style={{
-                          fontWeight: 700,
-                          backgroundColor: "#f8fafc",
-                          fontSize: 15,
-                          width: 36,
-                          padding: "12px 8px",
-                        }}
-                      />
-                      <TableCell
-                        style={{
-                          fontWeight: 700,
-                          backgroundColor: "#f8fafc",
-                          fontSize: 15,
-                        }}
-                      >
-                        Unified ID
-                      </TableCell>
-                      <TableCell
-                        style={{
-                          fontWeight: 700,
-                          backgroundColor: "#f8fafc",
-                          fontSize: 15,
-                        }}
-                      >
-                        Requirement ID
-                      </TableCell>
-                      {isAllFrameworks && (
+            <Box
+              display="flex"
+              alignItems="center"
+              style={{ gap: 20, marginTop: 14 }}
+              flexWrap="wrap"
+            >
+              <Box display="flex" alignItems="center" style={{ gap: 7 }}>
+                <StatusDot status="connected" />
+                <Typography style={{ fontSize: 12, color: "#64748b" }}>
+                  Connected (live cloud data)
+                </Typography>
+              </Box>
+              {mappingOnlyCodes.has(activeFramework) ? (
+                <Box display="flex" alignItems="center" style={{ gap: 7 }}>
+                  <StatusDot status="mapped" />
+                  <Typography style={{ fontSize: 12, color: "#64748b" }}>
+                    Mapped (inherited from{" "}
+                    {availableFrameworks
+                      .find((fw) => fw.code === activeFramework)
+                      ?.mappingSources?.map(
+                        (src) =>
+                          availableFrameworks.find((f) => f.code === src)
+                            ?.label || src,
+                      )
+                      .join(" & ") || "other frameworks"}
+                    )
+                  </Typography>
+                </Box>
+              ) : (
+                <Box display="flex" alignItems="center" style={{ gap: 7 }}>
+                  <StatusDot status="disconnected" />
+                  <Typography style={{ fontSize: 12, color: "#64748b" }}>
+                    Not connected (manual upload available)
+                  </Typography>
+                </Box>
+              )}
+              <Box display="flex" alignItems="center" style={{ gap: 7 }}>
+                <Box
+                  style={{
+                    width: 10,
+                    height: 10,
+                    borderRadius: 2,
+                    backgroundColor: "#dcfce7",
+                    border: "1px solid #86efac",
+                  }}
+                />
+                <Typography style={{ fontSize: 12, color: "#64748b" }}>
+                  Document Available
+                </Typography>
+              </Box>
+              <Box display="flex" alignItems="center" style={{ gap: 7 }}>
+                <Box
+                  style={{
+                    width: 10,
+                    height: 10,
+                    borderRadius: 2,
+                    backgroundColor: "#fef9c3",
+                    border: "1px solid #fde047",
+                  }}
+                />
+                <Typography style={{ fontSize: 12, color: "#64748b" }}>
+                  Document Required
+                </Typography>
+              </Box>
+            </Box>
+            {totalRows > 0 && (
+              <Box mt={1} style={{ color: "#64748b", fontSize: 13 }}>
+                Showing {filteredData.length} requirements ({totalRows} total
+                rows)
+                {search && (
+                  <span style={{ color: "#1976d2", fontWeight: 600 }}>
+                    {" "}
+                    • "{search}"
+                  </span>
+                )}
+                {soaApplicableSet !== null && soaApplicableSet.size > 0 && (
+                  <span style={{ color: "#15803d", fontWeight: 600 }}>
+                    {" "}
+                    • Filtered to SoA applicable controls
+                  </span>
+                )}
+              </Box>
+            )}
+          </Paper>
+
+          <Paper elevation={2} style={{ padding: 24, borderRadius: 12 }}>
+            {isLoading ? (
+              <Box
+                display="flex"
+                flexDirection="column"
+                justifyContent="center"
+                alignItems="center"
+                height={300}
+                style={{ gap: 16 }}
+              >
+                <CircularProgress size={48} thickness={4} />
+                <div
+                  style={{ fontSize: 16, color: "#64748b", fontWeight: 500 }}
+                >
+                  {anyControlsLoading
+                    ? `Loading ${isAllFrameworks ? "all framework" : fwConfig?.label || activeFramework} control libraries...`
+                    : mappingsLoading
+                      ? "Loading framework mappings..."
+                      : "Loading compliance data..."}
+                </div>
+              </Box>
+            ) : (
+              <>
+                <div style={{ overflowX: "auto", borderRadius: 8 }}>
+                  <Table stickyHeader>
+                    <TableHead>
+                      <TableRow>
+                        <TableCell
+                          style={{
+                            fontWeight: 700,
+                            backgroundColor: "#f8fafc",
+                            fontSize: 15,
+                            width: 36,
+                            padding: "12px 8px",
+                          }}
+                        />
                         <TableCell
                           style={{
                             fontWeight: 700,
@@ -2888,256 +2776,226 @@ const RiskAssessmentTable = () => {
                             fontSize: 15,
                           }}
                         >
-                          Frameworks
+                          Unified ID
                         </TableCell>
-                      )}
-                      <TableCell
-                        style={{
-                          fontWeight: 700,
-                          backgroundColor: "#f8fafc",
-                          fontSize: 15,
-                        }}
-                      >
-                        Metric
-                      </TableCell>
-                      <TableCell
-                        style={{
-                          fontWeight: 700,
-                          backgroundColor: "#f8fafc",
-                          fontSize: 15,
-                          textAlign: "center",
-                        }}
-                      >
-                        Target
-                      </TableCell>
-                      <TableCell
-                        style={{
-                          fontWeight: 700,
-                          backgroundColor: "#f8fafc",
-                          fontSize: 15,
-                          textAlign: "center",
-                        }}
-                      >
-                        Current
-                      </TableCell>
-                      <TableCell
-                        style={{
-                          fontWeight: 700,
-                          backgroundColor: "#f8fafc",
-                          fontSize: 15,
-                          textAlign: "center",
-                        }}
-                      >
-                        Evidence / Formula
-                      </TableCell>
-                      <TableCell
-                        style={{
-                          fontWeight: 700,
-                          backgroundColor: "#f8fafc",
-                          fontSize: 15,
-                          textAlign: "center",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        CAP Task
-                      </TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {currentPageRows.map(
-                      (
-                        { group, metric, isFirst, isLast, isDocRow },
-                        rowIdx,
-                      ) => {
-                        // ── MLD Document status rows ─────────────────────────────
-                        if (isDocRow) {
-                          const controlDocs = (group.documents || []).filter(
-                            (d) => d.doc,
-                          );
-                          if (controlDocs.length === 0) return null;
+                        <TableCell
+                          style={{
+                            fontWeight: 700,
+                            backgroundColor: "#f8fafc",
+                            fontSize: 15,
+                          }}
+                        >
+                          Requirement ID
+                        </TableCell>
+                        {isAllFrameworks && (
+                          <TableCell
+                            style={{
+                              fontWeight: 700,
+                              backgroundColor: "#f8fafc",
+                              fontSize: 15,
+                            }}
+                          >
+                            Frameworks
+                          </TableCell>
+                        )}
+                        <TableCell
+                          style={{
+                            fontWeight: 700,
+                            backgroundColor: "#f8fafc",
+                            fontSize: 15,
+                          }}
+                        >
+                          Metric
+                        </TableCell>
+                        <TableCell
+                          style={{
+                            fontWeight: 700,
+                            backgroundColor: "#f8fafc",
+                            fontSize: 15,
+                            textAlign: "center",
+                          }}
+                        >
+                          Target
+                        </TableCell>
+                        <TableCell
+                          style={{
+                            fontWeight: 700,
+                            backgroundColor: "#f8fafc",
+                            fontSize: 15,
+                            textAlign: "center",
+                          }}
+                        >
+                          Current
+                        </TableCell>
+                        <TableCell
+                          style={{
+                            fontWeight: 700,
+                            backgroundColor: "#f8fafc",
+                            fontSize: 15,
+                            textAlign: "center",
+                          }}
+                        >
+                          Evidence / Formula
+                        </TableCell>
+                        <TableCell
+                          style={{
+                            fontWeight: 700,
+                            backgroundColor: "#f8fafc",
+                            fontSize: 15,
+                            textAlign: "center",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          CAP Task
+                        </TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {currentPageRows.map(
+                        (
+                          { group, metric, isFirst, isLast, isDocRow },
+                          rowIdx,
+                        ) => {
+                          if (isDocRow) {
+                            const controlDocs = [
+                              ...new Map(
+                                (group.documents || [])
+                                  .filter((d) => d.doc)
+                                  .map((d) => [d.doc, d]),
+                              ).values(),
+                            ];
+                            if (controlDocs.length === 0) return null;
 
-                          return controlDocs.map((docItem, docIdx) => {
-                            const docName = docItem.doc || "";
-                            if (!docName) return null;
+                            return controlDocs.map((docItem, docIdx) => {
+                              const docName = docItem.doc || "";
+                              if (!docName) return null;
 
-                            const framework =
-                              group._framework ||
-                              (isAllFrameworks
-                                ? "ISO27001"
-                                : activeFramework) ||
-                              "ISO27001";
-                            const rawCode =
-                              group.controlCode || group.controlId;
-                            const bareCode =
-                              group.controlId || group.controlCode;
-                            const withPrefix = rawCode.startsWith("A.")
-                              ? rawCode
-                              : `A.${rawCode}`;
-                            const candidates = [
-                              ...new Set([rawCode, bareCode, withPrefix]),
-                            ].filter(Boolean);
+                              const framework =
+                                group._framework ||
+                                (isAllFrameworks
+                                  ? availableFrameworks[0]?.code
+                                  : activeFramework) ||
+                                "";
+                              const rawCode =
+                                group.controlCode || group.controlId;
+                              const bareCode =
+                                group.controlId || group.controlCode;
+                              const withPrefix = rawCode.startsWith("A.")
+                                ? rawCode
+                                : `A.${rawCode}`;
+                              const candidates = [
+                                ...new Set([rawCode, bareCode, withPrefix]),
+                              ].filter(Boolean);
 
-                            let soaEntry = null;
-                            for (const code of candidates) {
-                              // Find ALL matching SoA entries for this control
-                              const matchingSoas = mldSoas.filter(
-                                (s) =>
-                                  (s.framework || "").trim() === framework &&
-                                  String(s.category).trim() === code,
-                              );
-
-                              if (matchingSoas.length > 0) {
-                                // Among matching SoAs, find one that actually has a document
-                                for (const soa of matchingSoas) {
-                                  const doc = getLatestDocForSoA(
-                                    soa.id ?? soa._id,
-                                  );
-                                  if (doc && !doc.deleted) {
-                                    soaEntry = soa;
-                                    break;
+                              let soaEntry = null;
+                              for (const code of candidates) {
+                                const matchingSoas = mldSoas.filter(
+                                  (s) =>
+                                    (s.framework || "").trim() === framework &&
+                                    String(s.category).trim() === code,
+                                );
+                                if (matchingSoas.length > 0) {
+                                  for (const soa of matchingSoas) {
+                                    const doc = getLatestDocForSoA(
+                                      soa.id ?? soa._id,
+                                    );
+                                    if (doc && !doc.deleted) {
+                                      soaEntry = soa;
+                                      break;
+                                    }
                                   }
+                                  if (!soaEntry) soaEntry = matchingSoas[0];
+                                  break;
                                 }
-                                // If none have a live doc, still use the first one (shows Unavailable)
-                                if (!soaEntry) soaEntry = matchingSoas[0];
-                                break;
+                                const fallbackSoas = mldSoas.filter(
+                                  (s) =>
+                                    String(s.category).trim() === code &&
+                                    (s.documentRef?.[0] || "").trim() ===
+                                      docName,
+                                );
+                                if (fallbackSoas.length > 0) {
+                                  for (const soa of fallbackSoas) {
+                                    const doc = getLatestDocForSoA(
+                                      soa.id ?? soa._id,
+                                    );
+                                    if (doc && !doc.deleted) {
+                                      soaEntry = soa;
+                                      break;
+                                    }
+                                  }
+                                  if (!soaEntry) soaEntry = fallbackSoas[0];
+                                  break;
+                                }
                               }
 
-                              // Fallback: match without framework constraint
-                              const fallbackSoas = mldSoas.filter(
-                                (s) =>
-                                  String(s.category).trim() === code &&
-                                  (s.documentRef?.[0] || "").trim() === docName, // already has it, keep it
-                              );
-                              if (fallbackSoas.length > 0) {
-                                for (const soa of fallbackSoas) {
-                                  const doc = getLatestDocForSoA(
-                                    soa.id ?? soa._id,
-                                  );
-                                  if (doc && !doc.deleted) {
-                                    soaEntry = soa;
-                                    break;
-                                  }
-                                }
-                                if (!soaEntry) soaEntry = fallbackSoas[0];
-                                break;
-                              }
-                            }
+                              const doc = soaEntry
+                                ? getLatestDocForSoA(
+                                    soaEntry.id ?? soaEntry._id,
+                                  )
+                                : null;
+                              const available = !!doc && !doc.deleted;
 
-                            const doc = soaEntry
-                              ? getLatestDocForSoA(soaEntry.id ?? soaEntry._id)
-                              : null;
-                            const available = !!doc && !doc.deleted;
-
-                            return (
-                              <TableRow
-                                key={`doc-${group.controlId}-${docIdx}`}
-                                sx={{
-                                  backgroundColor: "#ffffff !important",
-                                  "& > td": {
+                              return (
+                                <TableRow
+                                  key={`doc-${group.controlId}-${docIdx}`}
+                                  sx={{
                                     backgroundColor: "#ffffff !important",
-                                  },
-                                }}
-                              >
-                                <TableCell
-                                  style={docCellStyle(docIdx, controlDocs, {
-                                    width: 36,
-                                  })}
-                                />
-                                <TableCell
-                                  style={docCellStyle(docIdx, controlDocs)}
-                                />
-                                <TableCell
-                                  style={docCellStyle(docIdx, controlDocs)}
-                                />
-                                {isAllFrameworks && (
+                                    "& > td": {
+                                      backgroundColor: "#ffffff !important",
+                                    },
+                                  }}
+                                >
+                                  <TableCell
+                                    style={docCellStyle(docIdx, controlDocs, {
+                                      width: 36,
+                                    })}
+                                  />
                                   <TableCell
                                     style={docCellStyle(docIdx, controlDocs)}
                                   />
-                                )}
-                                <TableCell
-                                  style={docCellStyle(docIdx, controlDocs, {
-                                    padding: "5px 16px",
-                                  })}
-                                >
-                                  <Box
-                                    display="flex"
-                                    alignItems="center"
-                                    style={{ gap: 8 }}
-                                  >
-                                    <DescriptionIcon
-                                      style={{
-                                        fontSize: 14,
-                                        color: "#94a3b8",
-                                        flexShrink: 0,
-                                      }}
+                                  <TableCell
+                                    style={docCellStyle(docIdx, controlDocs)}
+                                  />
+                                  {isAllFrameworks && (
+                                    <TableCell
+                                      style={docCellStyle(docIdx, controlDocs)}
                                     />
-                                    <Typography
-                                      style={{
-                                        fontSize: 12,
-                                        color: "#475569",
-                                        fontWeight: 500,
-                                        overflow: "hidden",
-                                        textOverflow: "ellipsis",
-                                        whiteSpace: "nowrap",
-                                      }}
-                                    >
-                                      {docName}
-                                    </Typography>
-                                  </Box>
-                                </TableCell>
-                                <TableCell
-                                  align="center"
-                                  style={docCellStyle(docIdx, controlDocs)}
-                                >
-                                  <Box
-                                    style={{
-                                      display: "inline-flex",
-                                      alignItems: "center",
-                                      gap: 4,
-                                      padding: "3px 10px",
-                                      borderRadius: 20,
-                                      backgroundColor: "#3f51b5",
-                                    }}
+                                  )}
+                                  <TableCell
+                                    style={docCellStyle(docIdx, controlDocs, {
+                                      padding: "5px 16px",
+                                    })}
                                   >
-                                    <Typography
-                                      style={{
-                                        fontSize: 11,
-                                        fontWeight: 700,
-                                        color: "#ffffff",
-                                        whiteSpace: "nowrap",
-                                      }}
-                                    >
-                                      Available
-                                    </Typography>
-                                  </Box>
-                                </TableCell>
-                                <TableCell
-                                  align="center"
-                                  style={docCellStyle(docIdx, controlDocs)}
-                                >
-                                  {available ? (
                                     <Box
-                                      style={{
-                                        display: "inline-flex",
-                                        alignItems: "center",
-                                        gap: 4,
-                                        padding: "3px 10px",
-                                        borderRadius: 20,
-                                        backgroundColor: "#4caf50",
-                                      }}
+                                      display="flex"
+                                      alignItems="center"
+                                      style={{ gap: 8 }}
                                     >
+                                      <DescriptionIcon
+                                        style={{
+                                          fontSize: 14,
+                                          color: "#94a3b8",
+                                          flexShrink: 0,
+                                        }}
+                                      />
                                       <Typography
                                         style={{
-                                          fontSize: 11,
-                                          fontWeight: 700,
-                                          color: "#fffae8",
+                                          fontSize: 12,
+                                          color: "#475569",
+                                          fontWeight: 500,
+                                          overflow: "hidden",
+                                          textOverflow: "ellipsis",
                                           whiteSpace: "nowrap",
                                         }}
                                       >
-                                        Available
+                                        {docName}
                                       </Typography>
                                     </Box>
-                                  ) : (
+                                  </TableCell>
+                                  <TableCell
+                                    align="center"
+                                    style={docCellStyle(docIdx, controlDocs)}
+                                  >
                                     <Box
                                       style={{
                                         display: "inline-flex",
@@ -3145,8 +3003,7 @@ const RiskAssessmentTable = () => {
                                         gap: 4,
                                         padding: "3px 10px",
                                         borderRadius: 20,
-                                        backgroundColor: "#f44336",
-                                        border: "1px solid #fca5a5",
+                                        backgroundColor: "#3f51b5",
                                       }}
                                     >
                                       <Typography
@@ -3157,846 +3014,932 @@ const RiskAssessmentTable = () => {
                                           whiteSpace: "nowrap",
                                         }}
                                       >
-                                        Unavailable
+                                        Available
                                       </Typography>
                                     </Box>
-                                  )}
-                                </TableCell>
-                                <TableCell
-                                  align="center"
-                                  style={docCellStyle(docIdx, controlDocs)}
-                                >
-                                  {available ? (
-                                    <Tooltip title={`View: ${docName}`} arrow>
-                                      <IconButton
-                                        size="small"
-                                        onClick={() =>
-                                          handlePreviewDoc(soaEntry, doc)
-                                        }
+                                  </TableCell>
+                                  <TableCell
+                                    align="center"
+                                    style={docCellStyle(docIdx, controlDocs)}
+                                  >
+                                    {available ? (
+                                      <Box
                                         style={{
-                                          backgroundColor: "#e3f2fd",
-                                          color: "#0288d1",
-                                          width: 32,
-                                          height: 32,
+                                          display: "inline-flex",
+                                          alignItems: "center",
+                                          gap: 4,
+                                          padding: "3px 10px",
+                                          borderRadius: 20,
+                                          backgroundColor: "#4caf50",
                                         }}
                                       >
-                                        <PdfIcon style={{ fontSize: 16 }} />
-                                      </IconButton>
-                                    </Tooltip>
-                                  ) : (
-                                    <Typography
-                                      style={{ fontSize: 12, color: "#cbd5e1" }}
-                                    >
-                                      —
-                                    </Typography>
-                                  )}
-                                </TableCell>
-                                <TableCell
-                                  style={docCellStyle(docIdx, controlDocs)}
-                                />
-                              </TableRow>
-                            );
-                          });
-                        }
-
-                        // ── Regular data row ───────────────────────────────────────
-                        const showEvidence =
-                          metric && hasEvidence(metric.evidence);
-                        const upload = manualUploads[group.controlId];
-                        const isSoc2Mapped =
-                          activeFramework === "SOC2" &&
-                          group.status === "mapped";
-                        const hasTask = !!taskCreatedFor[group.controlId];
-
-                        return (
-                          <TableRow
-                            key={`${group.controlId}-${metric?.metricName ?? "empty"}-${rowIdx}`}
-                            hover
-                            style={{
-                              backgroundColor: "#ffffff",
-                            }}
-                          >
-                            <TableCell
-                              style={{
-                                textAlign: "center",
-                                padding: "0 8px",
-                                width: 36,
-                              }}
-                            >
-                              {isFirst && <StatusDot status={group.status} />}
-                            </TableCell>
-                            <TableCell style={{ fontSize: 14, minWidth: 140 }}>
-                              {isFirst && (
-                                <Box
-                                  display="flex"
-                                  alignItems="center"
-                                  style={{ gap: 5 }}
-                                >
-                                  <Typography
-                                    style={{
-                                      fontWeight: 600,
-                                      fontSize: 12,
-                                      color: "#334155",
-                                      fontFamily: "monospace",
-                                      lineHeight: 1.3,
-                                    }}
-                                  >
-                                    {group.unifiedId || group.controlId}
-                                  </Typography>
-                                </Box>
-                              )}
-                            </TableCell>
-                            <TableCell style={{ fontSize: 14, minWidth: 180 }}>
-                              {isFirst && (
-                                <Box
-                                  display="flex"
-                                  flexDirection="column"
-                                  style={{ gap: 2 }}
-                                >
-                                  <Typography
-                                    style={{
-                                      fontWeight: 700,
-                                      fontSize: 13,
-                                      color: "#1e293b",
-                                      fontFamily: "monospace",
-                                      lineHeight: 1.3,
-                                    }}
-                                  >
-                                    {group.controlCode || group.controlId}
-                                  </Typography>
-                                  {group.controlName && (
-                                    <Typography
-                                      style={{
-                                        fontSize: 11,
-                                        color: "#64748b",
-                                        lineHeight: 1.4,
-                                        fontWeight: 400,
-                                      }}
-                                    >
-                                      {group.controlName}
-                                    </Typography>
-                                  )}
-                                </Box>
-                              )}
-                            </TableCell>
-                            {isAllFrameworks && (
-                              <TableCell style={{ minWidth: 160 }}>
-                                {isFirst &&
-                                  (() => {
-                                    const fws = group.frameworks || [];
-                                    if (fws.length === 0)
-                                      return (
                                         <Typography
                                           style={{
                                             fontSize: 11,
-                                            color: "#cbd5e1",
+                                            fontWeight: 700,
+                                            color: "#fffae8",
+                                            whiteSpace: "nowrap",
                                           }}
                                         >
-                                          —
+                                          Available
                                         </Typography>
-                                      );
-                                    return (
-                                      <Box
-                                        display="flex"
-                                        flexWrap="wrap"
-                                        style={{ gap: 4 }}
-                                      >
-                                        {fws.map((fw) => (
-                                          <FrameworkBadge
-                                            key={fw}
-                                            frameworkCode={fw}
-                                          />
-                                        ))}
                                       </Box>
-                                    );
-                                  })()}
+                                    ) : (
+                                      <Box
+                                        style={{
+                                          display: "inline-flex",
+                                          alignItems: "center",
+                                          gap: 4,
+                                          padding: "3px 10px",
+                                          borderRadius: 20,
+                                          backgroundColor: "#f44336",
+                                          border: "1px solid #fca5a5",
+                                        }}
+                                      >
+                                        <Typography
+                                          style={{
+                                            fontSize: 11,
+                                            fontWeight: 700,
+                                            color: "#ffffff",
+                                            whiteSpace: "nowrap",
+                                          }}
+                                        >
+                                          Unavailable
+                                        </Typography>
+                                      </Box>
+                                    )}
+                                  </TableCell>
+                                  <TableCell
+                                    align="center"
+                                    style={docCellStyle(docIdx, controlDocs)}
+                                  >
+                                    {available ? (
+                                      <Tooltip title={`View: ${docName}`} arrow>
+                                        <IconButton
+                                          size="small"
+                                          onClick={() =>
+                                            handlePreviewDoc(soaEntry, doc)
+                                          }
+                                          style={{
+                                            backgroundColor: "#e3f2fd",
+                                            color: "#0288d1",
+                                            width: 32,
+                                            height: 32,
+                                          }}
+                                        >
+                                          <PdfIcon style={{ fontSize: 16 }} />
+                                        </IconButton>
+                                      </Tooltip>
+                                    ) : (
+                                      <Typography
+                                        style={{
+                                          fontSize: 12,
+                                          color: "#cbd5e1",
+                                        }}
+                                      >
+                                        —
+                                      </Typography>
+                                    )}
+                                  </TableCell>
+                                  <TableCell
+                                    style={docCellStyle(docIdx, controlDocs)}
+                                  />
+                                </TableRow>
+                              );
+                            });
+                          }
+
+                          // ── Regular data row ────────────────────────────────────
+                          const showEvidence =
+                            metric && hasEvidence(metric.evidence);
+                          const upload = manualUploads[group.controlId];
+                          const isMappingOnlyFw = mappingOnlyCodes.has(
+                            group._framework || activeFramework,
+                          );
+                          const hasTask = !!taskCreatedFor[group.controlId];
+
+                          return (
+                            <TableRow
+                              key={`${group.controlId}-${metric?.metricName ?? "empty"}-${rowIdx}`}
+                              hover
+                              style={{ backgroundColor: "#ffffff" }}
+                            >
+                              <TableCell
+                                style={{
+                                  textAlign: "center",
+                                  padding: "0 8px",
+                                  width: 36,
+                                }}
+                              >
+                                {isFirst && <StatusDot status={group.status} />}
                               </TableCell>
-                            )}
-                            <TableCell style={{ fontSize: 13 }}>
-                              <Box>
+                              <TableCell
+                                style={{ fontSize: 14, minWidth: 140 }}
+                              >
                                 {isFirst && (
-                                  <Box>
-                                    <Typography
-                                      style={{
-                                        fontSize: 12,
-                                        fontWeight: 600,
-                                        color: "#334155",
-                                        lineHeight: 1.4,
-                                        marginBottom: 0,
-                                      }}
-                                    >
-                                      {group.metric &&
-                                      group.metric.trim() !==
-                                        group.controlName?.trim()
-                                        ? group.metric
-                                        : null}
-                                    </Typography>
-                                  </Box>
-                                )}
-                                {metric && (
                                   <Box
                                     display="flex"
                                     alignItems="center"
-                                    style={{
-                                      gap: 5,
-                                      marginTop: isFirst ? 4 : 0,
-                                    }}
+                                    style={{ gap: 5 }}
                                   >
-                                    {activeFramework === "SOC2" &&
-                                      metric.sourceCode && (
-                                        <MappedSourceBadge
-                                          sourceCode={metric.sourceCode}
-                                          sourceFramework={
-                                            metric.sourceFramework || "ISO27001"
-                                          }
-                                        />
-                                      )}
-                                    {isAllFrameworks && metric.sourceCode && (
-                                      <MappedSourceBadge
-                                        sourceCode={metric.sourceCode}
-                                        sourceFramework={
-                                          metric.sourceFramework || "ISO27001"
-                                        }
-                                      />
-                                    )}
-                                    {isAllFrameworks &&
-                                      !metric.sourceCode &&
-                                      metric.sourceFramework && (
-                                        <FrameworkBadge
-                                          frameworkCode={metric.sourceFramework}
-                                        />
-                                      )}
                                     <Typography
                                       style={{
-                                        fontSize: 11,
-                                        color: "#64748b",
-                                        lineHeight: 1.4,
+                                        fontWeight: 600,
+                                        fontSize: 12,
+                                        color: "#334155",
+                                        fontFamily: "monospace",
+                                        lineHeight: 1.3,
                                       }}
                                     >
-                                      {metric.metricName}
+                                      {group.unifiedId || group.controlId}
                                     </Typography>
                                   </Box>
                                 )}
-                                {!metric &&
-                                  isFirst &&
-                                  (activeFramework === "SOC2" ||
-                                    isAllFrameworks) &&
-                                  group.fallbackMetrics?.length > 0 && (
-                                    <Box style={{ marginTop: 6 }}>
-                                      {group.fallbackMetrics.map((fb, i) => (
-                                        <Box
-                                          key={i}
-                                          display="flex"
-                                          alignItems="flex-start"
-                                          style={{
-                                            gap: 5,
-                                            marginBottom:
-                                              i <
-                                              group.fallbackMetrics.length - 1
-                                                ? 4
-                                                : 0,
-                                          }}
-                                        >
-                                          <MappedSourceBadge
-                                            sourceCode={fb.sourceCode}
-                                            sourceFramework={fb.sourceFramework}
-                                          />
+                              </TableCell>
+                              <TableCell
+                                style={{ fontSize: 14, minWidth: 180 }}
+                              >
+                                {isFirst && (
+                                  <Box
+                                    display="flex"
+                                    flexDirection="column"
+                                    style={{ gap: 2 }}
+                                  >
+                                    <Typography
+                                      style={{
+                                        fontWeight: 700,
+                                        fontSize: 13,
+                                        color: "#1e293b",
+                                        fontFamily: "monospace",
+                                        lineHeight: 1.3,
+                                      }}
+                                    >
+                                      {group.controlCode || group.controlId}
+                                    </Typography>
+                                    {group.controlName && (
+                                      <Typography
+                                        style={{
+                                          fontSize: 11,
+                                          color: "#64748b",
+                                          lineHeight: 1.4,
+                                          fontWeight: 400,
+                                        }}
+                                      >
+                                        {group.controlName}
+                                      </Typography>
+                                    )}
+                                  </Box>
+                                )}
+                              </TableCell>
+                              {isAllFrameworks && (
+                                <TableCell style={{ minWidth: 160 }}>
+                                  {isFirst &&
+                                    (() => {
+                                      const fws = group.frameworks || [];
+                                      if (fws.length === 0)
+                                        return (
                                           <Typography
                                             style={{
                                               fontSize: 11,
-                                              color: "#64748b",
-                                              lineHeight: 1.5,
+                                              color: "#cbd5e1",
                                             }}
                                           >
-                                            {fb.metricName}
+                                            —
                                           </Typography>
+                                        );
+                                      return (
+                                        <Box
+                                          display="flex"
+                                          flexWrap="wrap"
+                                          style={{ gap: 4 }}
+                                        >
+                                          {fws.map((fw) => (
+                                            <FrameworkBadge
+                                              key={fw}
+                                              frameworkCode={fw}
+                                              availableFrameworks={
+                                                availableFrameworks
+                                              }
+                                            />
+                                          ))}
                                         </Box>
-                                      ))}
-                                    </Box>
-                                  )}
-                              </Box>
-                            </TableCell>
-                            <TableCell align="center">
-                              {metric ? (
-                                <Chip
-                                  label="100.00%"
-                                  color="primary"
-                                  size="small"
-                                  style={{ fontWeight: 600 }}
-                                />
-                              ) : isFirst ? (
-                                <TargetScoreCell
-                                  controlId={group.controlId}
-                                  tenantId={tenantId}
-                                  frameworkCode={activeFramework}
-                                  targetScore={
-                                    manualTargetScores[group.controlId] ?? null
-                                  }
-                                  onSave={handleTargetScoreSaved}
-                                />
-                              ) : (
-                                <span
-                                  style={{ color: "#cbd5e1", fontSize: 13 }}
-                                >
-                                  —
-                                </span>
+                                      );
+                                    })()}
+                                </TableCell>
                               )}
-                            </TableCell>
-                            <TableCell align="center">
-                              {metric ? (
-                                <Chip
-                                  label={`${formatPercentage(metric.currentPerformance)}%`}
-                                  size="small"
-                                  style={{
-                                    fontWeight: 700,
-                                    fontSize: 12,
-                                    minWidth: 70,
-                                    height: 28,
-                                    cursor: "default",
-                                    ...getPerformanceColor(
-                                      metric.currentPerformance,
-                                    ),
-                                  }}
-                                />
-                              ) : editingControl === group.controlId ? (
-                                <TextField
-                                  type="number"
-                                  size="small"
-                                  value={manualScores[group.controlId] ?? ""}
-                                  onChange={(e) =>
-                                    handleScoreChange(
-                                      group.controlId,
-                                      e.target.value,
-                                    )
-                                  }
-                                  onBlur={() =>
-                                    handleScoreSave(group.controlId)
-                                  }
-                                  onKeyDown={(e) => {
-                                    if (e.key === "Enter")
-                                      handleScoreSave(group.controlId);
-                                  }}
-                                  autoFocus
-                                  inputProps={{
-                                    min: 0,
-                                    max: 100,
-                                    step: 0.01,
-                                    style: { textAlign: "center", width: 70 },
-                                  }}
-                                />
-                              ) : (
-                                <Tooltip
-                                  title={
-                                    !hasAnyDocument(group.controlId)
-                                      ? "Upload a document first to enter score"
-                                      : "Click to edit score"
-                                  }
-                                  arrow
-                                >
-                                  <span>
-                                    <Chip
-                                      label={
-                                        manualScores[group.controlId] !==
-                                          undefined &&
-                                        manualScores[group.controlId] !== null
-                                          ? `${manualScores[group.controlId]}%`
-                                          : "—"
-                                      }
-                                      size="small"
-                                      // ── Only clickable if doc exists and not SOC2/ALL ──────────────
-                                      onClick={() => {
-                                        if (
-                                          !isSoc2Mapped &&
-                                          !isAllFrameworks &&
-                                          hasAnyDocument(group.controlId)
-                                        ) {
-                                          setEditingControl(group.controlId);
-                                        }
-                                      }}
-                                      style={{
-                                        cursor:
-                                          isSoc2Mapped ||
-                                          isAllFrameworks ||
-                                          !hasAnyDocument(group.controlId)
-                                            ? "not-allowed"
-                                            : "pointer",
-                                        fontWeight: 700,
-                                        fontSize: 12,
-                                        minWidth: 70,
-                                        height: 28,
-                                        opacity: hasAnyDocument(group.controlId)
-                                          ? 1
-                                          : 0.5,
-                                        ...(manualScores[group.controlId] !==
-                                          undefined &&
-                                        manualScores[group.controlId] !== null
-                                          ? getPerformanceColor(
-                                              parseFloat(
-                                                manualScores[group.controlId],
-                                              ),
-                                            )
-                                          : {
-                                              backgroundColor: "#f5f5f5",
-                                              color: "#666",
-                                            }),
-                                      }}
-                                    />
-                                  </span>
-                                </Tooltip>
-                              )}
-                            </TableCell>
-                            <TableCell align="center" style={{ minWidth: 220 }}>
-                              <Box
-                                display="flex"
-                                alignItems="center"
-                                justifyContent="center"
-                                style={{ gap: 4 }}
-                              >
-                                {showEvidence && (
-                                  <>
-                                    <Tooltip title="View evidence" arrow>
-                                      <IconButton
-                                        size="small"
-                                        onClick={() =>
-                                          setEvidenceModal({
-                                            open: true,
-                                            data: metric.evidence,
-                                          })
-                                        }
+                              <TableCell style={{ fontSize: 13 }}>
+                                <Box>
+                                  {isFirst && (
+                                    <Box>
+                                      <Typography
                                         style={{
-                                          backgroundColor: "#e3f2fd",
-                                          color: "#1976d2",
-                                          width: 32,
-                                          height: 32,
+                                          fontSize: 12,
+                                          fontWeight: 600,
+                                          color: "#334155",
+                                          lineHeight: 1.4,
+                                          marginBottom: 0,
                                         }}
                                       >
-                                        <VisibilityIcon
-                                          style={{ fontSize: 16 }}
-                                        />
-                                      </IconButton>
-                                    </Tooltip>
-                                    {group.formula && (
-                                      <Tooltip title="View formula" arrow>
+                                        {group.metric &&
+                                        group.metric.trim() !==
+                                          group.controlName?.trim()
+                                          ? group.metric
+                                          : null}
+                                      </Typography>
+                                    </Box>
+                                  )}
+                                  {metric && (
+                                    <Box
+                                      display="flex"
+                                      alignItems="center"
+                                      style={{
+                                        gap: 5,
+                                        marginTop: isFirst ? 4 : 0,
+                                      }}
+                                    >
+                                      {(isMappingOnlyFw || isAllFrameworks) &&
+                                        metric.sourceCode && (
+                                          <MappedSourceBadge
+                                            availableFrameworks={
+                                              availableFrameworks
+                                            }
+                                            sourceCode={metric.sourceCode}
+                                            sourceFramework={
+                                              metric.sourceFramework || ""
+                                            }
+                                          />
+                                        )}
+                                      {isAllFrameworks &&
+                                        !metric.sourceCode &&
+                                        metric.sourceFramework && (
+                                          <FrameworkBadge
+                                            frameworkCode={
+                                              metric.sourceFramework
+                                            }
+                                            availableFrameworks={
+                                              availableFrameworks
+                                            }
+                                          />
+                                        )}
+                                      <Typography
+                                        style={{
+                                          fontSize: 11,
+                                          color: "#64748b",
+                                          lineHeight: 1.4,
+                                        }}
+                                      >
+                                        {metric.metricName}
+                                      </Typography>
+                                    </Box>
+                                  )}
+                                  {!metric &&
+                                    isFirst &&
+                                    (isMappingOnlyFw || isAllFrameworks) &&
+                                    group.fallbackMetrics?.length > 0 && (
+                                      <Box style={{ marginTop: 6 }}>
+                                        {group.fallbackMetrics.map((fb, i) => (
+                                          <Box
+                                            key={i}
+                                            display="flex"
+                                            alignItems="flex-start"
+                                            style={{
+                                              gap: 5,
+                                              marginBottom:
+                                                i <
+                                                group.fallbackMetrics.length - 1
+                                                  ? 4
+                                                  : 0,
+                                            }}
+                                          >
+                                            <MappedSourceBadge
+                                              availableFrameworks={
+                                                availableFrameworks
+                                              }
+                                              sourceCode={fb.sourceCode}
+                                              sourceFramework={
+                                                fb.sourceFramework
+                                              }
+                                            />
+                                            <Typography
+                                              style={{
+                                                fontSize: 11,
+                                                color: "#64748b",
+                                                lineHeight: 1.5,
+                                              }}
+                                            >
+                                              {fb.metricName}
+                                            </Typography>
+                                          </Box>
+                                        ))}
+                                      </Box>
+                                    )}
+                                </Box>
+                              </TableCell>
+                              <TableCell align="center">
+                                {metric ? (
+                                  <Chip
+                                    label="100.00%"
+                                    color="primary"
+                                    size="small"
+                                    style={{ fontWeight: 600 }}
+                                  />
+                                ) : isFirst ? (
+                                  <TargetScoreCell
+                                    controlId={group.controlId}
+                                    tenantId={tenantId}
+                                    frameworkCode={activeFramework}
+                                    targetScore={
+                                      manualTargetScores[group.controlId] ??
+                                      null
+                                    }
+                                    onSave={handleTargetScoreSaved}
+                                  />
+                                ) : (
+                                  <span
+                                    style={{ color: "#cbd5e1", fontSize: 13 }}
+                                  >
+                                    —
+                                  </span>
+                                )}
+                              </TableCell>
+                              <TableCell align="center">
+                                {metric ? (
+                                  <Chip
+                                    label={`${formatPercentage(metric.currentPerformance)}%`}
+                                    size="small"
+                                    style={{
+                                      fontWeight: 700,
+                                      fontSize: 12,
+                                      minWidth: 70,
+                                      height: 28,
+                                      cursor: "default",
+                                      ...getPerformanceColor(
+                                        metric.currentPerformance,
+                                      ),
+                                    }}
+                                  />
+                                ) : editingControl === group.controlId ? (
+                                  <TextField
+                                    type="number"
+                                    size="small"
+                                    value={manualScores[group.controlId] ?? ""}
+                                    onChange={(e) =>
+                                      handleScoreChange(
+                                        group.controlId,
+                                        e.target.value,
+                                      )
+                                    }
+                                    onBlur={() =>
+                                      handleScoreSave(group.controlId)
+                                    }
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter")
+                                        handleScoreSave(group.controlId);
+                                    }}
+                                    autoFocus
+                                    inputProps={{
+                                      min: 0,
+                                      max: 100,
+                                      step: 0.01,
+                                      style: { textAlign: "center", width: 70 },
+                                    }}
+                                  />
+                                ) : (
+                                  <Tooltip
+                                    title={
+                                      isAllFrameworks
+                                        ? "Score editing not available in unified view"
+                                        : isMappingOnlyFw && group.status !== "disconnected"
+                                        ? "Score is derived from mapped framework data"
+                                        : !hasAnyDocument(group.controlId)
+                                        ? "Upload a document first to enter score"
+                                        : "Click to edit score"
+                                    }
+                                    arrow
+                                  >
+                                    <span>
+                                      <Chip
+                                        label={
+                                          manualScores[group.controlId] !==
+                                            undefined &&
+                                          manualScores[group.controlId] !== null
+                                            ? `${manualScores[group.controlId]}%`
+                                            : "—"
+                                        }
+                                        size="small"
+                                        onClick={() => {
+                                          // Allow editing only when a document exists, regardless of framework type.
+                                          // For mapping-only frameworks: also requires status = disconnected
+                                          // (mapped controls derive their score from source framework data).
+                                          const canEdit =
+                                            (!isMappingOnlyFw &&
+                                              !isAllFrameworks &&
+                                              hasAnyDocument(group.controlId)) ||
+                                            (isMappingOnlyFw &&
+                                              group.status === "disconnected" &&
+                                              hasAnyDocument(group.controlId));
+                                          if (canEdit)
+                                            setEditingControl(group.controlId);
+                                        }}
+                                        style={{
+                                          cursor: (() => {
+                                            if (isAllFrameworks) return "not-allowed";
+                                            if (isMappingOnlyFw && group.status !== "disconnected") return "not-allowed";
+                                            return hasAnyDocument(group.controlId) ? "pointer" : "not-allowed";
+                                          })(),
+                                          fontWeight: 700,
+                                          fontSize: 12,
+                                          minWidth: 70,
+                                          height: 28,
+                                          opacity: (() => {
+                                            if (isAllFrameworks) return 0.5;
+                                            if (isMappingOnlyFw && group.status !== "disconnected") return 0.5;
+                                            return hasAnyDocument(group.controlId) ? 1 : 0.5;
+                                          })(),
+                                          ...(manualScores[group.controlId] !==
+                                            undefined &&
+                                          manualScores[group.controlId] !== null
+                                            ? getPerformanceColor(
+                                                parseFloat(
+                                                  manualScores[group.controlId],
+                                                ),
+                                              )
+                                            : {
+                                                backgroundColor: "#f5f5f5",
+                                                color: "#666",
+                                              }),
+                                        }}
+                                      />
+                                    </span>
+                                  </Tooltip>
+                                )}
+                              </TableCell>
+                              <TableCell
+                                align="center"
+                                style={{ minWidth: 220 }}
+                              >
+                                <Box
+                                  display="flex"
+                                  alignItems="center"
+                                  justifyContent="center"
+                                  style={{ gap: 4 }}
+                                >
+                                  {showEvidence && (
+                                    <>
+                                      <Tooltip title="View evidence" arrow>
                                         <IconButton
                                           size="small"
                                           onClick={() =>
                                             setEvidenceModal({
                                               open: true,
-                                              data: group.formula,
+                                              data: metric.evidence,
                                             })
                                           }
                                           style={{
-                                            backgroundColor: "#f0f4ff",
-                                            color: "#5c6bc0",
+                                            backgroundColor: "#e3f2fd",
+                                            color: "#1976d2",
                                             width: 32,
                                             height: 32,
                                           }}
                                         >
-                                          <FunctionsIcon
+                                          <VisibilityIcon
                                             style={{ fontSize: 16 }}
                                           />
                                         </IconButton>
                                       </Tooltip>
-                                    )}
-                                  </>
-                                )}
-                                {group.status === "disconnected" && (
-                                  <>
-                                    <ManualUploadCell
-                                      controlId={group.controlId}
-                                      tenantId={tenantId}
-                                      onUpload={handleManualUpload}
-                                      uploadedFileName={
-                                        upload?.fileName || null
-                                      }
-                                      uploadedFileId={upload?.fileId || null}
-                                      isUploading={
-                                        uploadingControls[group.controlId] ||
-                                        false
-                                      }
-                                      onViewFile={handleViewFile}
-                                    />
-                                    {upload?.fileId && (
-                                      <Tooltip
-                                        title="Delete evidence file"
-                                        arrow
-                                      >
-                                        <span>
+                                      {group.formula && (
+                                        <Tooltip title="View formula" arrow>
                                           <IconButton
                                             size="small"
-                                            disabled={
-                                              deletingControls[group.controlId]
-                                            }
                                             onClick={() =>
-                                              handleDeleteFile(
-                                                group.controlId,
-                                                upload.fileId,
-                                                upload.fileName,
-                                              )
+                                              setEvidenceModal({
+                                                open: true,
+                                                data: group.formula,
+                                              })
                                             }
                                             style={{
-                                              backgroundColor: "#ffebee",
-                                              color: "#d32f2f",
+                                              backgroundColor: "#f0f4ff",
+                                              color: "#5c6bc0",
                                               width: 32,
                                               height: 32,
                                             }}
                                           >
-                                            {deletingControls[
-                                              group.controlId
-                                            ] ? (
-                                              <CircularProgress
-                                                size={14}
-                                                style={{ color: "#d32f2f" }}
-                                              />
-                                            ) : (
-                                              <DeleteIcon
-                                                style={{ fontSize: 16 }}
-                                              />
-                                            )}
+                                            <FunctionsIcon
+                                              style={{ fontSize: 16 }}
+                                            />
                                           </IconButton>
-                                        </span>
-                                      </Tooltip>
-                                    )}
-                                    {!isAllFrameworks &&
-                                      activeFramework !== "SOC2" &&
-                                      (approvalStatuses[group.controlId] ===
-                                      "APPROVED" ? (
-                                        <Tooltip title="Approved" arrow>
-                                          <CheckCircleIcon
-                                            style={{
-                                              fontSize: 24,
-                                              color: "#2e7d32",
-                                            }}
-                                          />
                                         </Tooltip>
-                                      ) : (
+                                      )}
+                                    </>
+                                  )}
+                                  {group.status === "disconnected" && (
+                                    <>
+                                      <ManualUploadCell
+                                        controlId={group.controlId}
+                                        tenantId={tenantId}
+                                        onUpload={handleManualUpload}
+                                        uploadedFileName={
+                                          upload?.fileName || null
+                                        }
+                                        uploadedFileId={upload?.fileId || null}
+                                        isUploading={
+                                          uploadingControls[group.controlId] ||
+                                          false
+                                        }
+                                        onViewFile={handleViewFile}
+                                      />
+                                      {upload?.fileId && (
                                         <Tooltip
-                                          title="Approve this control"
+                                          title="Delete evidence file"
                                           arrow
                                         >
                                           <span>
                                             <IconButton
                                               size="small"
                                               disabled={
-                                                approvingControls[
+                                                deletingControls[
                                                   group.controlId
                                                 ]
                                               }
                                               onClick={() =>
-                                                handleApprove(group.controlId)
+                                                handleDeleteFile(
+                                                  group.controlId,
+                                                  upload.fileId,
+                                                  upload.fileName,
+                                                )
                                               }
                                               style={{
-                                                backgroundColor: "#e8f5e9",
-                                                color: "#2e7d32",
+                                                backgroundColor: "#ffebee",
+                                                color: "#d32f2f",
                                                 width: 32,
                                                 height: 32,
                                               }}
                                             >
-                                              {approvingControls[
+                                              {deletingControls[
                                                 group.controlId
                                               ] ? (
                                                 <CircularProgress
                                                   size={14}
-                                                  style={{ color: "#2e7d32" }}
+                                                  style={{ color: "#d32f2f" }}
                                                 />
                                               ) : (
-                                                <CheckCircleOutlineIcon
+                                                <DeleteIcon
                                                   style={{ fontSize: 16 }}
                                                 />
                                               )}
                                             </IconButton>
                                           </span>
                                         </Tooltip>
-                                      ))}
-                                  </>
-                                )}
-                              </Box>
-                            </TableCell>
-                            <TableCell align="center" style={{ minWidth: 120 }}>
-                              {isFirst &&
-                                (hasTask ? (
-                                  <Box
-                                    display="flex"
-                                    flexDirection="column"
-                                    alignItems="center"
-                                    style={{ gap: 4 }}
-                                  >
-                                    <CheckCircleIcon
-                                      style={{ fontSize: 20, color: "#22c55e" }}
-                                    />
-                                    <span
-                                      style={{
-                                        fontSize: 10,
-                                        color: "#22c55e",
-                                        fontWeight: 700,
-                                      }}
+                                      )}
+                                      {!isAllFrameworks &&
+                                        !mappingOnlyCodes.has(
+                                          activeFramework,
+                                        ) &&
+                                        (approvalStatuses[group.controlId] ===
+                                        "APPROVED" ? (
+                                          <Tooltip title="Approved" arrow>
+                                            <CheckCircleIcon
+                                              style={{
+                                                fontSize: 24,
+                                                color: "#2e7d32",
+                                              }}
+                                            />
+                                          </Tooltip>
+                                        ) : (
+                                          <Tooltip
+                                            title="Approve this control"
+                                            arrow
+                                          >
+                                            <span>
+                                              <IconButton
+                                                size="small"
+                                                disabled={
+                                                  approvingControls[
+                                                    group.controlId
+                                                  ]
+                                                }
+                                                onClick={() =>
+                                                  handleApprove(group.controlId)
+                                                }
+                                                style={{
+                                                  backgroundColor: "#e8f5e9",
+                                                  color: "#2e7d32",
+                                                  width: 32,
+                                                  height: 32,
+                                                }}
+                                              >
+                                                {approvingControls[
+                                                  group.controlId
+                                                ] ? (
+                                                  <CircularProgress
+                                                    size={14}
+                                                    style={{ color: "#2e7d32" }}
+                                                  />
+                                                ) : (
+                                                  <CheckCircleOutlineIcon
+                                                    style={{ fontSize: 16 }}
+                                                  />
+                                                )}
+                                              </IconButton>
+                                            </span>
+                                          </Tooltip>
+                                        ))}
+                                    </>
+                                  )}
+                                </Box>
+                              </TableCell>
+                              <TableCell
+                                align="center"
+                                style={{ minWidth: 120 }}
+                              >
+                                {isFirst &&
+                                  (hasTask ? (
+                                    <Box
+                                      display="flex"
+                                      flexDirection="column"
+                                      alignItems="center"
+                                      style={{ gap: 4 }}
                                     >
-                                      Task created
-                                    </span>
-                                    <Button
-                                      size="small"
-                                      onClick={() =>
-                                        setAddTaskFor({
-                                          controlId: group.controlId,
-                                          controlName: group.controlName,
-                                        })
-                                      }
-                                      style={{
-                                        fontSize: 10,
-                                        padding: "2px 8px",
-                                        minWidth: 0,
-                                        textTransform: "none",
-                                        border: "1px solid #bbf7d0",
-                                        background: "#f0fdf4",
-                                        color: "#166534",
-                                      }}
+                                      <CheckCircleIcon
+                                        style={{
+                                          fontSize: 20,
+                                          color: "#22c55e",
+                                        }}
+                                      />
+                                      <span
+                                        style={{
+                                          fontSize: 10,
+                                          color: "#22c55e",
+                                          fontWeight: 700,
+                                        }}
+                                      >
+                                        Task created
+                                      </span>
+                                      <Button
+                                        size="small"
+                                        onClick={() =>
+                                          setAddTaskFor({
+                                            controlId: group.controlId,
+                                            controlName: group.controlName,
+                                          })
+                                        }
+                                        style={{
+                                          fontSize: 10,
+                                          padding: "2px 8px",
+                                          minWidth: 0,
+                                          textTransform: "none",
+                                          border: "1px solid #bbf7d0",
+                                          background: "#f0fdf4",
+                                          color: "#166534",
+                                        }}
+                                      >
+                                        + Another
+                                      </Button>
+                                    </Box>
+                                  ) : (
+                                    <Tooltip
+                                      title="Create Corrective Action Task"
+                                      arrow
                                     >
-                                      + Another
-                                    </Button>
-                                  </Box>
-                                ) : (
-                                  <Tooltip
-                                    title="Create Corrective Action Task"
-                                    arrow
-                                  >
-                                    <Button
-                                      size="small"
-                                      variant="contained"
-                                      onClick={() =>
-                                        setAddTaskFor({
-                                          controlId: group.controlId,
-                                          controlName: group.controlName,
-                                        })
-                                      }
-                                      style={{
-                                        fontSize: 11,
-                                        fontWeight: 700,
-                                        textTransform: "none",
-                                        background: "#4f46e5",
-                                        color: "#fff",
-                                        borderRadius: 8,
-                                        padding: "5px 10px",
-                                        minWidth: 0,
-                                        boxShadow:
-                                          "0 2px 6px rgba(79,70,229,0.3)",
-                                      }}
-                                      startIcon={<ClipboardList size={11} />}
-                                    >
-                                      Add CAP
-                                    </Button>
-                                  </Tooltip>
-                                ))}
-                            </TableCell>
-                          </TableRow>
-                        );
-                      },
-                    )}
+                                      <Button
+                                        size="small"
+                                        variant="contained"
+                                        onClick={() =>
+                                          setAddTaskFor({
+                                            controlId: group.controlId,
+                                            controlName: group.controlName,
+                                          })
+                                        }
+                                        style={{
+                                          fontSize: 11,
+                                          fontWeight: 700,
+                                          textTransform: "none",
+                                          background: "#4f46e5",
+                                          color: "#fff",
+                                          borderRadius: 8,
+                                          padding: "5px 10px",
+                                          minWidth: 0,
+                                          boxShadow:
+                                            "0 2px 6px rgba(79,70,229,0.3)",
+                                        }}
+                                        startIcon={<ClipboardList size={11} />}
+                                      >
+                                        Add CAP
+                                      </Button>
+                                    </Tooltip>
+                                  ))}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        },
+                      )}
 
-                    {currentPageRows.length === 0 && (
-                      <TableRow>
-                        <TableCell
-                          colSpan={colSpanCount}
-                          align="center"
-                          style={{ padding: "60px 20px" }}
-                        >
-                          <div
-                            style={{
-                              color: "#64748b",
-                              fontSize: 18,
-                              fontWeight: 500,
-                            }}
+                      {currentPageRows.length === 0 && (
+                        <TableRow>
+                          <TableCell
+                            colSpan={colSpanCount}
+                            align="center"
+                            style={{ padding: "60px 20px" }}
                           >
-                            {search
-                              ? "No matching controls found"
-                              : tenantError
-                                ? "Unable to load compliance data"
-                                : isAllFrameworks
-                                  ? "No unified compliance data available"
-                                  : `No ${fwConfig?.label} compliance data available`}
-                          </div>
-                          <div
-                            style={{
-                              color: "#94a3b8",
-                              fontSize: 14,
-                              marginTop: 8,
-                            }}
-                          >
-                            {search
-                              ? "Try adjusting your search"
-                              : tenantError
-                                ? "Please contact your administrator"
-                                : isAllFrameworks
-                                  ? "Make sure at least one framework has controls configured"
-                                  : activeFramework === "SOC2"
-                                    ? "Make sure ISO 27001 / ISO 27701 data is synced"
-                                    : activeFramework === "ISO42001"
-                                      ? "Make sure ISO 42001 controls are configured in your backend"
+                            <div
+                              style={{
+                                color: "#64748b",
+                                fontSize: 18,
+                                fontWeight: 500,
+                              }}
+                            >
+                              {search
+                                ? "No matching controls found"
+                                : tenantError
+                                  ? "Unable to load compliance data"
+                                  : isAllFrameworks
+                                    ? "No unified compliance data available"
+                                    : `No ${fwConfig?.label || activeFramework} compliance data available`}
+                            </div>
+                            <div
+                              style={{
+                                color: "#94a3b8",
+                                fontSize: 14,
+                                marginTop: 8,
+                              }}
+                            >
+                              {search
+                                ? "Try adjusting your search"
+                                : tenantError
+                                  ? "Please contact your administrator"
+                                  : isAllFrameworks
+                                    ? "Make sure at least one framework has controls configured"
+                                    : mappingOnlyCodes &&
+                                        mappingOnlyCodes.has(activeFramework)
+                                      ? `Make sure source framework data is synced for ${fwConfig?.label || activeFramework}`
                                       : "Try syncing from cloud or refresh the data"}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-              <Box mt={3}>
-                <TablePagination
-                  component="div"
-                  count={totalRows}
-                  page={page}
-                  onPageChange={(_, p) => setPage(p)}
-                  rowsPerPage={rowsPerPage}
-                  onRowsPerPageChange={(e) => {
-                    setRowsPerPage(parseInt(e.target.value, 10));
-                    setPage(0);
-                  }}
-                  rowsPerPageOptions={[10, 25, 50]}
-                  labelRowsPerPage="Rows per page:"
-                  labelDisplayedRows={({ from, to, count }) =>
-                    `${from}-${to} of ${count}`
-                  }
-                />
-              </Box>
-            </>
-          )}
-        </Paper>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+                <Box mt={3}>
+                  <TablePagination
+                    component="div"
+                    count={totalRows}
+                    page={page}
+                    onPageChange={(_, p) => setPage(p)}
+                    rowsPerPage={rowsPerPage}
+                    onRowsPerPageChange={(e) => {
+                      setRowsPerPage(parseInt(e.target.value, 10));
+                      setPage(0);
+                    }}
+                    rowsPerPageOptions={[10, 25, 50]}
+                    labelRowsPerPage="Rows per page:"
+                    labelDisplayedRows={({ from, to, count }) =>
+                      `${from}-${to} of ${count}`
+                    }
+                  />
+                </Box>
+              </>
+            )}
+          </Paper>
 
-        <Snackbar
-          open={snackbar.open}
-          autoHideDuration={6000}
-          onClose={() => setSnackbar({ ...snackbar, open: false })}
-          anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-        >
-          <SnackbarContent
-            style={{
-              backgroundColor:
-                snackbar.severity === "error"
-                  ? "#d32f2f"
-                  : snackbar.severity === "warning"
-                    ? "#f57c00"
-                    : snackbar.severity === "success"
-                      ? "#388e3c"
-                      : "#1976d2",
-              color: "white",
-              fontSize: 14,
-              fontWeight: 500,
-              minWidth: 288,
-              borderRadius: 4,
-              boxShadow: "0 3px 5px -1px rgba(0,0,0,0.2)",
-            }}
-            message={
-              <Box display="flex" alignItems="center" style={{ gap: 8 }}>
-                <span style={{ fontSize: 18 }}>
-                  {snackbar.severity === "error" && "❌"}
-                  {snackbar.severity === "warning" && "⚠️"}
-                  {snackbar.severity === "success" && "✅"}
-                  {snackbar.severity === "info" && "ℹ️"}
-                </span>
-                <span>{snackbar.message}</span>
-              </Box>
-            }
-            action={
-              <IconButton
-                size="small"
-                color="inherit"
-                onClick={() => setSnackbar({ ...snackbar, open: false })}
-              >
-                <ClearIcon fontSize="small" />
-              </IconButton>
-            }
-          />
-        </Snackbar>
-
-        <Dialog
-          open={confirmDelete.open}
-          onClose={() =>
-            setConfirmDelete({
-              open: false,
-              controlId: null,
-              fileId: null,
-              fileName: null,
-            })
-          }
-          PaperProps={{ style: { borderRadius: 12, padding: 8 } }}
-        >
-          <DialogTitle style={{ fontWeight: 700, color: "#1e293b" }}>
-            Delete Evidence File?
-          </DialogTitle>
-          <DialogContent>
-            <Typography style={{ color: "#475569", fontSize: 14 }}>
-              Are you sure you want to delete{" "}
-              <strong>{confirmDelete.fileName}</strong> for control{" "}
-              <strong>{confirmDelete.controlId}</strong>? This cannot be undone.
-            </Typography>
-          </DialogContent>
-          <DialogActions style={{ padding: "12px 24px", gap: 8 }}>
-            <Button
-              onClick={() =>
-                setConfirmDelete({
-                  open: false,
-                  controlId: null,
-                  fileId: null,
-                  fileName: null,
-                })
-              }
-              variant="outlined"
+          <Snackbar
+            open={snackbar.open}
+            autoHideDuration={6000}
+            onClose={() => setSnackbar({ ...snackbar, open: false })}
+            anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+          >
+            <SnackbarContent
               style={{
-                borderRadius: 8,
-                textTransform: "none",
-                fontWeight: 600,
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleDeleteConfirmed}
-              variant="contained"
-              style={{
-                borderRadius: 8,
-                textTransform: "none",
-                fontWeight: 600,
-                backgroundColor: "#d32f2f",
+                backgroundColor:
+                  snackbar.severity === "error"
+                    ? "#d32f2f"
+                    : snackbar.severity === "warning"
+                      ? "#f57c00"
+                      : snackbar.severity === "success"
+                        ? "#388e3c"
+                        : "#1976d2",
                 color: "white",
+                fontSize: 14,
+                fontWeight: 500,
+                minWidth: 288,
+                borderRadius: 4,
+                boxShadow: "0 3px 5px -1px rgba(0,0,0,0.2)",
               }}
-            >
-              Delete
-            </Button>
-          </DialogActions>
-        </Dialog>
+              message={
+                <Box display="flex" alignItems="center" style={{ gap: 8 }}>
+                  <span style={{ fontSize: 18 }}>
+                    {snackbar.severity === "error" && "❌"}
+                    {snackbar.severity === "warning" && "⚠️"}
+                    {snackbar.severity === "success" && "✅"}
+                    {snackbar.severity === "info" && "ℹ️"}
+                  </span>
+                  <span>{snackbar.message}</span>
+                </Box>
+              }
+              action={
+                <IconButton
+                  size="small"
+                  color="inherit"
+                  onClick={() => setSnackbar({ ...snackbar, open: false })}
+                >
+                  <ClearIcon fontSize="small" />
+                </IconButton>
+              }
+            />
+          </Snackbar>
 
-        <Evidence_Modal
-          open={evidenceModal.open}
-          evidence={evidenceModal.data}
-          onClose={() => setEvidenceModal({ open: false, data: [] })}
-        />
-        <PdfPreviewModal
-          open={pdfModal.open}
-          onClose={handleClosePdfModal}
-          pdfUrl={pdfModal.url}
-          fileName={pdfModal.fileName}
-        />
+          <Dialog
+            open={confirmDelete.open}
+            onClose={() =>
+              setConfirmDelete({
+                open: false,
+                controlId: null,
+                fileId: null,
+                fileName: null,
+              })
+            }
+            PaperProps={{ style: { borderRadius: 12, padding: 8 } }}
+          >
+            <DialogTitle style={{ fontWeight: 700, color: "#1e293b" }}>
+              Delete Evidence File?
+            </DialogTitle>
+            <DialogContent>
+              <Typography style={{ color: "#475569", fontSize: 14 }}>
+                Are you sure you want to delete{" "}
+                <strong>{confirmDelete.fileName}</strong> for control{" "}
+                <strong>{confirmDelete.controlId}</strong>? This cannot be
+                undone.
+              </Typography>
+            </DialogContent>
+            <DialogActions style={{ padding: "12px 24px", gap: 8 }}>
+              <Button
+                onClick={() =>
+                  setConfirmDelete({
+                    open: false,
+                    controlId: null,
+                    fileId: null,
+                    fileName: null,
+                  })
+                }
+                variant="outlined"
+                style={{
+                  borderRadius: 8,
+                  textTransform: "none",
+                  fontWeight: 600,
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleDeleteConfirmed}
+                variant="contained"
+                style={{
+                  borderRadius: 8,
+                  textTransform: "none",
+                  fontWeight: 600,
+                  backgroundColor: "#d32f2f",
+                  color: "white",
+                }}
+              >
+                Delete
+              </Button>
+            </DialogActions>
+          </Dialog>
 
-        {addTaskFor && (
-          <AddTaskModal
-            controlId={addTaskFor.controlId}
-            controlName={addTaskFor.controlName}
-            auditors={auditors}
-            onClose={() => setAddTaskFor(null)}
-            onCreated={() => {
-              setTaskCreatedFor((prev) => ({
-                ...prev,
-                [addTaskFor.controlId]: true,
-              }));
-              setSnackbar({
-                open: true,
-                message: `✅ CAP task created for ${addTaskFor.controlId}`,
-                severity: "success",
-              });
-            }}
+          <Evidence_Modal
+            open={evidenceModal.open}
+            evidence={evidenceModal.data}
+            onClose={() => setEvidenceModal({ open: false, data: [] })}
           />
-        )}
-      </Container>
-    </Box>
+          <PdfPreviewModal
+            open={pdfModal.open}
+            onClose={handleClosePdfModal}
+            pdfUrl={pdfModal.url}
+            fileName={pdfModal.fileName}
+          />
+
+          {addTaskFor && (
+            <AddTaskModal
+              controlId={addTaskFor.controlId}
+              controlName={addTaskFor.controlName}
+              auditors={auditors}
+              onClose={() => setAddTaskFor(null)}
+              onCreated={() => {
+                setTaskCreatedFor((prev) => ({
+                  ...prev,
+                  [addTaskFor.controlId]: true,
+                }));
+                setSnackbar({
+                  open: true,
+                  message: `✅ CAP task created for ${addTaskFor.controlId}`,
+                  severity: "success",
+                });
+              }}
+            />
+          )}
+        </Container>
+      </Box>
+    </>
   );
 };
 
