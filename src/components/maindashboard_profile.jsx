@@ -13,6 +13,7 @@ import {
   UserCheck,
   RefreshCw,
   X,
+  HelpCircle
 } from "lucide-react";
 import { useFramework, ALL_FRAMEWORKS } from "../context/FrameworkContex";
 import { useRouter } from "next/navigation";
@@ -21,6 +22,7 @@ import ChangePasswordModal from "../modules/dashboard/ChangePasswordModal";
 import { useSession } from "../context/SessionContext";
 import { useUI } from "../context/UIContext";
 import { useEffectiveOrg } from "../hooks/useEffectiveOrg"; // ← import hook
+import HelpDocModal from "./shared/HelpDocModal";
 
 // ─────────────────────────────────────────────
 // CONSTANTS
@@ -65,7 +67,6 @@ const NotificationBell = ({ userId }) => {
   const [tab, setTab] = useState("ALL");
   const [loading, setLoading] = useState(false);
   const panelRef = useRef(null);
-
   // ── API helpers ──────────────────────────────
 
   const generateAndFetch = useCallback(async () => {
@@ -540,6 +541,8 @@ const Maindashboard_profile = () => {
   const [frameworkFilterOpen, setFrameworkFilterOpen] = useState(false);
   const [templatesOpen, setTemplatesOpen] = useState(false);
 
+
+
   const {
     selectedFrameworks,
     toggleFramework,
@@ -547,7 +550,7 @@ const Maindashboard_profile = () => {
     availableFrameworks,
     frameworkColorMap,
   } = useFramework();
-  const { startTutorial } = useUI();
+  const { startTutorial, openHelp } = useUI();
   const [, setSessionExpired] = useState(false);
 
   // ── useEffectiveOrg replaces manual user/org derivations ─────────────────
@@ -902,6 +905,15 @@ const Maindashboard_profile = () => {
   return (
     <>
       <div className="flex items-center gap-2 sm:gap-3">
+        <motion.button
+          whileHover={{ scale: 1.04 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={openHelp}
+          title="Help"
+          className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-xl border border-slate-200 bg-slate-100 hover:bg-slate-200 transition-colors flex-shrink-0"
+        >
+          <HelpCircle size={16} className="text-slate-500" />
+        </motion.button>
         <motion.button
           whileHover={{ scale: 1.04 }}
           whileTap={{ scale: 0.95 }}

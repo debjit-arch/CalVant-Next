@@ -10,6 +10,11 @@ import {
   TrendingUp, Activity, Award, Zap, Brain
 } from "lucide-react";
 
+import { INTRO_DOCS } from "@/docs/introDocs";
+
+import HelpDocModal from "@/components/shared/HelpDocModal";
+import { HelpCircle } from "lucide-react"; // check your existing lucide-react import line first — add HelpCircle if missing
+
 import riskService from "../riskAssesment/services/riskService";
 import documentationService from "../documentation/services/documentationService";
 import controlService from "../documentation/services/controlService";
@@ -156,7 +161,312 @@ const DashboardLoggedIn = () => {
   const [showTprm, setShowTprm] = useState(false);
   const [activeFw, setActiveFw] = useState(null);
   const [orgTprmEnabled, setOrgTprmEnabled] = useState(false);
-  const { runTour, setRunTour } = useUI();
+  const { runTour, setRunTour,showHelp, setShowHelp } = useUI();
+
+      const [showHelpDoc, setShowHelpDoc] = useState(false);
+  
+  const HOME_DASHBOARD_HELP_CONTENT = `
+  # CALVANT
+### Digital Compliance Management — User Manual
+Version 1.0 | July 2026
+© 2026 CalVant. All rights reserved.
+
+---
+
+## Table of Contents
+
+
+1. **Introduction**
+   - 1.1 Purpose of this User Manual
+   - 1.2 Intended Audience
+   - 1.3 How to Use this Manual
+2. **Understanding Digital Compliance Management**
+   - 2.1 What is Digital Compliance and Why It Matters?
+   - 2.2 Types of Digital Compliance Topics
+   - 2.3 Global Digital Compliance Frameworks
+3. **Steps to Comply**
+   - 3.1 The Seven-Step Implementation Methodology
+4. **Introducing Calvant**
+   - 4.1 Core Capabilities
+   - 4.2 End-to-End Digital Compliance Workflow in Calvant
+5. **Getting Started**
+   - 5.1 Logging In
+   - 5.2 User Roles and Permissions
+6. **Understanding the Calvant Workspace**
+   - 6.1 The Home Dashboard
+7. **Core Modules & Key Workflows**
+   - 7.1 Risk Management
+   - 7.2 Policy Management
+   - 7.3 Audit Management
+   - 7.4 Task Management
+   - 7.5 Compliance Management
+   - 7.6 Vendor Management
+   - 7.7 Risk Assessments, Impact Assessments, and Others
+8. **Operational Best Practices**
+9. **FAQ**
+   - 9.1 Frequently Asked Questions
+10. **Platform Readiness Quiz**
+11. **Answer Key & Explanations**
+
+---
+
+## 1. Introduction
+
+Welcome to Calvant, an all-in-one corporate digital compliance management ecosystem designed to streamline how your organization governs operational, cybersec, and compliance frameworks. In an era where data security and regulatory alignment dictate business trust, Calvant replaces fragmented, static spreadsheets with a dynamic, centralized workspace.
+
+### 1.1 Purpose of this User Manual
+
+This Introductory User Manual is designed to give you a cohesive, high-level understanding of Calvant. It acts as your primary gateway to the platform's features, breaking down complex compliance processes into a logical roadmap. It guides you from absolute setup to everyday risk mitigation, document management, and third-party vendor analysis without overwhelming you with dry data models.
+
+### 1.2 Intended Audience
+
+This manual is written exclusively for users—whether you are a compliance officer overseeing the entire corporate program, an auditor evaluating control evidence, a risk owner responsible for mitigating threats, or an executive looking at operational health dashboards. It assumes no previous configuration knowledge, addressing you in a professional, practical tone.
+
+### 1.3 How to Use this Manual
+
+Begin with Section 2 and 3 to understand the strategic concepts of digital compliance and the structured 7-step implementation methodology that underpins Calvant. From there, explore Section 4 to familiarize yourself with Calvant's interface, and dive into the focused module overviews in Sections 5 through 11 to see how each separate workflow—from policy approvals to vendor risk assessments—functions harmoniously within a single dashboard environment.
+
+---
+
+## 2. Understanding Digital Compliance Management
+
+Compliance is often viewed as a static checklist—a periodic burden to obtain a security certification or satisfy a legal requirement. However, digital compliance is a continuous posture of operational resilience and cybersec defense.
+
+### 2.1 What is Digital Compliance and Why It Matters?
+
+Digital compliance involves aligning your technological infrastructure, human workflows, physical spaces, and corporate policies with global standards. By moving compliance from paper records to an integrated software solution, your organization transforms abstract rules into living metrics. This continuous visibility builds massive customer trust, protects your intellectual property, and significantly mitigates the financial and reputational impacts of cybersec breaches.
+
+### 2.2 Types of Digital Compliance Topics
+
+Rather than treating risk, policies, and audits as isolated silos, Calvant merges them into functional areas:
+
+| Compliance Topic | Target Area |
+|---|---|
+| Data Privacy & Protection | Rules around how personal data (of customers, employees, or users) is collected, stored, used, and shared. This is usually the starting point for most businesses, and the area most laws focus on. |
+| Risk Management | Identifying things that could go wrong — a data leak, a vendor failure, a system outage — before they happen, and deciding how seriously to treat each one. |
+| Policy Governance | The written rules your organisation follows (e.g. a Data Retention Policy or an Access Control Policy) and making sure they are current, approved, and actually followed. |
+| Audit & Assurance | Independently checking whether your controls are actually working the way you say they are — internally, or by an external auditor. |
+| Third-Party / Vendor Risk | Making sure the vendors and partners you share data with are not the weak link in your compliance chain. |
+| AI Governance | A newer but fast-growing category — assessing the risks introduced when your business builds or uses AI tools, especially where personal data is involved. |
+| Task Management | Assigning clear ownership so that compliance work doesn't fall through the cracks between people and departments. |
+
+### 2.3 Global Digital Compliance Frameworks
+
+Calvant is built to natively support and cross-map multiple international frameworks. This ensures that a single operational task or policy document can simultaneously satisfy several standards, including:
+
+| Sl No | Standard / Framework | Data Privacy | Cybersecurity | AI |
+|---|---|---|---|---|
+| 1 | ISO/IEC 27001 | | ✓ | |
+| 2 | ISO/IEC 27701 | ✓ | ✓ | |
+| 3 | KSA PDPL (Personal Data Protection Law) | ✓ | | |
+| 4 | HIPAA (Health Insurance Portability and Accountability Act) | ✓ | ✓ | |
+| 5 | EU AI Act | | | ✓ |
+| 6 | ISO/IEC 42001 (AI Management System) | | | ✓ |
+| 7 | SOC 2 Type II | ✓ | ✓ | |
+| 8 | GDPR (General Data Protection Regulation) | ✓ | | |
+| 9 | NIST Cybersecurity Framework (CSF) | | ✓ | |
+| 10 | PCI DSS (Payment Card Industry Data Security Standard) | | ✓ | |
+| 11 | CCPA / CPRA (California Consumer Privacy Act) | ✓ | | |
+| 12 | NIST AI RMF (AI Risk Management Framework) | | | ✓ |
+| 13 | ISO/IEC 23894 (Artificial Intelligence — Risk Management) | | | ✓ |
+| 14 | CMMC (Cybersecurity Maturity Model Certification) | | ✓ | |
+| 15 | ISO/IEC 27017 (Cloud Security Controls) | | ✓ | |
+| 16 | ISO/IEC 27018 (Cloud Privacy Protection) | ✓ | | |
+| 17 | UAE PDPL (Personal Data Protection Law) | ✓ | | |
+| 18 | Singapore PDPA (Personal Data Protection Act) | ✓ | | |
+| 19 | COPPA (Children's Online Privacy Protection Act) | ✓ | | |
+| 20 | CIS Controls (Center for Internet Security) | | ✓ | |
+
+This is where Calvant comes in for your assistance.
+
+---
+
+## 3. Steps to Comply
+
+Achieving an auditable compliance posture requires a structured, repeatable methodology. Calvant has codified this journey into a 7-step cycle that guides users from discovery to continuous monitoring.
+
+### 3.1 The Seven-Step Implementation Methodology
+
+1. **Framework Selection:** Identify the regulatory requirements and corporate standards (e.g., ISO 27001, SOC 2) applicable to your business.
+2. **Statement of Applicability (SoA):** Establish exactly which security and operational controls apply to your unique environment, providing logical justifications for any exclusions.
+3. **Risk & Threat Identification:** Uncover internal and external vulnerabilities that could impact corporate assets, assessing their likelihood and business impact.
+4. **Treatment & Mitigation:** Formulate targeted action plans to address high-level risks, assigning clear tasks to operational personnel with explicit completion windows.
+5. **Policy & Documentation Mapping:** Author and publish official policy documents linked to specific controls, validating their completeness and quality via automated checks.
+6. **Internal Auditing:** Schedule and execute detailed reviews where independent internal or external auditors verify that documented policies are practiced in daily workflows.
+7. **External Audit and Certification:** Extend your safety perimeter to third-party providers via structured vendor assessments and perform targeted impact reviews before launching major data or AI processing systems.
+
+---
+
+## 4. Introducing Calvant
+
+Calvant is a comprehensive Digital Compliance Management SaaS platform. It acts as the operational nervous system for your compliance journey, translating complex legal standards into straightforward task lists and visual dashboards.
+
+### 4.1 Core Capabilities
+
+- **Dynamic Risk Registers:** Map real-world threats and calculate risk indices (Likelihood x Impact) instantly.
+- **Integrated Task Management:** Centralize mitigation items from risk plans, audit findings, and policy gaps.
+- **Automated Phase Scaling:** Plan audits with advanced sliders that auto-allocate prep and execution phases.
+- **Interactive Vendor Portal:** Send secure questionnaires to external partners and track responses without cluttered email threads.
+- **Comprehensive Impact Wizards:** Lead risk owners through systematic multi-stage risk assessments and impact assessments before deploying complex models or data pipelines.
+
+### 4.2 End-to-End Digital Compliance Workflow in Calvant
+
+The beauty of Calvant lies in its cross-module integration. When you record a risk in the Risk Module, it prompts you to link an applicable control. That control refers to a mandate within your Statement of Applicability (SoA). To satisfy that control, the Policy Module prompts you to upload a document. If that document is missing or expired, a task is auto-generated in the Task Module. Finally, during an audit, the Audit Module pulls that uploaded document and task log as verifiable evidence for your auditor. It is an end-to-end loop that guarantees readiness.
+
+---
+
+## 5. Getting Started
+
+Accessing Calvant requires an active corporate account. Upon registration, you will receive a secure portal link customized to your corporate domain.
+
+### 5.1 Logging In
+
+1. Navigate to your organization's specific Calvant URL.
+2. Enter your corporate email and secure password.
+3. Complete any required multi-factor authentication (MFA) prompts to enter the workspace.
+
+> **Platform Tip:** Calvant represents this 7-step cycle in its digital sidebar, allowing users to move seamlessly between risk analysis, policy uploads, internal audits, and third-party monitoring.
+
+### 5.2 User Roles and Permissions
+
+To preserve security and segment duties, Calvant assigns strict roles to each profile. Your interface features and available modules will adapt depending on your assigned level:
+
+- **Admin:** Complete access to the workspace, global configurations, security settings, and team role assignments.
+- **Auditor:** Restricted, read-only view focused entirely on assessing controls, viewing submitted evidence, and logging audit findings.
+- **Risk Owner:** Focused on executing assigned mitigation tasks, uploading documents for assigned policy areas, and completing localized impact assessments.
+- **Vendor:** External, secure access limited strictly to completing and submitting assigned third-party risk questionnaires.
+- Other roles include Risk Managers, Process Owners, Process Managers and etc.
+
+---
+
+## 6. Understanding the Calvant Workspace
+
+The Calvant dashboard is structured to present essential information at a glance, allowing you to gauge operational health without getting lost in raw tables.
+
+### 6.1 The Home Dashboard
+
+When you log in, your home view centers on visual metrics:
+
+- **Summary Tiles:** Instant counters displaying total active risks, uploaded policies, ongoing audits, and open tasks.
+- **Overall Compliance Progress:** A global percentage meter tracking your readiness score across all active frameworks.
+- **Activity Trends:** Bar charts tracking your document uploads and audit schedules month-by-month.
+- **Notification Center:** Alerts detailing newly assigned tasks, upcoming audit deadlines, and vendor responses awaiting review.
+- **User Profile:** Located in the top-right header, showing your logged-in username, department, and active role.
+
+---
+
+## 7. Core Modules & Key Workflows
+
+To help you master the platform, this section summarizes the seven specialized modules that make up the Calvant suite.
+
+### 7.1 Risk Management
+
+The Risk Module is where your security strategy begins. It provides a structured space to document corporate vulnerabilities, calculate risk scores, and plan treatments.
+
+- **Key Concept:** Risk score calculation is based on Likelihood x Impact, generating colored severity badges (Low, Medium, High, Critical). Users can either log custom risks from scratch or utilize pre-built, industry-specific Risk Templates from the shared library to populate their registers instantly.
+- **Workflow Steps:** Launch the Risk Wizard → Assess & Score the Threat → Plan Treatment (Mitigate, Accept, Transfer, or Avoid) → Choose Applicable Framework Controls → Schedule Mitigation Tasks with clear timelines.
+
+### 7.2 Policy Management
+
+Your security program is defined by its policies. The Policy Module provides a version-controlled repository to ensure these documents remain active, reviewed, and updated.
+
+- **Key Concept:** The Master List of Documents (MLD) acts as your central registry, tracking every policy required for your frameworks. It features a built-in AI Quality Check that evaluates uploaded files for completeness and compliance depth.
+- **Workflow Steps:** Locate a policy requirement → Click Upload to attach your PDF/Doc → Monitor status shift from 'To Upload' to 'To Approve' → Conduct Admin Review and trigger the AI Quality check → Approve or Archive past versions to preserve the audit trail.
+
+### 7.3 Audit Management
+
+Internal and external reviews are simplified with the Audit Module, which maps audit actions directly to framework controls and provides tailored workspaces for administrators and auditors.
+
+- **Key Concept:** The Phase Ratio Control is an interactive slider that automatically splits the timeframe between your audit's Opening and Closure meetings into three distinct, working-day phases (Documentation Audit, Practice Audit, and Reporting).
+- **Workflow Steps:** Set audit scope and anchor dates → Drag the Phase Ratio slider to auto-generate phase windows → Assign auditors to controls (enforcing independence rules) → Conduct audit from the specialized Auditor View → Issue Corrective Action Plans (CAPs) for non-compliant controls.
+
+### 7.4 Task Management
+
+The Task Module serves as the centralized execution engine of Calvant. It aggregates, tracks, and manages every tactical action generated across other platform modules.
+
+- **Key Concept:** Centralization ensures that a mitigation task from a risk plan, a remediation item from an audit finding, or a review request from a policy document all appear in one unified 'To-Do, In-Progress, Done, On-Hold' backlog.
+- **Workflow Steps:** Access the Action Plan → Assign tasks to departments or specific owners → Track progression via real-time status updates → Log detailed work logs and remarks directly inside the task details view.
+
+### 7.5 Compliance Management
+
+The Compliance Module is your real-time readiness dashboard, synthesizing data from all other activities to show your overall alignment with active regulatory frameworks.
+
+- **Key Concept:** Live sync integration connects your compliance register with modern cloud infrastructures, pulling live evidence and calculating current status automatically.
+- **Workflow Steps:** Open the Compliance Dashboard → Access the 'Detailed View' of unified controls → Trigger a 'Sync from Cloud' to refresh evidence parameters → Identify gaps and click 'Add CAP' to instantly create a remediation task.
+
+### 7.6 Vendor Management
+
+Secure your supply chain with Third-Party Risk Management (TPRM) tools, designed to evaluate and monitor external supplier compliance.
+
+- **Key Concept:** The specialized Vendor Assessment Portal lets suppliers log in securely and respond directly to your custom compliance questionnaires, completely eliminating manual email files.
+- **Workflow Steps:** Grant your vendor platform access → Open the TPRM Wizard → Select pre-built security questions from the shared question bank → Send assessment with a clear due date → Track progress on the dashboard and approve or reject submissions based on vendor answers.
+
+### 7.7 Risk Assessments, Impact Assessments, and Others
+
+Beyond general security audits, certain high-risk operational activities require specialized, proactive evaluations. Calvant provides guided wizards to systematically assess risks before operations go live.
+
+- **Data Protection Impact Assessment (DPIA):** A specialized assessment designed for operations involving personal data. It guides you through a multi-stage review (PII Inventories, Personal Data Elements check, and regulatory questionnaires) to identify cybersec and compliance threats under GDPR or regional privacy frameworks.
+- **AI Impact Assessment (AIIA):** Aligned with ISO 42001 and the EU AI Act, this impact assessment evaluates the introduction of AI and machine learning systems. It requires documenting the system's Business Objective, Intended Use, and assessing scenarios of Foreseeable Misuse to design appropriate guardrails and operational controls.
+
+---
+
+## 8. Operational Best Practices
+
+To maximize the value of Calvant and maintain a pristine compliance posture, integrate these habits into your weekly operations:
+
+- **Leverage Templates Early:** When adopting a new framework, populate your risk and policy modules using Calvant's pre-built libraries rather than drafting them from scratch.
+- **Utilize the Phase Slider:** When planning an audit, rely on the Phase Ratio Control slider to calculate realistic phase timelines, and finalize anchor meeting dates before adjusting ratios.
+- **Continuous Evidence Refreshes:** Before any internal review, use 'Sync from Cloud' and 'Refresh Snapshot' inside the Compliance Module to ensure your reports feature real-time data.
+- **Collaborative Vendor Scoring:** Use the Vendor Status Guide to onboard external suppliers. Clearly explaining the 'Pending, Submitted, Under Review, Approved' lifecycle reduces communication friction.
+- **Proactive Impact Assessments:** Initiate DPIAs and AIIAs during the design phase of new projects—never after deployment—so security and cybersec boundaries are built directly into systems.
+
+---
+
+## 9. FAQ
+
+### 9.1 Frequently Asked Questions
+
+**Q1: What is the difference between a general risk assessment and a DPIA/AIIA?**
+A general risk assessment focuses on broad corporate threats (e.g., server downtime, physical security). DPIAs and AIIAs are specialized, deep-dive impact assessments focused on privacy compliance (for personal data processing) and AI governance (for algorithm deployments under frameworks like ISO 42001), respectively.
+
+**Q2: Does archiving a policy delete it permanently?**
+No. Calvant maintains a strict audit trail. Archiving removes a policy document from your active Master List of Documents (MLD) but safely stores it in the Archived Policies view with documented remarks and versions for external auditors.
+
+**Q3: How does the Task Module integrate with other features?**
+The Task Module is Calvant's execution layer. Anytime a risk needs mitigation, a policy requires editing, or an audit uncovers a gap, a task is created. These tasks are consolidated into a single backlog, keeping the entire compliance program moving forward.
+
+---
+
+## 10. Platform Readiness Quiz
+
+Before starting your compliance journey on Calvant, take this quick self-assessment to test your platform knowledge:
+
+1. Which module acts as the centralized execution layer where tasks from risk, audits, and policies are managed?
+   Options: A) Compliance Module | B) Task Module | C) Policy Module | D) Vendor Module
+
+2. What critical anchor parameters must be selected before Calvant's Audit Phase Ratio slider becomes active?
+   Options: A) Auditor names | B) Opening and Closure Meeting Dates | C) Assigned departments | D) Framework tags
+
+3. If a policy document is superseded by a newer version, how should you handle it in Calvant?
+   Options: A) Delete it immediately | B) Archive it to preserve the audit trail | C) Leave it on the list | D) Ignore it
+
+4. When introducing a new machine learning system, which specialized impact assessment should be triggered?
+   Options: A) DPIA (Data Protection Impact Assessment) | B) Statement of Applicability (SoA) | C) AIIA (AI Impact Assessment) | D) General Threat Survey
+
+5. How do you refresh real-time compliance metrics after uploading new evidence?
+   Options: A) Log out and log back in | B) Click 'Sync from Cloud' and 'Refresh Snapshot' | C) Re-upload the policy | D) Create a new task
+
+---
+
+## 11. Answer Key & Explanations
+
+1. **B.** The Task Module aggregates all mitigation and remediation activities into a single workspace.
+2. **B.** The slider uses Opening and Closure dates to auto-calculate the Stage 1 and Stage 2 timeline.
+3. **B.** Archiving removes the document from active lists while maintaining the version history for auditors.
+4. **C.** An AIIA is specifically tailored to evaluate AI governance and foreseeable misuse under ISO 42001.
+5. **B.** Sync and Snapshot refreshes compliance calculations based on current evidence.
+
+  `;
 
   // ── useEffectiveOrg ───────────────────────────────────────────────────────
 const {
@@ -919,6 +1229,13 @@ const orgIdsToFetch = useMemo(() => {
           )}
         </div>
       </main>
+
+      <HelpDocModal
+        open={showHelp}
+        onClose={() => setShowHelp(false)}
+        docs={INTRO_DOCS}
+        initialDocId="intro"
+      />
 
       {orgPickerOpen && (
   <div

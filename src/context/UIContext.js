@@ -5,6 +5,7 @@ const UIContext = createContext();
 
 export const UIProvider = ({ children }) => {
   const [runTour, setRunTour] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
 
   const startTutorial = () => {
     setRunTour(false);
@@ -12,8 +13,14 @@ export const UIProvider = ({ children }) => {
     setTimeout(() => setRunTour(true), 100);
   };
 
+  const openHelp = () => {
+    setShowHelp(true);
+  };
+
   return (
-    <UIContext.Provider value={{ runTour, setRunTour, startTutorial }}>
+    <UIContext.Provider
+      value={{ runTour, setRunTour, startTutorial, showHelp, setShowHelp, openHelp }}
+    >
       {children}
     </UIContext.Provider>
   );

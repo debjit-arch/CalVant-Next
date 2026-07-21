@@ -82,16 +82,22 @@ const formatPercentage = (value) => {
   return isNaN(num) ? "0.00" : num.toFixed(2);
 };
 
+// Mirrors the emptiness rules used by Evidence_Modal's normalise(): a piece of
+// evidence "has data" if it is a non-empty string/array/object, OR a bare
+// number/boolean — including 0 and false, which are legitimate results and
+// were previously treated as falsy ("no evidence") due to a `!evidence` check.
 const hasEvidence = (evidence) => {
-  if (!evidence) return false;
+  if (evidence === null || evidence === undefined || evidence === "") return false;
+  if (typeof evidence === "number" || typeof evidence === "boolean") return true;
   if (typeof evidence === "string") {
     try {
       const parsed = JSON.parse(evidence);
-      if (Array.isArray(parsed)) return parsed.length > 0;
-      if (typeof parsed === "object") return Object.keys(parsed).length > 0;
-      return false;
+      return hasEvidence(parsed);
     } catch {
-      return evidence.length > 0 && !evidence.startsWith('"Graph API error');
+      // Any non-empty string is real evidence (including error/status strings —
+      // those are still shown, just rendered as an error card in the modal
+      // rather than being hidden from the eye icon entirely).
+      return evidence.trim().length > 0;
     }
   }
   if (Array.isArray(evidence)) return evidence.length > 0;
@@ -1452,7 +1458,6 @@ const RiskAssessmentTable = () => {
       });
       return;
     }
-    console.log('🔍 Syncing with tenantId:', tenantId, '| type:', typeof tenantId); // ← ADD THIS
     try {
       setLoading(true);
       setSnackbar({
@@ -1809,9 +1814,6 @@ const RiskAssessmentTable = () => {
       });
 
       // 3. Resolve metrics through normalized mappings
-      // Replace this block in singleFrameworkProcessedData:
-      // "3. Resolve metrics through normalized mappings"
-
       Object.keys(grouped).forEach((fwControlCode) => {
         // extractArticleKey normalizes both sides to the same canonical form:
         // "Article-5(1)(a)-Lawfulness," → "ARTICLE-5(1)(A)"
