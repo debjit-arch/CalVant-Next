@@ -59,6 +59,7 @@ import taskService from "../taskManagement/services/taskService";
 import documentationService from "../documentation/services/documentationService";
 import { useFramework } from "../../context/FrameworkContex";
 import ComplianceCapSpreadsheet from "./ComplianceCapSpreadsheet";
+import { useSearchParams } from "next/navigation";
 
 const MAPPINGS_API = "https://api.calvant.com/framework/api/mappings/framework";
 const CONTROLS_API = "https://api.calvant.com/framework/api/controls/framework";
@@ -1002,6 +1003,7 @@ const RiskAssessmentTable = () => {
   const [mldDocsLoading, setMldDocsLoading] = useState(false);
   const [showCapSpreadsheet, setShowCapSpreadsheet] = useState(false);
   const [soaApplicableSet, setSoaApplicableSet] = useState(null);
+  const [highlightedControlId, setHighlightedControlId] = useState(null);
 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
@@ -1485,8 +1487,8 @@ const RiskAssessmentTable = () => {
         typeof err.response?.data === "string"
           ? err.response.data
           : err.response?.data?.message ||
-            err.response?.data?.error ||
-            "Failed to sync compliance data";
+          err.response?.data?.error ||
+          "Failed to sync compliance data";
       setSnackbar({ open: true, message: msg, severity: "error" });
     } finally {
       setLoading(false);
@@ -1989,14 +1991,14 @@ const RiskAssessmentTable = () => {
     const filtered = !search.trim()
       ? data
       : data.filter(
-          (g) =>
-            (g.controlId || "").toLowerCase().includes(search.toLowerCase()) ||
-            (g.unifiedId || "").toLowerCase().includes(search.toLowerCase()) ||
-            (g.controlName || "")
-              .toLowerCase()
-              .includes(search.toLowerCase()) ||
-            (g.metric || "").toLowerCase().includes(search.toLowerCase()),
-        );
+        (g) =>
+          (g.controlId || "").toLowerCase().includes(search.toLowerCase()) ||
+          (g.unifiedId || "").toLowerCase().includes(search.toLowerCase()) ||
+          (g.controlName || "")
+            .toLowerCase()
+            .includes(search.toLowerCase()) ||
+          (g.metric || "").toLowerCase().includes(search.toLowerCase()),
+      );
 
     return filtered;
   }, [
@@ -2010,6 +2012,22 @@ const RiskAssessmentTable = () => {
     isAllSelected,
     mappingOnlyCodes,
   ]);
+
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const openControlId = searchParams.get("openControlId");
+    if (!openControlId || filteredData.length === 0) return;
+    const match = filteredData.find((g) => g.controlId === openControlId || g.controlCode === openControlId);
+    if (match) {
+      setHighlightedControlId(match.controlId);
+      setTimeout(() => {
+        document.getElementById(`compliance-row-${match.controlId}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 100);
+      const t = setTimeout(() => setHighlightedControlId(null), 4000);
+      return () => clearTimeout(t);
+    }
+  }, [searchParams, filteredData]);
 
   const soaApplicableCountForFramework = useMemo(() => {
     if (!soaApplicableSet || soaApplicableSet.size === 0) return 0;
@@ -2913,7 +2931,7 @@ const RiskAssessmentTable = () => {
                                   (s) =>
                                     String(s.category).trim() === code &&
                                     (s.documentRef?.[0] || "").trim() ===
-                                      docName,
+                                    docName,
                                 );
                                 if (fallbackSoas.length > 0) {
                                   for (const soa of fallbackSoas) {
@@ -2932,8 +2950,8 @@ const RiskAssessmentTable = () => {
 
                               const doc = soaEntry
                                 ? getLatestDocForSoA(
-                                    soaEntry.id ?? soaEntry._id,
-                                  )
+                                  soaEntry.id ?? soaEntry._id,
+                                )
                                 : null;
                               const available = !!doc && !doc.deleted;
 
@@ -3123,8 +3141,12 @@ const RiskAssessmentTable = () => {
                           return (
                             <TableRow
                               key={`${group.controlId}-${metric?.metricName ?? "empty"}-${rowIdx}`}
+                              id={isFirst ? `compliance-row-${group.controlId}` : undefined}  // ← add this
                               hover
-                              style={{ backgroundColor: "#ffffff" }}
+                              style={{
+                                backgroundColor: group.controlId === highlightedControlId ? "#fff3cd" : "#ffffff",  // ← highlight
+                                transition: "background-color 0.3s ease",
+                              }}
                             >
                               <TableCell
                                 style={{
@@ -3243,7 +3265,7 @@ const RiskAssessmentTable = () => {
                                         }}
                                       >
                                         {group.metric &&
-                                        group.metric.trim() !==
+                                          group.metric.trim() !==
                                           group.controlName?.trim()
                                           ? group.metric
                                           : null}
@@ -3308,7 +3330,7 @@ const RiskAssessmentTable = () => {
                                               gap: 5,
                                               marginBottom:
                                                 i <
-                                                group.fallbackMetrics.length - 1
+                                                  group.fallbackMetrics.length - 1
                                                   ? 4
                                                   : 0,
                                             }}
@@ -3412,10 +3434,10 @@ const RiskAssessmentTable = () => {
                                       isAllFrameworks
                                         ? "Score editing not available in unified view"
                                         : isMappingOnlyFw && group.status !== "disconnected"
-                                        ? "Score is derived from mapped framework data"
-                                        : !hasAnyDocument(group.controlId)
-                                        ? "Upload a document first to enter score"
-                                        : "Click to edit score"
+                                          ? "Score is derived from mapped framework data"
+                                          : !hasAnyDocument(group.controlId)
+                                            ? "Upload a document first to enter score"
+                                            : "Click to edit score"
                                     }
                                     arrow
                                   >
@@ -3424,7 +3446,7 @@ const RiskAssessmentTable = () => {
                                         label={
                                           manualScores[group.controlId] !==
                                             undefined &&
-                                          manualScores[group.controlId] !== null
+                                            manualScores[group.controlId] !== null
                                             ? `${manualScores[group.controlId]}%`
                                             : "—"
                                         }
@@ -3460,16 +3482,16 @@ const RiskAssessmentTable = () => {
                                           })(),
                                           ...(manualScores[group.controlId] !==
                                             undefined &&
-                                          manualScores[group.controlId] !== null
+                                            manualScores[group.controlId] !== null
                                             ? getPerformanceColor(
-                                                parseFloat(
-                                                  manualScores[group.controlId],
-                                                ),
-                                              )
+                                              parseFloat(
+                                                manualScores[group.controlId],
+                                              ),
+                                            )
                                             : {
-                                                backgroundColor: "#f5f5f5",
-                                                color: "#666",
-                                              }),
+                                              backgroundColor: "#f5f5f5",
+                                              color: "#666",
+                                            }),
                                         }}
                                       />
                                     </span>
@@ -3560,7 +3582,7 @@ const RiskAssessmentTable = () => {
                                               size="small"
                                               disabled={
                                                 deletingControls[
-                                                  group.controlId
+                                                group.controlId
                                                 ]
                                               }
                                               onClick={() =>
@@ -3598,7 +3620,7 @@ const RiskAssessmentTable = () => {
                                           activeFramework,
                                         ) &&
                                         (approvalStatuses[group.controlId] ===
-                                        "APPROVED" ? (
+                                          "APPROVED" ? (
                                           <Tooltip title="Approved" arrow>
                                             <CheckCircleIcon
                                               style={{
@@ -3617,7 +3639,7 @@ const RiskAssessmentTable = () => {
                                                 size="small"
                                                 disabled={
                                                   approvingControls[
-                                                    group.controlId
+                                                  group.controlId
                                                   ]
                                                 }
                                                 onClick={() =>
@@ -3772,7 +3794,7 @@ const RiskAssessmentTable = () => {
                                   : isAllFrameworks
                                     ? "Make sure at least one framework has controls configured"
                                     : mappingOnlyCodes &&
-                                        mappingOnlyCodes.has(activeFramework)
+                                      mappingOnlyCodes.has(activeFramework)
                                       ? `Make sure source framework data is synced for ${fwConfig?.label || activeFramework}`
                                       : "Try syncing from cloud or refresh the data"}
                             </div>
