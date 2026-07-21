@@ -1,6 +1,6 @@
 //Working Model
 import React, { useEffect, useState, useMemo, useRef, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffectiveOrg } from "@/hooks/useEffectiveOrg";
 import documentationService from "../services/documentationService";
 import controlService from "../services/controlService";
@@ -14,6 +14,7 @@ import Modal from "../../../components/navigations/Modal";
 import Joyride, { STATUS } from "react-joyride";
 import { useFramework, ALL_FRAMEWORKS } from "../../../context/FrameworkContex";
 import { captureActivity, ACTIONS } from "../../../services/activities";
+
 
 const MAPPINGS_API = "https://api.calvant.com/framework/api/mappings/framework";
 const OWNERSHIP_API = "https://api.calvant.com/control-ownership-service/api/control-ownership";
@@ -601,6 +602,7 @@ const MLD = () => {
   const [joyrideRun, setJoyrideRun] = useState(false);
   const [frameworkFilter, setFrameworkFilter] = useState("ALL");
   const [uploadTimestamps, setUploadTimestamps] = useState({});
+  const [highlightedRowKey, setHighlightedRowKey] = useState(null);
 
   const joyrideSteps = [
     { target: "#mld-header", content: "Master List of Policies." },
@@ -953,6 +955,22 @@ const MLD = () => {
     mappingsByControl, uploadFilter, documents, isAllSelected,
     selectedFrameworks, fwLabelToCode, fwOrder,
   ]);
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const openControlId = searchParams.get("openControlId");
+    if (!openControlId || filteredDocRows.length === 0) return;
+    const match = filteredDocRows.find((r) => r.cId === openControlId);
+    if (match) {
+      setHighlightedRowKey(match.rowKey);
+      setTimeout(() => {
+        document.getElementById(`policy-row-${match.rowKey}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 100);
+      // clear the highlight after a few seconds
+      const t = setTimeout(() => setHighlightedRowKey(null), 4000);
+      return () => clearTimeout(t);
+    }
+  }, [searchParams, filteredDocRows]);
 
   // Counts
   const totalDocsToUpload = allDocRows.length;
@@ -1354,11 +1372,12 @@ const MLD = () => {
                     return (
                       <tr
                         key={rowKey}
+                        id={`policy-row-${rowKey}`}   // ← add this
                         style={{
                           borderBottom: "1px solid #f1f1f1",
-                          backgroundColor: rowBg,
+                          backgroundColor: rowKey === highlightedRowKey ? "#fff3cd" : rowBg,  // ← highlight
                           borderLeft: isSoaLinked ? "4px solid #28a745" : "4px solid transparent",
-                          transition: "background-color 0.15s ease",
+                          transition: "background-color 0.3s ease",
                         }}
                         onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = isSoaLinked ? "#e6f9ed" : "#f8f9fa"; }}
                         onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = rowBg; }}
