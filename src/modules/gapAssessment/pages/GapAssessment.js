@@ -5,7 +5,7 @@ import React, {
   useRef,
   useMemo,
 } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ShieldCheck,
@@ -104,6 +104,8 @@ function AuditDashboard() {
   const router = useRouter();
   const sessionUser = getSessionUser();
   const chartsContainerRef = useRef(null);
+  const searchParams = useSearchParams();
+  const openAuditId = searchParams.get("openAuditId");
 
   // ── Role detection ────────────────────────────────────────────────────────
   const userRoles = Array.isArray(sessionUser.role)
@@ -127,7 +129,7 @@ function AuditDashboard() {
 
   const [showHelpDoc, setShowHelpDoc] = useState(false);
 
-const AUDIT_HELP_CONTENT = `
+  const AUDIT_HELP_CONTENT = `
 # **calvant** 
 
 Digital Compliance Management 
@@ -521,7 +523,7 @@ Page 12
         });
         setAuditors(filtered);
       })
-      .catch(() => {});
+      .catch(() => { });
 
     auditService
       .getAudits()
@@ -531,6 +533,23 @@ Page 12
       })
       .catch(() => setLoadingStats(false));
   }, []);
+
+  // ── Auto-open Review Findings modal when arriving from Task Management's
+  // "trace to source" link (?openAuditId=...). Runs once per navigation;
+  // ReviewFindingsModal itself handles selecting the right audit and jumping
+  // into the CAP view once its own audits list has loaded.
+  useEffect(() => {
+    if (openAuditId) {
+      captureActivity({
+        action: ACTIONS.CLICK,
+        module: MODULES.AUDIT,
+        item: "Gap Assessment · Auto-opened Review Findings from Task Management",
+        url: "/gap-assessment",
+      });
+      setModal("findings");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openAuditId]);
 
   useEffect(() => {
     // FIX: ACTIONS.PAGE_LOAD -> ACTIONS.VISITED (canonical taxonomy).
@@ -1213,6 +1232,7 @@ Page 12
         <ReviewFindingsModal
           onClose={() => setModal(null)}
           auditors={auditors}
+          initialAuditId={openAuditId}
         />
       )}
     </div>
