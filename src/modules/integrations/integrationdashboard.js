@@ -1325,6 +1325,12 @@ const RiskAssessmentTable = () => {
     loadMappingsForFramework,
   ]);
 
+  // right after: availableFrameworks.forEach((fw) => loadControls(fw.code));
+useEffect(() => {
+  console.log("mappingsIndex", mappingsIndex);
+  console.log("mappingOnlyCodes", [...mappingOnlyCodes]);
+}, [mappingsIndex]);
+
   // ── controlMaps: bare-code → library entry, per framework ────────────────
   const controlMaps = useMemo(() => {
     if (availableFrameworks.length === 0) return {};
@@ -1542,12 +1548,29 @@ const RiskAssessmentTable = () => {
       .filter((fw) => !mappingOnlyCodes.has(fw.code) && fw.code !== "SOC2")
       .map((fw) => fw.code);
 
-    const unifiedMap = {};
+const unifiedMap = {};
+
+    // ✅ ADD THIS — fwCode -> { code/bareCode/normalizedCode : uid }
+    const normalizeCodeForLookupEarly = (c) => {
+      const s = String(c || "").trim();
+      const articleMatch = s.match(/^article[-\s]?(\d+)/i);
+      if (articleMatch) return articleMatch[1].toUpperCase();
+      return s.toUpperCase().replace(/[^A-Z0-9]/g, "");
+    };
+    const nativeUidByFw = {};
+    const registerNativeUid = (fwCode, controlCode, uid) => {
+      if (!nativeUidByFw[fwCode]) nativeUidByFw[fwCode] = {};
+      const bare = toBareCode(controlCode);
+      const withA = controlCode.startsWith("A.") ? controlCode : `A.${controlCode}`;
+      [controlCode, bare, withA, normalizeCodeForLookupEarly(controlCode), normalizeCodeForLookupEarly(bare)]
+        .forEach((k) => { if (!(k in nativeUidByFw[fwCode])) nativeUidByFw[fwCode][k] = uid; });
+    };
 
     // Seed from all non-SOC2, non-mapping-only libraries
     nativeFwCodes.forEach((fwCode) => {
       (controlLibraries[fwCode] || []).forEach((c) => {
         const uid = c.unifiedId || c.controlCode;
+        registerNativeUid(fwCode, c.controlCode, uid); // ✅ ADD THIS LINE
         if (!unifiedMap[uid]) {
           unifiedMap[uid] = {
             unifiedId: uid,
@@ -1582,6 +1605,7 @@ const RiskAssessmentTable = () => {
     if (soc2Fw) {
       (controlLibraries["SOC2"] || []).forEach((c) => {
         const uid = c.unifiedId || c.controlCode;
+        registerNativeUid("SOC2", c.controlCode, uid);
         if (!unifiedMap[uid]) {
           unifiedMap[uid] = {
             unifiedId: uid,
@@ -1671,71 +1695,80 @@ const RiskAssessmentTable = () => {
       });
     });
 
-    // Resolve metrics for mapping-only frameworks via their mappingSources
+// Resolve metrics for mapping-only frameworks via their mappingSources
+  // Resolve metrics for mapping-only frameworks via their mappingSources
     availableFrameworks
       .filter((fw) => mappingOnlyCodes.has(fw.code))
       .forEach((fw) => {
         const fwMappings = mappingsIndex[fw.code] || {};
         (controlLibraries[fw.code] || []).forEach((c) => {
-          const uid = c.unifiedId || c.controlCode;
-          if (!unifiedMap[uid]) return;
-
-          const mappedEntries = fwMappings[c.controlCode] || [];
-          let hasAnyLiveMetric = false;
-          const fallbackMetrics = [];
+          const articleKey = extractArticleKey(c.controlCode);
+          const mappedEntries =
+            fwMappings[c.controlCode] || fwMappings[articleKey] || [];
+          if (mappedEntries.length === 0) return;
 
           mappedEntries.forEach(
             ({ code: sourceCode, framework: sourceFramework }) => {
-              const srcLookup = lookupByFw[sourceFramework] || {};
+              // ✅ Resolve via the NATIVE control's uid, not this control's own code
+              const srcUidMap = nativeUidByFw[sourceFramework] || {};
               const bare = toBareCode(sourceCode);
-              const normKey = normalizeCodeForLookup(sourceCode);
+              const targetUid =
+                srcUidMap[sourceCode] ||
+                srcUidMap[bare] ||
+                srcUidMap[normalizeCodeForLookup(sourceCode)] ||
+                srcUidMap[normalizeCodeForLookup(bare)];
+
+              if (!targetUid || !unifiedMap[targetUid]) return;
+
+              const row = unifiedMap[targetUid];
+
+              if (!row.frameworks.includes(fw.code)) row.frameworks.push(fw.code);
+              row.frameworkControls.push({
+                frameworkCode: fw.code,
+                controlCode: c.controlCode,
+                unifiedId: c.unifiedId,
+              });
+
+              const srcLookup = lookupByFw[sourceFramework] || {};
               const items =
                 srcLookup[sourceCode] ||
                 srcLookup[bare] ||
-                srcLookup[normKey] ||
+                srcLookup[normalizeCodeForLookup(sourceCode)] ||
                 [];
               if (items.length > 0) {
                 items.forEach((item) => {
                   const key = `${item.cloud} - ${item.controlName}`;
-                  if (
-                    !unifiedMap[uid].metrics.find((m) => m.metricName === key)
-                  ) {
-                    unifiedMap[uid].metrics.push({
+                  if (!row.metrics.find((m) => m.metricName === key)) {
+                    row.metrics.push({
                       metricName: key,
-                      currentPerformance:
-                        item.score ?? (item.compliant ? 100 : 0),
+                      currentPerformance: item.score ?? (item.compliant ? 100 : 0),
                       evidence: item.evidence,
                       sourceCode,
                       sourceFramework,
                     });
                   }
                 });
-                hasAnyLiveMetric = true;
+                row.status = "mapped";
               } else {
                 const libMetric =
                   (libMetricByFw[sourceFramework] || {})[sourceCode] ||
                   (libMetricByFw[sourceFramework] || {})[bare];
-                if (
-                  libMetric &&
-                  !fallbackMetrics.find((f) => f.metricName === libMetric)
-                ) {
-                  fallbackMetrics.push({
-                    metricName: libMetric,
-                    sourceCode,
-                    sourceFramework,
-                    isFallback: true,
-                  });
+                if (libMetric) {
+                  row.fallbackMetrics = row.fallbackMetrics || [];
+                  if (!row.fallbackMetrics.find((f) => f.metricName === libMetric)) {
+                    row.fallbackMetrics.push({
+                      metricName: libMetric,
+                      sourceCode,
+                      sourceFramework,
+                      isFallback: true,
+                    });
+                  }
                 }
               }
             },
           );
-
-          if (hasAnyLiveMetric) unifiedMap[uid].status = "mapped";
-          else if (fallbackMetrics.length > 0)
-            unifiedMap[uid].fallbackMetrics = fallbackMetrics;
         });
       });
-
     // Deduplicate metrics
     Object.values(unifiedMap).forEach((entry) => {
       const seen = new Set();
@@ -3241,9 +3274,7 @@ const RiskAssessmentTable = () => {
                                             <FrameworkBadge
                                               key={fw}
                                               frameworkCode={fw}
-                                              availableFrameworks={
-                                                availableFrameworks
-                                              }
+                                              availableFrameworks={availableFrameworks}
                                             />
                                           ))}
                                         </Box>
