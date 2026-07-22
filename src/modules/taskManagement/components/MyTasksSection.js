@@ -7,7 +7,7 @@ import {
   ClipboardList,
   Zap,
   CheckCircle2,
-  PauseCircle,
+  Clock,
   AlertOctagon,
   Search,
   ClipboardCheck,
@@ -29,37 +29,49 @@ const PRIORITY_CONFIG = {
   Critical: { color: "#c92a2a", bg: "#fff5f5", icon: "⚑" },
 };
 
-// ─── Stat Card (matching TemplatesPage exactly) ───────────────
+// ─── Overdue / Due Soon helpers (derived, not real status values) ─────────────
+const DUE_SOON_DAYS = 3;
+function isTaskOverdue(t) {
+  return !!t.endDate && new Date(t.endDate) < new Date() && t.status !== "Done";
+}
+function isTaskDueSoon(t) {
+  if (!t.endDate || t.status === "Done") return false;
+  const diffDays = (new Date(t.endDate) - new Date()) / (1000 * 60 * 60 * 24);
+  return diffDays >= 0 && diffDays <= DUE_SOON_DAYS;
+}
+
+// ─── Stat Card (matching TemplatesPage exactly, now clickable) ─
 const STAT_CONFIG = {
   Total:         { gradient: "linear-gradient(135deg,#4f8ef7,#2563eb)",  Icon: ClipboardList },
   "In Progress": { gradient: "linear-gradient(135deg,#339af0,#1971c2)",  Icon: Zap },
   Done:          { gradient: "linear-gradient(135deg,#10b981,#059669)",  Icon: CheckCircle2 },
-  "On Hold":     { gradient: "linear-gradient(135deg,#f59e0b,#d97706)",  Icon: PauseCircle },
-  Critical:      { gradient: "linear-gradient(135deg,#ef4444,#dc2626)",  Icon: AlertOctagon },
+  Overdue:       { gradient: "linear-gradient(135deg,#ef4444,#dc2626)",  Icon: AlertOctagon },
+  "Due Soon":    { gradient: "linear-gradient(135deg,#f59e0b,#d97706)",  Icon: Clock },
 };
 
-function StatCard({ value, label, index }) {
+function StatCard({ value, label, index, active, onClick }) {
   const s = STAT_CONFIG[label] || STAT_CONFIG["Total"];
   return (
     <div
+      onClick={onClick}
       style={{
         background: "white",
-        border: "1px solid #f1f5f9",
+        border: `1.5px solid ${active ? "#3b82f6" : "#f1f5f9"}`,
         borderRadius: 12,
         padding: "14px 16px",
-        boxShadow: "0 1px 4px rgba(0,0,0,0.05)",
+        boxShadow: active ? "0 4px 14px rgba(37,99,235,0.15)" : "0 1px 4px rgba(0,0,0,0.05)",
         display: "flex",
         alignItems: "center",
         gap: 12,
-        cursor: "default",
-        transition: "box-shadow 0.2s",
+        cursor: "pointer",
+        transition: "box-shadow 0.2s, border-color 0.2s",
         animation: `cardIn 0.4s ease ${index * 0.05}s both`,
       }}
       onMouseEnter={(e) =>
         (e.currentTarget.style.boxShadow = "0 4px 14px rgba(0,0,0,0.09)")
       }
       onMouseLeave={(e) =>
-        (e.currentTarget.style.boxShadow = "0 1px 4px rgba(0,0,0,0.05)")
+        (e.currentTarget.style.boxShadow = active ? "0 4px 14px rgba(37,99,235,0.15)" : "0 1px 4px rgba(0,0,0,0.05)")
       }
     >
       <div
@@ -160,7 +172,6 @@ function resolveSubEndDate(sub) {
 }
 
 // ─── Main Component ───────────────────────────────────────────
-// ALL LOGIC UNCHANGED — only UI/styling updated to match TemplatesPage
 const MyTasks = () => {
   const router = useRouter();
   const {
@@ -175,12 +186,13 @@ const MyTasks = () => {
   } = useEffectiveOrg();
   const currentUserName = user?.name || user?.username || "";
 
-  // ── State (LOGIC UNCHANGED) ────────────────────────────────
+  // ── State (LOGIC UNCHANGED, except default filter) ────────
   const [tasks,       setTasks]       = useState([]);
   const [subtasksMap, setSubtasksMap] = useState({});
   const [expanded,    setExpanded]    = useState({});
   const [loading,     setLoading]     = useState(true);
-  const [statusFilter, setStatusFilter] = useState("all");
+  // ── Default view on load is Overdue, not All ──
+  const [statusFilter, setStatusFilter] = useState("overdue");
   const [searchTerm,   setSearchTerm]   = useState("");
   const [currentPage,  setCurrentPage]  = useState(1);
   const TASKS_PER_PAGE = 15;
@@ -220,10 +232,16 @@ const MyTasks = () => {
   const toggleExpand = (taskId) =>
     setExpanded((p) => ({ ...p, [taskId]: !p[taskId] }));
 
-  // ── Filtering & Pagination (LOGIC UNCHANGED) ───────────────
+  // ── Filtering & Pagination — status/due filters unified ────
   const filteredTasks = useMemo(() => {
     let r = tasks;
-    if (statusFilter !== "all") r = r.filter((t) => t.status === statusFilter);
+    if (statusFilter === "overdue") {
+      r = r.filter(isTaskOverdue);
+    } else if (statusFilter === "dueSoon") {
+      r = r.filter(isTaskDueSoon);
+    } else if (statusFilter !== "all") {
+      r = r.filter((t) => t.status === statusFilter);
+    }
     if (searchTerm.trim()) {
       const q = searchTerm.toLowerCase();
       r = r.filter(
@@ -247,7 +265,21 @@ const MyTasks = () => {
     return c;
   }, [tasks]);
 
-  const allStatuses = Object.keys(STATUS_CONFIG).filter((s) => statusCount[s]);
+  const allStatuses = Object.keys(STATUS_CONFIG).filter((s) => s !== "On Hold" && statusCount[s]);
+
+  // ── Overdue / Due Soon counts — respect search but not the due/status filter itself ──
+  const baseForDueCounts = useMemo(() => {
+    if (!searchTerm.trim()) return tasks;
+    const q = searchTerm.toLowerCase();
+    return tasks.filter(
+      (t) =>
+        (t.description || "").toLowerCase().includes(q) ||
+        (t.taskId || "").toLowerCase().includes(q)
+    );
+  }, [tasks, searchTerm]);
+
+  const overdueCount = useMemo(() => baseForDueCounts.filter(isTaskOverdue).length, [baseForDueCounts]);
+  const dueSoonCount = useMemo(() => baseForDueCounts.filter(isTaskDueSoon).length, [baseForDueCounts]);
 
   const getVisiblePages = (current, total) => {
     const pages = new Set();
@@ -261,13 +293,19 @@ const MyTasks = () => {
     return null;
   }
 
+  // ── Stat cards: Total / In Progress / Done / Overdue / Due Soon ──
   const statsData = [
-    { label: "Total",       value: tasks.length },
-    { label: "In Progress", value: statusCount["In Progress"] || 0 },
-    { label: "Done",        value: statusCount["Done"] || 0 },
-    { label: "On Hold",     value: statusCount["On Hold"] || 0 },
-    { label: "Critical",    value: tasks.filter((t) => t.priority === "Critical").length },
+    { label: "Total",       value: tasks.length,                          filterValue: "all" },
+    { label: "In Progress", value: statusCount["In Progress"] || 0,        filterValue: "In Progress" },
+    { label: "Done",        value: statusCount["Done"] || 0,               filterValue: "Done" },
+    { label: "Overdue",     value: overdueCount,                           filterValue: "overdue" },
+    { label: "Due Soon",    value: dueSoonCount,                           filterValue: "dueSoon" },
   ];
+
+  const handleFilterClick = (filterValue) => {
+    setStatusFilter((prev) => (prev === filterValue ? "all" : filterValue));
+    setCurrentPage(1);
+  };
 
   // ── Render (UI matches TemplatesPage exactly) ──────────────
   return (
@@ -333,7 +371,7 @@ const MyTasks = () => {
             </div>
           </div>
 
-          {/* ── Stat Cards (matching TemplatesPage exactly) ── */}
+          {/* ── Stat Cards — clickable filters, same set driving the chips below ── */}
           <section
             style={{
               display: "grid",
@@ -342,7 +380,14 @@ const MyTasks = () => {
             }}
           >
             {statsData.map((s, i) => (
-              <StatCard key={s.label} value={s.value} label={s.label} index={i} />
+              <StatCard
+                key={s.label}
+                value={s.value}
+                label={s.label}
+                index={i}
+                active={statusFilter === s.filterValue}
+                onClick={() => handleFilterClick(s.filterValue)}
+              />
             ))}
           </section>
 
@@ -364,8 +409,24 @@ const MyTasks = () => {
               Status
             </span>
 
-            {/* Status chips */}
+            {/* Status chips — ordered Overdue, All, Due Soon, then real statuses */}
             <div style={{ display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}>
+              {/* Overdue */}
+              <button
+                onClick={() => handleFilterClick("overdue")}
+                style={{
+                  padding: "5px 12px", borderRadius: 20, fontSize: 12, fontWeight: 700,
+                  cursor: "pointer", whiteSpace: "nowrap", transition: "all 0.15s",
+                  background: statusFilter === "overdue" ? "#fff5f5" : "#f8fafc",
+                  border: `1.5px solid ${statusFilter === "overdue" ? "#fa5252" : "#e2e8f0"}`,
+                  color: statusFilter === "overdue" ? "#c92a2a" : "#64748b",
+                }}
+              >
+                <span style={{ marginRight: 4, display: "inline-block", width: 6, height: 6, borderRadius: "50%", background: statusFilter === "overdue" ? "#fa5252" : "#94a3b8", verticalAlign: "middle" }} />
+                {overdueCount} Overdue
+              </button>
+
+              {/* All */}
               <button
                 onClick={() => { setStatusFilter("all"); setCurrentPage(1); }}
                 style={{
@@ -378,13 +439,30 @@ const MyTasks = () => {
               >
                 All ({tasks.length})
               </button>
+
+              {/* Due Soon */}
+              <button
+                onClick={() => handleFilterClick("dueSoon")}
+                style={{
+                  padding: "5px 12px", borderRadius: 20, fontSize: 12, fontWeight: 700,
+                  cursor: "pointer", whiteSpace: "nowrap", transition: "all 0.15s",
+                  background: statusFilter === "dueSoon" ? "#fff9db" : "#f8fafc",
+                  border: `1.5px solid ${statusFilter === "dueSoon" ? "#f59f00" : "#e2e8f0"}`,
+                  color: statusFilter === "dueSoon" ? "#e67700" : "#64748b",
+                }}
+              >
+                <span style={{ marginRight: 4, display: "inline-block", width: 6, height: 6, borderRadius: "50%", background: statusFilter === "dueSoon" ? "#f59f00" : "#94a3b8", verticalAlign: "middle" }} />
+                {dueSoonCount} Due Soon
+              </button>
+
+              {/* Real statuses (To-Do / In Progress / Done) */}
               {allStatuses.map((st) => {
                 const c      = STATUS_CONFIG[st];
                 const active = statusFilter === st;
                 return (
                   <button
                     key={st}
-                    onClick={() => { setStatusFilter(active ? "all" : st); setCurrentPage(1); }}
+                    onClick={() => handleFilterClick(st)}
                     style={{
                       padding: "5px 12px", borderRadius: 20, fontSize: 12, fontWeight: 700,
                       cursor: "pointer", whiteSpace: "nowrap", transition: "all 0.15s",
@@ -510,7 +588,7 @@ const MyTasks = () => {
                               <ClipboardList size={22} color="white" strokeWidth={1.8} />
                             </div>
                             <p style={{ color: "#64748b", fontWeight: 600, fontSize: 14, margin: 0 }}>
-                              No tasks assigned to you
+                              No tasks {statusFilter === "overdue" ? "overdue" : statusFilter === "dueSoon" ? "due soon" : "assigned to you"}
                             </p>
                             <p style={{ color: "#94a3b8", fontSize: 13, margin: 0 }}>
                               Tasks assigned to you will appear here
@@ -523,7 +601,7 @@ const MyTasks = () => {
                         const subs        = subtasksMap[task.taskId] || [];
                         const hasSubtasks = subs.length > 0;
                         const isExpanded  = !!expanded[task.taskId];
-                        const isOverdue   = task.endDate && new Date(task.endDate) < new Date() && task.status !== "Done";
+                        const isOverdue   = isTaskOverdue(task);
                         const serialNo    = (currentPage - 1) * TASKS_PER_PAGE + displayIndex + 1;
                         const notLastRow  = displayIndex < paginatedTasks.length - 1;
 
