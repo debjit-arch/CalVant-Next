@@ -127,7 +127,6 @@
 //       { key: 'password', label: 'Password',       secret: true  },
 //     ],
 //   },
-//   // ── NEW: Confluence ──────────────────────────────────────────────────────
 //   confluence: {
 //     label: 'Confluence',
 //     accent: '#172B4D',
@@ -138,7 +137,6 @@
 //       { key: 'apiToken', label: 'API Token', secret: true  },
 //     ],
 //   },
-//   // ── NEW: pfSense ─────────────────────────────────────────────────────────
 //   pfsense: {
 //     label: 'pfSense',
 //     accent: '#212121',
@@ -146,6 +144,28 @@
 //     fields: [
 //       { key: 'baseUrl', label: 'pfSense Base URL', secret: false, placeholder: 'https://firewall.yourcompany.com' },
 //       { key: 'apiKey',  label: 'API Key',          secret: true  },
+//     ],
+//   },
+//   // ── NEW: CrowdStrike ─────────────────────────────────────────────────────
+//   crowdstrike: {
+//     label: 'CrowdStrike Falcon',
+//     accent: '#E01F27',
+//     note: 'Create an OAuth2 API client under Support and resources → API clients and keys in the Falcon console, with Hosts: Read, Vulnerabilities (Spotlight): Read, and Alerts: Read scopes. Base URL depends on your Falcon cloud region.',
+//     fields: [
+//       { key: 'baseUrl',      label: 'Falcon Base URL', secret: false, placeholder: 'https://api.crowdstrike.com' },
+//       { key: 'clientId',     label: 'Client ID',       secret: false },
+//       { key: 'clientSecret', label: 'Client Secret',   secret: true  },
+//     ],
+//   },
+//   // ── NEW: OWASP ZAP ───────────────────────────────────────────────────────
+//   owaspzap: {
+//     label: 'OWASP ZAP',
+//     accent: '#4B0082',
+//     note: 'Point to your self-hosted ZAP daemon and the API key from Tools → Options → API in the ZAP GUI. Target URL should match the site ZAP has scanned so alerts are scoped correctly.',
+//     fields: [
+//       { key: 'baseUrl',   label: 'ZAP Base URL', secret: false, placeholder: 'http://zap.yourcompany.com:8080' },
+//       { key: 'apiKey',    label: 'API Key',      secret: true  },
+//       { key: 'targetUrl', label: 'Target URL (scanned site)', secret: false, placeholder: 'https://app.yourcompany.com' },
 //     ],
 //   },
 // };
@@ -366,7 +386,6 @@
 //   );
 // }
 
-
 // src/modules/admin/components/Integrations/BuiltInProviderForm.jsx
 import { useState } from 'react';
 import {
@@ -515,7 +534,6 @@ const PROVIDERS = {
       { key: 'apiKey',  label: 'API Key',          secret: true  },
     ],
   },
-  // ── NEW: CrowdStrike ─────────────────────────────────────────────────────
   crowdstrike: {
     label: 'CrowdStrike Falcon',
     accent: '#E01F27',
@@ -526,7 +544,6 @@ const PROVIDERS = {
       { key: 'clientSecret', label: 'Client Secret',   secret: true  },
     ],
   },
-  // ── NEW: OWASP ZAP ───────────────────────────────────────────────────────
   owaspzap: {
     label: 'OWASP ZAP',
     accent: '#4B0082',
@@ -535,6 +552,18 @@ const PROVIDERS = {
       { key: 'baseUrl',   label: 'ZAP Base URL', secret: false, placeholder: 'http://zap.yourcompany.com:8080' },
       { key: 'apiKey',    label: 'API Key',      secret: true  },
       { key: 'targetUrl', label: 'Target URL (scanned site)', secret: false, placeholder: 'https://app.yourcompany.com' },
+    ],
+  },
+  // ── NEW: Keycloak ────────────────────────────────────────────────────────
+  keycloak: {
+    label: 'Keycloak',
+    accent: '#4D4D4D',
+    note: 'Create a confidential client in your realm with Service Accounts enabled, and assign it the realm-management "view-users" and "view-events" roles. Also confirm Realm Settings → Events → "Save Events" is turned on, otherwise the access-review control will always show non-compliant.',
+    fields: [
+      { key: 'baseUrl',      label: 'Keycloak Base URL', secret: false, placeholder: 'https://auth.yourcompany.com' },
+      { key: 'realm',        label: 'Realm',             secret: false, placeholder: 'yourcompany' },
+      { key: 'clientId',     label: 'Client ID',         secret: false },
+      { key: 'clientSecret', label: 'Client Secret',     secret: true  },
     ],
   },
 };
