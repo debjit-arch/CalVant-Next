@@ -165,6 +165,14 @@ export const BUILT_IN_PROVIDERS = [
   logoUrl: '/logos/owaspzap.svg', // optional — falls back to Icon if missing
   configKey: 'owaspZap', 
 },
+{
+  key: 'keycloak',
+  label: 'Keycloak',
+  description: 'Open-source identity & access management',
+  Icon: ShieldIcon, // or whatever fallback icon import you use elsewhere — SecurityIcon, LockIcon, etc.
+  logoUrl: '/logos/keycloak.svg',
+  accent: '#4D4D4D',
+},
 ];
 
 export const TYPE_COLORS = {
