@@ -1228,7 +1228,7 @@ const PersistentSidebar = () => {
 };
 
 /* ─────────────────────────────────────────────
-   Sidebar nav item
+   Sidebar nav item //this is done by Arghya
 ───────────────────────────────────────────── */
 const SidebarNavItem = ({
   icon,

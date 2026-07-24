@@ -1,4 +1,4 @@
-// //Working - full n final
+
 // import React, {
 //   useState,
 //   useEffect,
@@ -24,7 +24,13 @@
 //   HelpCircle,
 //   PieChartIcon,
 //   RefreshCw,
-//   BookOpen 
+//   BookOpen,
+//   UserCheck,
+//   Send,
+//   Building2,
+//   Plus,
+//   Archive,
+//   Zap,
 // } from "lucide-react";
 // import {
 //   PieChart,
@@ -188,13 +194,17 @@
 //   const [hasMounted, setHasMounted] = useState(false);
 //   useEffect(() => { setHasMounted(true); }, []);
 
-//   // ── Total / Completed / Due Soon / Overdue — no In Progress here (that lives
-//   // only in the Manage Task screen) ──
+//   // ── Completed / Due Soon / Overdue / In Progress / My Task / Reported Task / Department Task ──
 //   const [taskStats, setTaskStats] = useState({
 //     total: 0,
 //     completed: 0,
 //     dueSoon: 0,
 //     overdue: 0,
+//     inProgress: 0,
+//     myTask: 0,
+//     reportedTask: 0,
+//     departmentTask: 0,
+//     archivedTask: 0,
 //   });
 //   const [allTasks, setAllTasks] = useState([]);
 
@@ -216,6 +226,17 @@
 //         "General",
 //     };
 //   }, [user, isPrivilegedRole]);
+
+//   // NEW: role check for the Department Task card — risk_owner or process_owner only
+//   // (root alone does NOT qualify unless also holding one of these roles).
+//   const userRoles = useMemo(
+//     () => (Array.isArray(user?.role) ? user.role : user?.role ? [user.role] : []),
+//     [user],
+//   );
+//   const canSeeDeptTasks = userRoles.includes("risk_owner") || userRoles.includes("process_owner");
+//   // NEW: Archive Tasks card — mirrors the archive/bin permission used on the
+//   // Task Management page (root / super_admin only).
+//   const canArchive = userRoles.includes("root") || userRoles.includes("super_admin");
 
 //   useEffect(() => {
 //     const resizeObserver = new ResizeObserver((entries) => {
@@ -240,44 +261,72 @@
 //   }, []);
 
 //   // ── Visibility rule: root sees the whole org's tasks; everyone else sees
-//   // only tasks assigned to them. ──
+//   // tasks where they are the ASSIGNEE **or** the REPORTER. ──
 //   const loadTaskStats = useCallback(async () => {
 //     if (!user) return;
 
 //     captureActivity({ action: ACTIONS.VISITED, module: MODULES.TASK, url: "/task-management" });
 
 //     try {
-//       const tasks = await taskService.getAllTasks();
+//       const [tasks, archivedTasks] = await Promise.all([
+//         taskService.getAllTasks(),
+//         taskService.getArchivedTasks().catch(() => []),
+//       ]);
 //       if (!Array.isArray(tasks)) return;
 
 //       const orgTasks = tasks.filter(
 //         (t) => t.organization === effectiveOrgId,
 //       );
+//       const orgArchivedTasks = Array.isArray(archivedTasks)
+//         ? archivedTasks.filter((t) => t.organization === effectiveOrgId)
+//         : [];
+
+//       const isAssignee = (t) => {
+//         const emp = t.employee;
+//         return (
+//           !!emp &&
+//           (String(emp) === String(user?._id || user?.id) ||
+//             emp === user?.name ||
+//             emp === user?.username)
+//         );
+//       };
+//       const isReporterOf = (t) => {
+//         const rep = t.reporter;
+//         return (
+//           !!rep &&
+//           (rep === user?.name || rep === user?.username || String(rep) === String(user?._id || user?.id))
+//         );
+//       };
 
 //       const visibleTasks = isRoot
 //         ? orgTasks
-//         : orgTasks.filter((t) => {
-//             const emp = t.employee;
-//             if (!emp) return false;
-//             return (
-//               String(emp) === String(user?._id || user?.id) ||
-//               emp === user?.name ||
-//               emp === user?.username
-//             );
-//           });
+//         : orgTasks.filter((t) => isAssignee(t) || isReporterOf(t));
 
 //       setAllTasks(visibleTasks);
+
+//       const deptNames = (user?.departments || []).map((d) => (d.name || "").trim().toLowerCase());
+//       const departmentTaskCount = canSeeDeptTasks
+//         ? orgTasks.filter(
+//             (t) => t.department && deptNames.includes(String(t.department).trim().toLowerCase()),
+//           ).length
+//         : 0;
 
 //       setTaskStats({
 //         total: visibleTasks.length,
 //         completed: visibleTasks.filter((t) => t.status === "Done").length,
 //         overdue: visibleTasks.filter(isTaskOverdue).length,
 //         dueSoon: visibleTasks.filter(isTaskDueSoon).length,
+//         inProgress: visibleTasks.filter((t) => t.status === "In Progress").length,
+//         myTask: visibleTasks.filter(isAssignee).length,
+//         reportedTask: visibleTasks.filter(isReporterOf).length,
+//         departmentTask: departmentTaskCount,
+//         // Archive is root/super_admin-only, same as the Task Management bin view.
+//         archivedTask: canArchive ? orgArchivedTasks.length : 0,
 //       });
 //     } catch (error) {
 //       console.error("Error loading task stats:", error);
 //     }
-//   }, [user, isRoot, effectiveOrgId]);
+//   }, [user, isRoot, effectiveOrgId, canSeeDeptTasks, canArchive]);
 
 //   useEffect(() => {
 //     loadTaskStats();
@@ -431,21 +480,44 @@
 //     return null;
 //   };
 
-//   // ── Stat cards: Total / Completed / Due Soon / Overdue ──
-//   const statsCards = [
+//   // ── Stat cards, in the requested order:
+//   // My Task / Reported Task / Department Task / In Progress / Due Soon /
+//   // Overdue / Done / Archive Tasks — laid out 3 per row, same card format
+//   // throughout. Done sits right after Overdue, and (with the 3-per-row grid)
+//   // Done + Archive Tasks land together on the following line.
+//   // Department Task and Archive Tasks stay permission-gated, same as before.
+//   const statsCardsBase = [
 //     {
-//       Icon: BarChart3,
-//       value: taskStats.total,
-//       label: "Total Tasks",
-//       color: "from-blue-400 to-blue-500",
-//       filterKey: "all",
+//       Icon: UserCheck,
+//       value: taskStats.myTask,
+//       label: "My Tasks",
+//       color: "from-indigo-400 to-indigo-500",
+//       filterKey: "myTask",
 //     },
 //     {
-//       Icon: CheckCircle2,
-//       value: taskStats.completed,
-//       label: "Done",
-//       color: "from-green-400 to-green-500",
-//       filterKey: "done",
+//       Icon: Send,
+//       value: taskStats.reportedTask,
+//       label: "Reported Tasks",
+//       color: "from-pink-400 to-pink-500",
+//       filterKey: "reportedTask",
+//     },
+//     ...(canSeeDeptTasks
+//       ? [
+//           {
+//             Icon: Building2,
+//             value: taskStats.departmentTask,
+//             label: "Department Tasks",
+//             color: "from-teal-400 to-teal-500",
+//             filterKey: "departmentTask",
+//           },
+//         ]
+//       : []),
+//     {
+//       Icon: Zap,
+//       value: taskStats.inProgress,
+//       label: "In Progress",
+//       color: "from-blue-400 to-blue-500",
+//       filterKey: "inProgress",
 //     },
 //     {
 //       Icon: Clock,
@@ -461,8 +533,31 @@
 //       color: "from-red-400 to-red-500",
 //       filterKey: "overdue",
 //     },
+//     // NEW: Done — sits right after Overdue
+//     {
+//       Icon: CheckCircle2,
+//       value: taskStats.completed,
+//       label: "Done",
+//       color: "from-emerald-400 to-emerald-500",
+//       filterKey: "done",
+//     },
+//     ...(canArchive
+//       ? [
+//           {
+//             Icon: Archive,
+//             value: taskStats.archivedTask,
+//             label: "Archive Tasks",
+//             color: "from-slate-400 to-slate-500",
+//             filterKey: "archivedTask",
+//           },
+//         ]
+//       : []),
 //   ];
 
+//   const statsCards = statsCardsBase;
+
+//   // CHANGED: removed the "Archive" quick action tile — Archive is still
+//   // reachable from the "Archive Tasks" stat card above.
 //   const actionCards = [
 //     {
 //       id: "tasks",
@@ -473,11 +568,11 @@
 //       color: "from-violet-400 to-violet-500",
 //     },
 //     {
-//       id: "dept",
-//       icon: Users,
-//       title: "My Tasks",
-//       subtitle: "Repository",
-//       path: "/task-management/departmenttasks",
+//       id: "create",
+//       icon: Plus,
+//       title: "Create Tasks",
+//       subtitle: "New Task",
+//       path: "/task-management/tasks?openCreate=true",
 //       color: "from-emerald-400 to-emerald-500",
 //       primary: true,
 //     },
@@ -599,7 +694,7 @@
 //         <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 lg:gap-10 h-full">
 //           {/* Left: Stats + Actions */}
 //           <div className="space-y-8 lg:space-y-10">
-//             {/* Stats Grid */}
+//             {/* Stats Grid — 3 per row, same card format */}
 //             <motion.section
 //               id="stats-grid"
 //               className="grid grid-cols-2 md:grid-cols-3 gap-4 items-stretch"
@@ -613,6 +708,11 @@
 //                   className="group bg-white/70 backdrop-blur-sm border border-slate-100/50 rounded-lg p-4 shadow-sm hover:shadow-md transition-all duration-300 cursor-pointer flex items-center gap-3 h-full min-h-[84px] hover:bg-white"
 //                   onClick={() => {
 //                     captureActivity({ action: ACTIONS.CLICK, module: MODULES.TASK, item: `Stat Card - ${label}`, url: "/task-management" });
+//                     // Archive Tasks routes to the bin view, not a ?filter= query.
+//                     if (filterKey === "archivedTask") {
+//                       router.push("/task-management/tasks?view=archived");
+//                       return;
+//                     }
 //                     const query = filterKey && filterKey !== "all" ? `?filter=${filterKey}` : "";
 //                     router.push(`/task-management/tasks${query}`);
 //                   }}
@@ -983,6 +1083,7 @@ import {
   Plus,
   Archive,
   Zap,
+  Globe,
 } from "lucide-react";
 import {
   PieChart,
@@ -1013,6 +1114,19 @@ function isTaskDueSoon(t) {
   return diffDays >= 0 && diffDays <= DUE_SOON_DAYS;
 }
 
+// NEW: rolling 3-month window, based on task createdAt — used ONLY by the
+// Task Distribution pie chart. Everything else (stat cards, bar chart) still
+// looks at all-time data via taskStats/allTasks.
+const PIE_WINDOW_MONTHS = 3;
+function isWithinLastNMonths(dateString, months) {
+  if (!dateString) return false;
+  const d = new Date(dateString);
+  if (isNaN(d.getTime())) return false;
+  const cutoff = new Date();
+  cutoff.setMonth(cutoff.getMonth() - months);
+  return d >= cutoff;
+}
+
 const TaskManagementDashboard = () => {
   const router = useRouter();
   const chartsContainerRef = useRef(null);
@@ -1031,7 +1145,7 @@ const TaskManagementDashboard = () => {
 
   const [showHelpDoc, setShowHelpDoc] = useState(false);
 
-const TASK_HELP_CONTENT = `
+  const TASK_HELP_CONTENT = `
 # **calvant** 
 
 Digital Compliance Management 
@@ -1156,6 +1270,8 @@ IdenBfy Requirement/Risk → Create Task → Assign Owner → Track Progress →
     myTask: 0,
     reportedTask: 0,
     departmentTask: 0,
+    orgWideTask: 0,
+    archivedTask: 0,
   });
   const [allTasks, setAllTasks] = useState([]);
 
@@ -1185,6 +1301,9 @@ IdenBfy Requirement/Risk → Create Task → Assign Owner → Track Progress →
     [user],
   );
   const canSeeDeptTasks = userRoles.includes("risk_owner") || userRoles.includes("process_owner");
+  // NEW: Archive Tasks card — mirrors the archive/bin permission used on the
+  // Task Management page (root / super_admin only).
+  const canArchive = userRoles.includes("root") || userRoles.includes("super_admin");
 
   useEffect(() => {
     const resizeObserver = new ResizeObserver((entries) => {
@@ -1216,12 +1335,18 @@ IdenBfy Requirement/Risk → Create Task → Assign Owner → Track Progress →
     captureActivity({ action: ACTIONS.VISITED, module: MODULES.TASK, url: "/task-management" });
 
     try {
-      const tasks = await taskService.getAllTasks();
+      const [tasks, archivedTasks] = await Promise.all([
+        taskService.getAllTasks(),
+        taskService.getArchivedTasks().catch(() => []),
+      ]);
       if (!Array.isArray(tasks)) return;
 
       const orgTasks = tasks.filter(
         (t) => t.organization === effectiveOrgId,
       );
+      const orgArchivedTasks = Array.isArray(archivedTasks)
+        ? archivedTasks.filter((t) => t.organization === effectiveOrgId)
+        : [];
 
       const isAssignee = (t) => {
         const emp = t.employee;
@@ -1249,8 +1374,8 @@ IdenBfy Requirement/Risk → Create Task → Assign Owner → Track Progress →
       const deptNames = (user?.departments || []).map((d) => (d.name || "").trim().toLowerCase());
       const departmentTaskCount = canSeeDeptTasks
         ? orgTasks.filter(
-            (t) => t.department && deptNames.includes(String(t.department).trim().toLowerCase()),
-          ).length
+          (t) => t.department && deptNames.includes(String(t.department).trim().toLowerCase()),
+        ).length
         : 0;
 
       setTaskStats({
@@ -1262,21 +1387,88 @@ IdenBfy Requirement/Risk → Create Task → Assign Owner → Track Progress →
         myTask: visibleTasks.filter(isAssignee).length,
         reportedTask: visibleTasks.filter(isReporterOf).length,
         departmentTask: departmentTaskCount,
+        // Archive is root/super_admin-only, same as the Task Management bin view.
+        orgWideTask: isRoot ? orgTasks.length : 0,   // NEW — root only
+        archivedTask: canArchive ? orgArchivedTasks.length : 0,
       });
     } catch (error) {
       console.error("Error loading task stats:", error);
     }
-  }, [user, isRoot, effectiveOrgId, canSeeDeptTasks]);
+  }, [user, isRoot, effectiveOrgId, canSeeDeptTasks, canArchive]);
 
   useEffect(() => {
     loadTaskStats();
   }, [loadTaskStats]);
+
+  // useEffect(() => {
+  //   if (mounted && !user) {
+  //     router.push("/");
+  //   }
+  // }, [mounted, user, router]);
+
+  // if (!mounted || !user) return null;
+
+  // Charts Data Processing
+  // const getMonthFromDate = (dateString) => {
+  //   if (!dateString) return null;
+  //   const date = new Date(dateString);
+  //   const monthNames = [
+  //     "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  //     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+  //   ];
+  //   return monthNames[date.getMonth()];
+  // };
+
+  // // ── NEW: Task Distribution pie chart — restricted to tasks created in the
+  // // last 3 months only (per UAT feedback). Stat cards and the Monthly Trends
+  // // bar chart are untouched and keep showing all-time data. ──
+  // const pieStats = useMemo(() => {
+  //   const recentTasks = allTasks.filter((t) =>
+  //     isWithinLastNMonths(t.createdAt || t.created_at, PIE_WINDOW_MONTHS),
+  //   );
+  //   const completed = recentTasks.filter((t) => t.status === "Done").length;
+  //   const overdue = recentTasks.filter(isTaskOverdue).length;
+  //   const dueSoon = recentTasks.filter(isTaskDueSoon).length;
+  //   return {
+  //     total: recentTasks.length,
+  //     completed,
+  //     overdue,
+  //     dueSoon,
+  //   };
+  // }, [allTasks]);
+
+  // // ── Pie: Completed / Overdue / Due Soon / Others (rest of the 3-month total) ──
+  // const otherCount = Math.max(
+  //   0,
+  //   pieStats.total - pieStats.completed - pieStats.overdue - pieStats.dueSoon,
+  // );
 
   useEffect(() => {
     if (mounted && !user) {
       router.push("/");
     }
   }, [mounted, user, router]);
+
+  // ── Task Distribution pie chart — restricted to tasks created in the
+  // last 3 months only (per UAT feedback). Stat cards and the Monthly
+  // Trends bar chart are untouched and keep showing all-time data.
+  // NOTE: this hook MUST stay above the `if (!mounted || !user) return null;`
+  // line below it — every hook has to run on every render, or React throws
+  // "Rendered more hooks than during the previous render."
+  const pieStats = useMemo(() => {
+    const recentTasks = allTasks.filter((t) =>
+      isWithinLastNMonths(t.createdAt || t.created_at, PIE_WINDOW_MONTHS),
+    );
+    const completed = recentTasks.filter((t) => t.status === "Done").length;
+    const overdue = recentTasks.filter(isTaskOverdue).length;
+    const dueSoon = recentTasks.filter(isTaskDueSoon).length;
+    return {
+      total: recentTasks.length,
+      completed,
+      overdue,
+      dueSoon,
+    };
+  }, [allTasks]);
 
   if (!mounted || !user) return null;
 
@@ -1291,30 +1483,30 @@ IdenBfy Requirement/Risk → Create Task → Assign Owner → Track Progress →
     return monthNames[date.getMonth()];
   };
 
-  // ── Pie: Completed / Overdue / Due Soon / Others (rest of the total) ──
+  // ── Pie: Completed / Overdue / Due Soon / Others (rest of the 3-month total) ──
   const otherCount = Math.max(
     0,
-    taskStats.total - taskStats.completed - taskStats.overdue - taskStats.dueSoon,
+    pieStats.total - pieStats.completed - pieStats.overdue - pieStats.dueSoon,
   );
 
   const pieData = [
     {
       name: "Completed",
-      value: taskStats.completed,
+      value: pieStats.completed,
       color: "#10b981",
-      desc: `${taskStats.completed} completed tasks`,
+      desc: `${pieStats.completed} completed tasks`,
     },
     {
       name: "Overdue",
-      value: taskStats.overdue,
+      value: pieStats.overdue,
       color: "#ef4444",
-      desc: `${taskStats.overdue} overdue tasks`,
+      desc: `${pieStats.overdue} overdue tasks`,
     },
     {
       name: "Due Soon",
-      value: taskStats.dueSoon,
+      value: pieStats.dueSoon,
       color: "#f59e0b",
-      desc: `${taskStats.dueSoon} due within ${DUE_SOON_DAYS} days`,
+      desc: `${pieStats.dueSoon} due within ${DUE_SOON_DAYS} days`,
     },
     {
       name: "Others",
@@ -1359,7 +1551,7 @@ IdenBfy Requirement/Risk → Create Task → Assign Owner → Track Progress →
           </div>
           <div className="text-xs text-slate-600">{data.desc}</div>
           <div className="text-xs text-slate-500 mt-1">
-            {((data.value / (taskStats.total || 1)) * 100).toFixed(1)}% of total
+            {((data.value / (pieStats.total || 1)) * 100).toFixed(1)}% of last {PIE_WINDOW_MONTHS} months
           </div>
         </div>
       );
@@ -1420,22 +1612,55 @@ IdenBfy Requirement/Risk → Create Task → Assign Owner → Track Progress →
     return null;
   };
 
-  // ── Stat cards: In Progress / Done / Due Soon / Overdue / My Task / Reported Task / (Department Task) ──
-  // "Total Tasks" card removed per request — total count still shows in the header text.
+  // ── Stat cards, in the requested order:
+  // My Task / Reported Task / Department Task / In Progress / Due Soon /
+  // Overdue / Done / Archive Tasks — laid out 3 per row, same card format
+  // throughout. Done sits right after Overdue, and (with the 3-per-row grid)
+  // Done + Archive Tasks land together on the following line.
+  // Department Task and Archive Tasks stay permission-gated, same as before.
   const statsCardsBase = [
+    {
+      Icon: UserCheck,
+      value: taskStats.myTask,
+      label: "My Tasks",
+      color: "from-indigo-400 to-indigo-500",
+      filterKey: "myTask",
+    },
+    {
+      Icon: Send,
+      value: taskStats.reportedTask,
+      label: "Reported Tasks",
+      color: "from-pink-400 to-pink-500",
+      filterKey: "reportedTask",
+    },
+    ...(isRoot
+      ? [
+        {
+          Icon: Globe,
+          value: taskStats.orgWideTask,
+          label: "Orgwide Tasks",
+          color: "from-cyan-400 to-cyan-500",
+          filterKey: "orgWideTask",
+        },
+      ]
+      : []),
+    ...(canSeeDeptTasks
+      ? [
+        {
+          Icon: Building2,
+          value: taskStats.departmentTask,
+          label: "Department Tasks",
+          color: "from-teal-400 to-teal-500",
+          filterKey: "departmentTask",
+        },
+      ]
+      : []),
     {
       Icon: Zap,
       value: taskStats.inProgress,
       label: "In Progress",
       color: "from-blue-400 to-blue-500",
       filterKey: "inProgress",
-    },
-    {
-      Icon: CheckCircle2,
-      value: taskStats.completed,
-      label: "Done",
-      color: "from-green-400 to-green-500",
-      filterKey: "done",
     },
     {
       Icon: Clock,
@@ -1451,37 +1676,31 @@ IdenBfy Requirement/Risk → Create Task → Assign Owner → Track Progress →
       color: "from-red-400 to-red-500",
       filterKey: "overdue",
     },
+    // Done — sits right after Overdue
     {
-      Icon: UserCheck,
-      value: taskStats.myTask,
-      label: "My Task",
-      color: "from-indigo-400 to-indigo-500",
-      filterKey: "myTask",
+      Icon: CheckCircle2,
+      value: taskStats.completed,
+      label: "Done",
+      color: "from-emerald-400 to-emerald-500",
+      filterKey: "done",
     },
-    {
-      Icon: Send,
-      value: taskStats.reportedTask,
-      label: "Reported Task",
-      color: "from-pink-400 to-pink-500",
-      filterKey: "reportedTask",
-    },
-  ];
-
-  // NEW: Department Task card — only rendered for risk_owner / process_owner
-  const statsCards = canSeeDeptTasks
-    ? [
-        ...statsCardsBase,
+    ...(canArchive
+      ? [
         {
-          Icon: Building2,
-          value: taskStats.departmentTask,
-          label: "Department Task",
-          color: "from-teal-400 to-teal-500",
-          filterKey: "departmentTask",
+          Icon: Archive,
+          value: taskStats.archivedTask,
+          label: "Archived Tasks",
+          color: "from-slate-400 to-slate-500",
+          filterKey: "archivedTask",
         },
       ]
-    : statsCardsBase;
+      : []),
+  ];
 
-  // CHANGED: "My Tasks" quick action replaced with "Create Task" + "Archive"
+  const statsCards = statsCardsBase;
+
+  // Archive quick-action tile removed — Archive is still reachable from the
+  // "Archive Tasks" stat card above.
   const actionCards = [
     {
       id: "tasks",
@@ -1499,14 +1718,6 @@ IdenBfy Requirement/Risk → Create Task → Assign Owner → Track Progress →
       path: "/task-management/tasks?openCreate=true",
       color: "from-emerald-400 to-emerald-500",
       primary: true,
-    },
-    {
-      id: "archive",
-      icon: Archive,
-      title: "Archive",
-      subtitle: "Deleted Tasks",
-      path: "/task-management/tasks?view=archived",
-      color: "from-slate-400 to-slate-500",
     },
   ];
 
@@ -1626,7 +1837,7 @@ IdenBfy Requirement/Risk → Create Task → Assign Owner → Track Progress →
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 lg:gap-10 h-full">
           {/* Left: Stats + Actions */}
           <div className="space-y-8 lg:space-y-10">
-            {/* Stats Grid — now 3 per row */}
+            {/* Stats Grid — 3 per row, same card format */}
             <motion.section
               id="stats-grid"
               className="grid grid-cols-2 md:grid-cols-3 gap-4 items-stretch"
@@ -1640,6 +1851,11 @@ IdenBfy Requirement/Risk → Create Task → Assign Owner → Track Progress →
                   className="group bg-white/70 backdrop-blur-sm border border-slate-100/50 rounded-lg p-4 shadow-sm hover:shadow-md transition-all duration-300 cursor-pointer flex items-center gap-3 h-full min-h-[84px] hover:bg-white"
                   onClick={() => {
                     captureActivity({ action: ACTIONS.CLICK, module: MODULES.TASK, item: `Stat Card - ${label}`, url: "/task-management" });
+                    // Archive Tasks routes to the bin view, not a ?filter= query.
+                    if (filterKey === "archivedTask") {
+                      router.push("/task-management/tasks?view=archived");
+                      return;
+                    }
                     const query = filterKey && filterKey !== "all" ? `?filter=${filterKey}` : "";
                     router.push(`/task-management/tasks${query}`);
                   }}
@@ -1742,18 +1958,24 @@ IdenBfy Requirement/Risk → Create Task → Assign Owner → Track Progress →
             id="charts-container"
             className="space-y-4 lg:space-y-3"
           >
-            {/* Pie Chart - Task Distribution */}
+            {/* Pie Chart - Task Distribution (last 3 months only) */}
+            {/* Pie Chart - Task Distribution (last 3 months only) */}
             <motion.div
-              className="bg-white/70 backdrop-blur-sm border border-slate-100/50 rounded-2xl p-6 lg:p-7 shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-400 h-72 flex flex-col"
+              className="bg-white/70 backdrop-blur-sm border border-slate-100/50 rounded-2xl p-6 lg:p-7 shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-400 h-80 flex flex-col"
               initial={hasMounted ? { opacity: 0, scale: 0.95 } : false}
               animate={{ opacity: 1, scale: 1 }}
               whileHover={{ scale: 1.01 }}
             >
-              <h3 className="text-base lg:text-lg font-semibold text-slate-800 mb-6 px-1">
-                Task Distribution
-              </h3>
+              <div className="mb-1 px-1 flex-shrink-0">
+                <h3 className="text-base lg:text-lg font-semibold text-slate-800">
+                  Tasks Distribution
+                </h3>
+                <p className="text-xs text-slate-500 font-medium">
+                  Last {PIE_WINDOW_MONTHS} months
+                </p>
+              </div>
               <div className="flex-1 flex items-center justify-center min-h-0">
-                {taskStats.total > 0 ? (
+                {pieStats.total > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
@@ -1762,8 +1984,8 @@ IdenBfy Requirement/Risk → Create Task → Assign Owner → Track Progress →
                         nameKey="name"
                         cx="50%"
                         cy="50%"
-                        innerRadius={42}
-                        outerRadius={76}
+                        innerRadius={38}
+                        outerRadius={66}
                         paddingAngle={2}
                         stroke="white"
                         strokeWidth={3}
@@ -1793,7 +2015,7 @@ IdenBfy Requirement/Risk → Create Task → Assign Owner → Track Progress →
                         fontSize={20}
                         fontWeight={700}
                       >
-                        {taskStats.total}
+                        {pieStats.total}
                       </text>
                     </PieChart>
                   </ResponsiveContainer>
@@ -1808,7 +2030,7 @@ IdenBfy Requirement/Risk → Create Task → Assign Owner → Track Progress →
                       No Data
                     </p>
                     <p className="text-sm text-slate-500 max-w-xs">
-                      Start by creating tasks
+                      No tasks created in the last {PIE_WINDOW_MONTHS} months
                     </p>
                   </div>
                 )}

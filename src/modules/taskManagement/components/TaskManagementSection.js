@@ -15,6 +15,9 @@
 //   Plus,
 //   ClipboardCheck,
 //   ShieldAlert,
+//   Archive,
+//   RotateCcw,
+//   Trash2,
 // } from "lucide-react";
 // import InputField from "../components copy/inputs/InputField";
 // import SelectField from "../components copy/inputs/SelectField";
@@ -29,11 +32,6 @@
 // import auditService from "../../gapAssessment/services/auditService";
 
 // // ── Logging ───────────────────────────────────────────────────────────────────
-// // Same relative path/module as RiskAssessment.js and TaskManagementDashboard.js.
-// // This component is reused across contexts (plain Task Management, Risk-scoped,
-// // Audit-scoped) — url is intentionally left out of these calls so it falls
-// // back to window.location.pathname at call time, matching whichever route it's
-// // actually rendered under, rather than hardcoding "/task-management/tasks".
 // import { captureActivity, ACTIONS, MODULES } from "../../admin/shell/services/activities";
 
 // // ─── Constants (LOGIC UNCHANGED) ──────────────────────────────
@@ -62,20 +60,65 @@
 //   Critical: { color: "#c92a2a", bg: "#fff5f5", icon: "⚑" },
 // };
 // function getSourceModule(task) {
-//   if (task.source === "Policy")
-//     return { label: "Policy", bg: "#fdf4ff", color: "#7e22ce" };
-//   if (task.source === "Compliance" || task.controlId)
-//     return { label: "Compliance", bg: "#f0fdf4", color: "#166534" };
-//   if (task.riskId)
-//     return { label: "Risk", bg: "#e7f5ff", color: "#1971c2" };
-//   if (task.auditId)
-//     return { label: "Audit", bg: "#fff9db", color: "#e67700" };
-//   if (task.dpiaId || task.source === "DPIA")
-//     return { label: "DPIA", bg: "#fdf4ff", color: "#7c3aed" };
+//   // Prioritize the explicit Type / SubType chosen in the create/edit form.
+//   if (task.type === "Module Based" && task.subType) {
+//     const MODULE_SOURCE_MAP = {
+//       Risk: { label: "Risk", bg: "#e7f5ff", color: "#1971c2" },
+//       Audit: { label: "Audit", bg: "#fff9db", color: "#e67700" },
+//       Policies: { label: "Policy", bg: "#fdf4ff", color: "#7e22ce" },
+//       DPIA: { label: "DPIA", bg: "#fdf4ff", color: "#7c3aed" },
+//       AIIA: { label: "AIIA", bg: "#eff6ff", color: "#2563eb" },
+//       Compliance: { label: "Compliance", bg: "#f0fdf4", color: "#166534" },
+//       Reports: { label: "Reports", bg: "#f0f9ff", color: "#0369a1" },
+//       Vendor: { label: "Vendor", bg: "#fdf2f8", color: "#be185d" },
+//     };
+//     if (MODULE_SOURCE_MAP[task.subType]) return MODULE_SOURCE_MAP[task.subType];
+//   }
+//   if (task.type === "Framework Based" && task.subType) {
+//     return { label: task.subType, bg: "#eef2ff", color: "#4338ca" };
+//   }
+//   if (task.type === "General") {
+//     return { label: "General", bg: "#f1f3f5", color: "#868e96" };
+//   }
+
+//   // Legacy fallback — for tasks created before Type/SubType existed, or
+//   // auto-created directly by Risk/Audit/DPIA/Policy/Compliance modules.
+//   if (task.source === "Policy") return { label: "Policy", bg: "#fdf4ff", color: "#7e22ce" };
+//   if (task.source === "Compliance" || task.controlId) return { label: "Compliance", bg: "#f0fdf4", color: "#166534" };
+//   if (task.riskId) return { label: "Risk", bg: "#e7f5ff", color: "#1971c2" };
+//   if (task.auditId) return { label: "Audit", bg: "#fff9db", color: "#e67700" };
+//   if (task.dpiaId || task.source === "DPIA") return { label: "DPIA", bg: "#fdf4ff", color: "#7c3aed" };
 //   return { label: "General", bg: "#f1f3f5", color: "#868e96" };
 // }
 // const statusOptions = Object.values(STATUS);
 // const priorityOptions = Object.values(PRIORITY);
+
+// // ─── Task Type / SubType (NEW) ─────────────────────────────────────────────
+// // Type renamed: Module Based / Framework Based / General — Type and Sub Type
+// // are both mandatory on the create/edit form now.
+// const TASK_TYPES = ["Module Based", "Framework Based", "General"];
+// // Module Based sub types — Reports and Vendor added alongside the originals.
+// const MODULE_SUBTYPES = ["Risk", "Audit", "Policies", "DPIA", "AIIA", "Compliance", "Reports", "Vendor"];
+// // General type only ever has one sub type value.
+// const GENERAL_SUBTYPES = ["General"];
+// // Framework Based sub types — client-subscribed framework codes only
+// // (dropdown shows the code, not the full framework name).
+// const FRAMEWORK_OPTIONS = [
+//   "ISO 42001",
+//   "KSA PDPL",
+//   "DPDPA",
+//   "ISR 3.1",
+//   "NIST CSF2",
+//   "HIPPA",
+//   "GDPR",
+//   "ISO 27001",
+//   "CSCRF",
+//   "SOC2",
+//   "ISO 27701",
+//   "ISO 27017",
+//   "EU AI ACT",
+//   "PCI DSS",
+// ];
 
 // // ─── Overdue / Due Soon helpers ────────────────────────────────
 // const DUE_SOON_DAYS = 3;
@@ -513,11 +556,26 @@
 //   const userRoles = Array.isArray(user?.role) ? user.role : [user?.role || ""];
 //   const hasAnyRole = (...roles) => roles.some((r) => userRoles.includes(r));
 //   const canEdit = hasAnyRole("risk_owner", "root", "super_admin");
+//   // NEW: archive / restore / permanent-delete is root-level only
+//   const canArchive = hasAnyRole("root", "super_admin");
+//   // NEW: Department Task broadened visibility — risk_owner / process_owner only
+//   const canSeeDeptTasks = hasAnyRole("risk_owner", "process_owner");
 
 //   const scopedRiskId = riskFormData?.riskId || null;
 //   const scopedAuditId = auditFormData?.auditId || null;
 //   const userOrgId = effectiveOrgId;
-//   const contextLabel = scopedRiskId ? "Risk Assessment" : scopedAuditId ? "Audit" : "Task Management";
+
+//   // NEW: active vs archived ("bin") view, driven by ?view=archived
+//   const viewMode = searchParams.get("view") === "archived" ? "archived" : "active";
+//   const incomingFilter = searchParams.get("filter");
+
+//   const contextLabel = scopedRiskId
+//     ? "Risk Assessment"
+//     : scopedAuditId
+//       ? "Audit"
+//       : viewMode === "archived"
+//         ? "Archived Tasks"
+//         : "Task Management";
 //   const contextScopeId = scopedRiskId || scopedAuditId || null;
 //   const [audits, setAudits] = useState([]);
 
@@ -537,17 +595,28 @@
 //   const [currentPage, setCurrentPage] = useState(1);
 //   const TASKS_PER_PAGE = 15;
 //   const [statusModal, setStatusModal] = useState(null);
-//   // ── "due" holds the derived Overdue / Due Soon filter, separate from real status values ──
-//   const [filters, setFilters] = useState({ status: "", assignee: "", priority: "", search: "", due: "" });
+//   // ── "due" = derived Overdue/Due Soon filter. "mine" = My Task / Reported
+//   // Task scoping (subset of what's already visible). "assignee"/"reporter"
+//   // now hold the selected USER ID (not name) — fixes the "selected name not
+//   // showing" bug, since native <select> matching on name could silently fail
+//   // on whitespace/case mismatches; ids are guaranteed unique. ──
+//   const [filters, setFilters] = useState({ status: "", assignee: "", reporter: "", search: "", due: "", mine: "" });
+
 //   useEffect(() => {
 //     const incoming = searchParams.get("filter");
 //     if (!incoming) return;
 //     if (incoming === "done") {
-//       setFilters((p) => ({ ...p, status: STATUS.DONE, due: "" }));
+//       setFilters((p) => ({ ...p, status: STATUS.DONE, due: "", mine: "" }));
 //     } else if (incoming === "overdue" || incoming === "dueSoon") {
-//       setFilters((p) => ({ ...p, status: "", due: incoming }));
+//       setFilters((p) => ({ ...p, status: "", due: incoming, mine: "" }));
 //     } else if (incoming === "all") {
-//       setFilters((p) => ({ ...p, status: "", due: "" }));
+//       setFilters((p) => ({ ...p, status: "", due: "", mine: "" }));
+//     } else if (incoming === "myTask") {
+//       setFilters((p) => ({ ...p, status: "", due: "", mine: "assigned" }));
+//     } else if (incoming === "reportedTask") {
+//       setFilters((p) => ({ ...p, status: "", due: "", mine: "reported" }));
+//     } else if (incoming === "departmentTask") {
+//       setFilters((p) => ({ ...p, status: "", due: "", mine: "" }));
 //     }
 //   }, [searchParams]);
 
@@ -566,6 +635,7 @@
 //     employee: "", employeeName: "", employeeId: "",
 //     description: "", startDate: today, endDate: "",
 //     status: STATUS.TODO, priority: PRIORITY.MEDIUM, remarks: "",
+//     type: "", subType: "", // NEW
 //     createdAt: null, updatedAt: null, originalTask: null,
 //   });
 //   const [formData, setFormData] = useState(emptyForm());
@@ -596,15 +666,22 @@
 //     return () => (m = false);
 //   }, [effectiveOrgId]);
 
-//   // ── Visibility rule: root sees the whole org's tasks; everyone else sees
-//   // only tasks assigned to them. Risk/Audit scoping still applies on top. ──
+//   // ── Visibility rule:
+//   //   • root sees the whole org's tasks.
+//   //   • everyone else sees tasks where they are the ASSIGNEE *or* the
+//   //     REPORTER (previously reporter-only tasks were invisible — fixed).
+//   //   • Department Task (risk_owner/process_owner only) broadens further to
+//   //     the whole department, ignoring assignee/reporter.
+//   //   • Archived view fetches the bin instead, and is root/super_admin only.
 //   const fetchTasks = useCallback(async () => {
 //     if (userOrgId) {
 //       captureActivity({ action: ACTIONS.VISITED, module: MODULES.TASK });
 //     }
 
 //     try {
-//       const all = await taskService.getAllTasks();
+//       const all = viewMode === "archived"
+//         ? await taskService.getArchivedTasks()
+//         : await taskService.getAllTasks();
 //       const orgTasks = all.filter((t) => String(t.organization) === String(userOrgId));
 
 //       let scoped;
@@ -612,21 +689,37 @@
 //       else if (scopedAuditId) scoped = orgTasks.filter((t) => t.auditId === scopedAuditId);
 //       else scoped = orgTasks;
 
-//       if (!isRoot) {
-//         scoped = scoped.filter((t) => {
-//           const emp = t.employee;
-//           if (!emp) return false;
-//           return (
-//             String(emp) === String(user?._id || user?.id) ||
-//             emp === currentUserName ||
-//             emp === user?.name
+//       if (viewMode === "archived") {
+//         // The bin is a root-level concept — nobody else sees its contents.
+//         scoped = canArchive ? scoped : [];
+//       } else if (!isRoot) {
+//         if (incomingFilter === "departmentTask" && canSeeDeptTasks) {
+//           const deptNames = (user?.departments || []).map((d) => (d.name || "").trim().toLowerCase());
+//           scoped = scoped.filter(
+//             (t) => t.department && deptNames.includes(String(t.department).trim().toLowerCase()),
 //           );
-//         });
+//         } else {
+//           scoped = scoped.filter((t) => {
+//             const emp = t.employee;
+//             const rep = t.reporter;
+//             const isAssignee = !!emp && (
+//               String(emp) === String(user?._id || user?.id) ||
+//               emp === currentUserName ||
+//               emp === user?.name
+//             );
+//             const isReporter = !!rep && (
+//               rep === currentUserName ||
+//               rep === user?.name ||
+//               String(rep) === String(user?._id || user?.id)
+//             );
+//             return isAssignee || isReporter;
+//           });
+//         }
 //       }
 
 //       setTasks(scoped);
 //     } catch (e) { console.error(e); }
-//   }, [scopedRiskId, scopedAuditId, userOrgId, isRoot, user, currentUserName]);
+//   }, [scopedRiskId, scopedAuditId, userOrgId, isRoot, user, currentUserName, viewMode, canArchive, canSeeDeptTasks, incomingFilter]);
 //   useEffect(() => { fetchTasks(); }, [fetchTasks]);
 
 //   const empOptions = useMemo(() => {
@@ -683,6 +776,14 @@
 //     setIsModalOpen(true);
 //   };
 
+//   // NEW: dashboard's "Create Task" quick action links here with ?openCreate=true
+//   useEffect(() => {
+//     if (searchParams.get("openCreate") === "true" && canEdit && viewMode === "active") {
+//       openAddModal();
+//     }
+//     // eslint-disable-next-line react-hooks/exhaustive-deps
+//   }, [searchParams, canEdit, viewMode]);
+
 //   const editTask = (task) => {
 //     captureActivity({ action: ACTIONS.CLICK, module: MODULES.TASK, item: `Edit Task - ${task.taskId}` });
 //     setEditingTaskId(task.taskId);
@@ -696,7 +797,9 @@
 //       employeeName: resolvedName || "", description: task.description || "",
 //       startDate: task.startDate || today, endDate: task.endDate || "",
 //       status: task.status || STATUS.TODO, priority: task.priority || PRIORITY.MEDIUM,
-//       remarks: task.remarks || "", createdAt: task.createdAt || null,
+//       remarks: task.remarks || "",
+//       type: task.type || "", subType: task.subType || "", // NEW
+//       createdAt: task.createdAt || null,
 //       updatedAt: task.updatedAt || null, originalTask: task,
 //     });
 //     setIsModalOpen(true);
@@ -704,8 +807,8 @@
 
 //   const saveTask = async () => {
 //     const fd = formDataRef.current || formData;
-//     if (!fd.department || !fd.startDate || !fd.endDate || !fd.description) {
-//       alert("Please fill all required fields!"); return;
+//     if (!fd.department || !fd.startDate || !fd.endDate || !fd.description || !fd.type || !fd.subType) {
+//       alert("Please fill all required fields, including Type and Sub Type!"); return;
 //     }
 //     if (new Date(fd.endDate) < new Date(fd.startDate)) {
 //       alert("End date cannot be before start date."); return;
@@ -739,6 +842,7 @@
 //         description: fd.description, startDate: fd.startDate, endDate: fd.endDate,
 //         status: editingTaskId ? fd.status : STATUS.TODO,
 //         priority: fd.priority || PRIORITY.MEDIUM,
+//         type: fd.type || undefined, subType: fd.subType || undefined, // NEW
 //         reporter: currentUserName, reporterEmail, remarks: fd.remarks,
 //         createdAt: fd.createdAt || new Date().toISOString(),
 //         updatedAt: new Date().toISOString(),
@@ -758,34 +862,77 @@
 //     finally { setIsSaving(false); }
 //   };
 
-//   const deleteTask = async (taskId) => {
-//     if (!window.confirm("Delete this task?")) return;
+//   // ── CHANGED: Delete → Archive / Restore / Permanent Delete ──────────────────
+
+//   // Soft-delete — moves the task to the Archive/bin, disappears from this list.
+//   const archiveTask = async (taskId) => {
+//     if (!window.confirm("Archive this task? It will move to the Archive.")) return;
+//     try {
+//       await taskService.archiveTask(taskId, currentUserName);
+//       setTasks((prev) => prev.filter((t) => t.taskId !== taskId));
+//       if (selectedTask?.taskId === taskId) setSelectedTask(null);
+//       captureActivity({ action: ACTIONS.UPDATED, module: MODULES.TASK, item: `Archived - ${taskId}` });
+//     } catch { alert("Failed to archive task."); }
+//   };
+
+//   // Brings a task back out of the Archive/bin into active tasks.
+//   const restoreTask = async (taskId) => {
+//     if (!window.confirm("Restore this task back to active tasks?")) return;
+//     try {
+//       await taskService.restoreTask(taskId, currentUserName);
+//       setTasks((prev) => prev.filter((t) => t.taskId !== taskId));
+//       if (selectedTask?.taskId === taskId) setSelectedTask(null);
+//       captureActivity({ action: ACTIONS.UPDATED, module: MODULES.TASK, item: `Restored - ${taskId}` });
+//     } catch { alert("Failed to restore task."); }
+//   };
+
+//   // Permanent removal — only ever called from the Archive/bin view.
+//   const permanentDeleteTask = async (taskId) => {
+//     if (!window.confirm("Permanently delete this task? This cannot be undone.")) return;
 //     try {
 //       await taskService.deleteTask(taskId, currentUserName);
 //       setTasks((prev) => prev.filter((t) => t.taskId !== taskId));
 //       if (selectedTask?.taskId === taskId) setSelectedTask(null);
-//       captureActivity({ action: ACTIONS.DELETE, module: MODULES.TASK, item: taskId });
-//     } catch { alert("Failed to delete task."); }
+//       captureActivity({ action: ACTIONS.DELETE, module: MODULES.TASK, item: `Permanently deleted - ${taskId}` });
+//     } catch { alert("Failed to permanently delete task."); }
 //   };
 
 //   const filteredTasks = useMemo(() => {
 //     const s = (filters.search || "").toLowerCase();
 //     return tasks.filter((t) => {
 //       if (filters.status && t.status !== filters.status) return false;
-//       if (filters.priority && t.priority !== filters.priority) return false;
 //       if (filters.due === "overdue" && !isOverdueTask(t)) return false;
 //       if (filters.due === "dueSoon" && !isDueSoonTask(t)) return false;
+
+//       // CHANGED: assignee filter now keyed by user id — fixes selected-name display bug
 //       if (filters.assignee) {
+//         const selUser = users.find((u) => String(u._id || u.id) === filters.assignee);
 //         const r = resolveEmployeeName(t.employee, users);
-//         if (r !== filters.assignee) return false;
+//         if (!selUser || r !== selUser.name) return false;
 //       }
+//       // NEW: reporter filter (replaces the old priority filter)
+//       if (filters.reporter) {
+//         const selUser = users.find((u) => String(u._id || u.id) === filters.reporter);
+//         if (!selUser || t.reporter !== selUser.name) return false;
+//       }
+//       // NEW: My Task / Reported Task scoping (from the dashboard stat cards)
+//       if (filters.mine === "assigned") {
+//         const r = resolveEmployeeName(t.employee, users);
+//         const isMine = r === currentUserName || r === user?.name || String(t.employee) === String(user?._id || user?.id);
+//         if (!isMine) return false;
+//       }
+//       if (filters.mine === "reported") {
+//         const isMine = t.reporter === currentUserName || t.reporter === user?.name;
+//         if (!isMine) return false;
+//       }
+
 //       if (s) {
 //         const n = (resolveEmployeeName(t.employee, users) || "").toLowerCase();
 //         if (!(t.description || "").toLowerCase().includes(s) && !n.includes(s)) return false;
 //       }
 //       return true;
 //     });
-//   }, [tasks, filters, users]);
+//   }, [tasks, filters, users, currentUserName, user]);
 
 //   const totalPages = Math.ceil(filteredTasks.length / TASKS_PER_PAGE);
 //   const paginatedTasks = useMemo(() => {
@@ -803,16 +950,20 @@
 //   }, [filteredTasks]);
 
 //   // Overdue / Due Soon are computed from the *unfiltered-by-due* set of tasks
-//   // (still respecting status/priority/assignee/search) so counts stay meaningful
+//   // (still respecting status/assignee/reporter/search) so counts stay meaningful
 //   // while a due filter is active.
 //   const baseForDueCounts = useMemo(() => {
 //     const s = (filters.search || "").toLowerCase();
 //     return tasks.filter((t) => {
 //       if (filters.status && t.status !== filters.status) return false;
-//       if (filters.priority && t.priority !== filters.priority) return false;
 //       if (filters.assignee) {
+//         const selUser = users.find((u) => String(u._id || u.id) === filters.assignee);
 //         const r = resolveEmployeeName(t.employee, users);
-//         if (r !== filters.assignee) return false;
+//         if (!selUser || r !== selUser.name) return false;
+//       }
+//       if (filters.reporter) {
+//         const selUser = users.find((u) => String(u._id || u.id) === filters.reporter);
+//         if (!selUser || t.reporter !== selUser.name) return false;
 //       }
 //       if (s) {
 //         const n = (resolveEmployeeName(t.employee, users) || "").toLowerCase();
@@ -820,7 +971,7 @@
 //       }
 //       return true;
 //     });
-//   }, [tasks, filters.status, filters.priority, filters.assignee, filters.search, users]);
+//   }, [tasks, filters.status, filters.assignee, filters.reporter, filters.search, users]);
 
 //   const overdueCount = useMemo(() => baseForDueCounts.filter(isOverdueTask).length, [baseForDueCounts]);
 //   const dueSoonCount = useMemo(() => baseForDueCounts.filter(isDueSoonTask).length, [baseForDueCounts]);
@@ -920,7 +1071,7 @@
 //                 </div>
 //                 <div>
 //                   <h1 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#1e293b", letterSpacing: "-0.01em", lineHeight: 1.2 }}>
-//                     Action Plan
+//                     {viewMode === "archived" ? "Archived Tasks" : "Action Plan"}
 //                     {contextScopeId && (
 //                       <span
 //                         style={{
@@ -943,22 +1094,48 @@
 //                   </p>
 //                 </div>
 //               </div>
-//               {canEdit && (
-//                 <button
-//                   onClick={openAddModal}
-//                   style={{
-//                     padding: "10px 20px", borderRadius: 10,
-//                     background: "linear-gradient(135deg,#3b82f6,#2563eb)",
-//                     border: "none", color: "white", fontWeight: 600, fontSize: 13,
-//                     cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6,
-//                     boxShadow: "0 4px 12px rgba(37,99,235,0.3)", transition: "all 0.2s",
-//                   }}
-//                   onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = "0 6px 16px rgba(37,99,235,0.35)"; }}
-//                   onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "0 4px 12px rgba(37,99,235,0.3)"; }}
-//                 >
-//                   <Plus size={15} /> Create Task
-//                 </button>
-//               )}
+
+//               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+//                 {/* NEW: Active ⇄ Archive toggle — root/super_admin only */}
+//                 {canArchive && (
+//                   <button
+//                     onClick={() =>
+//                       router.push(viewMode === "archived" ? "/task-management/tasks" : "/task-management/tasks?view=archived")
+//                     }
+//                     style={{
+//                       padding: "10px 20px", borderRadius: 10,
+//                       background: "white", border: "1.5px solid #e2e8f0",
+//                       color: "#475569", fontWeight: 600, fontSize: 13,
+//                       cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6,
+//                       transition: "all 0.2s",
+//                     }}
+//                     onMouseEnter={(e) => { e.currentTarget.style.background = "#f8fafc"; }}
+//                     onMouseLeave={(e) => { e.currentTarget.style.background = "white"; }}
+//                   >
+//                     {viewMode === "archived" ? (
+//                       <>← Back to Active Tasks</>
+//                     ) : (
+//                       <><Archive size={15} /> View Archive</>
+//                     )}
+//                   </button>
+//                 )}
+//                 {canEdit && viewMode === "active" && (
+//                   <button
+//                     onClick={openAddModal}
+//                     style={{
+//                       padding: "10px 20px", borderRadius: 10,
+//                       background: "linear-gradient(135deg,#3b82f6,#2563eb)",
+//                       border: "none", color: "white", fontWeight: 600, fontSize: 13,
+//                       cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6,
+//                       boxShadow: "0 4px 12px rgba(37,99,235,0.3)", transition: "all 0.2s",
+//                     }}
+//                     onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = "0 6px 16px rgba(37,99,235,0.35)"; }}
+//                     onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "0 4px 12px rgba(37,99,235,0.3)"; }}
+//                   >
+//                     <Plus size={15} /> Create Task
+//                   </button>
+//                 )}
+//               </div>
 //             </div>
 //           </div>
 
@@ -996,91 +1173,11 @@
 //             }}
 //           >
 //             {/* Status chips (unified with the stat cards above) */}
-//             <span style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.06em", whiteSpace: "nowrap", flexShrink: 0 }}>
+//             {/* <span style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.06em", whiteSpace: "nowrap", flexShrink: 0 }}>
 //               Status
-//             </span>
-//             <div style={{ display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}>
-//               {/* All */}
-//               <button
-//                 onClick={() => handleFilterClick({ filterType: "clear" })}
-//                 style={{
-//                   padding: "5px 12px", borderRadius: 20, fontSize: 12, fontWeight: 700,
-//                   cursor: "pointer", whiteSpace: "nowrap", transition: "all 0.15s",
-//                   background: !filters.status && !filters.due ? "#eff6ff" : "#f8fafc",
-//                   border: `1.5px solid ${!filters.status && !filters.due ? "#3b82f6" : "#e2e8f0"}`,
-//                   color: !filters.status && !filters.due ? "#1d4ed8" : "#64748b",
-//                 }}
-//               >
-//                 All ({tasks.length})
-//               </button>
-
-//               {/* To-Do (status-only chip, no dedicated stat card) */}
-//               {(statusCount["To-Do"] || 0) > 0 && (
-//                 <button
-//                   onClick={() => handleFilterClick({ filterType: "status", filterValue: STATUS.TODO })}
-//                   style={{
-//                     padding: "5px 12px", borderRadius: 20, fontSize: 12, fontWeight: 700,
-//                     cursor: "pointer", whiteSpace: "nowrap", transition: "all 0.15s",
-//                     background: filters.status === STATUS.TODO ? STATUS_CONFIG["To-Do"].bg : "#f8fafc",
-//                     border: `1.5px solid ${filters.status === STATUS.TODO ? STATUS_CONFIG["To-Do"].dot : "#e2e8f0"}`,
-//                     color: filters.status === STATUS.TODO ? STATUS_CONFIG["To-Do"].color : "#64748b",
-//                   }}
-//                 >
-//                   {statusCount["To-Do"]} To-Do
-//                 </button>
-//               )}
-
-//               {/* In Progress / Done / Overdue / Due Soon — same set as the stat cards */}
-//               {filterItems.filter((f) => f.filterType !== "clear").map((f) => {
-//                 const active = isFilterActive(f);
-//                 const isDue = f.filterType === "due";
-//                 const c = isDue
-//                   ? (f.filterValue === "overdue"
-//                       ? { bg: "#fff5f5", color: "#c92a2a", dot: "#fa5252" }
-//                       : { bg: "#fff9db", color: "#e67700", dot: "#f59f00" })
-//                   : STATUS_CONFIG[f.filterValue];
-//                 return (
-//                   <button
-//                     key={f.label}
-//                     onClick={() => handleFilterClick(f)}
-//                     style={{
-//                       padding: "5px 12px", borderRadius: 20, fontSize: 12, fontWeight: 700,
-//                       cursor: "pointer", whiteSpace: "nowrap", transition: "all 0.15s",
-//                       background: active ? c.bg : "#f8fafc",
-//                       border: `1.5px solid ${active ? c.dot : "#e2e8f0"}`,
-//                       color: active ? c.color : "#64748b",
-//                     }}
-//                   >
-//                     {f.value} {f.label}
-//                   </button>
-//                 );
-//               })}
-//             </div>
-
-//             <div style={{ width: 1, height: 24, background: "#e2e8f0", flexShrink: 0 }} />
-
-//             {/* Priority */}
-//             <span style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.06em", whiteSpace: "nowrap", flexShrink: 0 }}>
-//               Priority
-//             </span>
-//             <select
-//               value={filters.priority}
-//               onChange={(e) => setFilters((p) => ({ ...p, priority: e.target.value }))}
-//               style={{
-//                 padding: "6px 11px", border: "1.5px solid #e2e8f0", borderRadius: 8,
-//                 fontSize: 13, background: "#f8fafc", cursor: "pointer", outline: "none",
-//                 fontWeight: 600, color: "#1e293b", transition: "all 0.15s",
-//               }}
-//               onFocus={(e) => { e.target.style.borderColor = "#3b82f6"; e.target.style.background = "#fff"; e.target.style.boxShadow = "0 0 0 3px rgba(59,130,246,.1)"; }}
-//               onBlur={(e) => { e.target.style.borderColor = "#e2e8f0"; e.target.style.background = "#f8fafc"; e.target.style.boxShadow = "none"; }}
-//             >
-//               <option value="">All Priorities</option>
-//               {priorityOptions.map((p) => <option key={p} value={p}>{p}</option>)}
-//             </select>
-
-//             <div style={{ width: 1, height: 24, background: "#e2e8f0", flexShrink: 0 }} />
-
-//             {/* Assignee */}
+//             </span> */}
+            
+//             {/* Assignee — CHANGED: value now keyed by user id, fixes selected-name bug */}
 //             <span style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.06em", whiteSpace: "nowrap", flexShrink: 0 }}>
 //               Assignee
 //             </span>
@@ -1096,7 +1193,28 @@
 //               onBlur={(e) => { e.target.style.borderColor = "#e2e8f0"; e.target.style.background = "#f8fafc"; e.target.style.boxShadow = "none"; }}
 //             >
 //               <option value="">All Assignees</option>
-//               {users.map((u) => <option key={u._id || u.id} value={u.name}>{u.name}</option>)}
+//               {users.map((u) => <option key={u._id || u.id} value={String(u._id || u.id)}>{u.name}</option>)}
+//             </select>
+
+//             <div style={{ width: 1, height: 24, background: "#e2e8f0", flexShrink: 0 }} />
+
+//             {/* Reporter — NEW, replaces the old Priority filter */}
+//             <span style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.06em", whiteSpace: "nowrap", flexShrink: 0 }}>
+//               Reporter
+//             </span>
+//             <select
+//               value={filters.reporter}
+//               onChange={(e) => setFilters((p) => ({ ...p, reporter: e.target.value }))}
+//               style={{
+//                 padding: "6px 11px", border: "1.5px solid #e2e8f0", borderRadius: 8,
+//                 fontSize: 13, background: "#f8fafc", cursor: "pointer", outline: "none",
+//                 fontWeight: 600, color: "#1e293b", transition: "all 0.15s",
+//               }}
+//               onFocus={(e) => { e.target.style.borderColor = "#3b82f6"; e.target.style.background = "#fff"; e.target.style.boxShadow = "0 0 0 3px rgba(59,130,246,.1)"; }}
+//               onBlur={(e) => { e.target.style.borderColor = "#e2e8f0"; e.target.style.background = "#f8fafc"; e.target.style.boxShadow = "none"; }}
+//             >
+//               <option value="">All Reporters</option>
+//               {users.map((u) => <option key={u._id || u.id} value={String(u._id || u.id)}>{u.name}</option>)}
 //             </select>
 
 //             <div style={{ width: 1, height: 24, background: "#e2e8f0", flexShrink: 0 }} />
@@ -1119,9 +1237,9 @@
 //               />
 //             </div>
 
-//             {(filters.search || filters.status || filters.priority || filters.assignee || filters.due) && (
+//             {(filters.search || filters.status || filters.assignee || filters.reporter || filters.due || filters.mine) && (
 //               <button
-//                 onClick={() => setFilters({ status: "", assignee: "", priority: "", search: "", due: "" })}
+//                 onClick={() => setFilters({ status: "", assignee: "", reporter: "", search: "", due: "", mine: "" })}
 //                 style={{
 //                   padding: "6px 12px", borderRadius: 8, border: "1.5px solid #fca5a5",
 //                   background: "transparent", color: "#e74c3c", fontSize: 12, fontWeight: 700,
@@ -1169,12 +1287,12 @@
 //                         { label: "Task", align: "left", minWidth: 240 },
 //                         { label: "Source", align: "center", width: 100 },
 //                         { label: "Source ID", align: "center", width: 120 },
+//                         { label: "Status", align: "center", width: 130 },
 //                         { label: "Assignee", align: "left", width: 160 },
 //                         { label: "Reporter", align: "left", width: 140 },
 //                         { label: "Priority", align: "center", width: 110 },
-//                         { label: "Status", align: "center", width: 130 },
 //                         { label: "Due Date", align: "center", width: 110 },
-//                         { label: "Actions", align: "center", width: 120, accent: true },
+//                         { label: "Actions", align: "center", width: 150, accent: true },
 //                       ].map(({ label, align, width, minWidth, accent }) => (
 //                         <th
 //                           key={label}
@@ -1206,12 +1324,16 @@
 //                                 display: "flex", alignItems: "center", justifyContent: "center",
 //                               }}
 //                             >
-//                               <ClipboardList size={22} color="white" strokeWidth={1.8} />
+//                               {viewMode === "archived" ? (
+//                                 <Archive size={22} color="white" strokeWidth={1.8} />
+//                               ) : (
+//                                 <ClipboardList size={22} color="white" strokeWidth={1.8} />
+//                               )}
 //                             </div>
 //                             <p style={{ color: "#64748b", fontWeight: 600, fontSize: 14, margin: 0 }}>
-//                               No tasks to display.
+//                               {viewMode === "archived" ? "The archive is empty." : "No tasks to display."}
 //                             </p>
-//                             {canEdit && (
+//                             {canEdit && viewMode === "active" && (
 //                               <span
 //                                 style={{ color: "#3b82f6", cursor: "pointer", fontSize: 13, fontWeight: 600 }}
 //                                 onClick={openAddModal}
@@ -1233,7 +1355,27 @@
 //                           || task.aiiaRefId || task.aiiaId
 //                           || task.controlId
 //                           || null;
-//                         const isReporter = !canEdit;
+//                         // const isReporter = !canEdit;
+//                         // const inlineDisabled = isReporter || viewMode === "archived";
+//                         const resolvedAssigneeName = resolveEmployeeName(task.employee, users);
+//                         const isTaskAssignee = !!task.employee && (
+//                           resolvedAssigneeName === currentUserName ||
+//                           resolvedAssigneeName === user?.name ||
+//                           String(task.employee) === String(user?._id || user?.id)
+//                         );
+//                         const isTaskReporter = !!task.reporter && (
+//                           task.reporter === currentUserName ||
+//                           task.reporter === user?.name ||
+//                           String(task.reporter) === String(user?._id || user?.id)
+//                         );
+
+//                         const archived = viewMode === "archived";
+//                         // The assignee can update their own task's status, but cannot reassign it.
+//                         const statusDisabled = archived || (!canEdit && !isTaskAssignee);
+//                         // Only the reporter (who created the task) or a privileged role can reassign it.
+//                         const assigneeDisabled = archived || (!canEdit && !isTaskReporter);
+//                         // Priority stays privileged-only, unchanged from before.
+//                         const priorityDisabled = archived || !canEdit;
 //                         const isSelected = selectedTask?.taskId === task.taskId;
 
 //                         return (
@@ -1326,13 +1468,24 @@
 //                               )}
 //                             </td>
 
+//                             {/* Status */}
+//                             <td style={{ padding: "12px", textAlign: "center" }} onClick={(e) => e.stopPropagation()}>
+//                               <InlineSelect
+//                                 value={task.status}
+//                                 options={statusOptions}
+//                                 onSave={(val) => requestStatusChange(task.taskId, val)}
+//                                 renderValue={(val) => <StatusPill status={val} />}
+//                                 disabled={statusDisabled}
+//                               />
+//                             </td>
+
 //                             {/* Assignee */}
 //                             <td style={{ padding: "12px" }} onClick={(e) => e.stopPropagation()}>
 //                               <InlineAssignee
 //                                 employeeField={task.employee}
 //                                 users={users}
 //                                 onSave={(name) => inlineUpdate(task.taskId, { employee: name, employeeName: name })}
-//                                 disabled={isReporter}
+//                                 disabled={assigneeDisabled}
 //                               />
 //                             </td>
 
@@ -1353,18 +1506,7 @@
 //                                 options={priorityOptions}
 //                                 onSave={(val) => inlineUpdate(task.taskId, { priority: val })}
 //                                 renderValue={(val) => <PriorityPill priority={val} />}
-//                                 disabled={isReporter}
-//                               />
-//                             </td>
-
-//                             {/* Status */}
-//                             <td style={{ padding: "12px", textAlign: "center" }} onClick={(e) => e.stopPropagation()}>
-//                               <InlineSelect
-//                                 value={task.status}
-//                                 options={statusOptions}
-//                                 onSave={(val) => requestStatusChange(task.taskId, val)}
-//                                 renderValue={(val) => <StatusPill status={val} />}
-//                                 disabled={false}
+//                                 disabled={priorityDisabled}
 //                               />
 //                             </td>
 
@@ -1379,7 +1521,7 @@
 //                             {/* Actions */}
 //                             <td style={{ padding: "10px 12px", textAlign: "center", background: "rgba(248,250,252,0.5)" }} onClick={(e) => e.stopPropagation()}>
 //                               <div style={{ display: "flex", gap: 6, justifyContent: "center", alignItems: "center", flexWrap: "nowrap" }}>
-//                                 {/* View */}
+//                                 {/* View — always available */}
 //                                 <button
 //                                   onClick={() => {
 //                                     captureActivity({ action: ACTIONS.CLICK, module: MODULES.TASK, item: `View Task - ${task.taskId}` });
@@ -1398,35 +1540,69 @@
 //                                   👁 View
 //                                 </button>
 
-//                                 {canEdit && (
+//                                 {/* ACTIVE VIEW: Edit + Archive */}
+//                                 {viewMode === "active" && canEdit && (
+//                                   <button
+//                                     onClick={() => editTask(task)}
+//                                     style={{
+//                                       background: "transparent", color: "#3b82f6",
+//                                       border: "1.5px solid #bfdbfe", padding: "5px 10px", borderRadius: 6,
+//                                       fontSize: 11, fontWeight: 600, cursor: "pointer",
+//                                       whiteSpace: "nowrap", transition: "all 0.2s",
+//                                     }}
+//                                     onMouseEnter={(e) => { e.currentTarget.style.background = "#3b82f6"; e.currentTarget.style.color = "white"; }}
+//                                     onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#3b82f6"; }}
+//                                   >
+//                                     ✎ Edit
+//                                   </button>
+//                                 )}
+//                                 {viewMode === "active" && canArchive && (
+//                                   <button
+//                                     onClick={() => archiveTask(task.taskId)}
+//                                     style={{
+//                                       background: "transparent", color: "#d97706",
+//                                       border: "1.5px solid #fde68a", padding: "5px 10px", borderRadius: 6,
+//                                       fontSize: 11, fontWeight: 600, cursor: "pointer",
+//                                       whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 3,
+//                                       transition: "all 0.2s",
+//                                     }}
+//                                     onMouseEnter={(e) => { e.currentTarget.style.background = "#d97706"; e.currentTarget.style.color = "white"; }}
+//                                     onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#d97706"; }}
+//                                   >
+//                                     <Archive size={11} /> Archive
+//                                   </button>
+//                                 )}
+
+//                                 {/* ARCHIVED VIEW: Restore + Delete Permanently */}
+//                                 {viewMode === "archived" && canArchive && (
 //                                   <>
-//                                     {/* Edit */}
 //                                     <button
-//                                       onClick={() => editTask(task)}
+//                                       onClick={() => restoreTask(task.taskId)}
 //                                       style={{
-//                                         background: "transparent", color: "#3b82f6",
-//                                         border: "1.5px solid #bfdbfe", padding: "5px 10px", borderRadius: 6,
+//                                         background: "transparent", color: "#059669",
+//                                         border: "1.5px solid #a7f3d0", padding: "5px 10px", borderRadius: 6,
 //                                         fontSize: 11, fontWeight: 600, cursor: "pointer",
-//                                         whiteSpace: "nowrap", transition: "all 0.2s",
+//                                         whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 3,
+//                                         transition: "all 0.2s",
 //                                       }}
-//                                       onMouseEnter={(e) => { e.currentTarget.style.background = "#3b82f6"; e.currentTarget.style.color = "white"; }}
-//                                       onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#3b82f6"; }}
+//                                       onMouseEnter={(e) => { e.currentTarget.style.background = "#059669"; e.currentTarget.style.color = "white"; }}
+//                                       onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#059669"; }}
 //                                     >
-//                                       ✎ Edit
+//                                       <RotateCcw size={11} /> Restore
 //                                     </button>
-//                                     {/* Delete */}
 //                                     <button
-//                                       onClick={() => deleteTask(task.taskId)}
+//                                       onClick={() => permanentDeleteTask(task.taskId)}
 //                                       style={{
 //                                         background: "transparent", color: "#e74c3c",
 //                                         border: "1.5px solid #fca5a5", padding: "5px 10px", borderRadius: 6,
 //                                         fontSize: 11, fontWeight: 600, cursor: "pointer",
-//                                         whiteSpace: "nowrap", transition: "all 0.2s",
+//                                         whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 3,
+//                                         transition: "all 0.2s",
 //                                       }}
 //                                       onMouseEnter={(e) => { e.currentTarget.style.background = "#e74c3c"; e.currentTarget.style.color = "white"; }}
 //                                       onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#e74c3c"; }}
 //                                     >
-//                                       ✕ Delete
+//                                       <Trash2 size={11} /> Delete
 //                                     </button>
 //                                   </>
 //                                 )}
@@ -1569,7 +1745,7 @@
 //                 </div>
 //                 <div>
 //                   <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#1e293b" }}>
-//                     {editingTaskId ? "Edit Task" : "Create Task"}
+//                     {editingTaskId ? "Edit Task" : "Create Tasks"}
 //                     {contextScopeId && (
 //                       <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 700, padding: "2px 9px", borderRadius: 10, background: scopedAuditId ? "#fff9db" : "#e7f5ff", color: scopedAuditId ? "#e67700" : "#1971c2" }}>
 //                         {contextLabel}: {contextScopeId}
@@ -1604,6 +1780,49 @@
 //                 placeholder="Select department"
 //                 disabled={!!editingTaskId}
 //               />
+
+//               {/* ── Type / Sub Type — both mandatory ── */}
+//               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+//                 <SelectField
+//                   label="Type *"
+//                   name="type"
+//                   value={formData.type}
+//                   onChange={(e) => setForm((prev) => ({ ...prev, type: e.target.value, subType: "" }))}
+//                   options={TASK_TYPES.map((t) => ({ value: t, label: t }))}
+//                   placeholder="Select type"
+//                 />
+//                 {formData.type === "Module Based" && (
+//                   <SelectField
+//                     label="Sub Type *"
+//                     name="subType"
+//                     value={formData.subType}
+//                     onChange={(e) => setForm((prev) => ({ ...prev, subType: e.target.value }))}
+//                     options={MODULE_SUBTYPES.map((s) => ({ value: s, label: s }))}
+//                     placeholder="Select module"
+//                   />
+//                 )}
+//                 {formData.type === "Framework Based" && (
+//                   <SelectField
+//                     label="Sub Type *"
+//                     name="subType"
+//                     value={formData.subType}
+//                     onChange={(e) => setForm((prev) => ({ ...prev, subType: e.target.value }))}
+//                     options={FRAMEWORK_OPTIONS.map((f) => ({ value: f.value || f, label: f.label || f }))}
+//                     placeholder={FRAMEWORK_OPTIONS.length ? "Select framework" : "No frameworks configured yet"}
+//                     disabled={FRAMEWORK_OPTIONS.length === 0}
+//                   />
+//                 )}
+//                 {formData.type === "General" && (
+//                   <SelectField
+//                     label="Sub Type *"
+//                     name="subType"
+//                     value={formData.subType}
+//                     onChange={(e) => setForm((prev) => ({ ...prev, subType: e.target.value }))}
+//                     options={GENERAL_SUBTYPES.map((s) => ({ value: s, label: s }))}
+//                     placeholder="Select sub type"
+//                   />
+//                 )}
+//               </div>
 
 //               <div>
 //                 <label style={{ fontSize: 13, fontWeight: 600, display: "block", marginBottom: 6, color: "#475569" }}>
@@ -1849,7 +2068,7 @@ const PRIORITY_CONFIG = {
 };
 function getSourceModule(task) {
   // Prioritize the explicit Type / SubType chosen in the create/edit form.
-  if (task.type === "Module" && task.subType) {
+  if (task.type === "Module Based" && task.subType) {
     const MODULE_SOURCE_MAP = {
       Risk: { label: "Risk", bg: "#e7f5ff", color: "#1971c2" },
       Audit: { label: "Audit", bg: "#fff9db", color: "#e67700" },
@@ -1857,10 +2076,12 @@ function getSourceModule(task) {
       DPIA: { label: "DPIA", bg: "#fdf4ff", color: "#7c3aed" },
       AIIA: { label: "AIIA", bg: "#eff6ff", color: "#2563eb" },
       Compliance: { label: "Compliance", bg: "#f0fdf4", color: "#166534" },
+      Reports: { label: "Reports", bg: "#f0f9ff", color: "#0369a1" },
+      Vendor: { label: "Vendor", bg: "#fdf2f8", color: "#be185d" },
     };
     if (MODULE_SOURCE_MAP[task.subType]) return MODULE_SOURCE_MAP[task.subType];
   }
-  if (task.type === "Framework" && task.subType) {
+  if (task.type === "Framework Based" && task.subType) {
     return { label: task.subType, bg: "#eef2ff", color: "#4338ca" };
   }
   if (task.type === "General") {
@@ -1880,12 +2101,31 @@ const statusOptions = Object.values(STATUS);
 const priorityOptions = Object.values(PRIORITY);
 
 // ─── Task Type / SubType (NEW) ─────────────────────────────────────────────
-const TASK_TYPES = ["Module", "Framework", "General"];
-const MODULE_SUBTYPES = ["Risk", "Audit", "Policies", "DPIA", "AIIA", "Compliance"];
-// ⚠️ PLACEHOLDER — swap this for the real client-subscribed frameworks list
-// (Arghya said he'll supply it). Each entry can be a plain string or
-// { value, label } — both are handled below.
-const FRAMEWORK_OPTIONS = [];
+// Type renamed: Module Based / Framework Based / General — Type and Sub Type
+// are both mandatory on the create/edit form now.
+const TASK_TYPES = ["Module Based", "Framework Based", "General"];
+// Module Based sub types — Reports and Vendor added alongside the originals.
+const MODULE_SUBTYPES = ["Risk", "Audit", "Policies", "DPIA", "AIIA", "Compliance", "Reports", "Vendor"];
+// General type only ever has one sub type value.
+const GENERAL_SUBTYPES = ["General"];
+// Framework Based sub types — client-subscribed framework codes only
+// (dropdown shows the code, not the full framework name).
+const FRAMEWORK_OPTIONS = [
+  "ISO 42001:2023",
+  "KSA PDPL",
+  "DPDPA",
+  "ISR V3.1",
+  "NIST CSF 2.0",
+  "HIPAA",
+  "GDPR",
+  "ISO 27001:2022",
+  "CSCRF",
+  "SOC2",
+  "ISO 27701:2025",
+  "ISO 27017:2015",
+  "EU AI ACT",
+  "PCI DSS V4.0.1",
+];
 
 // ─── Overdue / Due Soon helpers ────────────────────────────────
 const DUE_SOON_DAYS = 3;
@@ -2574,8 +2814,8 @@ export default function TaskManagement({ riskFormData = {}, auditFormData = {} }
 
   const saveTask = async () => {
     const fd = formDataRef.current || formData;
-    if (!fd.department || !fd.startDate || !fd.endDate || !fd.description) {
-      alert("Please fill all required fields!"); return;
+    if (!fd.department || !fd.startDate || !fd.endDate || !fd.description || !fd.type || !fd.subType) {
+      alert("Please fill all required fields, including Type and Sub Type!"); return;
     }
     if (new Date(fd.endDate) < new Date(fd.startDate)) {
       alert("End date cannot be before start date."); return;
@@ -3054,10 +3294,11 @@ export default function TaskManagement({ riskFormData = {}, auditFormData = {} }
                         { label: "Task", align: "left", minWidth: 240 },
                         { label: "Source", align: "center", width: 100 },
                         { label: "Source ID", align: "center", width: 120 },
+                        { label: "Status", align: "center", width: 130 },
                         { label: "Assignee", align: "left", width: 160 },
                         { label: "Reporter", align: "left", width: 140 },
                         { label: "Priority", align: "center", width: 110 },
-                        { label: "Status", align: "center", width: 130 },
+                        { label: "Created Date", align: "center", width: 110 },
                         { label: "Due Date", align: "center", width: 110 },
                         { label: "Actions", align: "center", width: 150, accent: true },
                       ].map(({ label, align, width, minWidth, accent }) => (
@@ -3082,7 +3323,7 @@ export default function TaskManagement({ riskFormData = {}, auditFormData = {} }
                   <tbody>
                     {paginatedTasks.length === 0 ? (
                       <tr>
-                        <td colSpan={10} style={{ padding: "48px 20px", textAlign: "center" }}>
+                        <td colSpan={11} style={{ padding: "48px 20px", textAlign: "center" }}>
                           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
                             <div
                               style={{
@@ -3235,6 +3476,17 @@ export default function TaskManagement({ riskFormData = {}, auditFormData = {} }
                               )}
                             </td>
 
+                            {/* Status */}
+                            <td style={{ padding: "12px", textAlign: "center" }} onClick={(e) => e.stopPropagation()}>
+                              <InlineSelect
+                                value={task.status}
+                                options={statusOptions}
+                                onSave={(val) => requestStatusChange(task.taskId, val)}
+                                renderValue={(val) => <StatusPill status={val} />}
+                                disabled={statusDisabled}
+                              />
+                            </td>
+
                             {/* Assignee */}
                             <td style={{ padding: "12px" }} onClick={(e) => e.stopPropagation()}>
                               <InlineAssignee
@@ -3266,15 +3518,11 @@ export default function TaskManagement({ riskFormData = {}, auditFormData = {} }
                               />
                             </td>
 
-                            {/* Status */}
-                            <td style={{ padding: "12px", textAlign: "center" }} onClick={(e) => e.stopPropagation()}>
-                              <InlineSelect
-                                value={task.status}
-                                options={statusOptions}
-                                onSave={(val) => requestStatusChange(task.taskId, val)}
-                                renderValue={(val) => <StatusPill status={val} />}
-                                disabled={statusDisabled}
-                              />
+                            {/* Created Date — NEW, before Due Date */}
+                            <td style={{ padding: "12px", textAlign: "center" }}>
+                              <span style={{ fontSize: 12, fontWeight: 600, color: "#475569", whiteSpace: "nowrap" }}>
+                                {formatDate(task.createdAt)}
+                              </span>
                             </td>
 
                             {/* Due Date */}
@@ -3548,19 +3796,19 @@ export default function TaskManagement({ riskFormData = {}, auditFormData = {} }
                 disabled={!!editingTaskId}
               />
 
-              {/* ── NEW: Type / Sub Type ── */}
-              <div style={{ display: "grid", gridTemplateColumns: (!formData.type || formData.type === "General") ? "1fr" : "1fr 1fr", gap: 12 }}>
+              {/* ── Type / Sub Type — both mandatory ── */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                 <SelectField
-                  label="Type"
+                  label="Type *"
                   name="type"
                   value={formData.type}
                   onChange={(e) => setForm((prev) => ({ ...prev, type: e.target.value, subType: "" }))}
                   options={TASK_TYPES.map((t) => ({ value: t, label: t }))}
                   placeholder="Select type"
                 />
-                {formData.type === "Module" && (
+                {formData.type === "Module Based" && (
                   <SelectField
-                    label="Sub Type"
+                    label="Sub Type *"
                     name="subType"
                     value={formData.subType}
                     onChange={(e) => setForm((prev) => ({ ...prev, subType: e.target.value }))}
@@ -3568,15 +3816,25 @@ export default function TaskManagement({ riskFormData = {}, auditFormData = {} }
                     placeholder="Select module"
                   />
                 )}
-                {formData.type === "Framework" && (
+                {formData.type === "Framework Based" && (
                   <SelectField
-                    label="Sub Type"
+                    label="Sub Type *"
                     name="subType"
                     value={formData.subType}
                     onChange={(e) => setForm((prev) => ({ ...prev, subType: e.target.value }))}
                     options={FRAMEWORK_OPTIONS.map((f) => ({ value: f.value || f, label: f.label || f }))}
                     placeholder={FRAMEWORK_OPTIONS.length ? "Select framework" : "No frameworks configured yet"}
                     disabled={FRAMEWORK_OPTIONS.length === 0}
+                  />
+                )}
+                {formData.type === "General" && (
+                  <SelectField
+                    label="Sub Type *"
+                    name="subType"
+                    value={formData.subType}
+                    onChange={(e) => setForm((prev) => ({ ...prev, subType: e.target.value }))}
+                    options={GENERAL_SUBTYPES.map((s) => ({ value: s, label: s }))}
+                    placeholder="Select sub type"
                   />
                 )}
               </div>
