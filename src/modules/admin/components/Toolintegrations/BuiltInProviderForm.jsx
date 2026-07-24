@@ -566,6 +566,16 @@ const PROVIDERS = {
       { key: 'clientSecret', label: 'Client Secret',     secret: true  },
     ],
   },
+  // ── NEW: Palo Alto Networks ─────────────────────────────────────────────
+  paloalto: {
+    label: 'Palo Alto Networks',
+    accent: '#FA582D',
+    note: 'Placeholder credentials — swap the fields below once you confirm which Palo Alto API you\'re integrating with (PAN-OS XML/REST API key, or Cortex/Prisma OAuth2 client).',
+    fields: [
+      { key: 'baseUrl', label: 'Base URL', secret: false, placeholder: 'https://firewall.yourcompany.com' },
+      { key: 'apiKey',  label: 'API Key',  secret: true  },
+    ],
+  },
 };
 
 

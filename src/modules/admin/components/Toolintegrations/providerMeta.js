@@ -173,6 +173,16 @@ export const BUILT_IN_PROVIDERS = [
   logoUrl: '/logos/keycloak.svg',
   accent: '#4D4D4D',
 },
+{
+  key: 'paloalto',
+  configKey: 'paloAlto',
+  label: 'Palo Alto Networks',
+  shortLabel: 'Palo Alto',
+  description: 'Next-gen firewall & threat prevention',
+  Icon: ShieldIcon,
+  logoUrl: '/logos/paloalto.svg',
+  accent: '#FA582D',
+},
 ];
 
 export const TYPE_COLORS = {
