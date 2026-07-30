@@ -1045,6 +1045,34 @@ const Dashboard = () => {
                     { label: "Procedures", route: "/procedures" },
                   ]}
                 />
+                <button
+                  onClick={() => router.push("/pricing")}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    padding: "8px 12px",
+                    background: "transparent",
+                    border: "1px solid rgba(148, 163, 184, 0.35)",
+                    borderRadius: "8px",
+                    color: "#e5e7eb",
+                    fontSize: "14px",
+                    fontWeight: "500",
+                    cursor: "pointer",
+                    transition: "all 0.25s ease",
+                    whiteSpace: "nowrap",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.background = "rgba(15, 23, 42, 0.9)";
+                    e.target.style.borderColor = "#4f46e5";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.background = "transparent";
+                    e.target.style.borderColor = "rgba(148, 163, 184, 0.35)";
+                  }}
+                >
+                  Pricing
+                </button>
               </>
             )}
 
@@ -1534,6 +1562,9 @@ const Dashboard = () => {
           <div className="dashboard-footer-section">
             <h4>Product</h4>
             <ul>
+              <li>
+                <Link href="/pricing">Pricing</Link>
+              </li>
               <li>
                 <Link href="/risk-assessment">Risk Management</Link>
               </li>

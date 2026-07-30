@@ -6,7 +6,7 @@ import axios from 'axios';
 import {
   Box, Typography, Button, Chip, IconButton,
   Alert, CircularProgress, Dialog, DialogTitle,
-  DialogContent, Tooltip, Divider,
+  DialogContent, Tooltip, Divider, LinearProgress,
 } from '@mui/material';
 import SyncIcon             from '@mui/icons-material/Sync';
 import ExtensionIcon        from '@mui/icons-material/Extension';
@@ -15,12 +15,16 @@ import AddIcon              from '@mui/icons-material/Add';
 import EditIcon             from '@mui/icons-material/Edit';
 import DeleteIcon           from '@mui/icons-material/Delete';
 import PowerSettingsNewIcon from '@mui/icons-material/PowerSettingsNew';
+import LockIcon              from '@mui/icons-material/Lock';
 
 import integrationApi          from './integrationApi';
 import BuiltInProviderForm     from './BuiltInProviderForm';
 import CustomIntegrationDialog from './CustomIntegrationDialog';
 import { BUILT_IN_PROVIDERS, TYPE_COLORS } from './providerMeta';
 import ProviderCard             from './ProviderCard';
+import useIntegrationEntitlement, {
+  ENTITLEMENT_CUSTOM,
+} from '../../hooks/useIntegrationEntitlement';
 
 // Fixed height shared by every card type (built-in, custom, and the
 // "add custom tool" tile) so a row never looks uneven regardless of how
@@ -39,8 +43,18 @@ const CARD_GRID_SX = {
   gap: 2.5,
 };
 
+// ── Slot-limit enforcement ───────────────────────────────────────────────────
+// How many integration slots every tenant gets before any INTEGRATION_STANDARD
+// units are purchased. Contract §4 didn't specify a number for the Starter
+// plan's included baseline, so this defaults to 0 (every slot must come from
+// a purchased INTEGRATION_STANDARD unit or an INTEGRATION_CUSTOM plan) — bump
+// this up if Starter is actually meant to include some integrations for free.
+const INCLUDED_FREE_SLOTS = 0;
+
 // ── Custom tool card, restyled to match the built-in provider tiles ──────────
-function CustomToolCard({ item, onToggle, onEdit, onDelete }) {
+function CustomToolCard({ item, onToggle, onEdit, onDelete, blockActivate }) {
+  const activating = item.status !== 'ACTIVE';
+  const toggleBlocked = activating && blockActivate;
   return (
     <Box
       sx={{
@@ -126,10 +140,17 @@ function CustomToolCard({ item, onToggle, onEdit, onDelete }) {
         >
           Modify
         </Button>
-        <Tooltip title={item.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}>
-          <IconButton size="small" onClick={() => onToggle(item.id)} sx={{ color: item.status === 'ACTIVE' ? '#22c55e' : 'text.disabled' }}>
-            <PowerSettingsNewIcon sx={{ fontSize: 18 }} />
-          </IconButton>
+        <Tooltip title={toggleBlocked ? "You've used all your integration slots — upgrade to activate more" : (item.status === 'ACTIVE' ? 'Deactivate' : 'Activate')}>
+          <span>
+            <IconButton
+              size="small"
+              onClick={() => !toggleBlocked && onToggle(item.id)}
+              disabled={toggleBlocked}
+              sx={{ color: item.status === 'ACTIVE' ? '#22c55e' : 'text.disabled' }}
+            >
+              {toggleBlocked ? <LockIcon sx={{ fontSize: 16 }} /> : <PowerSettingsNewIcon sx={{ fontSize: 18 }} />}
+            </IconButton>
+          </span>
         </Tooltip>
         <Tooltip title="Delete">
           <IconButton size="small" onClick={() => onDelete(item.id, item.name)} sx={{ color: '#ef4444', ml: 'auto' }}>
@@ -170,32 +191,35 @@ function DialogLogo({ logoUrl, Icon, accent, label }) {
 }
 
 // ── "Add a custom tool" tile, dashed outline, sits at the end of the grid ────
-function AddCustomTile({ onClick }) {
+function AddCustomTile({ onClick, blocked }) {
   return (
-    <Box
-      onClick={onClick}
-      sx={{
-        border: '2px dashed #d8dee6',
-        borderRadius: '16px',
-        p: 3,
-        height: CARD_HEIGHT,
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 1.25,
-        cursor: 'pointer',
-        color: 'text.secondary',
-        transition: 'border-color 0.15s ease, background 0.15s ease, color 0.15s ease',
-        '&:hover': { borderColor: '#6366f1', background: '#6366f108', color: '#6366f1' },
-      }}
-    >
-      <AddIcon sx={{ fontSize: 28 }} />
-      <Typography fontWeight={600} fontSize="0.9rem">Add a custom tool</Typography>
-      <Typography variant="caption" color="text.disabled" textAlign="center">
-        Okta, Salesforce, or any other service
-      </Typography>
-    </Box>
+    <Tooltip title={blocked ? "You've used all your integration slots — upgrade to add more" : ''}>
+      <Box
+        onClick={() => !blocked && onClick()}
+        sx={{
+          border: '2px dashed #d8dee6',
+          borderRadius: '16px',
+          p: 3,
+          height: CARD_HEIGHT,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 1.25,
+          cursor: blocked ? 'not-allowed' : 'pointer',
+          color: blocked ? 'text.disabled' : 'text.secondary',
+          opacity: blocked ? 0.6 : 1,
+          transition: 'border-color 0.15s ease, background 0.15s ease, color 0.15s ease',
+          '&:hover': blocked ? {} : { borderColor: '#6366f1', background: '#6366f108', color: '#6366f1' },
+        }}
+      >
+        {blocked ? <LockIcon sx={{ fontSize: 28 }} /> : <AddIcon sx={{ fontSize: 28 }} />}
+        <Typography fontWeight={600} fontSize="0.9rem">Add a custom tool</Typography>
+        <Typography variant="caption" color="text.disabled" textAlign="center">
+          {blocked ? 'Upgrade your plan for more slots' : 'Okta, Salesforce, or any other service'}
+        </Typography>
+      </Box>
+    </Tooltip>
   );
 }
 
@@ -240,6 +264,15 @@ export default function IntegrationsPage() {
   const [syncing,       setSyncing]       = useState(false);
   const [syncAlert,     setSyncAlert]     = useState(null);
 
+  // ── Subscription entitlement — how many integration slots this tenant
+  // is allowed, per contract §4. mode === CUSTOM means unlimited
+  // (INTEGRATION_CUSTOM / "Contact Sales" tier); otherwise the cap is
+  // INCLUDED_FREE_SLOTS + whatever INTEGRATION_STANDARD quantity they've
+  // purchased (see subscriptionCatalogConfig.js for the addOnCode names).
+  const { loading: entLoading, mode: entMode, slotLimit, error: entError } = useIntegrationEntitlement();
+  const isUnlimited = entMode === ENTITLEMENT_CUSTOM;
+  const slotCap = isUnlimited ? Infinity : INCLUDED_FREE_SLOTS + slotLimit;
+
   // Built-in provider config dialog
   const [configProviderKey, setConfigProviderKey] = useState(null);
   const configOpen = !!configProviderKey;
@@ -267,6 +300,11 @@ export default function IntegrationsPage() {
     }
   };
 
+  const connectedBuiltIn = BUILT_IN_PROVIDERS.filter(p => !!builtInConfig[p.configKey ?? p.key]).length;
+  const activeCustom     = customList.filter(c => c.status === 'ACTIVE').length;
+  const totalConnected   = connectedBuiltIn + activeCustom;
+  const atCap = !isUnlimited && totalConnected >= slotCap;
+
   // Built-in handlers
   const handleSave = async (provider, payload) => {
     const data = await integrationApi.saveBuiltIn(tenantId, provider, payload);
@@ -280,6 +318,22 @@ export default function IntegrationsPage() {
     setConfigProviderKey(null);
   };
   const handleTest = async (provider) => integrationApi.testBuiltIn(tenantId, provider);
+
+  // Gate opening the config dialog for a NOT-YET-connected built-in provider
+  // when at cap. Already-connected providers can still be opened (to edit
+  // config, test, or disconnect) regardless of cap — the cap only blocks
+  // adding a NEW connection.
+  const handleOpenProvider = (provider) => {
+    const alreadyConnected = !!builtInConfig[provider.configKey ?? provider.key];
+    if (!alreadyConnected && atCap) {
+      setSyncAlert({
+        type: 'warning',
+        message: "You've used all your integration slots. Upgrade your plan under Manage Subscription to connect more.",
+      });
+      return;
+    }
+    setConfigProviderKey(provider.key);
+  };
 
   // Custom handlers
   const handleCustomSubmit = async (form, id) => {
@@ -295,8 +349,30 @@ export default function IntegrationsPage() {
     await loadAll();
   };
   const handleToggle = async (id) => {
+    // Block only the INACTIVE -> ACTIVE direction when at cap; deactivating
+    // always frees a slot, so it's always allowed.
+    const item = customList.find((c) => c.id === id);
+    if (item && item.status !== 'ACTIVE' && atCap) {
+      setSyncAlert({
+        type: 'warning',
+        message: "You've used all your integration slots. Upgrade your plan under Manage Subscription to activate more.",
+      });
+      return;
+    }
     await integrationApi.toggleCustom(tenantId, id);
     await loadAll();
+  };
+
+  const handleAddCustomClick = () => {
+    if (atCap) {
+      setSyncAlert({
+        type: 'warning',
+        message: "You've used all your integration slots. Upgrade your plan under Manage Subscription to add more.",
+      });
+      return;
+    }
+    setEditingCustom(null);
+    setCustomDialogOpen(true);
   };
 
   // Sync
@@ -325,10 +401,6 @@ export default function IntegrationsPage() {
       <CircularProgress size={32} />
     </Box>
   );
-
-  const connectedBuiltIn = BUILT_IN_PROVIDERS.filter(p => !!builtInConfig[p.configKey ?? p.key]).length;
-  const activeCustom     = customList.filter(c => c.status === 'ACTIVE').length;
-  const totalConnected   = connectedBuiltIn + activeCustom;
 
   return (
     <Box sx={{ p: 3, maxWidth: 1200, mx: 'auto' }}>
@@ -363,6 +435,43 @@ export default function IntegrationsPage() {
         </Box>
       </Box>
 
+      {/* Slot-usage banner — only meaningful once entitlement has loaded and
+          the tenant isn't on the unlimited/custom tier. */}
+      {!entLoading && !entError && !isUnlimited && (
+        <Box
+          sx={{
+            mb: 3, p: 2, borderRadius: '10px',
+            border: '1px solid', borderColor: atCap ? '#fde68a' : '#e8edf2',
+            background: atCap ? '#fffbeb' : '#f8fafc',
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.75 }}>
+            <Typography variant="body2" fontWeight={600} color={atCap ? '#92400e' : 'text.secondary'}>
+              {totalConnected} of {slotCap} integration slot{slotCap === 1 ? '' : 's'} used
+            </Typography>
+            {atCap && (
+              <Button
+                size="small"
+                variant="text"
+                href="/admin/subscription"
+                sx={{ textTransform: 'none', fontWeight: 700, fontSize: '0.78rem' }}
+              >
+                Upgrade plan
+              </Button>
+            )}
+          </Box>
+          <LinearProgress
+            variant="determinate"
+            value={slotCap > 0 ? Math.min(100, (totalConnected / slotCap) * 100) : 100}
+            sx={{
+              height: 6, borderRadius: 3,
+              backgroundColor: '#e2e8f0',
+              '& .MuiLinearProgress-bar': { backgroundColor: atCap ? '#f59e0b' : '#6366f1' },
+            }}
+          />
+        </Box>
+      )}
+
       {syncAlert && (
         <Alert severity={syncAlert.type} sx={{ mb: 3, borderRadius: '10px' }} onClose={() => setSyncAlert(null)}>
           {syncAlert.message}
@@ -374,18 +483,22 @@ export default function IntegrationsPage() {
         BUILT-IN TOOLS
       </Typography>
       <Box sx={{ ...CARD_GRID_SX, mb: 4 }}>
-        {[...BUILT_IN_PROVIDERS].sort((a, b) => a.label.localeCompare(b.label)).map(provider => (
-          <ProviderCard
-            key={provider.key}
-            icon={provider.Icon}
-            logoUrl={provider.logoUrl}
-            accent={provider.accent}
-            label={provider.label}
-            description={provider.description}
-            isConnected={!!builtInConfig[provider.configKey ?? provider.key]}
-            onOpen={() => setConfigProviderKey(provider.key)}
-          />
-        ))}
+        {[...BUILT_IN_PROVIDERS].sort((a, b) => a.label.localeCompare(b.label)).map(provider => {
+          const alreadyConnected = !!builtInConfig[provider.configKey ?? provider.key];
+          return (
+            <ProviderCard
+              key={provider.key}
+              icon={provider.Icon}
+              logoUrl={provider.logoUrl}
+              accent={provider.accent}
+              label={provider.label}
+              description={provider.description}
+              isConnected={alreadyConnected}
+              locked={!alreadyConnected && atCap}
+              onOpen={() => handleOpenProvider(provider)}
+            />
+          );
+        })}
       </Box>
 
       <Divider sx={{ mb: 4 }} />
@@ -407,9 +520,10 @@ export default function IntegrationsPage() {
             onToggle={handleToggle}
             onEdit={(i) => { setEditingCustom(i); setCustomDialogOpen(true); }}
             onDelete={handleCustomDelete}
+            blockActivate={atCap}
           />
         ))}
-        <AddCustomTile onClick={() => { setEditingCustom(null); setCustomDialogOpen(true); }} />
+        <AddCustomTile onClick={handleAddCustomClick} blocked={atCap} />
       </Box>
 
       {/* ── Built-in provider config dialog ──────────────────────────────── */}
