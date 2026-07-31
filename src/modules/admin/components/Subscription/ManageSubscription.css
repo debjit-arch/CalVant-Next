@@ -291,3 +291,50 @@
 .ms-confirmation-icon { color: #10b981; margin-bottom: 14px; }
 .ms-confirmation h3 { font-size: 17px; margin-bottom: 8px; }
 .ms-confirmation p { color: #6b7280; font-size: 13.5px; margin-bottom: 22px; }
+
+
+/* ── Additions for UpgradeAddOnsWizard's sequential per-add-on checkout ──
+   Append these to the existing ManageSubscription.css — every other class
+   referenced by ManageSubscription.jsx / UpgradeAddOnsWizard.jsx is
+   unchanged from before, only these are new. */
+
+.ms-processing {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ms-confirmation-icon--warn {
+  color: #b45309; /* amber-700 — distinct from the success green, not an error red */
+}
+
+.ms-result-list {
+  list-style: none;
+  margin: 12px 0;
+  padding: 0;
+  width: 100%;
+  text-align: left;
+}
+
+.ms-result-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 0;
+  border-bottom: 1px solid #eef0f3;
+  font-size: 13px;
+}
+
+.ms-result-list li:last-child {
+  border-bottom: none;
+}
+
+.ms-result-item--ok span:last-child {
+  color: #15803d; /* green-700 */
+  font-weight: 500;
+}
+
+.ms-result-item--failed span:last-child {
+  color: #b91c1c; /* red-700 */
+  font-weight: 500;
+}

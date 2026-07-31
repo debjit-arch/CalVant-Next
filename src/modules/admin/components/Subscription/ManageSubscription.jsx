@@ -60,9 +60,12 @@
 //   const [showChangePlanInfo, setShowChangePlanInfo] = useState(false);
 //   const [buyingCode, setBuyingCode] = useState(null);
 //   const [consultantDays, setConsultantDays] = useState(1);
+//   const [awaitingWebhook, setAwaitingWebhook] = useState(false);
 
-//   const loadAll = async () => {
-//     setLoading(true);
+//   // silent=true skips the full-page "Loading your subscription…" spinner —
+//   // used while polling after a payment, where we already have a page to show.
+//   const loadAll = async ({ silent = false } = {}) => {
+//     if (!silent) setLoading(true);
 //     setError("");
 //     try {
 //       const [subData, catalogData, starterData] = await Promise.all([
@@ -74,6 +77,7 @@
 //       setResolvedPrice(subData.resolvedPriceMinorUnits);
 //       setCatalog(Array.isArray(catalogData) ? catalogData : []);
 //       setStarter(starterData);
+//       return subData.subscription;
 //     } catch (err) {
 //       console.error(err);
 //       setError(
@@ -81,12 +85,40 @@
 //           ? "You don't have access to billing for this organization."
 //           : "Couldn't load your subscription. Please refresh and try again."
 //       );
+//       return null;
 //     } finally {
-//       setLoading(false);
+//       if (!silent) setLoading(false);
 //     }
 //   };
 
 //   useEffect(() => { loadAll(); }, []);
+
+//   /**
+//    * Razorpay's client-side `handler` fires the instant the checkout modal
+//    * shows success — well before Razorpay's webhook has necessarily reached
+//    * WebhookController and flipped Subscription.status in Mongo. A single
+//    * loadAll() right after checkout almost always re-reads the stale
+//    * pre-payment status. Poll briefly instead, and only give up (with an
+//    * honest message) if the webhook genuinely hasn't landed after ~20s —
+//    * which usually means webhook delivery itself is the problem (e.g. the
+//    * URL registered in the Razorpay dashboard can't reach this environment),
+//    * not that the payment failed.
+//    */
+//   const waitForStatusChange = async (previousStatus, { attempts = 8, delayMs = 2500 } = {}) => {
+//     setAwaitingWebhook(true);
+//     try {
+//       for (let i = 0; i < attempts; i += 1) {
+//         await new Promise((r) => setTimeout(r, delayMs));
+//         const latest = await loadAll({ silent: true });
+//         if (latest && latest.status !== previousStatus) {
+//           return latest;
+//         }
+//       }
+//       return null; // timed out — caller decides how to message this
+//     } finally {
+//       setAwaitingWebhook(false);
+//     }
+//   };
 
 //   const billingCycle = sub?.billingCycle || "ANNUAL";
 //   const cycleLabel = billingCycle === "ANNUAL" ? "Yearly" : "Half-Yearly";
@@ -119,6 +151,7 @@
 //   const handleActivate = async () => {
 //     setActivating(true);
 //     setError("");
+//     const previousStatus = sub?.status;
 //     try {
 //       const session = await startCheckout();
 //       await new Promise((resolve, reject) => {
@@ -129,8 +162,20 @@
 //           onError: reject,
 //         });
 //       });
-//       setMessage("Payment received — refreshing your subscription…");
-//       await loadAll();
+//       // Razorpay's modal confirms success client-side; the actual status
+//       // flip happens when Razorpay's webhook reaches the backend, which is
+//       // asynchronous. Don't trust a single immediate re-fetch — poll.
+//       setMessage("Payment received — confirming with Razorpay…");
+//       const updated = await waitForStatusChange(previousStatus);
+//       if (updated) {
+//         setMessage("Your subscription is active.");
+//       } else {
+//         setMessage("");
+//         setError(
+//           "Payment succeeded, but we're still waiting on confirmation from Razorpay. " +
+//           "This can take a minute — refresh the page shortly, or contact support if it's been a while."
+//         );
+//       }
 //     } catch (err) {
 //       console.error(err);
 //       setError(err?.message || "Couldn't complete checkout. Please try again.");
@@ -224,7 +269,7 @@
 //             title={!canManage ? "Only a root or super admin can activate billing" : undefined}
 //           >
 //             <CreditCard size={15} />
-//             {activating ? "Redirecting…" : "Add payment method"}
+//             {awaitingWebhook ? "Confirming payment…" : activating ? "Redirecting…" : "Add payment method"}
 //           </button>
 //         </div>
 //       ) : (
@@ -522,6 +567,13 @@ export default function ManageSubscription() {
    * which usually means webhook delivery itself is the problem (e.g. the
    * URL registered in the Razorpay dashboard can't reach this environment),
    * not that the payment failed.
+   *
+   * Only used for the Starter plan activation below — that's the one flow
+   * whose success is actually gated by Subscription.status flipping via
+   * webhook. Per-add-on purchases inside UpgradeAddOnsWizard don't have an
+   * equivalent status flag to poll for today (see that file's header note
+   * on the addOnSubscriptions/addOns backend gap), so they just refetch
+   * once via onWizardComplete below.
    */
   const waitForStatusChange = async (previousStatus, { attempts = 8, delayMs = 2500 } = {}) => {
     setAwaitingWebhook(true);
@@ -641,6 +693,33 @@ export default function ManageSubscription() {
     } finally {
       setBuyingCode(null);
     }
+  };
+
+  /**
+   * Called by UpgradeAddOnsWizard's "Done" button with the per-item result
+   * list it built up (seats + each add-on it touched). A wizard run can now
+   * be a PARTIAL success — e.g. seats updated fine but one add-on's
+   * Razorpay popup got dismissed — so this message reflects that instead of
+   * always claiming full success.
+   */
+  const handleWizardComplete = async (itemResults = []) => {
+    setWizard(null);
+    const failed = itemResults.filter((r) => r.status === "failed");
+    if (failed.length === 0) {
+      setMessage(
+        itemResults.length === 0
+          ? "No changes were needed."
+          : "Your subscription has been updated."
+      );
+      setError("");
+    } else if (failed.length === itemResults.length) {
+      setMessage("");
+      setError("Couldn't complete your changes. Please try again.");
+    } else {
+      setMessage(`${itemResults.length - failed.length} of ${itemResults.length} change(s) applied.`);
+      setError(`Didn't go through: ${failed.map((f) => f.label).join(", ")}. You can retry these from the wizard.`);
+    }
+    await loadAll();
   };
 
   if (loading) {
@@ -852,11 +931,7 @@ export default function ManageSubscription() {
           catalog={catalog}
           billingCycle={billingCycle}
           onClose={() => setWizard(null)}
-          onComplete={async () => {
-            setWizard(null);
-            setMessage(wizard === "downgrade" ? "Your downgrade has been scheduled." : "Your subscription has been updated.");
-            await loadAll();
-          }}
+          onComplete={handleWizardComplete}
         />
       )}
 
