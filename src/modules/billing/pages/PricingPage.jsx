@@ -3,17 +3,25 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, ArrowRight, Sparkles, ShieldCheck } from "lucide-react";
-import { getStarterPackage, getAddOns } from "../api/billingApi";
-import {
-  formatINR,
-  CATEGORY_LABELS,
-  CATEGORY_ORDER,
-  perCycleRateFor,
-} from "../utils/billingFormat";
+import { getStarterPackage } from "../api/billingApi";
+import { formatINR } from "../utils/billingFormat";
+import SiteHeader from "@/components/SiteHeader";
+import SiteFooter from "@/components/SiteFooter";
 import "./PricingPage.css";
 
 const CYCLE_ANNUAL = "ANNUAL";
 const CYCLE_HALF_YEARLY = "HALF_YEARLY";
+const ANNUAL_DISCOUNT = 0.2; // 20% off vs half-yearly rate, front-end display only
+
+const STARTER_FEATURES = [
+  "7 core modules: Compliance, Risk, Audits, Policies, Tasks, Trust Centre, Reports",
+  "1 compliance framework of choice (from our library of 15, inclusive of ISO 27001, ISO 27701, SOC 2, ISO 42001, GDPR, DPDPR, etc.)",
+  "Up to 5 users: 1 admin + 4 normal",
+  "Up to 2 integrations (from 40+ ready integrations, or any custom integration of your choice)",
+  "Email alerting mechanism",
+  "Email support with 48-hour SLA",
+  "Auditor access included",
+];
 
 const ENTERPRISE_FEATURES = [
   "Unlimited users & departments",
@@ -28,7 +36,6 @@ export default function PricingPage() {
   const router = useRouter();
   const [billingCycle, setBillingCycle] = useState(CYCLE_ANNUAL);
   const [starter, setStarter] = useState(null);
-  const [addOns, setAddOns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -36,10 +43,9 @@ export default function PricingPage() {
     let cancelled = false;
     (async () => {
       try {
-        const [sp, ao] = await Promise.all([getStarterPackage(), getAddOns()]);
+        const sp = await getStarterPackage();
         if (cancelled) return;
         setStarter(sp);
-        setAddOns(Array.isArray(ao) ? ao : []);
       } catch (err) {
         console.error(err);
         if (!cancelled) setError("Couldn't load live pricing right now — showing may be incomplete.");
@@ -63,20 +69,6 @@ export default function PricingPage() {
     return starterPrice / 12;
   }, [starterPrice]);
 
-  const scalingAddOns = useMemo(() => {
-    const recurring = addOns.filter((a) => a.billingType === "PER_UNIT_MONTHLY");
-    const groups = {};
-    for (const a of recurring) {
-      groups[a.category] = groups[a.category] || [];
-      groups[a.category].push(a);
-    }
-    return CATEGORY_ORDER.filter((c) => c !== "SERVICE" && groups[c]).map((c) => ({
-      category: c,
-      label: CATEGORY_LABELS[c],
-      items: groups[c],
-    }));
-  }, [addOns]);
-
   const goToSignup = () => {
     router.push(`/signup?billingCycle=${billingCycle}`);
   };
@@ -86,7 +78,9 @@ export default function PricingPage() {
   };
 
   return (
-    <div className="pricing-page">
+    <>
+      <SiteHeader />
+      <div className="pricing-page">
       <div className="pricing-bg-glow" aria-hidden="true" />
 
       <div className="pricing-container">
@@ -108,7 +102,7 @@ export default function PricingPage() {
               onClick={() => setBillingCycle(CYCLE_ANNUAL)}
             >
               Annual
-              <span className="save-badge">Save more</span>
+              <span className="save-badge">Save 20%</span>
             </button>
             <button
               role="tab"
@@ -138,8 +132,16 @@ export default function PricingPage() {
                 <span className="pricing-skeleton" />
               ) : (
                 <>
+                  {billingCycle === CYCLE_ANNUAL && starterPricePerMonth !== null && (
+                    <span className="pricing-amount-strike">
+                      {formatINR(starterPricePerMonth / (1 - ANNUAL_DISCOUNT))}
+                    </span>
+                  )}
                   <span className="pricing-amount-value">{formatINR(starterPricePerMonth)}</span>
                   <span className="pricing-amount-unit">/month</span>
+                  {billingCycle === CYCLE_ANNUAL && (
+                    <span className="pricing-discount-chip">20% off</span>
+                  )}
                 </>
               )}
             </div>
@@ -157,50 +159,13 @@ export default function PricingPage() {
             <p className="pricing-cta-note">No card required to start. Cancel anytime.</p>
 
             <ul className="pricing-feature-list">
-              {(starter?.includedCoreModules || [
-                "Compliance", "Risk", "Audits", "Policies", "Tasks", "Trust Centre", "Reports",
-              ]).map((m) => (
-                <li key={m}>
-                  <Check size={16} /> {m}
+              {STARTER_FEATURES.map((f) => (
+                <li key={f}>
+                  <Check size={16} /> {f}
                 </li>
               ))}
-              <li>
-                <Check size={16} /> {starter?.includedFrameworkChoiceCount ?? 1} framework of your choice
-              </li>
-              <li>
-                <Check size={16} /> {starter?.includedAdminUsers ?? 1} admin + {starter?.includedNormalUsers ?? 4} team seats included
-              </li>
-              <li>
-                <Check size={16} /> {starter?.includedIntegrations ?? 2} integrations included
-              </li>
-              <li>
-                <Check size={16} /> {starter?.supportSlaHours ?? 48}-hour support SLA
-              </li>
             </ul>
 
-            {scalingAddOns.length > 0 && (
-              <div className="pricing-scale-block">
-                <div className="pricing-scale-title">Scale it up anytime</div>
-                {scalingAddOns.map((group) => (
-                  <div key={group.category} className="pricing-scale-group">
-                    <span className="pricing-scale-group-label">{group.label}</span>
-                    <ul>
-                      {group.items.map((item) => (
-                        <li key={item.addOnCode}>
-                          <span>{item.displayName}</span>
-                          <span className="pricing-scale-price">
-                            {formatINR(perCycleRateFor(item, billingCycle))}
-                            <span className="pricing-scale-price-unit">
-                              {billingCycle === CYCLE_ANNUAL ? "/yr" : "/6mo"}
-                            </span>
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
 
           {/* ── Enterprise ─────────────────────────────────────────────── */}
@@ -236,6 +201,8 @@ export default function PricingPage() {
           plan add-ons can be adjusted anytime from Manage Subscription.
         </div>
       </div>
-    </div>
+      </div>
+      <SiteFooter />
+    </>
   );
 }

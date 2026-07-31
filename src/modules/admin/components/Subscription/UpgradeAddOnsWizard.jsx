@@ -1,23 +1,51 @@
 // 'use client'
 
 // import React, { useMemo, useState } from "react";
-// import { X, ChevronLeft, Loader2, CheckCircle2 } from "lucide-react";
-// import { updateAddOns, updateSeats, startCheckout } from "../../api/adminBillingApi";
+// import { X, ChevronLeft, Loader2, CheckCircle2, AlertTriangle } from "lucide-react";
+// import { purchaseOrChangeAddOn, removeAddOn } from "../../api/adminBillingApi";
 // import { formatINR, perCycleRateFor } from "@/modules/billing/utils/billingFormat";
 // import { openRazorpayCheckout } from "./razorpayHelpers";
 // import { controlTypeFor, CONTROL_CHECKBOX, WIZARD_ADDON_ORDER } from "./subscriptionCatalogConfig";
+// import { useFramework, MODULE_FRAMEWORK_SUPPORT } from "@/context/FrameworkContex";
+// import { MODULE_DPIA_CODE, MODULE_AIIA_CODE } from "../../hooks/useModuleEntitlements";
 // import "./ManageSubscription.css";
 
 // const STEPS = ["Upgrade Add-Ons", "Confirm Order", "Confirmation"];
 
+// const FRAMEWORK_GATED_ADDONS = {
+//   [MODULE_DPIA_CODE]: MODULE_FRAMEWORK_SUPPORT.dpia,
+//   [MODULE_AIIA_CODE]: MODULE_FRAMEWORK_SUPPORT.aiia,
+// };
+
+// // Product rule: for these add-ons every quantity INCREASE is a fresh,
+// // pay-now Razorpay checkout (its own add-on subscription) — no mandate
+// // memory. Seats: add 1 today, pay; add 4 more tomorrow, pay again.
+// // Integration follows the same rule.
+// // Everything else (DPIA, AI Impact, Vendor Mgmt) is "pay once, mandate
+// // remembers": first purchase needs checkout, later increases are silently
+// // charged against the mandate on file (the "topup" action below).
+// const ALWAYS_CHECKOUT_ON_INCREASE = new Set(["USER_ADMIN", "USER_NORMAL", "INTEGRATION_STANDARD"]);
+
 // /**
-//  * mode: "upgrade" | "downgrade" — only changes the step-1 title/copy and
-//  * whether the seat/quantity steppers are allowed to move up or down; the
-//  * save logic (updateSeats + updateAddOns + conditional checkout) is
-//  * identical either way, since the backend itself decides immediate-vs-queued
-//  * per contract §5 (policy.isAddOnIncreaseImmediate/DecreaseImmediate).
+//  * mode: "upgrade" | "downgrade" — only changes step-1 title/copy and which
+//  * direction the steppers move; handleConfirm is identical either way.
+//  *
+//  * Seats no longer go through a separate updateSeats PATCH — they're treated
+//  * as ordinary catalog add-ons (USER_ADMIN / USER_NORMAL) that always require
+//  * a fresh Razorpay checkout on increase, same pipeline as every other add-on.
 //  */
 // export default function UpgradeAddOnsWizard({ mode = "upgrade", sub, starter, catalog, billingCycle, onClose, onComplete }) {
+//   const { availableFrameworks } = useFramework() || {};
+//   const orgFrameworkLabels = useMemo(
+//     () => (availableFrameworks || []).map((fw) => fw.id),
+//     [availableFrameworks]
+//   );
+//   const frameworkGateSatisfied = (addOnCode) => {
+//     const requiredLabels = FRAMEWORK_GATED_ADDONS[addOnCode];
+//     if (!requiredLabels) return true;
+//     return orgFrameworkLabels.some((label) => requiredLabels.has(label));
+//   };
+
 //   const [step, setStep] = useState(1);
 //   const [seats, setSeats] = useState({
 //     adminUserCount: sub?.adminUserCount ?? starter?.includedAdminUsers ?? 1,
@@ -29,8 +57,9 @@
 //     return q;
 //   });
 //   const [saving, setSaving] = useState(false);
+//   const [processingLabel, setProcessingLabel] = useState("");
 //   const [error, setError] = useState("");
-//   const [resultSub, setResultSub] = useState(null);
+//   const [itemResults, setItemResults] = useState([]); // [{ label, status: "ok"|"failed", detail? }]
 //   const [chargesNow, setChargesNow] = useState(0);
 
 //   const orderedCatalog = useMemo(() => {
@@ -60,7 +89,6 @@
 //   const currentTotal = useMemo(() => {
 //     let t = starter ? (billingCycle === "ANNUAL" ? starter.priceAnnual : starter.priceHalfYearly) : 0;
 
-//     // 1. Calculate cost for current extra seats beyond included base
 //     const currentExtraAdmin = Math.max(0, startingAdmin - (starter?.includedAdminUsers ?? 1));
 //     const currentExtraNormal = Math.max(0, startingNormal - (starter?.includedNormalUsers ?? 4));
 
@@ -71,7 +99,6 @@
 //       t += (perCycleRateFor(normalCatalogItem, billingCycle) || 0) * currentExtraNormal;
 //     }
 
-//     // 2. Add-on items (excluding seat codes to prevent double counting if present)
 //     (sub?.addOns || []).forEach((line) => {
 //       const item = (catalog || []).find((a) => a.addOnCode === line.addOnCode);
 //       if (item && item.addOnCode !== "USER_ADMIN" && item.addOnCode !== "USER_NORMAL") {
@@ -85,7 +112,6 @@
 //   const newTotal = useMemo(() => {
 //     let t = starter ? (billingCycle === "ANNUAL" ? starter.priceAnnual : starter.priceHalfYearly) : 0;
 
-//     // 1. Calculate cost for new selected extra seats beyond included base
 //     const newExtraAdmin = Math.max(0, seats.adminUserCount - (starter?.includedAdminUsers ?? 1));
 //     const newExtraNormal = Math.max(0, seats.normalUserCount - (starter?.includedNormalUsers ?? 4));
 
@@ -96,7 +122,6 @@
 //       t += (perCycleRateFor(normalCatalogItem, billingCycle) || 0) * newExtraNormal;
 //     }
 
-//     // 2. Standard module add-on items from ordered catalog
 //     for (const item of orderedCatalog) {
 //       const q = qty[item.addOnCode] || 0;
 //       if (q > 0) t += (perCycleRateFor(item, billingCycle) || 0) * q;
@@ -107,7 +132,52 @@
 
 //   const delta = newTotal - currentTotal;
 //   const seatsChanged = seats.adminUserCount !== startingAdmin || seats.normalUserCount !== startingNormal;
-//   const addOnsChanged = orderedCatalog.some((item) => (qty[item.addOnCode] || 0) !== (sub?.addOns?.find((l) => l.addOnCode === item.addOnCode)?.quantity || 0));
+
+//   // Per-add-on change list.
+//   // - "remove": qty → 0, free cancel, no payment.
+//   // - "checkout": ALWAYS_CHECKOUT_ON_INCREASE codes on any increase, or a
+//   //   genuinely brand-new add-on (oldQty === 0) for anything else — needs a
+//   //   fresh Razorpay authorization.
+//   // - "topup": an increase on an add-on you already own that ISN'T in
+//   //   ALWAYS_CHECKOUT_ON_INCREASE (DPIA / AI Impact / Vendor Mgmt) — charged
+//   //   silently against the mandate on file.
+//   // - "downgrade": a decrease that stays above zero — free, immediate.
+//   const addOnChanges = useMemo(() => {
+//     const changes = [];
+//     for (const item of orderedCatalog) {
+//       const oldQty = sub?.addOns?.find((l) => l.addOnCode === item.addOnCode)?.quantity || 0;
+//       const newQty = qty[item.addOnCode] || 0;
+//       if (newQty === oldQty) continue;
+//       let action;
+//       if (newQty === 0) action = "remove";
+//       else if (oldQty === 0 || ALWAYS_CHECKOUT_ON_INCREASE.has(item.addOnCode)) action = newQty > oldQty ? "checkout" : "downgrade";
+//       else action = newQty > oldQty ? "topup" : "downgrade";
+//       changes.push({ item, oldQty, newQty, action });
+//     }
+//     return changes;
+//   }, [orderedCatalog, qty, sub]);
+
+//   // Seats are ordinary pay-now add-ons under the hood (USER_ADMIN /
+//   // USER_NORMAL) — same action rules as ALWAYS_CHECKOUT_ON_INCREASE above,
+//   // just sourced from the `seats` state instead of `qty`.
+//   const seatChanges = useMemo(() => {
+//     const changes = [];
+//     if (adminCatalogItem && seats.adminUserCount !== startingAdmin) {
+//       changes.push({
+//         item: adminCatalogItem, oldQty: startingAdmin, newQty: seats.adminUserCount,
+//         action: seats.adminUserCount > startingAdmin ? "checkout" : "downgrade",
+//       });
+//     }
+//     if (normalCatalogItem && seats.normalUserCount !== startingNormal) {
+//       changes.push({
+//         item: normalCatalogItem, oldQty: startingNormal, newQty: seats.normalUserCount,
+//         action: seats.normalUserCount > startingNormal ? "checkout" : "downgrade",
+//       });
+//     }
+//     return changes;
+//   }, [seats, startingAdmin, startingNormal, adminCatalogItem, normalCatalogItem]);
+
+//   const addOnsChanged = addOnChanges.length > 0;
 //   const hasChanges = seatsChanged || addOnsChanged;
 
 //   const setItemQty = (code, v) => setQty((q) => ({ ...q, [code]: Math.max(0, v) }));
@@ -124,58 +194,87 @@
 //   const handleConfirm = async () => {
 //     setSaving(true);
 //     setError("");
+//     const results = [];
+//     let chargedNow = 0;
+//     const allChanges = [...seatChanges, ...addOnChanges];
+
 //     try {
-//       let updated = sub;
-//       if (seatsChanged) {
-//         updated = await updateSeats(seats.adminUserCount, seats.normalUserCount);
-//       }
-//       if (addOnsChanged) {
-//         const payload = orderedCatalog
-//           .map((item) => ({ addOnCode: item.addOnCode, quantity: qty[item.addOnCode] || 0 }))
-//           .filter((l) => l.quantity > 0);
-//         // Preserve any existing lines not shown in this wizard (defensive —
-//         // shouldn't happen given WIZARD_ADDON_ORDER covers every
-//         // PER_UNIT_MONTHLY code, but never silently drop an entitlement).
-//         updated = await updateAddOns(payload);
+//       // 1. Removals — free, immediate, safe to do first.
+//       for (const { item } of allChanges.filter((c) => c.action === "remove")) {
+//         setProcessingLabel(`Removing ${item.displayName}…`);
+//         try {
+//           await removeAddOn(item.addOnCode);
+//           results.push({ label: item.displayName, status: "ok" });
+//         } catch (err) {
+//           results.push({ label: item.displayName, status: "failed", detail: err?.response?.data?.error || err?.message || "Couldn't remove this add-on." });
+//         }
 //       }
 
-//       const appliedImmediately =
-//         (!seatsChanged || updated.adminUserCount === seats.adminUserCount) &&
-//         (!addOnsChanged || !updated.pendingAddOnChange);
+//       // 2. Downgrades — free, immediate, no payment.
+//       for (const { item, newQty } of allChanges.filter((c) => c.action === "downgrade")) {
+//         setProcessingLabel(`Updating ${item.displayName}…`);
+//         try {
+//           await purchaseOrChangeAddOn(item.addOnCode, newQty);
+//           results.push({ label: item.displayName, status: "ok" });
+//         } catch (err) {
+//           results.push({ label: item.displayName, status: "failed", detail: err?.response?.data?.error || err?.message || "Couldn't update this add-on." });
+//         }
+//       }
 
-//       if (delta > 0 && appliedImmediately) {
-//         const session = await startCheckout();
-//         await new Promise((resolve, reject) => {
-//           openRazorpayCheckout(session, {
-//             description: mode === "upgrade" ? "Subscription upgrade" : "Subscription change",
-//             onSuccess: resolve,
-//             onDismiss: () => reject(new Error("Payment window closed before completing.")),
-//             onError: reject,
+//       // 3. Silent mandate top-ups (DPIA / AI Impact / Vendor Mgmt only).
+//       for (const { item, oldQty, newQty } of allChanges.filter((c) => c.action === "topup")) {
+//         setProcessingLabel(`Updating ${item.displayName}…`);
+//         try {
+//           await purchaseOrChangeAddOn(item.addOnCode, newQty);
+//           chargedNow += (perCycleRateFor(item, billingCycle) || 0) * (newQty - oldQty);
+//           results.push({ label: item.displayName, status: "ok" });
+//         } catch (err) {
+//           results.push({ label: item.displayName, status: "failed", detail: err?.response?.data?.error || err?.message || "Couldn't charge this add-on's top-up." });
+//         }
+//       }
+
+//       // 4. Pay-now checkouts — seats & Integration on every increase, plus any
+//       // brand-new DPIA/AI Impact/Vendor add-on. Strictly sequential: Checkout.js
+//       // only ever shows one modal at a time.
+//       for (const { item, newQty } of allChanges.filter((c) => c.action === "checkout")) {
+//         setProcessingLabel(`Authorizing ${item.displayName}…`);
+//         try {
+//           const session = await purchaseOrChangeAddOn(item.addOnCode, newQty);
+//           await new Promise((resolve, reject) => {
+//             openRazorpayCheckout(session, {
+//               description: item.displayName,
+//               onSuccess: resolve,
+//               onDismiss: () => reject(new Error("Payment window closed before completing.")),
+//               onError: reject,
+//             });
 //           });
-//         });
-//         setChargesNow(delta);
-//       } else {
-//         setChargesNow(0);
+//           results.push({ label: item.displayName, status: "ok" });
+//         } catch (err) {
+//           results.push({ label: item.displayName, status: "failed", detail: err?.message || "Couldn't complete this add-on's payment." });
+//           // Deliberately keep going — one declined/dismissed item shouldn't
+//           // block the rest of the queue.
+//         }
 //       }
 
-//       setResultSub(updated);
+//       setItemResults(results);
+//       setChargesNow(chargedNow);
 //       setStep(3);
-//     } catch (err) {
-//       console.error(err);
-//       setError(err?.response?.data?.error || err?.message || "Couldn't save your changes. Please try again.");
 //     } finally {
 //       setSaving(false);
+//       setProcessingLabel("");
 //     }
 //   };
 
-//   const handleDone = () => {
-//     onComplete?.(resultSub);
+//   const handleDone = async () => {
+//     await onComplete?.(itemResults);
 //   };
+
+//   const anyFailed = itemResults.some((r) => r.status === "failed");
 
 //   return (
 //     <div className="ms-modal-overlay" role="dialog" aria-modal="true">
 //       <div className="ms-modal">
-//         <button className="ms-modal-close" onClick={onClose} aria-label="Close">
+//         <button className="ms-modal-close" onClick={onClose} aria-label="Close" disabled={saving}>
 //           <X size={18} />
 //         </button>
 
@@ -245,6 +344,8 @@
 //                     const oldQty = sub?.addOns?.find((l) => l.addOnCode === item.addOnCode)?.quantity || 0;
 //                     const curQty = qty[item.addOnCode] || 0;
 //                     const rate = perCycleRateFor(item, billingCycle);
+//                     const gateOk = frameworkGateSatisfied(item.addOnCode);
+//                     const blockedByFramework = isCheckbox && curQty === 0 && !gateOk;
 //                     return (
 //                       <tr key={item.addOnCode}>
 //                         <td>
@@ -253,14 +354,19 @@
 //                             {formatINR(rate)} / {billingCycle === "ANNUAL" ? "yr" : "6mo"}
 //                             {isCheckbox ? "" : " per unit"}
 //                           </div>
+//                           {blockedByFramework && (
+//                             <div className="ms-item-sub ms-item-sub--warn">
+//                               Select a relevant framework first to unlock this module.
+//                             </div>
+//                           )}
 //                         </td>
 //                         <td>
 //                           {isCheckbox ? (
-//                             <label className="ms-checkbox">
+//                             <label className="ms-checkbox" title={blockedByFramework ? "Requires a relevant framework to be selected first" : undefined}>
 //                               <input
 //                                 type="checkbox"
 //                                 checked={curQty > 0}
-//                                 disabled={mode === "downgrade" && oldQty === 0}
+//                                 disabled={(mode === "downgrade" && oldQty === 0) || blockedByFramework}
 //                                 onChange={() => toggleCheckbox(item.addOnCode)}
 //                               />
 //                             </label>
@@ -283,7 +389,7 @@
 
 //             <div className="ms-amount-block">
 //               <div className="ms-amount-label">
-//                 {delta > 0 ? "Amount to be paid now" : delta < 0 ? "Credit — applied at renewal" : "No change in amount"}
+//                 {delta > 0 ? "Estimated new per-cycle total" : delta < 0 ? "Estimated new per-cycle total (lower)" : "No change in amount"}
 //               </div>
 //               <div className="ms-amount-value">{formatINR(Math.abs(delta))}</div>
 //             </div>
@@ -305,39 +411,55 @@
 //             <div className="ms-confirm-summary">
 //               <h3>Review your changes</h3>
 //               {seatsChanged && (
-//                 <div className="ms-confirm-row">
-//                   <span>Admin users</span>
-//                   <span>{startingAdmin} → {seats.adminUserCount}</span>
-//                 </div>
+//                 <>
+//                   <div className="ms-confirm-row">
+//                     <span>Admin users</span>
+//                     <span>{startingAdmin} → {seats.adminUserCount}</span>
+//                   </div>
+//                   <div className="ms-confirm-row">
+//                     <span>Normal users</span>
+//                     <span>{startingNormal} → {seats.normalUserCount}</span>
+//                   </div>
+//                   <div className="ms-confirm-note">
+//                     Adding seats opens a quick Razorpay payment screen per change; reducing
+//                     seats takes effect immediately with nothing to authorize.
+//                   </div>
+//                 </>
 //               )}
-//               {seatsChanged && (
-//                 <div className="ms-confirm-row">
-//                   <span>Normal users</span>
-//                   <span>{startingNormal} → {seats.normalUserCount}</span>
-//                 </div>
-//               )}
-//               {orderedCatalog.filter((item) => (qty[item.addOnCode] || 0) !== (sub?.addOns?.find((l) => l.addOnCode === item.addOnCode)?.quantity || 0)).map((item) => (
+//               {addOnChanges.map(({ item, oldQty, newQty, action }) => (
 //                 <div className="ms-confirm-row" key={item.addOnCode}>
 //                   <span>{item.displayName}</span>
-//                   <span>{sub?.addOns?.find((l) => l.addOnCode === item.addOnCode)?.quantity || 0} → {qty[item.addOnCode] || 0}</span>
+//                   <span>{oldQty} → {newQty}</span>
 //                 </div>
 //               ))}
+//               {addOnsChanged && (
+//                 <div className="ms-confirm-note">
+//                   {addOnChanges.some((c) => c.action === "checkout") && (
+//                     <>New add-ons, and any increase to Integration, open a quick Razorpay
+//                       payment screen — one after another. </>
+//                   )}
+//                   {addOnChanges.some((c) => c.action === "topup") && (
+//                     <>Increases to DPIA / AI Impact / Vendor Mgmt you already own are charged
+//                       automatically against your mandate on file — no separate payment screen. </>
+//                   )}
+//                   {addOnChanges.some((c) => c.action === "downgrade" || c.action === "remove") && (
+//                     <>Reduced or removed add-ons take effect immediately with nothing to authorize.</>
+//                   )}
+//                 </div>
+//               )}
 //               <div className="ms-confirm-row ms-confirm-row--total">
-//                 <span>{delta >= 0 ? "New per-cycle total" : "New per-cycle total (lower)"}</span>
+//                 <span>Estimated new per-cycle total</span>
 //                 <span>{formatINR(newTotal)}</span>
-//               </div>
-//               <div className="ms-confirm-note">
-//                 {delta > 0
-//                   ? `You'll be charged ${formatINR(delta)} now if this takes effect immediately, or at your next renewal if it's queued.`
-//                   : delta < 0
-//                   ? "Reductions apply at the end of your current billing period, per your plan terms."
-//                   : "No billing impact."}
 //               </div>
 //             </div>
 //             <div className="ms-modal-actions">
-//               <button className="ms-btn ms-btn--outline" onClick={onClose}>CANCEL</button>
+//               <button className="ms-btn ms-btn--outline" onClick={onClose} disabled={saving}>CANCEL</button>
 //               <button className="ms-btn ms-btn--primary" disabled={saving} onClick={handleConfirm}>
-//                 {saving ? <Loader2 size={15} className="ms-spin" /> : "CONFIRM & PROCEED"}
+//                 {saving ? (
+//                   <span className="ms-processing">
+//                     <Loader2 size={15} className="ms-spin" /> {processingLabel || "Processing…"}
+//                   </span>
+//                 ) : "CONFIRM & PROCEED"}
 //               </button>
 //             </div>
 //           </>
@@ -345,14 +467,29 @@
 
 //         {step === 3 && (
 //           <div className="ms-confirmation">
-//             <CheckCircle2 size={44} className="ms-confirmation-icon" />
-//             <h3>{mode === "downgrade" ? "Downgrade scheduled" : "Subscription updated"}</h3>
+//             {anyFailed ? (
+//               <AlertTriangle size={44} className="ms-confirmation-icon ms-confirmation-icon--warn" />
+//             ) : (
+//               <CheckCircle2 size={44} className="ms-confirmation-icon" />
+//             )}
+//             <h3>{anyFailed ? "Some changes need another look" : mode === "downgrade" ? "Downgrade scheduled" : "Subscription updated"}</h3>
+
+//             {itemResults.length > 0 && (
+//               <ul className="ms-result-list">
+//                 {itemResults.map((r, i) => (
+//                   <li key={i} className={r.status === "failed" ? "ms-result-item--failed" : "ms-result-item--ok"}>
+//                     <span>{r.label}</span>
+//                     <span>{r.status === "ok" ? "Done" : (r.detail || "Failed")}</span>
+//                   </li>
+//                 ))}
+//               </ul>
+//             )}
+
 //             <p>
-//               {chargesNow > 0
-//                 ? `${formatINR(chargesNow)} was charged and your changes are live.`
-//                 : mode === "downgrade"
-//                 ? "Your reduced plan will take effect at the end of the current billing period."
-//                 : "Your changes have been saved."}
+//               {chargesNow > 0 && `${formatINR(chargesNow)} was charged for your mandate top-up(s). `}
+//               {anyFailed
+//                 ? "You can retry the failed item(s) from Manage Subscription — everything else above already took effect."
+//                 : "Your changes have been saved. New quantities on pay-now items will reflect once payment is confirmed (usually within moments)."}
 //             </p>
 //             <button className="ms-btn ms-btn--primary" onClick={handleDone}>Done</button>
 //           </div>
@@ -372,59 +509,55 @@
 //   );
 // }
 
+
 'use client'
 
 import React, { useMemo, useState } from "react";
 import { X, ChevronLeft, Loader2, CheckCircle2, AlertTriangle } from "lucide-react";
-import { updateSeats, purchaseOrChangeAddOn, removeAddOn } from "../../api/adminBillingApi";
+import { purchaseOrChangeAddOn, removeAddOn } from "../../api/adminBillingApi";
 import { formatINR, perCycleRateFor } from "@/modules/billing/utils/billingFormat";
 import { openRazorpayCheckout } from "./razorpayHelpers";
 import { controlTypeFor, CONTROL_CHECKBOX, WIZARD_ADDON_ORDER } from "./subscriptionCatalogConfig";
+import { useFramework, MODULE_FRAMEWORK_SUPPORT } from "@/context/FrameworkContex";
+import { MODULE_DPIA_CODE, MODULE_AIIA_CODE } from "../../hooks/useModuleEntitlements";
 import "./ManageSubscription.css";
 
 const STEPS = ["Upgrade Add-Ons", "Confirm Order", "Confirmation"];
 
+const FRAMEWORK_GATED_ADDONS = {
+  [MODULE_DPIA_CODE]: MODULE_FRAMEWORK_SUPPORT.dpia,
+  [MODULE_AIIA_CODE]: MODULE_FRAMEWORK_SUPPORT.aiia,
+};
+
+// Product rule: for these add-ons every quantity INCREASE is a fresh,
+// pay-now Razorpay checkout (its own add-on subscription) — no mandate
+// memory. Seats: add 1 today, pay; add 4 more tomorrow, pay again.
+// Integration follows the same rule.
+// Everything else (DPIA, AI Impact, Vendor Mgmt) is "pay once, mandate
+// remembers": first purchase needs checkout, later increases are silently
+// charged against the mandate on file (the "topup" action below).
+const ALWAYS_CHECKOUT_ON_INCREASE = new Set(["USER_ADMIN", "USER_NORMAL", "INTEGRATION_STANDARD"]);
+
 /**
- * mode: "upgrade" | "downgrade" — only changes the step-1 title/copy and
- * which direction the seat/quantity steppers are allowed to move; what
- * actually happens on confirm is identical either way (see handleConfirm).
+ * mode: "upgrade" | "downgrade" — only changes step-1 title/copy and which
+ * direction the steppers move; handleConfirm is identical either way.
  *
- * ── Why this file looks different from the old single-PATCH-then-checkout
- * version ──────────────────────────────────────────────────────────────────
- * Razorpay can't reconfigure a running subscription's quantity mid-cycle.
- * The backend now reflects that split:
- *
- *  - Seats (USER_ADMIN/USER_NORMAL) stay on the Starter subscription and are
- *    delta-charged server-side against the existing mandate
- *    (updateSeats → RazorpayProviderImpl.handleSubscriptionUpdate uses
- *    Razorpay's Subscription Add-on API, not a plan swap). No modal here.
- *
- *  - Every other catalog add-on (MODULE_DPIA, MODULE_VENDOR_MGMT,
- *    MODULE_AI_IMPACT, INTEGRATION_STANDARD) is its OWN Razorpay
- *    Subscription. Any nonzero quantity change — new, increased, or
- *    decreased — cancels the old one and creates a fresh one, which needs a
- *    fresh Checkout.js authorization. Dropping to zero is the one case
- *    that's just a cancellation (DELETE, no modal).
- *
- * That means a single "Confirm" click can now trigger: one silent PATCH for
- * seats, then a strictly sequential series of Razorpay popups — one per
- * changed add-on. We surface which item is being authorized via
- * `processingLabel` so this doesn't look like the UI has frozen, and we
- * keep going through the rest of the queue even if one item fails or is
- * dismissed, then report per-item results on the confirmation screen
- * instead of throwing the whole thing away.
- *
- * ⚠️ Known backend gap (flag for backend, not fixable from here):
- * purchaseOrChangeAddOn only writes Subscription.addOnSubscriptions, not
- * Subscription.addOns — and pricing/display (resolveTotalMinorUnits, this
- * wizard's own currentTotal/newTotal, ManageSubscription's details table)
- * all read Subscription.addOns. Until the backend keeps both in sync (or
- * pricing is repointed at addOnSubscriptions), the Net Total / per-cycle
- * totals shown here and on the main page will under-count add-ons bought
- * through this new flow. We refetch after every run so the UI shows
- * whatever the backend actually has — this is not a client-side caching bug.
+ * Seats no longer go through a separate updateSeats PATCH — they're treated
+ * as ordinary catalog add-ons (USER_ADMIN / USER_NORMAL) that always require
+ * a fresh Razorpay checkout on increase, same pipeline as every other add-on.
  */
 export default function UpgradeAddOnsWizard({ mode = "upgrade", sub, starter, catalog, billingCycle, onClose, onComplete }) {
+  const { availableFrameworks } = useFramework() || {};
+  const orgFrameworkLabels = useMemo(
+    () => (availableFrameworks || []).map((fw) => fw.id),
+    [availableFrameworks]
+  );
+  const frameworkGateSatisfied = (addOnCode) => {
+    const requiredLabels = FRAMEWORK_GATED_ADDONS[addOnCode];
+    if (!requiredLabels) return true;
+    return orgFrameworkLabels.some((label) => requiredLabels.has(label));
+  };
+
   const [step, setStep] = useState(1);
   const [seats, setSeats] = useState({
     adminUserCount: sub?.adminUserCount ?? starter?.includedAdminUsers ?? 1,
@@ -512,18 +645,60 @@ export default function UpgradeAddOnsWizard({ mode = "upgrade", sub, starter, ca
   const delta = newTotal - currentTotal;
   const seatsChanged = seats.adminUserCount !== startingAdmin || seats.normalUserCount !== startingNormal;
 
-  // Per-add-on change list, computed once so step 1/2/confirm all agree on
-  // exactly the same set of items.
+  // Per-add-on change list.
+  // - "remove": qty → 0, free cancel, no payment.
+  // - "checkout": ALWAYS_CHECKOUT_ON_INCREASE codes on any increase, or a
+  //   genuinely brand-new add-on (oldQty === 0) for anything else — needs a
+  //   fresh Razorpay authorization.
+  // - "topup": an increase on an add-on you already own that ISN'T in
+  //   ALWAYS_CHECKOUT_ON_INCREASE (DPIA / AI Impact / Vendor Mgmt) — charged
+  //   silently against the mandate on file.
+  // - "downgrade": a decrease that stays above zero — free, immediate.
   const addOnChanges = useMemo(() => {
     const changes = [];
     for (const item of orderedCatalog) {
       const oldQty = sub?.addOns?.find((l) => l.addOnCode === item.addOnCode)?.quantity || 0;
       const newQty = qty[item.addOnCode] || 0;
       if (newQty === oldQty) continue;
-      changes.push({ item, oldQty, newQty, action: newQty === 0 ? "remove" : "checkout" });
+      let action;
+      if (newQty === 0) action = "remove";
+      else if (oldQty === 0 || ALWAYS_CHECKOUT_ON_INCREASE.has(item.addOnCode)) action = newQty > oldQty ? "checkout" : "downgrade";
+      else action = newQty > oldQty ? "topup" : "downgrade";
+      changes.push({ item, oldQty, newQty, action });
     }
     return changes;
   }, [orderedCatalog, qty, sub]);
+
+  // Seats are ordinary pay-now add-ons under the hood (USER_ADMIN /
+  // USER_NORMAL) — same action rules as ALWAYS_CHECKOUT_ON_INCREASE above,
+  // just sourced from the `seats` state instead of `qty`.
+  // Seats are ordinary pay-now add-ons under the hood (USER_ADMIN /
+  // USER_NORMAL). purchaseOrChangeAddOn's quantity means "units beyond what's
+  // included in Starter" — same convention the backend already uses — so we
+  // pass the EXTRA count here, not the raw seat total.
+  const seatChanges = useMemo(() => {
+    const changes = [];
+    const includedAdmin = starter?.includedAdminUsers ?? 1;
+    const includedNormal = starter?.includedNormalUsers ?? 4;
+    const oldExtraAdmin = Math.max(0, startingAdmin - includedAdmin);
+    const newExtraAdmin = Math.max(0, seats.adminUserCount - includedAdmin);
+    const oldExtraNormal = Math.max(0, startingNormal - includedNormal);
+    const newExtraNormal = Math.max(0, seats.normalUserCount - includedNormal);
+
+    if (adminCatalogItem && newExtraAdmin !== oldExtraAdmin) {
+      changes.push({
+        item: adminCatalogItem, oldQty: oldExtraAdmin, newQty: newExtraAdmin,
+        action: newExtraAdmin > oldExtraAdmin ? "checkout" : "downgrade",
+      });
+    }
+    if (normalCatalogItem && newExtraNormal !== oldExtraNormal) {
+      changes.push({
+        item: normalCatalogItem, oldQty: oldExtraNormal, newQty: newExtraNormal,
+        action: newExtraNormal > oldExtraNormal ? "checkout" : "downgrade",
+      });
+    }
+    return changes;
+  }, [seats, startingAdmin, startingNormal, starter, adminCatalogItem, normalCatalogItem]);
 
   const addOnsChanged = addOnChanges.length > 0;
   const hasChanges = seatsChanged || addOnsChanged;
@@ -543,53 +718,48 @@ export default function UpgradeAddOnsWizard({ mode = "upgrade", sub, starter, ca
     setSaving(true);
     setError("");
     const results = [];
-    let seatsChargedNow = 0;
+    let chargedNow = 0;
+    const allChanges = [...seatChanges, ...addOnChanges];
 
     try {
-      // 1. Seats — one PATCH, charged (or queued) server-side. No popup.
-      if (seatsChanged) {
-        setProcessingLabel("Updating seats…");
-        try {
-          await updateSeats(seats.adminUserCount, seats.normalUserCount);
-          const seatDelta =
-            (adminCatalogItem ? (perCycleRateFor(adminCatalogItem, billingCycle) || 0)
-              * (Math.max(0, seats.adminUserCount - (starter?.includedAdminUsers ?? 1))
-                - Math.max(0, startingAdmin - (starter?.includedAdminUsers ?? 1))) : 0)
-            + (normalCatalogItem ? (perCycleRateFor(normalCatalogItem, billingCycle) || 0)
-              * (Math.max(0, seats.normalUserCount - (starter?.includedNormalUsers ?? 4))
-                - Math.max(0, startingNormal - (starter?.includedNormalUsers ?? 4))) : 0);
-          if (seatDelta > 0) seatsChargedNow = seatDelta;
-          results.push({ label: "Seats", status: "ok" });
-        } catch (err) {
-          results.push({
-            label: "Seats",
-            status: "failed",
-            detail: err?.response?.data?.error || err?.message || "Couldn't update seats.",
-          });
-        }
-      }
-
-      // 2. Removals — plain cancel-at-cycle-end, no payment, safe to do first.
-      for (const { item } of addOnChanges.filter((c) => c.action === "remove")) {
+      // 1. Removals — free, immediate, safe to do first.
+      for (const { item } of allChanges.filter((c) => c.action === "remove")) {
         setProcessingLabel(`Removing ${item.displayName}…`);
         try {
           await removeAddOn(item.addOnCode);
           results.push({ label: item.displayName, status: "ok" });
         } catch (err) {
-          results.push({
-            label: item.displayName,
-            status: "failed",
-            detail: err?.response?.data?.error || err?.message || "Couldn't remove this add-on.",
-          });
+          results.push({ label: item.displayName, status: "failed", detail: err?.response?.data?.error || err?.message || "Couldn't remove this add-on." });
         }
       }
 
-      // 3. New / changed quantities — each is its own Razorpay Subscription,
-      // so each needs its own checkout + authorization. Strictly sequential:
-      // Checkout.js only ever shows one modal at a time, and firing several
-      // createAddOnSubscription calls in parallel would race on
-      // Subscription.addOnSubscriptions writes.
-      for (const { item, newQty } of addOnChanges.filter((c) => c.action === "checkout")) {
+      // 2. Downgrades — free, immediate, no payment.
+      for (const { item, newQty } of allChanges.filter((c) => c.action === "downgrade")) {
+        setProcessingLabel(`Updating ${item.displayName}…`);
+        try {
+          await purchaseOrChangeAddOn(item.addOnCode, newQty);
+          results.push({ label: item.displayName, status: "ok" });
+        } catch (err) {
+          results.push({ label: item.displayName, status: "failed", detail: err?.response?.data?.error || err?.message || "Couldn't update this add-on." });
+        }
+      }
+
+      // 3. Silent mandate top-ups (DPIA / AI Impact / Vendor Mgmt only).
+      for (const { item, oldQty, newQty } of allChanges.filter((c) => c.action === "topup")) {
+        setProcessingLabel(`Updating ${item.displayName}…`);
+        try {
+          await purchaseOrChangeAddOn(item.addOnCode, newQty);
+          chargedNow += (perCycleRateFor(item, billingCycle) || 0) * (newQty - oldQty);
+          results.push({ label: item.displayName, status: "ok" });
+        } catch (err) {
+          results.push({ label: item.displayName, status: "failed", detail: err?.response?.data?.error || err?.message || "Couldn't charge this add-on's top-up." });
+        }
+      }
+
+      // 4. Pay-now checkouts — seats & Integration on every increase, plus any
+      // brand-new DPIA/AI Impact/Vendor add-on. Strictly sequential: Checkout.js
+      // only ever shows one modal at a time.
+      for (const { item, newQty } of allChanges.filter((c) => c.action === "checkout")) {
         setProcessingLabel(`Authorizing ${item.displayName}…`);
         try {
           const session = await purchaseOrChangeAddOn(item.addOnCode, newQty);
@@ -603,19 +773,14 @@ export default function UpgradeAddOnsWizard({ mode = "upgrade", sub, starter, ca
           });
           results.push({ label: item.displayName, status: "ok" });
         } catch (err) {
-          results.push({
-            label: item.displayName,
-            status: "failed",
-            detail: err?.message || "Couldn't complete this add-on's payment.",
-          });
-          // Deliberately keep going — one declined/dismissed add-on shouldn't
-          // block the rest of the queue (e.g. a seat change that already
-          // succeeded, or other add-ons already authorized).
+          results.push({ label: item.displayName, status: "failed", detail: err?.message || "Couldn't complete this add-on's payment." });
+          // Deliberately keep going — one declined/dismissed item shouldn't
+          // block the rest of the queue.
         }
       }
 
       setItemResults(results);
-      setChargesNow(seatsChargedNow);
+      setChargesNow(chargedNow);
       setStep(3);
     } finally {
       setSaving(false);
@@ -624,10 +789,6 @@ export default function UpgradeAddOnsWizard({ mode = "upgrade", sub, starter, ca
   };
 
   const handleDone = async () => {
-    // Always refetch on the way out — some items may have partially
-    // succeeded even if others failed, and totals depend on what the
-    // backend actually persisted (see file header re: addOns vs
-    // addOnSubscriptions).
     await onComplete?.(itemResults);
   };
 
@@ -706,6 +867,8 @@ export default function UpgradeAddOnsWizard({ mode = "upgrade", sub, starter, ca
                     const oldQty = sub?.addOns?.find((l) => l.addOnCode === item.addOnCode)?.quantity || 0;
                     const curQty = qty[item.addOnCode] || 0;
                     const rate = perCycleRateFor(item, billingCycle);
+                    const gateOk = frameworkGateSatisfied(item.addOnCode);
+                    const blockedByFramework = isCheckbox && curQty === 0 && !gateOk;
                     return (
                       <tr key={item.addOnCode}>
                         <td>
@@ -714,14 +877,19 @@ export default function UpgradeAddOnsWizard({ mode = "upgrade", sub, starter, ca
                             {formatINR(rate)} / {billingCycle === "ANNUAL" ? "yr" : "6mo"}
                             {isCheckbox ? "" : " per unit"}
                           </div>
+                          {blockedByFramework && (
+                            <div className="ms-item-sub ms-item-sub--warn">
+                              Select a relevant framework first to unlock this module.
+                            </div>
+                          )}
                         </td>
                         <td>
                           {isCheckbox ? (
-                            <label className="ms-checkbox">
+                            <label className="ms-checkbox" title={blockedByFramework ? "Requires a relevant framework to be selected first" : undefined}>
                               <input
                                 type="checkbox"
                                 checked={curQty > 0}
-                                disabled={mode === "downgrade" && oldQty === 0}
+                                disabled={(mode === "downgrade" && oldQty === 0) || blockedByFramework}
                                 onChange={() => toggleCheckbox(item.addOnCode)}
                               />
                             </label>
@@ -776,7 +944,8 @@ export default function UpgradeAddOnsWizard({ mode = "upgrade", sub, starter, ca
                     <span>{startingNormal} → {seats.normalUserCount}</span>
                   </div>
                   <div className="ms-confirm-note">
-                    Charged (or credited) automatically against your card/mandate on file — no separate payment screen.
+                    Adding seats opens a quick Razorpay payment screen per change; reducing
+                    seats takes effect immediately with nothing to authorize.
                   </div>
                 </>
               )}
@@ -788,14 +957,16 @@ export default function UpgradeAddOnsWizard({ mode = "upgrade", sub, starter, ca
               ))}
               {addOnsChanged && (
                 <div className="ms-confirm-note">
-                  {addOnChanges.filter((c) => c.action === "checkout").length > 0 && (
-                    <>Each new or changed add-on above opens its own quick Razorpay payment
-                      screen, one after another — that's a Razorpay requirement, not a bug,
-                      since each add-on is billed as its own subscription. </>
+                  {addOnChanges.some((c) => c.action === "checkout") && (
+                    <>New add-ons, and any increase to Integration, open a quick Razorpay
+                      payment screen — one after another. </>
                   )}
-                  {addOnChanges.some((c) => c.action === "remove") && (
-                    <>Removed add-ons are cancelled immediately, effective at the end of
-                      the current billing period — nothing to authorize.</>
+                  {addOnChanges.some((c) => c.action === "topup") && (
+                    <>Increases to DPIA / AI Impact / Vendor Mgmt you already own are charged
+                      automatically against your mandate on file — no separate payment screen. </>
+                  )}
+                  {addOnChanges.some((c) => c.action === "downgrade" || c.action === "remove") && (
+                    <>Reduced or removed add-ons take effect immediately with nothing to authorize.</>
                   )}
                 </div>
               )}
@@ -838,10 +1009,10 @@ export default function UpgradeAddOnsWizard({ mode = "upgrade", sub, starter, ca
             )}
 
             <p>
-              {chargesNow > 0 && `${formatINR(chargesNow)} was charged for your seat change. `}
+              {chargesNow > 0 && `${formatINR(chargesNow)} was charged for your mandate top-up(s). `}
               {anyFailed
                 ? "You can retry the failed item(s) from Manage Subscription — everything else above already took effect."
-                : "Your changes have been saved."}
+                : "Your changes have been saved. New quantities on pay-now items will reflect once payment is confirmed (usually within moments)."}
             </p>
             <button className="ms-btn ms-btn--primary" onClick={handleDone}>Done</button>
           </div>
