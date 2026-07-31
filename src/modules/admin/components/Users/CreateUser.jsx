@@ -27,13 +27,21 @@ import {
 // Icons
 import SaveIcon from "@mui/icons-material/Save";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import LockIcon from "@mui/icons-material/Lock";
 
 import { useEffectiveOrg } from '../../../../hooks/useEffectiveOrg';
+import useModuleEntitlements from "../../hooks/useModuleEntitlements";
 const TPRM_VENDORS_URL =
   "https://api.calvant.com/tprm-service/api/tprm/vendors";
 
 export default function UserForm({ userToEdit = null, onSuccess }) {
   const { isPartnerRoot, isOrgManager, effectiveOrgId, selectedChildOrg } = useEffectiveOrg();
+
+  // ── Seat cap (fulfilment) — same idea as the integration slot cap:
+  // block creating a NEW user once seatsUsed >= purchased seats
+  // (adminUserCount + normalUserCount). Editing an existing user, and
+  // super_admin (platform admin, not org-scoped), are never blocked.
+  const { loading: seatLoading, seatLimit, seatsUsed } = useModuleEntitlements();
   const navigate = useRouter();
   const [loading, setLoading] = useState(false);
   const [departments, setDepartments] = useState([]);
@@ -55,6 +63,14 @@ export default function UserForm({ userToEdit = null, onSuccess }) {
     : decoded?.role;
 
   const userOrg = myObject?.organization || decoded?.organization;
+
+  // Only gate NEW user creation, never edits, never super_admin (not org-scoped).
+  const atSeatCap =
+    !userToEdit &&
+    loggedInRole !== "super_admin" &&
+    !seatLoading &&
+    seatLimit > 0 &&
+    seatsUsed >= seatLimit;
   // Role options
   // replace the entire roles block:
   const roles =
@@ -339,6 +355,10 @@ export default function UserForm({ userToEdit = null, onSuccess }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (atSeatCap) {
+      setError("You've used all your user seats. Upgrade your plan under Manage Subscription to add more.");
+      return;
+    }
     setLoading(true);
     setError("");
 
@@ -440,6 +460,12 @@ export default function UserForm({ userToEdit = null, onSuccess }) {
             {userToEdit ? "Edit User" : "Create User"}
           </Typography>
         </Stack>
+
+        {atSeatCap && (
+          <Alert severity="warning" icon={<LockIcon fontSize="inherit" />} sx={{ mb: 1 }}>
+            You've used all {seatLimit} of your user seats ({seatsUsed}/{seatLimit}). Upgrade your plan under Manage Subscription to add more.
+          </Alert>
+        )}
 
         {error && (
           <Alert severity="error" sx={{ mb: 1 }}>
@@ -653,12 +679,12 @@ export default function UserForm({ userToEdit = null, onSuccess }) {
             <Button
               type="submit"
               variant="contained"
-              disabled={loading}
+              disabled={loading || atSeatCap}
               startIcon={
-                loading ? <CircularProgress size={20} /> : <SaveIcon />
+                loading ? <CircularProgress size={20} /> : atSeatCap ? <LockIcon /> : <SaveIcon />
               }
             >
-              {userToEdit ? "Update User" : "Create User"}
+              {atSeatCap ? "Upgrade to add more seats" : userToEdit ? "Update User" : "Create User"}
             </Button>
           </Stack>
         </form>

@@ -1,10 +1,11 @@
 
 // src/modules/admin/components/Integrations/ProviderCard.jsx'use client';
 import { useState, useMemo } from 'react';
-import { Box, Typography, Button, Chip } from '@mui/material';
+import { Box, Typography, Button, Chip, Tooltip } from '@mui/material';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import SettingsIcon    from '@mui/icons-material/Settings';
 import AddIcon         from '@mui/icons-material/Add';
+import LockIcon        from '@mui/icons-material/Lock';
 
 const LOGO_EXTENSIONS = ['svg', 'png', 'webp'];
 
@@ -32,6 +33,7 @@ export default function ProviderCard({
   label,
   description,
   isConnected,
+  locked,
   onOpen,
 }) {
   const candidates = useMemo(() => buildLogoCandidates(logoUrl), [logoUrl]);
@@ -147,40 +149,44 @@ export default function ProviderCard({
           the card's bottom edge, never floating mid-card. */}
       <Box sx={{ flex: 1 }} />
 
-      {/* Action button — pinned to bottom via mt: 'auto' as a second safeguard */}
-      <Button
-        onClick={onOpen}
-        variant={isConnected ? 'outlined' : 'contained'}
-        startIcon={isConnected ? <SettingsIcon sx={{ fontSize: 16 }} /> : <AddIcon sx={{ fontSize: 16 }} />}
-        sx={
-          isConnected
-            ? {
-                textTransform: 'none',
-                fontWeight: 600,
-                borderRadius: '8px',
-                fontSize: '0.85rem',
-                alignSelf: 'flex-start',
-                mt: 'auto',
-                flexShrink: 0,
-                borderColor: '#e2e8f0',
-                color: 'text.primary',
-                '&:hover': { borderColor: accent, background: `${accent}0d` },
-              }
-            : {
-                textTransform: 'none',
-                fontWeight: 600,
-                borderRadius: '8px',
-                fontSize: '0.85rem',
-                alignSelf: 'flex-start',
-                mt: 'auto',
-                flexShrink: 0,
-                background: '#0f172a',
-                '&:hover': { background: '#1e293b' },
-              }
-        }
-      >
-        {isConnected ? 'Modify' : 'Connect'}
-      </Button>
+      {/* Action button — pinned to bottom via mt: 'auto' as a second safeguard.
+          `locked` (not yet connected + at slot cap) disables the button entirely —
+          onOpen must never fire in that case, since it's what actually opens the
+          config dialog and lets a connection be saved. */}
+      <Tooltip title={locked ? "You've used all your integration slots — upgrade to connect more" : ''}>
+        <span style={{ alignSelf: 'flex-start', marginTop: 'auto' }}>
+          <Button
+            onClick={locked ? undefined : onOpen}
+            disabled={locked}
+            variant={isConnected ? 'outlined' : 'contained'}
+            startIcon={locked ? <LockIcon sx={{ fontSize: 16 }} /> : (isConnected ? <SettingsIcon sx={{ fontSize: 16 }} /> : <AddIcon sx={{ fontSize: 16 }} />)}
+            sx={
+              isConnected
+                ? {
+                    textTransform: 'none',
+                    fontWeight: 600,
+                    borderRadius: '8px',
+                    fontSize: '0.85rem',
+                    flexShrink: 0,
+                    borderColor: '#e2e8f0',
+                    color: 'text.primary',
+                    '&:hover': { borderColor: accent, background: `${accent}0d` },
+                  }
+                : {
+                    textTransform: 'none',
+                    fontWeight: 600,
+                    borderRadius: '8px',
+                    fontSize: '0.85rem',
+                    flexShrink: 0,
+                    background: '#0f172a',
+                    '&:hover': { background: '#1e293b' },
+                  }
+            }
+          >
+            {locked ? 'Locked' : (isConnected ? 'Modify' : 'Connect')}
+          </Button>
+        </span>
+      </Tooltip>
     </Box>
   );
 }

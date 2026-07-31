@@ -64,9 +64,14 @@ const VendorList = () => {
 
     const navigate = useHistory();
 
-    // Auth helpers
-    const token = localStorage.getItem("token");
-    const myObject = JSON.parse(localStorage.getItem("myObject") || "{}");
+    // Auth helpers — token/user live in sessionStorage (set by loginPage.js /
+    // AuthBridge.js). localStorage ("myObject") is the legacy pre-migration
+    // key and is empty for real sessions, which was silently forcing
+    // isRoot/isSuperAdmin to false below.
+    const token = sessionStorage.getItem("token") || localStorage.getItem("token");
+    const myObject = JSON.parse(
+        sessionStorage.getItem("user") || localStorage.getItem("myObject") || "{}",
+    );
     const organizationId = myObject?.organization || null;
 
     const decoded = token ? jwtDecode(token) : null;

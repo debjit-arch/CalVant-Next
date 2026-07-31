@@ -69,8 +69,11 @@ const SectionLabel = ({ icon: Icon, children }) => (
 function VendorCreate() {
   const navigate = useHistory();
 
-  // Decode JWT
-  const token = localStorage.getItem("token");
+  // Decode JWT — token lives in sessionStorage (set by loginPage.js /
+  // AuthBridge.js). localStorage was the old pre-migration admin panel's
+  // storage and is never populated by the real login flow, which made this
+  // guard always read a null token and reject every user, including root.
+  const token = sessionStorage.getItem("token") || localStorage.getItem("token");
   const decoded = token ? jwtDecode(token) : null;
   const loggedInRole = Array.isArray(decoded?.role)
     ? decoded.role[0]
@@ -116,8 +119,11 @@ function VendorCreate() {
     setLoading(true);
 
     try {
-      // Read organization ID from localStorage myObject
-      const myObject = JSON.parse(localStorage.getItem("myObject") || "{}");
+      // Read organization ID from the sessionStorage "user" object (the
+      // "myObject" localStorage key is legacy from the pre-migration panel).
+      const myObject = JSON.parse(
+        sessionStorage.getItem("user") || localStorage.getItem("myObject") || "{}",
+      );
       const organizationId =
         myObject?.organization || decoded?.organization || null;
 
@@ -134,7 +140,7 @@ function VendorCreate() {
         assessmentDate: formData.assessmentDate || null,
       };
 
-      const token = localStorage.getItem("token");
+      const token = sessionStorage.getItem("token") || localStorage.getItem("token");
       await axios.post(
         "https://api.calvant.com/tprm-service/api/tprm/vendors",
         payload,
