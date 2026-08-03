@@ -6,7 +6,7 @@ import { jwtDecode } from "jwt-decode";
 import { Rocket } from "lucide-react";
 import {
   LayoutDashboard, Users, UserPlus, Upload, Building2,
-  ShieldCheck, PlusCircle, List, Lock, UserCheck, Gavel,
+  ShieldCheck, PlusCircle, List, Lock, UserCheck,
   Truck, Activity, ChevronLeft, ChevronRight, ChevronDown,
   ChevronUp, LogOut, ArrowLeft, BookOpen, HelpCircle,
   Search, FileText, Landmark, Network, CheckCircle2
@@ -48,7 +48,6 @@ const NAV_BASE = [
   },
   { label: "Trust Centre",      icon: Lock,      path: "/admin/trust-centre" },
   { label: "Control Ownership", icon: UserCheck, path: "/admin/control-ownership" },
-  { label: "Consent Mgmt",      icon: Gavel,     path: "/admin/consent-management" },
   {
     label: "Vendors", icon: Truck, group: "vendors",
     children: [

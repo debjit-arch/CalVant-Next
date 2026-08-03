@@ -1038,13 +1038,6 @@ const Dashboard = () => {
                   label="Frameworks"
                   options={frameworkNavOptions}
                 />
-                <HeaderDropdown
-                  label="Templates"
-                  options={[
-                    { label: "Policies", route: "/policies" },
-                    { label: "Procedures", route: "/procedures" },
-                  ]}
-                />
                 <button
                   onClick={() => router.push("/pricing")}
                   style={{
@@ -1080,29 +1073,27 @@ const Dashboard = () => {
             <button
               onClick={() => router.push("/login")}
               style={{
-                display: "flex",
+                display: "inline-flex",
                 alignItems: "center",
-                gap: isMobile ? "2px" : "6px",
-                padding: isMobile ? "6px 10px" : "8px 16px",
+                gap: isMobile ? "2px" : "8px",
+                padding: isMobile ? "6px 10px" : "8px 12px",
+                background: "transparent",
+                border: "1px solid rgba(148, 163, 184, 0.35)",
                 borderRadius: "8px",
-                border: "1px solid rgba(148, 163, 184, 0.45)",
-                background: "rgba(15, 23, 42, 0.9)",
-                color: "#f9fafb",
-                fontSize: isMobile ? "10px" : "12px",
-                fontWeight: "600",
+                color: "#e5e7eb",
+                fontSize: isMobile ? "10px" : "14px",
+                fontWeight: "500",
                 cursor: "pointer",
                 transition: "all 0.25s ease",
                 whiteSpace: "nowrap",
               }}
               onMouseEnter={(e) => {
-                e.target.style.background = "rgba(15, 23, 42, 1)";
+                e.target.style.background = "rgba(15, 23, 42, 0.9)";
                 e.target.style.borderColor = "#4f46e5";
-                e.target.style.boxShadow = "0 8px 24px rgba(79, 70, 229, 0.4)";
               }}
               onMouseLeave={(e) => {
-                e.target.style.background = "rgba(15, 23, 42, 0.9)";
-                e.target.style.borderColor = "rgba(148, 163, 184, 0.45)";
-                e.target.style.boxShadow = "none";
+                e.target.style.background = "transparent";
+                e.target.style.borderColor = "rgba(148, 163, 184, 0.35)";
               }}
             >
               <LogIn size={isMobile ? 12 : 16} />

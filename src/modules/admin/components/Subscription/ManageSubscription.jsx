@@ -781,9 +781,9 @@ export default function ManageSubscription() {
               </div>
             </div>
             <div className="ms-header-actions">
-              <button className="ms-btn ms-btn--outline" onClick={() => setShowChangePlanInfo(true)}>
+              {/* <button className="ms-btn ms-btn--outline" onClick={() => setShowChangePlanInfo(true)}>
                 Change Plan
-              </button>
+              </button> */}
               <button
                 className="ms-btn ms-btn--primary"
                 disabled={!canManage}

@@ -58,7 +58,6 @@ import FooterContent from "./components/FooterContents/FooterContent";
 import FooterContentAdd from "./components/FooterContents/FooterContentAdd";
 import FooterContentEdit from "./components/FooterContents/FooterContentEdit";
 
-import ConsentAdmin from "./components/ConsentManagement/consentadmin";
 import GppGoodIcon from "@mui/icons-material/GppGood";
 
 import CreateFramework from "./components/Frameworks/CreateFramework";
@@ -268,14 +267,6 @@ export default {
     //   ]
     // },
     // ✅ FIX: Risk Management kept as '/risks'
-    {
-      path: "/consent",
-      name: "Consent Management",
-      type: "link",
-      icon: GppGoodIcon,
-      component: ConsentAdmin,
-      roles: ["root", "super_admin"],
-    },
     {
       path: "/risks",
       name: "Risk",

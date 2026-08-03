@@ -1,7 +1,7 @@
 ﻿'use client'
 
 import React, { useState, useEffect } from "react";
-import { useHistory } from "react-router-dom";
+import { useRouter } from "next/navigation";
 import { jwtDecode } from "jwt-decode";
 import api from "../../api/adminAxios";
 
@@ -22,7 +22,7 @@ const PREDEFINED_DEPARTMENTS = [
 
 export default function CreateDept() {
   const { isPartnerRoot, isOrgManager, effectiveOrgId, selectedChildOrg } = useEffectiveOrg();
-  const navigate = useHistory();
+  const navigate = useRouter();
 
   const [name, setName] = useState("");
   const [mapping, setMapping] = useState("");
@@ -33,7 +33,7 @@ export default function CreateDept() {
   const [organizations, setOrganizations] = useState([]);
   const [selectedOrg, setSelectedOrg] = useState("");
 
-  const token = localStorage.getItem("token");
+  const token = sessionStorage.getItem("token") || localStorage.getItem("token");
   const decoded = token ? jwtDecode(token) : null;
   const loggedInRole = Array.isArray(decoded?.role)
     ? decoded.role[0]
@@ -41,7 +41,7 @@ export default function CreateDept() {
   /* -------- Get Organization from JWT -------- */
   // Replace the existing useEffect that sets organizationId:
   useEffect(() => {
-    const token = localStorage.getItem("token");
+    const token = sessionStorage.getItem("token") || localStorage.getItem("token");
     if (token) {
       try {
         const decoded = jwtDecode(token);
@@ -111,7 +111,7 @@ export default function CreateDept() {
 
       await api.post("/departments", payload);
       alert("Department created successfully!");
-      navigate.push("/departments/list");
+      navigate.push("/admin/departments");
     } catch (err) {
       console.error(err);
       alert(err.response?.data?.error || "Failed to create department");
@@ -270,7 +270,7 @@ export default function CreateDept() {
             <button
               type="button"
               style={styles.secondaryBtn}
-              onClick={() => navigate.push("/")}
+              onClick={() => navigate.push("/admin/departments")}
               disabled={loading}
             >
               Cancel
