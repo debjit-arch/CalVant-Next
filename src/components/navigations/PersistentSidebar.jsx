@@ -713,6 +713,7 @@ import DualLogo from "../DualLogo";
 import { useSession } from "../../context/SessionContext";
 import { useFramework } from "../../context/FrameworkContex";
 import { Report } from "@material-ui/icons";
+import useModuleEntitlements from "../../modules/admin/hooks/useModuleEntitlements";
 
 /* ─────────────────────────────────────────────
    Custom hook for media query
@@ -818,6 +819,7 @@ const NAV_ITEMS = [
     label: "Vendors",
     path: "/tprm",
     expandable: true,
+    moduleKey: "vendor",
   },
   {
     icon: Shield,
@@ -935,7 +937,16 @@ const PersistentSidebar = () => {
      the current user has at least one matching role.
   ───────────────────────────────────────────── */
   const visibleNavItems = NAV_ITEMS.filter((item) => {
-    // Module visibility (dpia / aiia toggles)
+    // Fulfilment cap: hide un-purchased modules entirely for the whole org.
+    // Hide until loaded (avoid a flash of a link that then disappears).
+    if (item.moduleKey === "dpia" || item.moduleKey === "aiia" || item.moduleKey === "vendor") {
+      if (entLoading) return false;
+      if (item.moduleKey === "dpia" && !dpiaEntitled) return false;
+      if (item.moduleKey === "aiia" && !aiiaEntitled) return false;
+      if (item.moduleKey === "vendor" && !vendorEntitled) return false;
+    }
+
+    // Module visibility (dpia / aiia toggles, based on org's selected frameworks)
     if (item.moduleKey === "dpia" && !showDpia) return false;
     if (item.moduleKey === "aiia" && !showAiia) return false;
 

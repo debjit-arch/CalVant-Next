@@ -1331,6 +1331,7 @@ import { useFramework } from "../../context/FrameworkContex";
 import { getFrameworkCompliance } from "../integrations/complianceData";
 import { useUI } from "../../context/UIContext";
 import { useEffectiveOrg } from "@/hooks/useEffectiveOrg";
+import useModuleEntitlements from "../admin/hooks/useModuleEntitlements";
 
 // ─── Framework filter helpers ─────────────────────────────────────────────────
 function _getAllowedRiskTypes(activeDashboardCodes) {
@@ -1909,6 +1910,17 @@ const orgIdsToFetch = useMemo(() => {
 
   // ── Framework context ─────────────────────────────────────────────────────
   const { selectedFrameworks, isAllSelected, showDpia, showAiia, availableFrameworks } = useFramework();
+  const { dpia: dpiaEntitled, aiia: aiiaEntitled, vendor: vendorEntitled } = useModuleEntitlements();
+  // showTprm previously only turned true from the legacy Organization.tprmEnabled
+  // flag (fetched below) — a field the OLD manual admin-panel org-configuration
+  // flow used to set by hand. Self-serve/billing-driven signups never write it,
+  // so a genuinely paid-for Vendor Mgmt add-on stayed hidden with no way to turn
+  // it on. Billing-service's entitlement is the real source of truth now (same
+  // decision already made for the Integrations page), so auto-show the card the
+  // moment the add-on is entitled; the toggle below still lets someone hide it.
+  useEffect(() => {
+    if (vendorEntitled) setShowTprm(true);
+  }, [vendorEntitled]);
 
   const fwLabelToCode = useMemo(() => Object.fromEntries(availableFrameworks.map((fw) => [fw.id, fw.code])), [availableFrameworks]);
   const complianceFrameworkCodes = useMemo(() => availableFrameworks.map((fw) => fw.code), [availableFrameworks]);
@@ -2538,7 +2550,7 @@ const orgIdsToFetch = useMemo(() => {
           </motion.div>
 
           {/* DPIA */}
-          {showDpia && (
+          {showDpia && dpiaEntitled && (
             <motion.div id="dpia-module" initial={hasMounted ? { opacity: 0, y: 20 } : false} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.3 }} whileHover={{ scale: 1.02, boxShadow: "0 12px 24px rgba(14,165,233,0.12)" }} whileTap={{ scale: 0.98 }} onClick={() => navigateToModule("/dpia")} style={{ ...cardStyle, borderLeft: "4px solid #0ea5e9" }}>
               <CardHeader icon={<ShieldCheck size={16} color="white" />} iconGradient="linear-gradient(135deg, #0ea5e9, #0284c7)" title="DPIA" total={dpiaStats.total} totalLabel="Total Assessments" filterTags={false} isAllSelected={isAllSelected} />
               <PieSection data={getPieChartData([{ name: "Submitted", value: dpiaStats.submitted }, { name: "In Progress", value: dpiaStats.inProgress }, { name: "Draft", value: dpiaStats.draft }])} cells={getPieChartData([{ color: "#10b981" }, { color: "#6366f1" }, { color: "#f59e0b" }]).map((e, i) => <Cell key={i} fill={e.color} />)} legend={[["#10b981", dpiaStats.submitted, "Submitted"], ["#6366f1", dpiaStats.inProgress, "In Progress"], ["#f59e0b", dpiaStats.draft, "Draft"]]} />
@@ -2546,7 +2558,7 @@ const orgIdsToFetch = useMemo(() => {
           )}
 
           {/* TPRM */}
-          {showTprm && (
+          {showTprm && vendorEntitled && (
             <motion.div id="tprm-module" initial={hasMounted ? { opacity: 0, y: 20 } : false} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.5 }} whileHover={{ scale: 1.02, boxShadow: "0 12px 24px rgba(99,102,241,0.12)" }} whileTap={{ scale: 0.98 }} onClick={() => navigateToModule("/tprm")} style={{ ...cardStyle, borderLeft: "4px solid #6366f1" }}>
               <CardHeader icon={<ShieldCheck size={16} color="white" />} iconGradient="linear-gradient(135deg, #6366f1, #4f46e5)" title="TPRM" total={tprmStats.total} totalLabel="Total Assessments" filterTags={false} isAllSelected={isAllSelected} />
               <PieSection data={[{ name: "Approved", value: tprmStats.approved }, { name: "Submitted", value: tprmStats.submitted }, { name: "Sent", value: tprmStats.sent }, { name: "Rejected", value: tprmStats.rejected }]} cells={[<Cell key="ap" fill="#10b981" />, <Cell key="su" fill="#f59e0b" />, <Cell key="se" fill="#3b82f6" />, <Cell key="re" fill="#ef4444" />]} legend={[["#10b981", tprmStats.approved, "Approved"], ["#f59e0b", tprmStats.submitted, "Submitted"], ["#3b82f6", tprmStats.sent, "Sent"]]} />
@@ -2554,7 +2566,7 @@ const orgIdsToFetch = useMemo(() => {
           )}
 
           {/* AIIA */}
-          {showAiia && (
+          {showAiia && aiiaEntitled && (
             <motion.div id="aiia-module" initial={hasMounted ? { opacity: 0, y: 20 } : false} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.55 }} whileHover={{ scale: 1.02, boxShadow: "0 12px 24px rgba(217,70,239,0.12)" }} whileTap={{ scale: 0.98 }} onClick={() => navigateToModule("/aiia")} style={{ ...cardStyle, borderLeft: "4px solid #d946ef" }}>
               <CardHeader icon={<Brain size={16} color="white" />} iconGradient="linear-gradient(135deg, #d946ef, #a21caf)" title="AIIA" total={aiiaStats.total} totalLabel="Total Assessments" filterTags={false} isAllSelected={isAllSelected} />
               <PieSection data={getPieChartData([{ name: "Approved", value: aiiaStats.approved }, { name: "Submitted", value: aiiaStats.submitted }, { name: "Draft", value: aiiaStats.draft }])} cells={getPieChartData([{ color: "#10b981" }, { color: "#6366f1" }, { color: "#f59e0b" }]).map((e, i) => <Cell key={i} fill={e.color} />)} legend={[["#10b981", aiiaStats.approved, "Approved"], ["#6366f1", aiiaStats.submitted, "Submitted"], ["#f59e0b", aiiaStats.draft, "Draft"]]} />
@@ -2616,7 +2628,7 @@ const orgIdsToFetch = useMemo(() => {
       <footer className="w-full bg-white border-t border-gray-200 mt-auto px-4 py-5 sm:px-3 sm:py-4">
         <div className="w-full max-w-[1400px] mx-auto 2xl:max-w-[1600px]">
           <div className="flex justify-center items-center gap-3 mt-2">
-            {orgTprmEnabled && (
+            {(orgTprmEnabled || vendorEntitled) && (
               <button onClick={() => setShowTprm((v) => !v)} className="px-3 py-1.5 text-xs font-semibold bg-indigo-100 hover:bg-indigo-200 text-indigo-700 rounded-lg transition-colors flex items-center gap-1.5">
                 {showTprm ? "Hide" : "Show"} TPRM
               </button>

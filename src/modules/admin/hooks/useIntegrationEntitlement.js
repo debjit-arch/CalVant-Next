@@ -48,15 +48,20 @@ export default function useIntegrationEntitlement() {
         getAddOnCatalog(),
       ]);
 
-      const customLine = subscription?.addOns?.find((l) => l.addOnCode === INTEGRATION_CUSTOM_CODE);
-      const standardLine = subscription?.addOns?.find((l) => l.addOnCode === INTEGRATION_STANDARD_CODE);
+      // Integration slots unlock ONLY off a real, paid addOn line — same as
+      // every other paid add-on on the annual subscription. No trial-based
+      // auto-unlock here: a general account trial must never grant access
+      // to Integrations specifically, since that's a separately-purchased
+      // add-on, not something included in the base plan trial.
+      const customLine = subscription?.addOns?.find((l) => l.addOnCode === INTEGRATION_CUSTOM_CODE && l.quantity > 0);
+      const standardLine = subscription?.addOns?.find((l) => l.addOnCode === INTEGRATION_STANDARD_CODE && l.quantity > 0);
 
-      if (customLine && customLine.quantity > 0) {
+      if (customLine) {
         setState({ loading: false, error: "", mode: ENTITLEMENT_CUSTOM, slotLimit: 0 });
         return;
       }
 
-      if (standardLine && standardLine.quantity > 0) {
+      if (standardLine) {
         // slotLimit here assumes each purchased unit = 1 integration slot.
         // If a single INTEGRATION_STANDARD unit actually grants more than
         // one slot on the backend, multiply by that per-unit slot count
