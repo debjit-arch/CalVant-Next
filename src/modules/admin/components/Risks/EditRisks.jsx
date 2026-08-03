@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import { useParams, useHistory } from 'react-router-dom'
+import { useSearchParams, useRouter } from 'next/navigation'
 import {
   Box,
   Paper,
@@ -15,8 +15,9 @@ import axios from '../../api/adminAxios'
 const BASE_URL = `${process.env.NEXT_PUBLIC_SP}/risk-template-service/api/risks`
 
 function EditRisks() {
-  const { id } = useParams()
-  const history = useHistory()
+  const searchParams = useSearchParams()
+  const id = searchParams.get('id')
+  const router = useRouter()
 
   const [loading, setLoading] = useState(true)
   const [form, setForm] = useState({
@@ -52,9 +53,9 @@ function EditRisks() {
       .catch(err => {
         console.error(err)
         alert('Failed to load risk')
-history.push('/risks/risk_sample/list')
+        router.push('/admin/risks')
       })
-  }, [id, history])
+  }, [id, router])
 
   const handleChange = (e) => {
     const { name, value } = e.target
@@ -79,7 +80,7 @@ history.push('/risks/risk_sample/list')
       await axios.put(`${BASE_URL}/${id}`, payload)
 
       alert('Risk updated successfully ✅')
-      history.push('/risks/risk_sample/list')
+      router.push('/admin/risks')
     } catch (err) {
       console.error(err)
       alert('Update failed ❌')
@@ -178,7 +179,7 @@ history.push('/risks/risk_sample/list')
               <Button type="submit" variant="contained">
                 Update Risk
               </Button>
-              <Button variant="outlined" onClick={() => history.push('/risks/risk_sample/list')}>
+              <Button variant="outlined" onClick={() => router.push('/admin/risks')}>
                 Cancel
               </Button>
             </Grid>

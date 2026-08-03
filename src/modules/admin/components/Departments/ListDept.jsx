@@ -50,7 +50,7 @@ export default function ListDepartment() {
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
   // Get User Organization
-  const token = localStorage.getItem("token");
+  const token = sessionStorage.getItem("token") || localStorage.getItem("token");
   let userOrg = null;
   if (token) {
     try {

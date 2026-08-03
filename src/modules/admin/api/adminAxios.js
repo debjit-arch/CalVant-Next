@@ -29,7 +29,9 @@
 
 import axios from "axios";
 
-const adminAxios = axios.create();
+const adminAxios = axios.create({
+    baseURL: "https://api.calvant.com/user-service/api",
+});
 
 adminAxios.interceptors.request.use((config) => {
     const token = sessionStorage.getItem("token");

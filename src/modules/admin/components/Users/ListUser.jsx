@@ -76,6 +76,21 @@ function ListUsers() {
     "aio",
     "dpo",
   ];
+
+  // Display-only labels — underlying values sent to the backend stay
+  // unchanged (lowercase snake_case).
+  const ROLE_LABELS = {
+    ciso: "CISO",
+    aio: "AI Officer",
+    dpo: "DPO",
+  };
+  const formatRoleLabel = (role) =>
+    ROLE_LABELS[role] ||
+    role
+      .split("_")
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ");
+
   const decoded = token ? jwtDecode(token) : null;
   const currentUserId = decoded?.userid || decoded?.id || decoded?.sub || null;
   const loggedInRole = Array.isArray(decoded?.role)
@@ -374,7 +389,9 @@ function ListUsers() {
                       size="small"
                       displayEmpty
                       value={roleFilter}
-                      renderValue={(selected) => selected || "All"}
+                      renderValue={(selected) =>
+                        selected ? formatRoleLabel(selected) : "All"
+                      }
                       onChange={(e) => {
                         setRoleFilter(e.target.value);
                         setPage(0);
@@ -389,7 +406,7 @@ function ListUsers() {
                       <MenuItem value="">All</MenuItem>
                       {roles.map((r) => (
                         <MenuItem key={r} value={r}>
-                          {r}
+                          {formatRoleLabel(r)}
                         </MenuItem>
                       ))}
                     </Select>
@@ -459,6 +476,9 @@ function ListUsers() {
                               handleDraftChange("role", e.target.value)
                             }
                             input={<OutlinedInput />}
+                            renderValue={(selected) =>
+                              selected.map(formatRoleLabel).join(", ")
+                            }
                             sx={{ minWidth: 160 }}
                           >
                             {roles
@@ -475,12 +495,12 @@ function ListUsers() {
                               })
                               .map((r) => (
                                 <MenuItem key={r} value={r}>
-                                  {r}
+                                  {formatRoleLabel(r)}
                                 </MenuItem>
                               ))}
                           </Select>
                         ) : (
-                          u.role.join(", ")
+                          u.role.map(formatRoleLabel).join(", ")
                         )}
                       </TableCell>
 

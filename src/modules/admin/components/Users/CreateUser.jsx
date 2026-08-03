@@ -105,6 +105,20 @@ export default function UserForm({ userToEdit = null, onSuccess }) {
             "aio",
           ];
 
+  // Display-only labels — underlying values sent to the backend stay
+  // unchanged (lowercase snake_case).
+  const ROLE_LABELS = {
+    ciso: "CISO",
+    aio: "AI Officer",
+    dpo: "DPO",
+  };
+  const formatRoleLabel = (role) =>
+    ROLE_LABELS[role] ||
+    role
+      .split("_")
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ");
+
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -117,7 +131,6 @@ export default function UserForm({ userToEdit = null, onSuccess }) {
   });
 
   const normalizeArray = (data, keepEmpty = false) => {
-  const { isPartnerRoot, isOrgManager, effectiveOrgId, selectedChildOrg } = useEffectiveOrg();
     if (!data) return [];
     if (Array.isArray(data)) {
       if (keepEmpty) return data; // Keep empty strings when needed
@@ -269,13 +282,11 @@ export default function UserForm({ userToEdit = null, onSuccess }) {
   }, [userToEdit]);
 
   const handleChange = (e) => {
-  const { isPartnerRoot, isOrgManager, effectiveOrgId, selectedChildOrg } = useEffectiveOrg();
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleMultiChange = (e) => {
-  const { isPartnerRoot, isOrgManager, effectiveOrgId, selectedChildOrg } = useEffectiveOrg();
     const { name, value } = e.target;
     const newValue = Array.isArray(value) ? value : normalizeArray(value);
 
@@ -332,7 +343,6 @@ export default function UserForm({ userToEdit = null, onSuccess }) {
   };
 
   const handleChipDelete = (fieldName, valueToRemove) => {
-  const { isPartnerRoot, isOrgManager, effectiveOrgId, selectedChildOrg } = useEffectiveOrg();
     setFormData((prev) => {
       const updated = {
         ...prev,
@@ -404,7 +414,7 @@ export default function UserForm({ userToEdit = null, onSuccess }) {
       if (userToEdit) {
         await api.post("/users/update", { ...payload, id: userToEdit.id });
         alert("User updated successfully!");
-        onSuccess ? onSuccess() : navigate.push(-1);
+        onSuccess ? onSuccess() : navigate.back();
       } else {
         await api.post(
           "https://api.calvant.com/user-service/api/users/register",
@@ -434,7 +444,6 @@ export default function UserForm({ userToEdit = null, onSuccess }) {
   };
 
   const getDeptLabel = (id) => {
-  const { isPartnerRoot, isOrgManager, effectiveOrgId, selectedChildOrg } = useEffectiveOrg();
     const dept = departments.find((d) => d.id === id);
     return dept ? dept.name : id;
   };
@@ -449,7 +458,7 @@ export default function UserForm({ userToEdit = null, onSuccess }) {
         <Stack direction="row" spacing={1} mb={3}>
           <Button
             startIcon={<ArrowBackIcon />}
-            onClick={() => navigate.push("/users/list")}
+            onClick={() => navigate.push("/admin/users")}
           >
             List
           </Button>
@@ -513,7 +522,7 @@ export default function UserForm({ userToEdit = null, onSuccess }) {
                     {selected.map((val) => (
                       <Chip
                         key={val}
-                        label={val}
+                        label={formatRoleLabel(val)}
                         size="small"
                         onDelete={() => handleChipDelete("role", val)}
                         onMouseDown={(e) => e.stopPropagation()}
@@ -530,7 +539,7 @@ export default function UserForm({ userToEdit = null, onSuccess }) {
                   })
                   .map((r) => (
                     <MenuItem key={r} value={r}>
-                      {r}
+                      {formatRoleLabel(r)}
                     </MenuItem>
                   ))}
               </Select>
