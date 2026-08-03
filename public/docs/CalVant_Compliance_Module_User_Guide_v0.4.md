@@ -91,3 +91,4 @@ Reports shows compliance trends over time, accessible from Compliances → Repor
 The Compliance Trend chart plots compliance percentage over the months, broken down by connected source, e.g., AWS, GCP, M365. 
 
 ![Risk Dashboard overview](/Screenshots/Compliance/6.png) 
+

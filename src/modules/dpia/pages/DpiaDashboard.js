@@ -160,300 +160,193 @@ export default function Dashboard() {
   const [showHelpDoc, setShowHelpDoc] = useState(false);
 
 const DPIA_HELP_CONTENT = `
-# **calvant** 
+## 1. Introduction
 
-###### Digital Compliance Management 
+The Impact Assessment Module in CalVant helps you identify, evaluate, and document the privacy and AI governance risks associated with your organization's data processing activities and AI systems. It supports several linked assessment types — Risk Assessments, Data Protection Impact Assessments and AI Impact Assessments — aligned to frameworks such as GDPR, DPDPA, KSA PDPL, CCPA, ISO 27701, ISO 42001, EU AI Act, etc.
 
-## **Impact Assessments Module** 
+## 2. Accessing the Impact Assessment Module
 
-### **End-User Guide** 
+1. Click the DPIA icon in the sidebar to land on your DPIA Dashboard, the risk icon to land on your Risk Dashboard, or the AIIA icon to land on your AI Impact Assessment Dashboard.
 
-_A step-by-step guide to identifying, assessing, treating, and tracking various types of risks in CalVant (DPIA, AIIA, Risk Assessment, etc)_ 
+## 3. Key Terminology
 
-Version 1.0  |  July 2026 
+A short list of terms that are specific to CalVant's policy workflow rather than self-explanatory from the screen itself:
 
-© 2026 CalVant. All rights reserved. 
-
-##### **Table of Contents** 
-
-###### **1. Introduc4on** 
-
-###### **2. Accessing the Impact Assessment Module** 
-
-###### **3. Key Terminology** 
-
-###### **4. Manual Naviga4on** 
-
-4.1 DPIA Dashboard 
-
-4.2 Planning a DPIA 
-
-4.3 Comple:ng a DPIA 
-
-4.4 Viewing DPIA Assessments 
-
-- 4.5 Managing DPIA Assignments 
-
-- 4.6 AI Impact Assessment (AIIA) Dashboard 
-
-- 4.7 Planning an AI Impact Assessment 
-
-4.8 Comple:ng & Managing an AIIA 
-
-4.9 My Assignments 
-
-###### **5. Status & Quality Reference** 
-
-###### **6. Tips, Best Prac4ces & Troubleshoo4ng** 
-
-###### **7. Addi4onal Inf** 
-
-#### **Introduction** 
-
-The Impact Assessment Module in CalVant helps you iden:fy, evaluate, and document the privacy and AI governance risks associated with your organiza:on's data processing ac:vi:es and AI systems. It supports several  linked assessment types — Risk Assessments, Data Protec:on Impact Assessments and AI Impact Assessments  — aligned to frameworks such as GDPR, DPDPA, KSA PDPL, CCPA, ISO 27701, ISO 42001, EU AI Act, etc. 
-
-#### **2. Accessing the Impact Assessment Module** 
-
-1. Click the DPIA icon in the sidebar to land on your DPIA Dashboard, the risk icon to land on your Risk Dashboard or the AIIA icon to land on your AI Impact Assessment Dashboard. 
-
-#### **3. Key Terminology** 
-
-A short list of terms that are specific to CalVant's policy workflow rather than self-explanatory from the screen itself: 
-
-|**Term**|**Defni4on**|
+| Term | Definition |
 |---|---|
-||Data Protec:on Impact Assessment — a structured review of how personal|
-|**DPIA**|data is collected, used, and protected, used to iden:fy privacy risk before<br>high-risk processing begins.|
-||AI Impact Assessment — a structured review of an AI system's business|
-|**AIIA**|objec:ve, intended use, and foreseeable misuse, used to iden:fy AI<br>governance risk before deployment.|
+| DPIA | Data Protection Impact Assessment — a structured review of how personal data is collected, used, and protected, used to identify privacy risk before high-risk processing begins. |
+| AIIA | AI Impact Assessment — a structured review of an AI system's business objective, intended use, and foreseeable misuse, used to identify AI governance risk before deployment. |
 
+## 4. Manual Navigation
 
+### 4.1 DPIA Dashboard
 
-##### **4. Manual Naviga4on** 
+The DPIA Dashboard is your home base for privacy impact assessments. It gives you an at-a-glance summary of every DPIA in your organization, along with quick actions to browse, plan, and manage them.
 
-###### **4.1 DPIA Dashboard** 
+![DPIA Dashboard overview](/Screenshots/ImpactAssessments/DPIA/dpia-dashboard.png)
 
-The DPIA Dashboard is your home base for privacy impact assessments. It gives you an at-a-glance summary of every DPIA in your organiza:on, along with quick ac:ons to browse, plan, and manage them. 
+1. **Summary tiles** — Total, Submitted, In Progress, and Pending DPIA counts.
+2. **Audit Status** — shows a "No Assessments Yet" state until the first DPIA is created.
+3. **Audit Trends** — a bar chart of DPIAs created each month; shows "No Trend Data" until assessments carry date fields.
 
+The Quick Actions panel gives one-click access to the most common tasks:
 
-
-<!-- Start of picture text -->
-DPIA Dashboard Root John<br>3 0 © 0 ©) 0 Assessment Status<br>TOTAL SUBMITTED IN PROGRESS<br>PENDING<br>Quick Actions<br>@ Assessment Trends<br>View. DPIAs Plan DPIA Assessments by month 0 total<br>Browse all assessments Assign to a risk owner<br>S<br>Manage DPIA<br>View & edit assignments<br><!-- End of picture text -->
-
-
-
-<!-- Start of picture text -->
-Step 1 — Select Assessment<br><!-- End of picture text -->
-
-
-
-<!-- Start of picture text -->
-Q Search assessments...<br>re) DRAFT<br>69E-DPIA-2026-002<br>DRAFT<br>69E-DPIA-2026-001<br><!-- End of picture text -->
-
-Next: Set Details > 
-
-
-
-<!-- Start of picture text -->
-Plan DPIA<br><!-- End of picture text -->
-
-€ Back to List x 
-
-Step 2 — Set Details 
-
-Select Assessment 
-
-So) 69E-DPIA-2026-003DRAFT 
-
-Department * 
-
-Select department... 
-
-
-
-<!-- Start of picture text -->
-& Assign To (Risk Owner) *<br><!-- End of picture text -->
-
-###### Harvey Spectre 
-
-
-
-<!-- Start of picture text -->
-Vv<br>Vv<br><!-- End of picture text -->
-
-(3 Due Date * 
-
-###### dd/mm/yyyy 
-
-
-
-<!-- Start of picture text -->
-A<br><!-- End of picture text -->
-
-Notes / Instructions 
-
-Any context or instructions for the risk owner... 
-
-
-
-<!-- Start of picture text -->
-Assign DPIA<br><!-- End of picture text -->
-
-
-
-
-
-<!-- Start of picture text -->
-<€ Dashboard<br>New DPIA Assessment<br>ID: 6a572d6367f82d36c95e858c<br>Data Protection Compliance — DPIA Assessment<br>Pll Inventory 2 Personal Data Elements 3 DPIA Questionnaire<br>Data subjects & collection Data element checklist Compliance & obligations<br>Stage 1of3<br>Pll Inventory Assessment<br>Gain visibility into personal data collected — data subjects, elements, purposes, storage, recipients, cross-border transfers, retention<br>requirements, and deletion procedures.<br>| © Who is the anticipated Data Subject? (Select all that apply)<br>(CD a.Current employee (CD b. Former Employee (CD c. Customer's Employee<br>(D d. Customer's Customer CD e. Business Contact (C) f. Users<br>OC g. Other<br>| e In what geographies orjurisdictions do the individuals reside? (Select all that apply)<br>OC) a.Europe OC b. Russia OU c. Latin America (D d. Middle East/ Africa 0 e. China<br>0) f. Asia Pacific 0D g.United States (Dh. Canada ©) i. California (DF j. Other<br><!-- End of picture text -->
-
-
-
-<!-- Start of picture text -->
-==<br>-<br>SB AllDPIAassessments Assessmentsfor your organization -O shown<br>fo}TOTAL ASSESSMENTS 2 | fo}SUBMITTED fo}IN PROGRESS | © | fo}HIGH RISK<br>Filter: Submitted (0) In Progress (0) High Risk (0)<br>DPIA Assessments O shown<br>No assessments found<br>Try a different filter or create a new assessment.<br><!-- End of picture text -->
-
-###### Manage DPIA Assignments 
-
-x 
-
-19 assignments 
-
-###### 1) Assignments List Edit Assignment 
-
-Q_ Search by project, assignee, status... 
-
-###### COMPLETED 
-
-693-DPIA-2026-001 Z Assigned to: 69955e31e9c9efb38a262e94 Due: 20-03-2026 
-
-###### ASSIGNED 
-
-693-DPIA-2026-006 Z Assigned to: 69955e31e9c9efb38a262e94 Due: 20-03-2026 
-
-###### ASSIGNED 
-
-693-DPIA-2026-007 a Assigned to: 69940aaa660ec82452ab4485 Due: 20-03-2026 
-
-
-
-<!-- Start of picture text -->
-Al Impactp Assessment Root John © ® Guide:<br>Root Dashboard<br>B Oo Oo aoO Oo Assessment Status<br>TOTAL APPROVED COMPLETED<br>0 0%<br>AVG<br>COMPLETE<br>Quick Actions<br>Assessment Trends<br>Monthly distribution<br>View Assessments Plan Assessment<br>Browse all AIl[A assessments Create a new Al assessment<br>Manage AllA<br>Edit or delete assessments<br><!-- End of picture text -->
-
-
-
-<!-- Start of picture text -->
-Plan Al Assessment x<br>Fill in the details to create a new assessment<br>Al System Name *<br>e.g., Custon Ipp Chatt<br>Department *<br>Select Department... vy<br>Assessment Date<br>15/07/2026 o<br>© Business Objective, Intended Use, and Foreseeable Misuse will be completed<br>by the assigned Risk Owner before they begin the assessment.<br>Cancel<br><!-- End of picture text -->
-
-x 
-
-###### Manage Al Assessments 
-
-
-
-<!-- Start of picture text -->
-€ Back to List. Edit: CalVant<br>Step 1 of 2 — Assessment Details<br><!-- End of picture text -->
-
-
-
-<!-- Start of picture text -->
-Al System Name *<br><!-- End of picture text -->
-
-
-
-<!-- Start of picture text -->
-CalVant<br><!-- End of picture text -->
-
-Department * 
-
-
-
-<!-- Start of picture text -->
-IT Infrastructure<br><!-- End of picture text -->
-
-
-
-<!-- Start of picture text -->
-vy<br><!-- End of picture text -->
-
-###### Business Objective * 
-
-
-
-<!-- Start of picture text -->
-To gain profit<br><!-- End of picture text -->
-
-Intended Use * 
-
-
-
-<!-- Start of picture text -->
-To Check Compliance<br><!-- End of picture text -->
-
-
-
-
-
-<!-- Start of picture text -->
-Foreseeable Misuse<br>Al System Owner Email *<br>johndoe@consultantsfactory.com<br>Assessment Date<br>20/04/2026 o<br>Status<br>DRAFT —_<br>Next: Assign Risk Owners —><br><!-- End of picture text -->
-
-
-
-<!-- Start of picture text -->
-My Assignments G Refresh<br>Al assessments assigned to you for review and completion<br>© 2 Pending @ 0 Completed 2 Total<br>Pending Action 2) Completed<br>E) CalVant20/04/2026 © Action Required<br>To gain profit<br>= Testing © Action Required<br>03/07/2026<br><!-- End of picture text -->
-
-
-
-<!-- Start of picture text -->
-My Assignments G Refresh<br>Al assessments assigned to you for review and completion<br>© 2 Pending G 0 Completed 2 Total<br>Pending Action 2) Completed<br>No completed assignments<br>Completed assessments will appear here once you finish all checklist items<br><!-- End of picture text -->
-
-#### **5. Status & Quality Reference** 
-
-#### **DPIA status** 
-
-|**Status**|**Meaning**|
+| Field | Description |
 |---|---|
-|**Dra]**|The DPIA has been created but not yet assigned to a Risk Owner.|
-|**Assigned**|The DPIA has been sent to a Risk Owner and is awai:ng comple:on.|
-|**Completed**|The Risk Owner has fnished all checklist items.|
-|**Submi^ed**|The completed DPIA has been submi^ed for compliance review.|
-|**In Progress**|The Risk Owner has started but not yet fnished the ques:onnaire.|
-|**High Risk**|The assessment's responses indicate a high-risk processing ac:vity requiring closer<br>review.|
+| View DPIAs | Opens the browsable list (Section 4.4). |
+| Plan DPIAs | Plan DPIA starts the assignment wizard (Section 4.2). |
+| Manage DPIAs | Manage DPIA opens the editable assignment register (Section 4.5). |
 
+### 4.2 Planning a DPIA
 
+CalVant uses a guided, two-step wizard to plan a DPIA: Select Assessment, then Set Details.
 
-#### **AIIA Status** 
+![DPIA Plan overview](/Screenshots/ImpactAssessments/DPIA/dpia-plan.png)
 
-|**Status**|**Meaning**|
+1. From the DPIA Dashboard, click Plan DPIA under Quick Actions.
+2. Step 1 — Select Assessment: choose an existing draft assessment from the list, or click New DPIA to create one.
+3. Click Next: Set Details to continue.
+
+![DPIA Plan 2 overview](/Screenshots/ImpactAssessments/DPIA/dpia-plan2.png)
+
+| Field | Description |
 |---|---|
-|**Dra]**|The assessment has been created; Business Objec:ve, Intended Use, and<br>Foreseeable Misuse are not yet complete.|
-|**Pending / Ac4on Required**|Awai:ng the assigned Risk Owner's input in My Assignments.|
-|**Completed**|The Risk Owner has completed the assessment.|
-|**Approved**|The assessment has been reviewed and approved.|
+| Department | Required; the department the DPIA relates to. |
+| Assign To (Risk Owner) | Required; the individual responsible for completing the DPIA. |
+| Due Date | Required; the date the DPIA must be completed by. |
+| Notes / Instructions | Optional context or instructions for the Risk Owner. |
+
+Click Assign DPIA to save the assignment and notify the selected Risk Owner.
+
+### 4.3 Completing a DPIA
+
+Once assigned, the Risk Owner completes the DPIA through a three-stage questionnaire: PII Inventory, Personal Data Elements, and DPIA Questionnaire.
+
+![DPIA Conduct overview](/Screenshots/ImpactAssessments/DPIA/dpia-conduct.png)
+
+1. **PII Inventory** — captures the anticipated data subjects (e.g., Current Employee, Customer's Customer, Business Contact) and the geographies or jurisdictions in which they reside (e.g., Europe, United States, California, etc.), and other details related to the data subjects and the collection of data.
+2. **Personal Data Elements** — a checklist of the specific data elements collected as part of the activity.
+3. **DPIA Questionnaire** — captures compliance and obligation questions used to determine the overall risk posture of the processing activity.
+
+Each question supports multi-select checkboxes where more than one answer applies. Progress through the three stages using the tabs at the top of the screen.
+
+### 4.4 Viewing DPIA Assessments
+
+The View DPIAs screen lists every DPIA in your organization for browsing, independent of the Manage DPIA edit workflow described in Section 4.5.
+
+![DPIA View overview](/Screenshots/ImpactAssessments/DPIA/dpia-view.png)
+
+### 4.5 Managing DPIA Assessments
+
+![DPIA Manage overview](/Screenshots/ImpactAssessments/DPIA/dpia-manage.png)
+
+1. Assignments List — search by project, assignee, or status; each row shows the DPIA ID, a Status badge (e.g., Completed, Assigned), Assigned To, and Due Date.
+2. Click the edit (pencil) icon on a row to open Edit Assignment and update its details.
+3. Use the search bar to quickly locate a specific assignment within the full register (e.g., 19 assignments).
+
+### 4.6 AI Impact Assessment (AIIA) Dashboard
+
+The AI Impact Assessment Dashboard is your home base for AI governance risk. It gives you an at-a-glance summary of every AIIA in your organization, along with quick actions to browse, plan, and manage them.
+
+![AIIA Dashboard overview](/Screenshots/ImpactAssessments/AI/aiia-dashboard.png)
+
+1. **Summary tiles** — Total, Approved, Completed, Pending, and Avg Complete percentage.
+2. **Assessment Status** — shows a "No Assessments" state until the first AIIA is created.
+3. **Assessment Trends** — a monthly distribution chart.
+
+The Quick Actions panel mirrors the DPIA Dashboard:
+
+| Field | Description |
+|---|---|
+| View Assessments | Browses all AIIA records. |
+| Plan Assessment | Starts a new AIIA (Section 4.7). |
+| Manage AIIA | Opens the editable register (Section 4.8). |
+
+### 4.7 Planning an AI Impact Assessment
+
+Click Plan Assessment under Quick Actions on the AIIA Dashboard to open the Plan AI Assessment panel.
+
+![AIIA Dashboard overview](/Screenshots/ImpactAssessments/AI/aiia-plan.png)
+
+1. Enter the AI System Name (e.g., Customer Support Chatbot).
+2. Select the Department responsible for the AI system.
+3. Confirm or update the Assessment Date (defaults to today).
+4. Click Create Assessment to save.
+
+### 4.8 Completing & Managing an AIIA
+
+Opening an assessment from Manage AIIA, or from an assignment in My Assignments, starts a two-step wizard: Assessment Details, then Assign Risk Owners.
+
+![AIIA Dashboard overview](/Screenshots/ImpactAssessments/AI/aiia-plan2.png)
 
 
+| Field | Description |
+|---|---|
+| AI System Name | Required; editable name of the AI system. |
+| Department | Required; the department responsible for the AI system. |
+| Business Objective | Required; the intended business goal of the AI system. |
+| Intended Use | Required; how the AI system is meant to be used. |
+| Foreseeable Misuse | Optional; potential risks or misuse scenarios for the AI system. |
+| AI System Owner Email | Required; contact for the AI system owner. |
+| Assessment Date | The date the assessment is recorded. |
+| Status | DRAFT until the assessment is submitted for review. |
 
-#### **6. Tips, Best Practices** 
+Click Next: Assign Risk Owners to continue to Step 2 and assign the assessment for completion.
 
-###### **DPIA Frameworks** 
+### 4.9 My Assignments
 
-1. Trigger a DPIA whenever a new or changed processing activity involves large-scale, sensitive, or cross-border personal data, so privacy risk is assessed before processing begins — aligned to obligations under GDPR, DPDPA, KSA PDPL, and similar frameworks. 
+My Assignments lists every AIIA assigned to you for review and completion, accessible from the sidebar or a notification link.
 
-2. Complete the PII Inventory stage accurately; the data subjects and geographies selected there determine which jurisdiction-specific obligations apply later in the questionnaire. 
+![AIIA Dashboard overview](/Screenshots/ImpactAssessments/AI/aiia-assessments.png)
 
-3. Revisit a completed DPIA whenever the underlying processing activity changes materially — new data elements, a new purpose, or a new jurisdiction. 
+1. **Summary tiles** — Pending, Completed, and Total assignment counts.
+2. **Pending Action tab** — lists assessments awaiting your input, each with its Business Objective summary and a Start Assessment button.
+3. Click Refresh to reload the latest assignment data.
 
-###### **AAIA Frameworks** 
+![AIIA Dashboard overview](/Screenshots/ImpactAssessments/AI/aiia-completed.png)
 
-1. Trigger an AIIA whenever a new AI system is proposed or materially changed, so its business objective, intended use, and foreseeable misuse are documented before deployment — aligned to frameworks such as ISO 42001 and the EU AI Act. 
+The Completed tab lists assessments you have finished; it shows a "No completed assignments" empty state until at least one AIIA is completed.
 
-2. Keep Foreseeable Misuse specific and scenario-based; vague entries weaken the Risk Owner's ability to plan mitigating controls. 
+## 5. Status & Quality Reference
 
-3. Revisit an approved AIIA whenever the AI system is retrained, retuned, or repurposed for a new business objective. 
+### DPIA Status
 
-#### **7. Additional Information** 
+| Status | Meaning |
+|---|---|
+| Draft | The DPIA has been created but not yet assigned to a Risk Owner. |
+| Assigned | The DPIA has been sent to a Risk Owner and is awaiting completion. |
+| In Progress | The Risk Owner has started but not yet finished the questionnaire. |
+| Completed | The Risk Owner has finished all checklist items. |
+| Submitted | The completed DPIA has been submitted for compliance review. |
+| High Risk | The assessment's responses indicate a high-risk processing activity requiring closer review. |
 
-1.  Set realistic Due Dates when planning a DPIA or AIIA, so assignments are completed before the associated processing activity or AI system goes live. 
+### AIIA Status
 
-2. Review My Assignments regularly if you are a Risk Owner, so pending DPIAs and AIIAs don't lapse past their due date. 
+| Status | Meaning |
+|---|---|
+| Draft | The assessment has been created; Business Objective, Intended Use, and Foreseeable Misuse are not yet complete. |
+| Pending / Action Required | Awaiting the assigned Risk Owner's input in My Assignments. |
+| Completed | The Risk Owner has completed the assessment. |
+| Approved | The assessment has been reviewed and approved. |
+
+## 6. Tips, Best Practices
+
+### DPIA Frameworks
+
+1. Trigger a DPIA whenever a new or changed processing activity involves large-scale, sensitive, or cross-border personal data, so privacy risk is assessed before processing begins — aligned to obligations under GDPR, DPDPA, KSA PDPL, and similar frameworks.
+2. Complete the PII Inventory stage accurately; the data subjects and geographies selected there determine which jurisdiction-specific obligations apply later in the questionnaire.
+3. Revisit a completed DPIA whenever the underlying processing activity changes materially — new data elements, a new purpose, or a new jurisdiction.
+
+### AIIA Frameworks
+
+1. Trigger an AIIA whenever a new AI system is proposed or materially changed, so its business objective, intended use, and foreseeable misuse are documented before deployment — aligned to frameworks such as ISO 42001 and the EU AI Act.
+2. Keep Foreseeable Misuse specific and scenario-based; vague entries weaken the Risk Owner's ability to plan mitigating controls.
+3. Revisit an approved AIIA whenever the AI system is retrained, retuned, or repurposed for a new business objective.
+
+## 7. Additional Information
+
+1. Set realistic Due Dates when planning a DPIA or AIIA, so assignments are completed before the associated processing activity or AI system goes live.
+2. Review My Assignments regularly if you are a Risk Owner, so pending DPIAs and AIIAs don't lapse past their due date.
 `;
 
   const steps = [
