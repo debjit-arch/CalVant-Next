@@ -702,6 +702,8 @@ import {
 } from "lucide-react";
 import UserProfile from "./UserProfile";
 import Maindashboard_profile from "../maindashboard_profile";
+import HelpNavPanel from "../shared/HelpNavPanel";
+import { useUI } from "../../context/UIContext";
 import {
   useLayout,
   SIDEBAR_COLLAPSED_WIDTH,
@@ -864,7 +866,7 @@ const PersistentSidebar = () => {
     setMobileView,
   } = useLayout();
   const { showDpia, showAiia } = useFramework();
-  const { loading: entLoading, dpia: dpiaEntitled, aiia: aiiaEntitled, vendor: vendorEntitled } = useModuleEntitlements();
+  const { helpNavOpen, closeHelpNav } = useUI();
   const [isHovered, setIsHovered] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -1235,6 +1237,8 @@ const PersistentSidebar = () => {
           </div>
         )}
       </nav>
+
+      <HelpNavPanel open={helpNavOpen} onClose={closeHelpNav} />
     </>
   );
 };

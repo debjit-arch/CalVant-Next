@@ -1,0 +1,60 @@
+{
+  "modules": [
+    {
+      "slug": "risk-module",
+      "title": "Risk",
+      "description": "Identify, score, treat, and track risks — plus generate your Statement of Applicability.",
+      "file": "/docs/risk-module.md",
+      "color": "#3b82f6",
+      "icon": "ShieldAlert"
+    },
+    {
+      "slug": "policy-module",
+      "title": "Policy",
+      "description": "Upload, review, approve, and archive the policy documents your compliance program relies on.",
+      "file": "/docs/policy-module.md",
+      "color": "#8b5cf6",
+      "icon": "FileText"
+    },
+    {
+      "slug": "audit-module",
+      "title": "Audit",
+      "description": "Plan audits, collect evidence, and track findings through to closure.",
+      "file": "/docs/audit-module.md",
+      "color": "#10b981",
+      "icon": "ClipboardCheck"
+    },
+    {
+      "slug": "task-module",
+      "title": "Task Management",
+      "description": "The shared workspace for every task created across Risk, Policy, Audit, and other modules.",
+      "file": "/docs/task-module.md",
+      "color": "#f59e0b",
+      "icon": "ListChecks"
+    },
+    {
+      "slug": "compliance-module",
+      "title": "Compliance",
+      "description": "Track framework-by-framework compliance status across your organization.",
+      "file": "/docs/compliance-module.md",
+      "color": "#f43f5e",
+      "icon": "ShieldCheck"
+    },
+    {
+      "slug": "vendor-tprm-module",
+      "title": "Vendor / TPRM",
+      "description": "Assess and monitor the third-party vendors your organization shares data with.",
+      "file": "/docs/vendor-tprm-module.md",
+      "color": "#6366f1",
+      "icon": "Handshake"
+    },
+    {
+      "slug": "impact-assessment-module",
+      "title": "Impact Assessment (DPIA)",
+      "description": "Run data protection impact assessments for new projects, systems, or vendors.",
+      "file": "/docs/impact-assessment-module.md",
+      "color": "#0ea5e9",
+      "icon": "FileSearch"
+    }
+  ]
+}

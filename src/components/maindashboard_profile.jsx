@@ -550,7 +550,7 @@ const Maindashboard_profile = () => {
     availableFrameworks,
     frameworkColorMap,
   } = useFramework();
-  const { startTutorial, openHelp } = useUI();
+  const { startTutorial, openHelpNav } = useUI();
   const [, setSessionExpired] = useState(false);
 
   // ── useEffectiveOrg replaces manual user/org derivations ─────────────────
@@ -908,7 +908,7 @@ const Maindashboard_profile = () => {
         <motion.button
           whileHover={{ scale: 1.04 }}
           whileTap={{ scale: 0.95 }}
-          onClick={openHelp}
+          onClick={openHelpNav}
           title="Help"
           className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-xl border border-slate-200 bg-slate-100 hover:bg-slate-200 transition-colors flex-shrink-0"
         >
