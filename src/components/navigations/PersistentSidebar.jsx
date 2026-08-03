@@ -866,6 +866,12 @@ const PersistentSidebar = () => {
     setMobileView,
   } = useLayout();
   const { showDpia, showAiia } = useFramework();
+  const {
+  loading: entLoading,
+  dpia,
+  aiia,
+  vendor,
+} = useModuleEntitlements();
   const { helpNavOpen, closeHelpNav } = useUI();
   const [isHovered, setIsHovered] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -937,28 +943,29 @@ const PersistentSidebar = () => {
      the current user has at least one matching role.
   ───────────────────────────────────────────── */
   const visibleNavItems = NAV_ITEMS.filter((item) => {
-    // Fulfilment cap: hide un-purchased modules entirely for the whole org.
-    // Hide until loaded (avoid a flash of a link that then disappears).
-    if (item.moduleKey === "dpia" || item.moduleKey === "aiia" || item.moduleKey === "vendor") {
-      if (entLoading) return false;
-      if (item.moduleKey === "dpia" && !dpiaEntitled) return false;
-      if (item.moduleKey === "aiia" && !aiiaEntitled) return false;
-      if (item.moduleKey === "vendor" && !vendorEntitled) return false;
-    }
+  // Hide until entitlements have loaded
+  if (
+    item.moduleKey === "dpia" ||
+    item.moduleKey === "aiia" ||
+    item.moduleKey === "vendor"
+  ) {
+    if (entLoading) return false;
 
-    // Module visibility (dpia / aiia toggles, based on org's selected frameworks)
-    if (item.moduleKey === "dpia" && !showDpia) return false;
-    if (item.moduleKey === "aiia" && !showAiia) return false;
+    if (item.moduleKey === "dpia" && !dpia) return false;
+    if (item.moduleKey === "aiia" && !aiia) return false;
+    if (item.moduleKey === "vendor" && !vendor) return false;
+  }
 
-    // Role-gating: if the item declares required roles, check against userRoles
-    if (item.roles && item.roles.length > 0) {
-      // Before mount, userRoles is [] — hide role-gated items until we know
-      if (!mounted) return false;
-      return item.roles.some((r) => userRoles.includes(r));
-    }
+  if (item.moduleKey === "dpia" && !showDpia) return false;
+  if (item.moduleKey === "aiia" && !showAiia) return false;
 
-    return true;
-  });
+  if (item.roles?.length) {
+    if (!mounted) return false;
+    return item.roles.some((r) => userRoles.includes(r));
+  }
+
+  return true;
+});
 
   return (
     <>
