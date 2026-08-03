@@ -1146,116 +1146,105 @@ const TaskManagementDashboard = () => {
   const [showHelpDoc, setShowHelpDoc] = useState(false);
 
   const TASK_HELP_CONTENT = `
-# **calvant** 
+## 1. Introduction
 
-Digital Compliance Management 
+The Task Module is the centralized task management workspace in CalVant. Tasks created from Risk, Compliance, Policy, Audit, and other modules are managed here, allowing users to assign, monitor, update, and complete activities from a single location.
 
-## **Task Module** 
+## 2. Accessing the Task Module
 
-### **End-User Guide** 
+1. Click the Task icon in the sidebar to land on your Task Dashboard.
 
-Version 1.0  |  July 2026 
+### 2.1 How Task Module Integrates with Calvant
 
-© 2026 CalVant. All rights reserved. 
+The Task Module serves as the execution layer of CalVant. While other modules identify compliance requirements, risks, gaps, policies, audits, and vendor activities, the Task Module enables organizations to assign ownership, track progress, and monitor completion of the actions required to achieve compliance.
 
-#### **Table of Contents** 
+Tasks may originate from or support multiple modules, including:
 
-###### **1. Introduc4on** 
+1. **Risk Assessment** – Risk treatment and mitigation activities.
+2. **Compliance** – Control implementation and remediation.
+3. **Policy** – Policy drafting, review, approval, and periodic review.
+4. **TPRM** – Vendor assessments, evidence collection, and follow-up actions.
+5. **Audit** – Corrective actions arising from audit findings.
 
-###### **2. Accessing the Task Module** 
+### 2.2 Typical Workflow
 
-2.1 How Task Module Integrates with Calvant 
+Identify Requirement/Risk → Create Task → Assign Owner → Track Progress → Complete Task → Change Task Status → Receive Notification
 
-2.2 Typical workflow 
+## 3. Key Terminology
 
-###### **3. Key Terminology** 
-
-###### **4. Manual Naviga4on** 
-
-4.1 Task Dashboard 
-
-4.2 AcBon Plan 
-
-4.3 CreaBng a Task 
-
-4.4 My Task 
-
-4.5 Task AcBons 
-
-4.6 Viewing Task Details 
-
-###### **5. Status & Quality Reference** 
-
-###### **6. Tips, Best Prac4ces & Troubleshoo4ng** 
-
-#### **1. Introduc4on** 
-
-The Task Module is the centralized task management workspace in CalVant. Tasks created from Risk, Compliance, Policy, Audit, and other modules are managed here, allowing users to assign, monitor, update, and complete acBviBes from a single locaBon. 
-
-#### **2. Accessing the Task Module** 
-
-1. Click the Task icon in the sidebar to land on your Task Dashboard. 
-
-##### **2.1 How Task Module Integrates with Calvant** 
-
-The Task Module serves as the execuBon layer of CalVant. While other modules idenBfy compliance requirements, risks, gaps, policies, audits, and vendor acBviBes, the Task Module enables organizaBons to assign ownership, track progress, and monitor compleBon of the acBons required to achieve compliance. 
-
-Tasks may originate from or support mulBple modules, including: 
-
-1. **Risk Assessment** – Risk treatment and miBgaBon acBviBes. 
-
-2. **Compliance** – Control implementaBon and remediaBon. 
-
-3. **Policy** – Policy draRing, review, approval, and periodic review. 
-
-4. **TPRM** – Vendor assessments, evidence collecBon, and follow-up acBons. 
-
-5. **Audit** – CorrecBve acBons arising from audit findings. 
-
-##### **2.2 Typical workflow:** 
-
-IdenBfy Requirement/Risk → Create Task → Assign Owner → Track Progress → Complete Task → Change Task Status → Receive NoBficaBon 
-
-#### **3. Key Terminologies** 
-
-|**Term**|**Defni4on**|
+| Term | Definition |
 |---|---|
-|Assignee|User responsible for compleBng the task|
-|Reporter|User who created the task|
+| Assignee | User responsible for completing the task |
+| Reporter | User who created the task |
 
+## 4. Manual Navigation
 
+### 4.1 Task Dashboard
 
-#### **4. Manual Naviga4on** 
+![Task Dashboard overview](/Screenshots/Task/task-dashboard.png)
 
-##### **4.1 Task Dashboard** 
+1. Summary tiles display task counts by status.
+2. Task Distribution provides an overview of task status.
+3. Quick Actions provide access to Manage Tasks and My Tasks.
 
+### 4.2 Action Plan (Manage Tasks)
 
+![Task Manage overview](/Screenshots/Task/task-manage.png)
 
-1. Review status, assignee, reporter and priority. 
+1. View all tasks across modules.
+2. Filter by status, priority and assignee.
+3. Search tasks.
+4. Select Create Task to add a new task.
 
-2. Track history, remarks and work log. 
+### 4.3 Creating a Task
 
-3. View subtasks where available. 
+![Task Creation overview](/Screenshots/Task/task-add.png)
 
-#### **5. Status Reference** 
+1. Select Department and Assignee.
+2. Enter the task description.
+3. Specify Start Date, End Date and Priority.
+4. Add remarks if required.
+5. Click Create Task.
 
-|**Status**|**Meaning**|
+### 4.4 My Tasks
+
+![My Task overview](/Screenshots/Task/my-task.png)
+
+1. Displays tasks assigned to the logged-in user.
+2. Review task counts by status.
+3. Use filters and search to locate tasks quickly.
+
+### 4.5 Task Actions
+
+![Task Actions overview](/Screenshots/Task/task-actions.png)
+
+1. View opens task details.
+2. Edit updates task information.
+3. Delete permanently removes the task.
+
+### 4.6 Viewing Task Details
+
+![Task Details overview](/Screenshots/Task/task-details.png)
+
+1. Review task status, assignee, reporter and priority.
+2. Track history, remarks and work log.
+3. View subtasks where available.
+
+## 5. Status Reference
+
+| Status | Meaning |
 |---|---|
-|To-Do|Task has not been started|
-|In Progress|Work is currently underway|
-|Done|Taks has been completed|
-|On Hold|Task is temporarily paused|
+| To-Do | Task has not been started |
+| In Progress | Work is currently underway |
+| Done | Task has been completed |
+| On Hold | Task is temporarily paused |
 
+## 6. Tips & Best Practices
 
-
-#### **6. Tips & Best Prac4ces** 
-
-1. Assign every task to the appropriate department and owner. 
-
-2. Use remarks and work logs to record important updates. 
-
-3. Review overdue tasks periodically. 
-`;
+1. Assign every task to the appropriate department and owner.
+2. Use remarks and work logs to record important updates.
+3. Review overdue tasks periodically.
+  `;
 
   const [hasMounted, setHasMounted] = useState(false);
   useEffect(() => { setHasMounted(true); }, []);

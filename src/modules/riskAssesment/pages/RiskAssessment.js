@@ -64,37 +64,6 @@ function riskMatchesFilter(risk, allowedRiskTypes) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const RISK_HELP_CONTENT = `
-# CalVant
-### Digital Compliance Management — Risk Module
-**End-User Guide**
-
-A step-by-step guide to identifying, assessing, treating, and tracking risks in CalVant
-
-Version 1.0 | July 2026
-© 2026 CalVant. All rights reserved.
-
----
-
-## Table of Contents
-
-1. Introduction
-2. Accessing the Risk Module
-3. Key Terminology
-4. Manual Navigation
-   - 4.1 Risk Dashboard
-   - 4.2 Creating a New Risk
-     - 4.2.1 Step 1 — Risk Assessment
-     - 4.2.2 Step 2 — Treatment Planning
-     - 4.2.3 Step 3 — Task Management
-   - 4.3 Using Risk Templates (Sample Risks)
-   - 4.4 Viewing Saved Risk Assessments
-   - 4.5 Viewing Tasks
-   - 4.6 Generating a Statement of Applicability (SoA)
-5. Status & Quality Reference
-6. Tips, Best Practices & Troubleshooting
-
----
-
 ## 1. Introduction
 
 The Risk Module in CalVant helps you identify, assess, treat, and monitor risks across your organization as part of your compliance and information security management program. It supports structured risk assessments aligned to frameworks such as ISO 27001, ISO 27701, ISO 42001, SOC 2, HIPAA, GDPR, DPDPA, KSA PDPL, and NIST CSF 2.
@@ -131,6 +100,8 @@ With the vocabulary in place, this section walks through every screen in the mod
 
 The Risk Dashboard is your home base for the module. It gives you an at-a-glance summary of all risks in your organization, along with quick actions to create, browse, and manage risks.
 
+![Risk Dashboard overview](/Screenshots/Risk/risk-home.png)
+
 1. **Summary tiles** — total risks, and counts by severity (High / Medium / Low) and status (Open / Closed).
 2. **Risk Distribution** — a donut chart showing the proportion of risks by severity level.
 3. **Monthly Risk Trends** — a bar chart showing how many risks were created each month for the selected year, filterable by year.
@@ -160,7 +131,7 @@ CalVant uses a guided, three-step wizard to create a new risk: Risk Assessment, 
 
 This step captures the core details of the risk: what it is, where it lives, and how severe it is.
 
-**Risk Identification fields:**
+![Risk Assessment overview](/Screenshots/Risk/risk-assessment.png)
 
 | Field | Description |
 |---|---|
@@ -170,7 +141,7 @@ This step captures the core details of the risk: what it is, where it lives, and
 | Risk Type | Category of the risk, e.g., Privacy, Artificial Intelligence, Operational. |
 | Asset Type / Asset | The classification and name of the affected asset. |
 
-**Threat, Vulnerability & Scoring fields:**
+![Risk Fields overview](/Screenshots/Risk/risk-assessent-fields.png)
 
 | Field | Description |
 |---|---|
@@ -187,11 +158,15 @@ As you complete Likelihood and the related fields, CalVant automatically calcula
 
 This step defines how the organization will respond to the risk and which compliance controls apply.
 
+![Risk Treatment overview](/Screenshots/Risk/risk-treatment.png)
+
 | Field | Description |
 |---|---|
 | Action | The treatment strategy for the risk — Mitigate or Accept. |
 | Status | Current status of the treatment — Open, In Progress, or Closed. |
 | New/Proposed Controls | Free-text field to describe new controls proposed to treat the risk. |
+
+![Risk Applicable Controls overview](/Screenshots/Risk/risk-applicable-ctrls.png)
 
 Under Applicable Control(s), select the compliance framework(s) relevant to this risk — for example ISO 27001, KSA PDPL, GDPR, DPDPA, HIPAA, or SOC 2. CalVant then displays the specific control codes that apply.
 
@@ -207,6 +182,8 @@ Residual Risk Assessment shows the original Likelihood, Impact, and Risk Score f
 #### 4.2.3 Step 3 — Task Management
 
 The final step converts the treatment plan into a trackable action plan — tasks with an owner and due date so the mitigation work is followed through to completion.
+
+![Risk Task overview](/Screenshots/Risk/risk-task.png)
 
 Click Add Task to create a task for the risk. Completed tasks and their status can be reviewed from View Tasks on the dashboard (Section 4.5), or from the Task module in the sidebar.
 
@@ -229,6 +206,8 @@ Complete the following fields to create a mitigation task for the selected risk:
 
 Rather than creating every risk from scratch, CalVant provides a library of pre-built, industry-standard risk templates you can review and accept into your risk register. Access this from Templates on the Risk Dashboard.
 
+![Risk Sample overview](/Screenshots/Risk/risk-sample.png)
+
 The screen shows summary counts (Total, High, Critical, Medium, Low) and a filterable, sortable list of template risks. Use the Dept and Risk Level filters to narrow the list, or the row-level actions to act on individual risks:
 
 | Field | Description |
@@ -243,11 +222,15 @@ The screen shows summary counts (Total, High, Critical, Medium, Low) and a filte
 
 Once risks have been created or accepted, they're listed under Saved Risk Assessments, accessible via View Risks on the dashboard. This is your working risk register.
 
+![Risk Saved overview](/Screenshots/Risk/risk-saved.png)
+
 The screen shows the total number of risks and a breakdown by severity (High, Critical, Medium, Low) and status (Open, Closed), along with a timestamp of when the list was last generated. Each row shows the Risk ID and Description — click a row to open its full details. From here you can also click Generate SoA to jump directly to the Statement of Applicability (Section 4.6).
 
 ### 4.5 Viewing Tasks
 
 The View Tasks screen lists every task assigned to you from risk treatment plans across your organization. Access it from View Tasks on the Risk Dashboard.
+
+![Risk Tasks overview](/Screenshots/Risk/risk-tasks.png)
 
 Summary tiles show Total, In Progress, Completed, On Hold, and Critical task counts. Use the All filter chip or the search box, searching by task or Risk ID, to narrow the list.
 
@@ -264,6 +247,8 @@ If no tasks are currently assigned to you, the table shows a "No tasks assigned 
 ### 4.6 Generating a Statement of Applicability (SoA)
 
 The SoA is a master record of every control across your selected compliance frameworks, and whether each is applicable to your organization — a required artifact for certifications such as ISO 27001. Access it from Statement of Applicability on the dashboard, or Generate SoA from the Saved Risk Assessments screen.
+
+![Risk SoA overview](/Screenshots/Risk/risk-soa.png)
 
 Summary tiles show Total Controls, controls marked SoA Applicable, controls with mappings, and the count for the active framework (e.g., ISO 27001).
 

@@ -65,189 +65,127 @@ const TPRMSection = () => {
   const [showHelpDoc, setShowHelpDoc] = useState(false);
 
 const TPRM_HELP_CONTENT = `
-# **calvant** 
+## 1. Introduction
 
-Digital Compliance Management 
+The Vendor Module in CalVant helps you assess, monitor, and manage the risk posed by third-party vendors as part of your Third Party Risk Management (TPRM) program. It lets you build vendor assessments from a structured question bank, send them to vendors, and track each response from submission through to approval.
 
-## **Vendor Module** 
+## 2. Accessing the Vendor Module
 
-### **End-User Guide** 
+1. Click the Vendor icon in the sidebar to land on your Third Party Risk Management Dashboard.
+2. Your logged-in user name and role appear in the top-right of the dashboard header.
+3. Vendors have their own view and access their own assigned assessments through the Vendor Assessment Portal (Section 4.4) using their vendor login.
 
-Version 1.0  |  July 2026 
+## 3. Key Terminology
 
-© 2026 CalVant. All rights reserved. 
+A short list of terms that are specific to CalVant's policy workflow rather than self-explanatory from the screen itself:
 
-#### **Table of Contents** 
-
-###### **1. Introduction** 
-
-###### **2. Accessing the Vendor Module** 
-
-###### **3. Key Terminology** 
-
-###### **4. Manual Navigation** 
-
-4.1 TPRM Dashboard 4 
-
-4.2 Creating a New Vendor Assessment 
-
-4.2.1 Step 1 — Assessment Details 
-
-4.2.2 Step 2 — Select Questions 
-
-4.3 Tracking Sent Assessments 
-
-4.4 Vendor Assessment Portal 
-
-###### **5. Status & Quality Reference** 
-
-###### **6. Tips, Best Practices & Troubleshooting** 
-
-#### **1. Introduction** 
-
-The Vendor Module in CalVant helps you assess, monitor, and manage the risk posed by third-party vendors as part of your Third Party Risk Management (TPRM) program. It lets you build vendor assessments from a structured quesDon bank, send them to vendors, and track each response from submission through to approval. 
-
-#### **2. Accessing the Vendor Module** 
-
-1. Click the Vendor icon in the sidebar to land on your Third Party Risk Management Dashboard 
-
-2. Your logged-in user name and role appear in the top-right of the dashboard header. 
-
-3. Vendors have their own view and access their own assigned assessments through the Vendor Assessment Portal (SecDon 4.4) using their vendor login. 
-
-#### **3. Key Terminology** 
-
-A short list of terms that are specific to CalVant's policy workflow rather than self-explanatory from the screen itself 
-
-|**Field**|**Descrip5on**|
+| Field | Description |
 |---|---|
-|**TPRM**|Third Party Risk Management — the process of assessing and monitoring risk<br>posed by vendors and other third parDes.|
-|**Vendor**|The third-party organizaDon being assessed. A vendor must have TPRM module<br>access before an assessment can be assigned to it.|
-|**Vendor Portal**|The vendor-facing view where an assigned vendor completes and submits an<br>assessment.|
-|**Status Guide**|The reference panel in the Vendor Portal explaining what each assessment status<br>means from the vendor's perspecDve.|
+| TPRM | Third Party Risk Management — the process of assessing and monitoring risk posed by vendors and other third parties. |
+| Vendor | The third-party organization being assessed. A vendor must have TPRM module access before an assessment can be assigned to it. |
+| Vendor Portal | The vendor-facing view where an assigned vendor completes and submits an assessment. |
+| Status Guide | The reference panel in the Vendor Portal explaining what each assessment status means from the vendor's perspective. |
 
+## 4. Manual Navigation
 
+### 4.1 TPRM Dashboard
 
-##### **4. Manual Naviga5on** 
+The TPRM Dashboard is your home base for third-party risk management. It gives you an at-a-glance summary of every vendor assessment in your organization, along with quick actions to manage questions, send assessments, and review vendors.
 
-The TPRM Dashboard is your home base for third-party risk management. It gives you an at-a-glance summary of every vendor assessment in your organizaDon, along with quick acDons to manage quesDons, 
+![Vendor Dashboard overview](/Screenshots/Vendor/vendor-dashboard.png)
 
+1. **Summary tiles** — Total, Sent, Submitted, Approved, and Rejected assessment counts.
+2. **Assessment Status** — shows a "No Assessments Yet" state until the first TPRM assessment is created.
+3. **Assessment Trends** — a bar chart of assessments created each month; shows "No Trend Data" until assessments carry date fields.
 
+The Quick Actions panel gives one-click access to the most common tasks:
 
-<!-- Start of picture text -->
-Q., Third Party Risk Management Root John © ® Guide<br>Root Dashboard - O total assessments<br>0 0 0 Assessment Status<br>TOTAL SENT SUBMITTED<br>Y)<br>APPROVED REJECTED<br>Quick Actions<br>n | P| @ Assessment Trends<br>Assessments by month 0 total<br>TPRM Questions Plan TPRM Vendor Report<br>View & manage question Create & send View scores & approve<br>bank assessments vendors<br><!-- End of picture text -->
-
-###### Conduct TPRM 
-
-Create new assessment 
-
-###### 1) Assessment Details Select Questions 
-
-Assessment Title * 
-
-- e.g. Q1 2026 Vendor Security Assessment 
-
-- & Assign to Vendor * 
-
-
-
-<!-- Start of picture text -->
-Select vendor... Vv<br>No vendors found with TPRM module access.<br>Due Date *<br>dd/mm/yyyy im<br><!-- End of picture text -->
-
-- f Due Date * 
-
-
-
-<!-- Start of picture text -->
-Next: Select Questions ><br><!-- End of picture text -->
-
-
-
-
-
-<!-- Start of picture text -->
-mm<br><!-- End of picture text -->
-
-###### Conduct TPRM Create new assessment 
-
-© Back to List o x 
-
-
-
-<!-- Start of picture text -->
-Assessment Details<br>Q Search questions... O select all )| 0/56 selected<br>SECTION t ; o7<br>Information Security Governance<br>SECTION 2<br>Data Protection;  & Privacy; on7 Vv<br>SEEN 3 Op<br>Security Controls<br>SECTION 4 o/a Vv<br>Incident Management<br>Title Vendor Due Date Questions<br>A Debjait Tech 31-07-2026 0 selected<br>€ Back YJ Submit<br><!-- End of picture text -->
-
-
-
-<!-- Start of picture text -->
-Conduct TPRM + New Assessment o x<br>0 assessments<br>Due Received Completed<br>No assessments yet<br>Click "New Assessment" to create one<br><!-- End of picture text -->
-
-
-
-<!-- Start of picture text -->
-0 0 0 Assessment Status<br>TOTAL ad PENDING © SUBMITTED<br>0 0 No assessments yet<br>Y<br>APPROVED © | REJECTED<br>Assessments assigned to you will appear here<br>Assessments Sent Submitted Under_review Approved<br>Status Guide<br>@ Pending Answer<br>Admin has sent you a questionnaire to fill<br>No assessments found @ Submitted<br>You have no assessments assigned yet You submitted — admin is reviewing<br>@ Approved<br>Admin has approved your submission<br>@ Rejected<br>Admin has rejected — check comments<br><!-- End of picture text -->
-
-_Figure 5 — Vendor Assessment Portal_ 
-
-**1.** Summary Dles — Total, Pending, SubmiOed, Approved, and Rejected counts for the logged-in vendor. 
-
-**2.** Assessment Status — shows “No assessments yet” unDl an assessment is assigned to the vendor. 
-
-**3.** Assessments panel — filter by All, Sent, SubmiOed, Under_review, or Approved to track progress. 
-
-**4.** Status Guide — explains each status in plain language so the vendor knows what acDon, if any, is required. 
-
-#### **5. Status & Quality Reference** 
-
-###### **TPRM Assessment Status (Admin View)** 
-
-|**Status**|**Meaning**|
+| Status | Meaning |
 |---|---|
-|**Sent**|The assessment has been sent to the vendor and is awaiDng a response.|
-|**SubmiMed**|The vendor has submiOed the assessment; it is awaiDng admin review.|
-|**Approved**|The submission has been reviewed and approved.|
-|**Rejected**|The submission has been reviewed and rejected.|
+| TPRM Questions | Opens the question bank |
+| Plan TPRM | Starts the assessment wizard |
+| Vendor Report | Opens vendor scores for review and approval |
 
+### 4.2 Creating a New Vendor Assessment
 
+CalVant uses a guided, two-step wizard to create and send a vendor assessment: Assessment Details, then Select Questions.
 
-###### **Vendor Portal Status Guide** 
+#### 4.2.1 Step 1 — Assessment Details
 
-|**Status**|**Meaning**|
+From the TPRM Dashboard, click Plan TPRM under Quick Actions to open Conduct TPRM, then click New Assessment.
+
+![Conduct Assessment overview](/Screenshots/Vendor/vendor-conduct.png)
+
+| Field | Description |
 |---|---|
-|**Pending Answer**|The admin has sent the vendor a quesDonnaire to fll out.|
-|**SubmiMed**|The vendor has submiOed the assessment; the admin is reviewing it.|
-|**Approved**|The admin has approved the vendor's submission.|
-|**Rejected**|The admin has rejected the submission; the vendor should check the comments.|
+| Assessment Title | Required; a descriptive name for the assessment (e.g., Q1 2026 Vendor Security Assessment). |
+| Assign to Vendor | Required; select the vendor to assess. Only vendors with TPRM module access appear in this list. |
+| Due Date | Required; the date by which the vendor must submit the assessment. |
 
+Click Next: Select Questions to continue.
 
+#### 4.2.2 Step 2 — Select Questions
 
-#### **6. Tips, Best Practices** 
+Build the assessment by choosing questions from the question bank, organized by section.
 
-1. Grant a vendor TPRM module access before planning an assessment; otherwise the Assign to Vendor field will show “No vendors found with TPRM module access”. 
+![Vendor Question overview](/Screenshots/Vendor/vendor-question.png)
 
-2. Use Select All at the secDon level to send a standard, framework-aligned quesDon set, then remove secDons that don't apply to a specific vendor's engagement. 
+1. Use Search questions or Select All to quickly build the question set; the counter (e.g., 0/56 selected) tracks your progress.
+2. Expand a section — such as Information Security Governance, Data Protection & Privacy, Security Controls, or Incident Management — to choose individual questions, or check the section box to select all questions in it.
+3. Review the summary panel (Title, Vendor, Due Date, Questions) before sending.
+4. Click Submit to send the assessment to the selected vendor, or Back to revise the assessment details.
 
-3. Set realisDc Due Dates in Assessment Details so vendors have adequate Dme to respond before escalaDon is needed. 
+### 4.3 Tracking Sent Assessments
 
-4. Review the Vendor Report regularly to idenDfy vendors nearing rejecDon or requiring follow-up. 
+The Conduct TPRM screen lists every assessment you've created, whether still in draft, sent, or completed.
 
-5. Share the Status Guide with new vendors so they understand what Pending Answer, SubmiOed, Approved, 
+![Vendor Track overview](/Screenshots/Vendor/vendor-track.png)
 
-and Rejected mean for their next acDon. 
+1. Use the filter chips — All, Due, Received, Completed — to narrow the list by stage.
+2. Click New Assessment at any time to start another vendor assessment.
+3. A "No assessments yet" empty state appears until at least one assessment has been created.
 
-**T i p :** K e e p t h e q u e s D o 
+### 4.4 Vendor Assessment Portal
 
-n b 
+Vendors complete their assigned assessments through their own portal view, which mirrors the admin dashboard but is scoped to that vendor's assessments only.
 
-a n k 
+![Vendor Assessment overview](/Screenshots/Vendor/vendor-assessment.png)
 
-c 
+1. **Summary tiles** — Total, Pending, Submitted, Approved, and Rejected counts for the logged-in vendor.
+2. **Assessment Status** — shows "No assessments yet" until an assessment is assigned to the vendor.
+3. **Assessments panel** — filter by All, Sent, Submitted, Under_review, or Approved to track progress.
+4. **Status Guide** — explains each status in plain language so the vendor knows what action, if any, is required.
 
-u 
+## 5. Status & Quality Reference
 
-r r e n t b y r e v i e 
+### TPRM Assessment Status (Admin View)
 
-w i n g T P ~~R~~ 
+| Status | Meaning |
+|---|---|
+| Sent | The assessment has been sent to the vendor and is awaiting a response. |
+| Submitted | The vendor has submitted the assessment; it is awaiting admin review. |
+| Approved | The submission has been reviewed and approved. |
+| Rejected | The submission has been reviewed and rejected. |
+
+### Vendor Portal Status Guide
+
+| Status | Meaning |
+|---|---|
+| Pending Answer | The admin has sent the vendor a questionnaire to fill out. |
+| Submitted | The vendor has submitted the assessment; the admin is reviewing it. |
+| Approved | The admin has approved the vendor's submission. |
+| Rejected | The admin has rejected the submission; the vendor should check the comments. |
+
+## 6. Tips, Best Practices
+
+1. Grant a vendor TPRM module access before planning an assessment; otherwise the Assign to Vendor field will show "No vendors found with TPRM module access".
+2. Use Select All at the section level to send a standard, framework-aligned question set, then remove sections that don't apply to a specific vendor's engagement.
+3. Set realistic Due Dates in Assessment Details so vendors have adequate time to respond before escalation is needed.
+4. Review the Vendor Report regularly to identify vendors nearing rejection or requiring follow-up.
+5. Share the Status Guide with new vendors so they understand what Pending Answer, Submitted, Approved, and Rejected mean for their next action.
+
+> **Tip:** Keep the question bank current by reviewing TPRM question categories periodically to reflect changes in your compliance requirements.
+ 
 `;
 
   const [stats, setStats] = useState({

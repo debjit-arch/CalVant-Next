@@ -130,254 +130,180 @@ function AuditDashboard() {
   const [showHelpDoc, setShowHelpDoc] = useState(false);
 
   const AUDIT_HELP_CONTENT = `
-# **calvant** 
+## Introduction
 
-Digital Compliance Management 
+The Audit Module in CalVant helps you plan, schedule, conduct, and report on internal and external audits across your compliance program. It maps every audit to the controls in frameworks such as ISO 27001, ISO 27701, SOC 2, ISO 42001, and PDPL, and gives admins and auditors separate, role-based views of the same audit lifecycle — from planning through findings and reporting.
 
-## **Audit Module** 
+## 2. Accessing the Audit Module
 
-### **End-User Guide** 
+1. Click the Audit icon in the sidebar to land on your Audit Dashboard. Your logged-in user name and role appear in the top-right of the dashboard header.
+2. The dashboard and Quick Actions differ by role: Admin users see the full Audit Management dashboard (Section 4.1); Auditors see a scoped Auditor Dashboard limited to their assigned controls (Section 4.5).
 
-Version 1.0  |  July 2026 
+## 3. Key Terminology
 
-© 2026 CalVant. All rights reserved. 
+A short list of terms that are specific to CalVant's policy workflow rather than self-explanatory from the screen itself:
 
-_CalVant — Audit Module User Guide_ 
-
-##### **Table of Contents** 
-
-###### **1. Introduc4on** 
-
-###### **2. Accessing the Audit Module** 
-
-###### **3. Key Terminology** 
-
-###### **4. Manual Naviga4on** 
-
-- 4.1 Audit Dashboard (Admin View) 
-
-- 4.2 Planning an Audit 
-
-4.2.1 Step 1 — Audit Details 
-
-4.2.2 Step 2 — Assign Controls 
-
-4.3 Managing Audits 
-
-- 4.4 Audit Reports 
-
-- 4.5 Auditor Dashboard (Auditor View) 
-
-- 4.6 Reviewing Findings 
-
-- 4.7 ConducIng an Audit 
-
-###### **5. Status & Quality Reference** 
-
-###### **6. Tips, Best Prac4ces** 
-
-Page 2 
-
-_CalVant — Audit Module User Guide_ 
-
-#### **Introduction** 
-
-The Audit Module in CalVant helps you plan, schedule, conduct, and report on internal and external audits across your compliance program. It maps every audit to the controls in frameworks such as ISO 27001, ISO 27701, SOC 2, ISO 42001, and PDPL, and gives admins and auditors separate, role-based views of the same audit lifecycle — from planning through findings and reporIng. 
-
-#### **2. Accessing the Audit Module** 
-
-1. Click the Audit icon in the sidebar to land on your Audit Dashboard. Your logged-in user name and role appear in the top-right of the dashboard header. 
-
-2. The dashboard and Quick AcIons differ by role: Admin users see the full Audit Management dashboard (SecIon 4.1); Auditors see a scoped Auditor Dashboard limited to their assigned controls (SecIon 4.5). 
-
-#### **3. Key Terminology** 
-
-A short list of terms that are specific to CalVant's policy workflow rather than self-explanatory from the screen itself: 
-
-|**Term**|**Defni4on**|
+| Term | Definition |
 |---|---|
-|Phase RaIo Control|A slider that splits the working days between the Opening and Closure MeeIng<br>Dates into Stage 1 (DocumentaIon), Stage 2 (PracIce), and ReporIng, and auto-<br>calculates each phase's dates.|
-|CAP (CorrecIve AcIon Plan)|The remediaIon plan created for a non-compliant fnding during Review<br>Findings.|
+| Phase Ratio Control | A slider that splits the working days between the Opening and Closure Meeting Dates into Stage 1 (Documentation), Stage 2 (Practice), and Reporting, and auto-calculates each phase's dates. |
+| CAP (Corrective Action Plan) | The remediation plan created for a non-compliant finding during Review Findings. |
 
+## 4. Manual Navigation
 
+### 4.1 Audit Dashboard
 
-##### **4. Manual Naviga4on** 
+The Audit Dashboard is the home base for the module. It gives an at-a-glance summary of every audit in the organization, along with quick actions to plan, manage, and report on audits.
 
-###### **4.1 Audit Dashboard** 
+![Audit Dashboard overview](/Screenshots/Audit/audit-home.png)
 
-The Audit Dashboard is the home base for the module. It gives an at-a-glance summary of every audit in the organizaIon, along with quick acIons to plan, manage, and report on audits. 
+1. **Summary tiles** — Total, Planned, In Progress, Completed, and Findings counts.
+2. **Audit Status** — a donut chart of audits by status; shows "No Audits Yet" until an audit is planned.
+3. **Audit Trends** — a bar chart of audits created each month, filterable by year; shows "No Trend Data" until an audit has a date field.
 
-Page 3 
+The Quick Actions panel gives one-click access to the most common tasks:
 
-
-
-<!-- Start of picture text -->
-Audit Management<br>Root Dashboard - 0 Root John ©v Guide<br>(=) 0 0 ‘ 0 Audit Status<br>TOTAL PLANNED IN PROGRESS<br>COMPLETED FINDINGS<br>r<br>Quick Actions<br>S Audit| Trends<br>Plan Audit Manage Audits Audit Reports Audits created each month @iaguial 2026 v<br>Schedule & assign View & edit existing audits Viewfindings& scores<br>controls<br>No Trend Date<br><!-- End of picture text -->
-
-x 
-
-
-
-<!-- Start of picture text -->
-9) StepPlan Audit1 of 2 — Audit Details<br>© Global Filter Active: All Frameworks<br>@ Audit Details 2<br>Audit Type<br>Select type...<br>Framework<br>ISO 27001<br>Lead Auditor<br>Select lead auditor...<br>Point of Contact<br>Select contact...<br><!-- End of picture text -->
-
-
-
-<!-- Start of picture text -->
-Select type... v<br>Framework<br>ISO 27001 ~<<br>Lead Auditor<br>Select lead auditor... ~<br>Point of Contact<br>Select contact... -<br>AUDIT ANCHOR DATES<br>Opening Meeting Date Closure Meeting Date<br>+= Phase Ratio Control 33% : 67%<br>Stage 1/ Documentation Stage 2 + Reporting<br>@ Stage 1 (Documentation) @ Stage 2 (Practice) @ Reporting<br>Set Opening and Closure dates to enable phase auto-calculation<br><!-- End of picture text -->
-
-
-
-<!-- Start of picture text -->
-J) StepPlan1 Auditof 2 — Audit Details<br><!-- End of picture text -->
-
-
-
-<!-- Start of picture text -->
-x<br><!-- End of picture text -->
-
-© Global Filter Active: All Frameworks 
-
-Audit Type 
-
-
-
-<!-- Start of picture text -->
-v Select type...<br>Internal<br>External<br>Certification<br>Surveillance<br>Lead Auditor<br><!-- End of picture text -->
-
-
-
-<!-- Start of picture text -->
-(9 PHASE DATES — AUTO-CALCULATED - EDITABLE<br>STAGE 1/ DOCUMENTATION AUDIT<br>Start Date End Date<br>15 Jul 2026 8 17 Jul 2026 8 |<br>STAGE 2/ PRACTICE AUDIT<br>Start Date End Date<br>20 Jul 2026 6 27 Jul 2026 8<br>AUDIT REPORTING<br>Start Date End Date<br>28 Jul 2026 6 30 Jul 2026 6<br><!-- End of picture text -->
-
-x 
-
-
-
-<!-- Start of picture text -->
-17) StepPlan2 Auditof 2 — Assign Controls<br><!-- End of picture text -->
-
-© Global Filter Active: All Frameworks 
-
-Audit Details (2) Assign Controls 
-
-###### S Assign auditors to each control. Auditors must be outside the control's department. 
-
-###### > ISMS Core 0/30 assigned 
-
-###### > Organizational Controls 0/37 assigned 
-
-###### > People Controls 0/8 assigned 
-
-###### > Physical Controls 0/14 assigned 
-
-> Technological Controls 0/34 assigned 
-
-###### € Back 
-
-Assign whole section... v 
-
-Assign whole section... Y 
-
-Assign whole section... v 
-
-Assign whole section... ¥ 
-
-Assign whole section... ¥ 
-
-
-
-<!-- Start of picture text -->
-Create Audit<br><!-- End of picture text -->
-
-
-
-<!-- Start of picture text -->
-Manage Audits<br>Mo of o audits<br>© Showing audits for: All Frameworks<br>All: 0 ISO 27001: 0<br>Planned In Progress Completed<br>Qs Search by type, status, POC...<br><!-- End of picture text -->
-
-
-
-<!-- Start of picture text -->
-x<br><!-- End of picture text -->
-
-No audits found. 
-
-x 
-
-###### Audit Reports 
-
-View completed audit details 
-
-Inprogress’ External | ISO 27001 
-
-External — ISO 27001 ® boc: Harvey Spectre - Lead: Harvey Spectre 15-07-2026 > 30-07-2026 
-
-
-
-<!-- Start of picture text -->
-View Details<br><!-- End of picture text -->
-
-
-
-<!-- Start of picture text -->
-Non-Compliant (0%)<br><!-- End of picture text -->
-
-
-
-<!-- Start of picture text -->
-Audit Management<br>Auditor Dashboard + 1 total Audits Audua i tor Hiarvey Spectspect’ SsGa Guid<br>Controls assigned to Harvey Spectre Audit Status<br>Open "Conduct Audit" to view and score your assigned controls.<br>Total<br>1<br>Quick Actions<br>Conduct Audit Review Findings Audit Trends<br>Submit scores for assigned controls View findings & create CAP Audits created each month 1 total 2026 v<br>Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec<br><!-- End of picture text -->
-
-###### Review Findings 
-
-© Filter: All Frameworks 
-
-1 of 1 audits 
-
-In progress ISO 27001 
-
-External — ISO 27001 
-
-###### Conduct Audit 
-
-
-
-<!-- Start of picture text -->
-© Filter: All Frameworks 1 of 1 audits assigned to you<br>In progress ISO 27001 © You<br>External — ISO 27001<br>0/123<br>My Controls 0/89<br>><br>Conduct Audit. eyo> TTeam Progress<br><!-- End of picture text -->
-
-
-
-<!-- Start of picture text -->
-v © Al Third-Party & Customer<br>A<br>A.10<br>A.10.2<br>Requirement. Document Evidence Practice; Evidence, ScoreDoc ScorePrac Total Doc Remarks Prac Remarks Findingsa * Overall Findingsa<br>The organization shall ensure that responsibilities within their & Upload 2—Con 1— Part 3 n m NoteworthyP yes<br>Al system life cycle are allocated between the organization, its Upload<br>partners, suppliers, customers and third parties<br>A.10.3<br>Requirement. Document Evidence Practice. Evidence. ScoreDoc ScorePrac Total Doc Remarks Prac Remarks Findings. * Overall Findingsee<br>The organization shall establish a process to ensure that its 2 Upload NA v NA Vv 0 Noteworthy><br>usage of services, products or materials provided by suppliers Upload<br>aligns with the organization's approach to the responsible<br>development and use of Al systems.<br><!-- End of picture text -->
-
-_CalVant — Audit Module User Guide_ 
-
-Findings The count of non-compliant controls idenIfied across all audits. 
-
-###### **Audit Status (Card / Report)** 
-
-|**Status**|**Meaning**|
+| Field | Description |
 |---|---|
-|Planned|The audit has been created and controls assigned, but work has not begun.|
-|In Progress|Auditors are acIvely scoring assigned controls.|
-|Completed|All controls have been scored and the audit is closed.|
+| Plan Audit | Launches the guided wizard to schedule and assign controls for a new audit (Section 4.2). |
+| Manage Audits | Opens the list of existing audits to view or edit (Section 4.3). |
+| Audit Reports | Opens completed and in-progress audits to review findings and scores (Section 4.4). |
 
+### 4.2 Planning an Audit
 
+CalVant uses a guided, two-step wizard to plan a new audit: Audit Details, then Assign Controls. Use Next and Back to move between steps, or Create Audit once both steps are complete.
 
-The Compliant / Non-Compliant label on an audit card reflects the percentage of assessed controls that passed, shown alongside the progress bar in Audit Reports. 
+1. From the Audit Dashboard, click Plan Audit under Quick Actions.
+2. Complete Step 1: Audit Details to define the audit's type, framework, personnel, and schedule.
+3. Complete Step 2: Assign Controls to allocate auditors to every control in scope.
+4. Click Create Audit to save the audit and add it to Manage Audits.
 
-##### **6. Tips, Best Prac4ces** 
+#### 4.2.1 Step 1 — Audit Details
 
-1. Set Opening and Closure MeeIng Dates before adjusIng Phase RaIo Control, so phase dates auto-calculate correctly. 
+This step captures the audit's type, personnel, and schedule.
 
-2. Use Assign whole secIon for standard frameworks, then fine-tune individual control assignments only where independence rules require a different auditor. 
+![Audit Plan overview](/Screenshots/Audit/audit-plan.png)
 
-3. Review the Audit Status donut and Findings Ile regularly to spot audits falling behind schedule. 
+| Field | Description |
+|---|---|
+| Audit Type | Internal, External, Certification, or Surveillance. |
+| Framework | The compliance framework being audited, e.g., ISO 27001. |
+| Lead Auditor | The auditor leading the engagement. |
+| Point of Contact | The auditee-side contact for the audit. |
+| Opening / Closure Meeting Date | The anchor dates that bound the entire audit engagement. |
 
-4. Track My Controls against Overall progress in Conduct Audit, so individual auditor workloads stay visible against the full audit. 
+![Audit Plan overview](/Screenshots/Audit/audit-plan2.png)
 
-5. Create a CAP as soon as a finding is marked non-compliant in Review Findings, so remediaIon isn't delayed unIl the closure meeIng. 
+Once Opening and Closure Meeting Dates are set, the Phase Ratio Control slider becomes active and auto-calculates the phase dates below it.
 
-Page 12
+![Audit Plan Dates overview](/Screenshots/Audit/audit-dates.png)
+
+1. Drag the slider to set the working-day ratio between Stage 1 and Stage 2 + Reporting; the ratio and day counts update above the bar.
+2. Phase Dates for Stage 1 (i.e., Documentation Audit), Stage 2 (i.e., Practice Audit), and Audit Reporting auto-fill from the ratio and anchor dates.
+3. Edit any phase date manually — the ratio bar and later phases update instantly to stay in sync.
+4. Day counts are working days only (Monday–Friday); both the start and end day are counted.
+5. Click Next: Assign Controls to continue to Step 2.
+
+#### 4.2.2 Step 2 — Assign Controls
+
+This step allocates auditors to every control in scope, organized by control section.
+
+![Audit Plan Dates overview](/Screenshots/Audit/control-assign.png)
+
+1. Each control section (e.g., for ISMS Core, they are Organizational Controls, People Controls, Physical Controls, Technological Controls) lists its total control count and how many are currently assigned.
+2. Use Assign whole section to bulk-assign one auditor to every control in that section, or expand a section to assign auditors control by control.
+3. Auditors must be outside the control's department, as per the independence rule shown at the top of the screen.
+4. Click Create Audit once all sections are assigned to save the audit and add it to Manage Audits.
+
+### 4.3 Managing Audits
+
+Manage Audits is the working register of every audit in the organization, accessible from Manage Audits on the dashboard.
+
+![Audit Manage overview](/Screenshots/Audit/audit-manage.png)
+
+1. **Header stats** — Total audits, plus counts for the active framework, e.g., ISO 27001, KSA PDPL, etc.
+2. **Framework filter chips** — switch between All and a specific framework.
+3. **Status filter chips** — All, Planned, In Progress, Completed.
+4. **Search bar** — find an audit by type, status, or point of contact.
+
+When no audits match the current filters, the screen shows a "No audits found" empty state.
+
+### 4.4 Audit Reports
+
+Audit Reports lists every audit with its compliance score and links to full details, accessible from Audit Reports on the dashboard.
+
+![Audit Reports overview](/Screenshots/Audit/audit-reports.png)
+
+1. Each card shows the audit's Status, Type, and Framework tags, its title, and its POC, Lead Auditor, and date range.
+2. The progress bar shows the audit's compliance score, labeled Compliant or Non-Compliant with a percentage.
+3. Click View Details to open the full findings for that audit.
+
+### 4.5 Auditor Dashboard (Auditor View)
+
+Auditors land on a scoped Auditor Dashboard that shows only the audits and controls assigned to them.
+
+![Auditor Dashboard overview](/Screenshots/Audit/auditor-dashboard.png)
+
+1. The Controls Assigned panel names the logged-in auditor and directs them to Conduct Audit to view and score their assigned controls.
+2. **Audit Status** — a donut chart showing the total number of audits the auditor is part of.
+3. **Audit Trends** — a bar chart of audits created each month, filterable by year.
+
+The Quick Actions panel gives one-click access to the auditor's tasks:
+
+| Field | Description |
+|---|---|
+| Conduct Audit | Opens assigned controls for scoring (Section 4.7). |
+| Review Findings | Opens completed control assessments to view findings and create a CAP (Section 4.6). |
+
+### 4.6 Reviewing Findings
+
+Review Findings lists the audits with controls assigned to the auditor, accessible from Review Findings on the Auditor Dashboard.
+
+![Audit Findings overview](/Screenshots/Audit/audit-findings.png)
+
+1. The Filter banner shows the active framework and how many audits match it.
+2. Each card shows the audit's Status and Framework tags, its title, and the number of controls assigned to the auditor.
+3. Click a card to open its findings and create a CAP for any non-compliant control.
+
+### 4.7 Conducting an Audit
+
+Conduct Audit is where auditors submit scores for their assigned controls, accessible from Conduct Audit on the Auditor Dashboard.
+
+![Audit Findings overview](/Screenshots/Audit/conduct-audit.png)
+
+1. Each card shows the audit's Status and Framework tags, the auditor's role badge, and the due date.
+2. The Overall progress bar tracks all controls in the audit; My Controls tracks only the controls assigned to the logged-in auditor.
+3. Click Team Progress to expand and view how other auditors on the engagement are progressing.
+4. Click the card to open Conduct Audit and begin submitting scores.
+
+## 5. Status & Quality Reference
+
+### Audit Status (Dashboard Tiles)
+
+| Status | Meaning |
+|---|---|
+| Total | All audits currently tracked in the Audit Dashboard. |
+| Planned | Audits created but not yet started. |
+| In Progress | Audits with at least one control assessment underway. |
+| Completed | Audits where all assigned controls have been scored and reported. |
+| Findings | The count of non-compliant controls identified across all audits. |
+
+### Audit Status (Card / Report)
+
+| Status | Meaning |
+|---|---|
+| Planned | The audit has been created and controls assigned, but work has not begun. |
+| In Progress | Auditors are actively scoring assigned controls. |
+| Completed | All controls have been scored and the audit is closed. |
+
+The Compliant / Non-Compliant label on an audit card reflects the percentage of assessed controls that passed, shown alongside the progress bar in Audit Reports.
+
+## 6. Tips, Best Practices
+
+1. Set Opening and Closure Meeting Dates before adjusting Phase Ratio Control, so phase dates auto-calculate correctly.
+2. Use Assign whole section for standard frameworks, then fine-tune individual control assignments only where independence rules require a different auditor.
+3. Review the Audit Status donut and Findings tile regularly to spot audits falling behind schedule.
+4. Track My Controls against Overall progress in Conduct Audit, so individual auditor workloads stay visible against the full audit.
+5. Create a CAP as soon as a finding is marked non-compliant in Review Findings, so remediation isn't delayed until the closure meeting.
 `;
 
   const steps = [
