@@ -865,7 +865,6 @@ const PersistentSidebar = () => {
     collapseSidebar,
     setMobileView,
   } = useLayout();
-  const { showDpia, showAiia } = useFramework();
   const {
   loading: entLoading,
   dpia,
@@ -955,9 +954,6 @@ const PersistentSidebar = () => {
     if (item.moduleKey === "aiia" && !aiia) return false;
     if (item.moduleKey === "vendor" && !vendor) return false;
   }
-
-  if (item.moduleKey === "dpia" && !showDpia) return false;
-  if (item.moduleKey === "aiia" && !showAiia) return false;
 
   if (item.roles?.length) {
     if (!mounted) return false;

@@ -518,16 +518,9 @@ import { purchaseOrChangeAddOn, removeAddOn } from "../../api/adminBillingApi";
 import { formatINR, perCycleRateFor } from "@/modules/billing/utils/billingFormat";
 import { openRazorpayCheckout } from "./razorpayHelpers";
 import { controlTypeFor, CONTROL_CHECKBOX, WIZARD_ADDON_ORDER } from "./subscriptionCatalogConfig";
-import { useFramework, MODULE_FRAMEWORK_SUPPORT } from "@/context/FrameworkContex";
-import { MODULE_DPIA_CODE, MODULE_AIIA_CODE } from "../../hooks/useModuleEntitlements";
 import "./ManageSubscription.css";
 
 const STEPS = ["Upgrade Add-Ons", "Confirm Order", "Confirmation"];
-
-const FRAMEWORK_GATED_ADDONS = {
-  [MODULE_DPIA_CODE]: MODULE_FRAMEWORK_SUPPORT.dpia,
-  [MODULE_AIIA_CODE]: MODULE_FRAMEWORK_SUPPORT.aiia,
-};
 
 // Product rule: for these add-ons every quantity INCREASE is a fresh,
 // pay-now Razorpay checkout (its own add-on subscription) — no mandate
@@ -547,17 +540,6 @@ const ALWAYS_CHECKOUT_ON_INCREASE = new Set(["USER_ADMIN", "USER_NORMAL", "INTEG
  * a fresh Razorpay checkout on increase, same pipeline as every other add-on.
  */
 export default function UpgradeAddOnsWizard({ mode = "upgrade", sub, starter, catalog, billingCycle, onClose, onComplete }) {
-  const { availableFrameworks } = useFramework() || {};
-  const orgFrameworkLabels = useMemo(
-    () => (availableFrameworks || []).map((fw) => fw.id),
-    [availableFrameworks]
-  );
-  const frameworkGateSatisfied = (addOnCode) => {
-    const requiredLabels = FRAMEWORK_GATED_ADDONS[addOnCode];
-    if (!requiredLabels) return true;
-    return orgFrameworkLabels.some((label) => requiredLabels.has(label));
-  };
-
   const [step, setStep] = useState(1);
   const [seats, setSeats] = useState({
     adminUserCount: sub?.adminUserCount ?? starter?.includedAdminUsers ?? 1,
@@ -867,8 +849,6 @@ export default function UpgradeAddOnsWizard({ mode = "upgrade", sub, starter, ca
                     const oldQty = sub?.addOns?.find((l) => l.addOnCode === item.addOnCode)?.quantity || 0;
                     const curQty = qty[item.addOnCode] || 0;
                     const rate = perCycleRateFor(item, billingCycle);
-                    const gateOk = frameworkGateSatisfied(item.addOnCode);
-                    const blockedByFramework = isCheckbox && curQty === 0 && !gateOk;
                     return (
                       <tr key={item.addOnCode}>
                         <td>
@@ -877,19 +857,14 @@ export default function UpgradeAddOnsWizard({ mode = "upgrade", sub, starter, ca
                             {formatINR(rate)} / {billingCycle === "ANNUAL" ? "yr" : "6mo"}
                             {isCheckbox ? "" : " per unit"}
                           </div>
-                          {blockedByFramework && (
-                            <div className="ms-item-sub ms-item-sub--warn">
-                              Select a relevant framework first to unlock this module.
-                            </div>
-                          )}
                         </td>
                         <td>
                           {isCheckbox ? (
-                            <label className="ms-checkbox" title={blockedByFramework ? "Requires a relevant framework to be selected first" : undefined}>
+                            <label className="ms-checkbox">
                               <input
                                 type="checkbox"
                                 checked={curQty > 0}
-                                disabled={(mode === "downgrade" && oldQty === 0) || blockedByFramework}
+                                disabled={mode === "downgrade" && oldQty === 0}
                                 onChange={() => toggleCheckbox(item.addOnCode)}
                               />
                             </label>

@@ -32,10 +32,20 @@ const hasAddOn = (subscription, code) =>
 // and easy to miss (bit us once already: MODULE_VENDOR_MGMT / MODULE_AI_IMPACT
 // were trial-granted but not in addOns, so the addOns-only check wrongly
 // hid them during the trial window).
+//
+// IMPORTANT: the trial grant only applies while the subscription is
+// actually still on TRIAL. Checking trialEndsAt alone isn't enough — if a
+// tenant converts to a paid plan (status flips to ACTIVE) but the backend
+// doesn't also clear trialEndsAt/trialGrant, trialEndsAt can still be in
+// the future and every trial-granted module (e.g. Vendor Mgmt) stays free
+// forever even though nothing was purchased. Requiring status === "TRIAL"
+// closes that off regardless of what the backend does with those fields.
 const isEntitled = (subscription, code) => {
   if (hasAddOn(subscription, code)) return true;
   const trialActive =
-    subscription?.trialEndsAt && new Date(subscription.trialEndsAt).getTime() > Date.now();
+    subscription?.status === "TRIAL" &&
+    subscription?.trialEndsAt &&
+    new Date(subscription.trialEndsAt).getTime() > Date.now();
   return !!(trialActive && subscription?.trialGrant?.includes(code));
 };
 
