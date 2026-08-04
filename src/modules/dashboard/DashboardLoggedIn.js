@@ -1909,7 +1909,7 @@ const orgIdsToFetch = useMemo(() => {
   };
 
   // ── Framework context ─────────────────────────────────────────────────────
-  const { selectedFrameworks, isAllSelected, showDpia, showAiia, availableFrameworks } = useFramework();
+  const { selectedFrameworks, isAllSelected, availableFrameworks } = useFramework();
   const { dpia: dpiaEntitled, aiia: aiiaEntitled, vendor: vendorEntitled } = useModuleEntitlements();
   // showTprm previously only turned true from the legacy Organization.tprmEnabled
   // flag (fetched below) — a field the OLD manual admin-panel org-configuration
@@ -2550,7 +2550,7 @@ const orgIdsToFetch = useMemo(() => {
           </motion.div>
 
           {/* DPIA */}
-          {showDpia && dpiaEntitled && (
+          {dpiaEntitled && (
             <motion.div id="dpia-module" initial={hasMounted ? { opacity: 0, y: 20 } : false} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.3 }} whileHover={{ scale: 1.02, boxShadow: "0 12px 24px rgba(14,165,233,0.12)" }} whileTap={{ scale: 0.98 }} onClick={() => navigateToModule("/dpia")} style={{ ...cardStyle, borderLeft: "4px solid #0ea5e9" }}>
               <CardHeader icon={<ShieldCheck size={16} color="white" />} iconGradient="linear-gradient(135deg, #0ea5e9, #0284c7)" title="DPIA" total={dpiaStats.total} totalLabel="Total Assessments" filterTags={false} isAllSelected={isAllSelected} />
               <PieSection data={getPieChartData([{ name: "Submitted", value: dpiaStats.submitted }, { name: "In Progress", value: dpiaStats.inProgress }, { name: "Draft", value: dpiaStats.draft }])} cells={getPieChartData([{ color: "#10b981" }, { color: "#6366f1" }, { color: "#f59e0b" }]).map((e, i) => <Cell key={i} fill={e.color} />)} legend={[["#10b981", dpiaStats.submitted, "Submitted"], ["#6366f1", dpiaStats.inProgress, "In Progress"], ["#f59e0b", dpiaStats.draft, "Draft"]]} />
@@ -2566,7 +2566,7 @@ const orgIdsToFetch = useMemo(() => {
           )}
 
           {/* AIIA */}
-          {showAiia && aiiaEntitled && (
+          {aiiaEntitled && (
             <motion.div id="aiia-module" initial={hasMounted ? { opacity: 0, y: 20 } : false} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.55 }} whileHover={{ scale: 1.02, boxShadow: "0 12px 24px rgba(217,70,239,0.12)" }} whileTap={{ scale: 0.98 }} onClick={() => navigateToModule("/aiia")} style={{ ...cardStyle, borderLeft: "4px solid #d946ef" }}>
               <CardHeader icon={<Brain size={16} color="white" />} iconGradient="linear-gradient(135deg, #d946ef, #a21caf)" title="AIIA" total={aiiaStats.total} totalLabel="Total Assessments" filterTags={false} isAllSelected={isAllSelected} />
               <PieSection data={getPieChartData([{ name: "Approved", value: aiiaStats.approved }, { name: "Submitted", value: aiiaStats.submitted }, { name: "Draft", value: aiiaStats.draft }])} cells={getPieChartData([{ color: "#10b981" }, { color: "#6366f1" }, { color: "#f59e0b" }]).map((e, i) => <Cell key={i} fill={e.color} />)} legend={[["#10b981", aiiaStats.approved, "Approved"], ["#6366f1", aiiaStats.submitted, "Submitted"], ["#f59e0b", aiiaStats.draft, "Draft"]]} />
