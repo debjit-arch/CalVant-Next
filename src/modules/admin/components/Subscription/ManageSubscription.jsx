@@ -479,6 +479,7 @@ import {
 import { openRazorpayCheckout } from "./razorpayHelpers";
 import { controlTypeFor, CONTROL_CHECKBOX, WIZARD_ADDON_ORDER } from "./subscriptionCatalogConfig";
 import UpgradeAddOnsWizard from "./UpgradeAddOnsWizard";
+import BuyFrameworkModal from "./BuyFrameworkModal";
 import "./ManageSubscription.css";
 
 /**
@@ -522,6 +523,7 @@ export default function ManageSubscription() {
   const [activating, setActivating] = useState(false);
   const [wizard, setWizard] = useState(null); // "upgrade" | "downgrade" | null
   const [showChangePlanInfo, setShowChangePlanInfo] = useState(false);
+  const [showFrameworkStore, setShowFrameworkStore] = useState(false);
   const [buyingCode, setBuyingCode] = useState(null);
   const [consultantDays, setConsultantDays] = useState(1);
   const [awaitingWebhook, setAwaitingWebhook] = useState(false);
@@ -800,6 +802,14 @@ export default function ManageSubscription() {
               >
                 Downgrade User/Add-Ons
               </button>
+              <button
+                className="ms-btn ms-btn--outline"
+                disabled={!canManage}
+                title={!canManage ? "Only a root or super admin can buy frameworks" : undefined}
+                onClick={() => setShowFrameworkStore(true)}
+              >
+                Buy a Framework
+              </button>
             </div>
           </div>
 
@@ -932,6 +942,17 @@ export default function ManageSubscription() {
           billingCycle={billingCycle}
           onClose={() => setWizard(null)}
           onComplete={handleWizardComplete}
+        />
+      )}
+
+      {showFrameworkStore && (
+        <BuyFrameworkModal
+          sub={sub}
+          starter={starter}
+          catalog={catalog}
+          billingCycle={billingCycle}
+          onClose={() => setShowFrameworkStore(false)}
+          onComplete={() => loadAll({ silent: true })}
         />
       )}
 
