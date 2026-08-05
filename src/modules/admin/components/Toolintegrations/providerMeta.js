@@ -188,7 +188,7 @@ export const BUILT_IN_PROVIDERS = [
   label: 'Graylog',
   accent: '#FF3633',
   description: 'Centralized log management and SIEM',
-  Icon: ManageSearchIcon, // import from '@mui/icons-material/ManageSearch'
+  Icon: BugReportIcon, // import from '@mui/icons-material/ManageSearch'
   logoUrl: '/logos/graylog.svg', // optional, falls back to Icon if missing
 },
 {
@@ -196,17 +196,17 @@ export const BUILT_IN_PROVIDERS = [
   label: 'Bitwarden Teams',
   accent: '#175DDC',
   description: 'Team password vault and secrets management',
-  Icon: VpnKeyIcon, // import from '@mui/icons-material/VpnKey'
+  Icon: ShieldIcon, // import from '@mui/icons-material/VpnKey'
   logoUrl: '/logos/bitwarden.svg',
 },
-{
-  key: 'teams',
-  label: 'Microsoft Teams',
-  accent: '#6264A7',
-  description: 'Compliance sync alerts via Teams channel',
-  Icon: ForumIcon, // import from '@mui/icons-material/Forum'
-  logoUrl: '/logos/teams.svg',
-},
+// {
+//   key: 'teams',
+//   label: 'Microsoft Teams',
+//   accent: '#6264A7',
+//   description: 'Compliance sync alerts via Teams channel',
+//   Icon: ForumIcon, // import from '@mui/icons-material/Forum'
+//   logoUrl: '/logos/teams.svg',
+// },
 ];
 
 export const TYPE_COLORS = {
