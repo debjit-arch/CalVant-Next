@@ -338,3 +338,84 @@
   color: #b91c1c; /* red-700 */
   font-weight: 500;
 }
+
+/* ── Buy a Framework modal (additive — see BuyFrameworkModal.jsx) ───────── */
+
+.fw-store-modal { max-width: 620px; }
+
+.fw-store-sub {
+  font-size: 13px;
+  color: #6b7280;
+  line-height: 1.6;
+  margin: 0 0 18px;
+  text-align: center;
+}
+
+.fw-store-banner { margin-bottom: 14px; }
+
+.fw-store-loading { padding: 30px 0; }
+
+.fw-store-section-label {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #9ca3af;
+  margin: 18px 0 10px;
+}
+
+.fw-store-section-label:first-of-type { margin-top: 0; }
+
+.fw-store-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.fw-store-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: #fff;
+}
+
+.fw-store-card--active {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  background: #f9fafb;
+}
+
+.fw-store-card-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1f2937;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.fw-store-card-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #15803d;
+}
+
+.fw-store-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.fw-store-card-price {
+  font-size: 11.5px;
+  color: #6b7280;
+}
