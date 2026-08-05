@@ -146,7 +146,6 @@
 //       { key: 'apiKey',  label: 'API Key',          secret: true  },
 //     ],
 //   },
-//   // ── NEW: CrowdStrike ─────────────────────────────────────────────────────
 //   crowdstrike: {
 //     label: 'CrowdStrike Falcon',
 //     accent: '#E01F27',
@@ -157,7 +156,6 @@
 //       { key: 'clientSecret', label: 'Client Secret',   secret: true  },
 //     ],
 //   },
-//   // ── NEW: OWASP ZAP ───────────────────────────────────────────────────────
 //   owaspzap: {
 //     label: 'OWASP ZAP',
 //     accent: '#4B0082',
@@ -166,6 +164,28 @@
 //       { key: 'baseUrl',   label: 'ZAP Base URL', secret: false, placeholder: 'http://zap.yourcompany.com:8080' },
 //       { key: 'apiKey',    label: 'API Key',      secret: true  },
 //       { key: 'targetUrl', label: 'Target URL (scanned site)', secret: false, placeholder: 'https://app.yourcompany.com' },
+//     ],
+//   },
+//   // ── NEW: Keycloak ────────────────────────────────────────────────────────
+//   keycloak: {
+//     label: 'Keycloak',
+//     accent: '#4D4D4D',
+//     note: 'Create a confidential client in your realm with Service Accounts enabled, and assign it the realm-management "view-users" and "view-events" roles. Also confirm Realm Settings → Events → "Save Events" is turned on, otherwise the access-review control will always show non-compliant.',
+//     fields: [
+//       { key: 'baseUrl',      label: 'Keycloak Base URL', secret: false, placeholder: 'https://auth.yourcompany.com' },
+//       { key: 'realm',        label: 'Realm',             secret: false, placeholder: 'yourcompany' },
+//       { key: 'clientId',     label: 'Client ID',         secret: false },
+//       { key: 'clientSecret', label: 'Client Secret',     secret: true  },
+//     ],
+//   },
+//   // ── NEW: Palo Alto Networks ─────────────────────────────────────────────
+//   paloalto: {
+//     label: 'Palo Alto Networks',
+//     accent: '#FA582D',
+//     note: 'Placeholder credentials — swap the fields below once you confirm which Palo Alto API you\'re integrating with (PAN-OS XML/REST API key, or Cortex/Prisma OAuth2 client).',
+//     fields: [
+//       { key: 'baseUrl', label: 'Base URL', secret: false, placeholder: 'https://firewall.yourcompany.com' },
+//       { key: 'apiKey',  label: 'API Key',  secret: true  },
 //     ],
 //   },
 // };
@@ -554,7 +574,6 @@ const PROVIDERS = {
       { key: 'targetUrl', label: 'Target URL (scanned site)', secret: false, placeholder: 'https://app.yourcompany.com' },
     ],
   },
-  // ── NEW: Keycloak ────────────────────────────────────────────────────────
   keycloak: {
     label: 'Keycloak',
     accent: '#4D4D4D',
@@ -566,7 +585,6 @@ const PROVIDERS = {
       { key: 'clientSecret', label: 'Client Secret',     secret: true  },
     ],
   },
-  // ── NEW: Palo Alto Networks ─────────────────────────────────────────────
   paloalto: {
     label: 'Palo Alto Networks',
     accent: '#FA582D',
@@ -574,6 +592,36 @@ const PROVIDERS = {
     fields: [
       { key: 'baseUrl', label: 'Base URL', secret: false, placeholder: 'https://firewall.yourcompany.com' },
       { key: 'apiKey',  label: 'API Key',  secret: true  },
+    ],
+  },
+  // ── NEW: Graylog ─────────────────────────────────────────────────────────
+  graylog: {
+    label: 'Graylog',
+    accent: '#FF3633',
+    note: 'Generate a personal access token from your Graylog user profile ("Edit Tokens"), then point to the base URL of your Graylog instance (the REST API listens on the same host, typically port 9000).',
+    fields: [
+      { key: 'baseUrl',  label: 'Graylog Base URL', secret: false, placeholder: 'https://graylog.yourcompany.com:9000' },
+      { key: 'apiToken', label: 'API Token',        secret: true  },
+    ],
+  },
+  // ── NEW: Bitwarden Teams ─────────────────────────────────────────────────
+  bitwarden: {
+    label: 'Bitwarden Teams',
+    accent: '#175DDC',
+    note: 'In your Bitwarden organization vault, go to Business Settings → API Key to generate a Client ID and Client Secret. The Organization ID is on the same page (or in the org vault URL).',
+    fields: [
+      { key: 'organizationId', label: 'Organization ID', secret: false },
+      { key: 'clientId',       label: 'Client ID',       secret: false },
+      { key: 'clientSecret',   label: 'Client Secret',   secret: true  },
+    ],
+  },
+  // ── NEW: Microsoft Teams ─────────────────────────────────────────────────
+  teams: {
+    label: 'Microsoft Teams',
+    accent: '#6264A7',
+    note: 'In the target Teams channel, go to Connectors → Incoming Webhook, create one, and paste the generated webhook URL below. Compliance sync results and alerts will be posted to that channel.',
+    fields: [
+      { key: 'webhookUrl', label: 'Incoming Webhook URL', secret: true, placeholder: 'https://yourcompany.webhook.office.com/webhookb2/...' },
     ],
   },
 };
