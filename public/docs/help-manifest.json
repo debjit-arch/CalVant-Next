@@ -55,6 +55,14 @@
       "file": "/docs/impact-assessment-module.md",
       "color": "#0ea5e9",
       "icon": "FileSearch"
+    },
+    {
+      "slug": "aiia-module",
+      "title": "AI Impact Assessment (AI IA)",
+      "description": "Run AI impact assessments for new projects, systems, or AI Tools.",
+      "file": "/docs/aiia-module.md",
+      "color": "#0ea5e9",
+      "icon": "FileSearch"
     }
   ]
 }
