@@ -44,11 +44,18 @@ const FRAMEWORK_SERVICE_BASE = "https://api.calvant.com/framework/api";
 export const ALLOWED_FRAMEWORK_CODES = [
   "ISO27001",
   "ISO27701",
+  "ISO27017",
   "SOC2",
   "ISO42001",
   "GDPR",
   "KSA_PDPL",
   "DPDPA",
+  "HIPAA",
+  "NIST_CSF2",
+  "CSCRF",
+  "PCI_DSS",
+  "DUBAI_ISR",
+  "EU_AI_ACT",
 ];
 
 /** GET /api/organizations/{id} -> Organization (includes .frameworks) */

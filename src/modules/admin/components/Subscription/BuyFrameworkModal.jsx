@@ -42,6 +42,7 @@ export default function BuyFrameworkModal({ sub, starter, catalog, billingCycle,
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [unlockingCode, setUnlockingCode] = useState(null);
+  const [selectedCode, setSelectedCode] = useState("");
 
   const orgId = sub?.orgId;
 
@@ -101,6 +102,20 @@ export default function BuyFrameworkModal({ sub, starter, catalog, billingCycle,
 
   const lockedFrameworks = purchasableLibrary.filter((fw) => !ownedCodesUpper.has((fw.code || "").toUpperCase()));
   const unlockedFrameworks = purchasableLibrary.filter((fw) => ownedCodesUpper.has((fw.code || "").toUpperCase()));
+
+  // Keep the dropdown pointed at a valid, still-locked framework.
+  useEffect(() => {
+    if (lockedFrameworks.length === 0) {
+      setSelectedCode("");
+      return;
+    }
+    if (!lockedFrameworks.some((fw) => fw.code === selectedCode)) {
+      setSelectedCode(lockedFrameworks[0].code);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lockedFrameworks.map((fw) => fw.code).join(",")]);
+
+  const selectedFramework = lockedFrameworks.find((fw) => fw.code === selectedCode) || null;
 
   const perCycleRate = frameworkAddOn ? perCycleRateFor(frameworkAddOn, billingCycle) : null;
   const cycleSuffix = billingCycle === "ANNUAL" ? "/yr" : "/6mo";
@@ -196,29 +211,42 @@ export default function BuyFrameworkModal({ sub, starter, catalog, billingCycle,
             {lockedFrameworks.length === 0 ? (
               <p className="ms-fineprint">Every framework in the library is already active on your account.</p>
             ) : (
-              <div className="fw-store-grid">
-                {lockedFrameworks.map((fw) => {
-                  const willBeFree = availableUnusedSlots > 0;
-                  return (
-                    <div key={fw.code} className="fw-store-card">
+              <div className="fw-store-picker">
+                <select
+                  className="fw-store-select"
+                  value={selectedCode}
+                  onChange={(e) => setSelectedCode(e.target.value)}
+                >
+                  {lockedFrameworks.map((fw) => (
+                    <option key={fw.code} value={fw.code}>
+                      {fw.label || fw.code}
+                    </option>
+                  ))}
+                </select>
+
+                {selectedFramework && (
+                  <div className="fw-store-result">
+                    <div className="fw-store-result-info">
                       <span className="fw-store-card-name">
-                        <Lock size={13} /> {fw.label || fw.code}
+                        <Lock size={13} /> {selectedFramework.label || selectedFramework.code}
                       </span>
-                      <div className="fw-store-card-footer">
-                        <span className="fw-store-card-price">
-                          {willBeFree ? "Included (paid slot available)" : perCycleRate != null ? `${formatINR(perCycleRate)} ${cycleSuffix}` : "—"}
-                        </span>
-                        <button
-                          className="ms-btn ms-btn--primary ms-btn--sm"
-                          disabled={unlockingCode !== null}
-                          onClick={() => handleUnlock(fw)}
-                        >
-                          {unlockingCode === (fw.code || "").toUpperCase() ? "Processing…" : "Unlock"}
-                        </button>
-                      </div>
+                      <span className="fw-store-card-price">
+                        {availableUnusedSlots > 0
+                          ? "Included (paid slot available)"
+                          : perCycleRate != null
+                            ? `${formatINR(perCycleRate)} ${cycleSuffix}`
+                            : "—"}
+                      </span>
                     </div>
-                  );
-                })}
+                    <button
+                      className="ms-btn ms-btn--primary ms-btn--sm"
+                      disabled={unlockingCode !== null}
+                      onClick={() => handleUnlock(selectedFramework)}
+                    >
+                      {unlockingCode === (selectedFramework.code || "").toUpperCase() ? "Processing…" : "Unlock"}
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </>

@@ -470,9 +470,15 @@ export default function UserForm({ userToEdit = null, onSuccess }) {
           </Typography>
         </Stack>
 
-        {atSeatCap && (
-          <Alert severity="warning" icon={<LockIcon fontSize="inherit" />} sx={{ mb: 1 }}>
-            You've used all {seatLimit} of your user seats ({seatsUsed}/{seatLimit}). Upgrade your plan under Manage Subscription to add more.
+        {!userToEdit && loggedInRole !== "super_admin" && !seatLoading && seatLimit > 0 && (
+          <Alert
+            severity={atSeatCap ? "warning" : "info"}
+            icon={atSeatCap ? <LockIcon fontSize="inherit" /> : undefined}
+            sx={{ mb: 1 }}
+          >
+            {atSeatCap
+              ? `You've used all ${seatLimit} of your user seats (${seatsUsed}/${seatLimit}). Upgrade your plan under Manage Subscription to add more.`
+              : `User seats: ${seatsUsed} of ${seatLimit} used (${seatLimit - seatsUsed} remaining).`}
           </Alert>
         )}
 
