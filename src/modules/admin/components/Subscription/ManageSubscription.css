@@ -408,6 +408,28 @@
   color: #15803d;
 }
 
+.fw-store-picker { display: flex; flex-direction: column; gap: 12px; }
+.fw-store-select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 13.5px;
+  color: #111827;
+  background: #fff;
+}
+.fw-store-select:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.15); }
+.fw-store-result {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #f9fafb;
+}
+.fw-store-result-info { display: flex; flex-direction: column; gap: 4px; }
 .fw-store-card-footer {
   display: flex;
   align-items: center;

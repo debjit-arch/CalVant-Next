@@ -49,6 +49,24 @@ const isEntitled = (subscription, code) => {
   return !!(trialActive && subscription?.trialGrant?.includes(code));
 };
 
+// Trial accounts get a flat, mandatory 5-seat cap — regardless of whatever
+// adminUserCount/normalUserCount happen to be sitting on the subscription
+// doc (e.g. left over from a prior paid period, or pre-set for the eventual
+// starter package). Only once status flips to ACTIVE (starter bought) does
+// the real seat math — starter inclusions + USER_ADMIN/USER_NORMAL add-ons —
+// apply. Mirrors the same TRIAL-vs-status guard used for module entitlements
+// above: checking trialEndsAt alone isn't enough once converted to paid.
+const TRIAL_SEAT_CAP = 5;
+
+const seatLimitFor = (subscription) => {
+  const trialActive =
+    subscription?.status === "TRIAL" &&
+    subscription?.trialEndsAt &&
+    new Date(subscription.trialEndsAt).getTime() > Date.now();
+  if (trialActive) return TRIAL_SEAT_CAP;
+  return (subscription?.adminUserCount || 0) + (subscription?.normalUserCount || 0);
+};
+
 export default function useModuleEntitlements() {
   const [state, setState] = useState({
     loading: true,
@@ -80,7 +98,7 @@ export default function useModuleEntitlements() {
         dpia: isEntitled(subscription, MODULE_DPIA_CODE),
         aiia: isEntitled(subscription, MODULE_AIIA_CODE),
         vendor: isEntitled(subscription, MODULE_VENDOR_CODE),
-        seatLimit: (subscription?.adminUserCount || 0) + (subscription?.normalUserCount || 0),
+        seatLimit: seatLimitFor(subscription),
         seatsUsed: usersList.length,
       });
     } catch (err) {
