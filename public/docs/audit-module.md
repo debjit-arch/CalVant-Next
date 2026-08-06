@@ -22,11 +22,11 @@ The dashboard and its Quick Actions differ by role: Admin users see the full Aud
 
 The Audit Dashboard is the home base for the module. It gives an at-a-glance summary of every audit in the organization, along with quick actions to plan, manage, and report on audits. The screen is organized into three zones: the Overview Zone, the Quick Actions Zone, and the Visual Representation Zone. 
 
-### Overview Zone 
+#### Overview Zone 
 
 A row of summary tiles showing Total, Planned, In Progress, Completed, and Findings counts. 
 
-### Quick Actions Zone 
+#### Quick Actions Zone  
 
 Gives one-click access to the most common tasks: 
 
@@ -36,7 +36,7 @@ Manage Audits — Opens the list of existing audits to view or edit.
 
 Audit Reports — Opens completed and in-progress audits to review findings and scores. 
 
-### Visual Representation Zone 
+###### Visual Representation Zone 
 
 Audit Status — a donut chart of audits by status. 
 
@@ -156,7 +156,7 @@ Auditors land on a scoped Audit Dashboard that shows only the audits and control
 
 Directs the login auditor to Conduct Audit to view and score their assigned controls. 
 
-### Quick Actions Zone
+#### Quick Actions Zone 
 
 Gives one-click access to the auditor's tasks. 
 
@@ -164,7 +164,7 @@ Conduct Audit — Opens assigned controls for scoring.
 
 Review Findings — Opens completed control assessments to view and add findings and create a Corrective Action Plan. 
 
-### Visual Representation Zone 
+###### Visual Representation Zone 
 
 Audit Status — a donut chart showing the total number of audits the auditor is part of. 
 

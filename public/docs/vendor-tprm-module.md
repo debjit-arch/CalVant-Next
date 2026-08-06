@@ -24,11 +24,11 @@ The screen is organized into three zones: the Overview Zone, Quick Actions Zone 
 
 ![Risk Dashboard overview](/Screenshots/Vendor/1.png)
 
-### Overview Zone 
+#### Overview Zone 
 
 A row of summary tiles showing Total, Sent, Submitted, Approved, and Rejected assessment counts. 
 
-### Quick Actions Zone 
+#### Quick Actions Zone  
 
 Gives one-click access to the most common tasks: 
 
@@ -38,7 +38,7 @@ Plan TPRM — Starts the assessment process.
 
 Vendor Report — Opens vendor scores for review and approval. 
 
-### Visual Representation Zone 
+###### Visual Representation Zone 
 
 Assessment Status — status of the assement approved or pending. 
 
@@ -46,7 +46,7 @@ Assessment Trends — a bar chart of assessments created each mont
 
 _From the vendor log in the dashboard will look like:_ 
 
-### Overview Zone 
+#### Overview Zone 
 
 A row of summary tiles showing Total, Sent, Submitted, Approved, and Rejected assessment counts. 
 

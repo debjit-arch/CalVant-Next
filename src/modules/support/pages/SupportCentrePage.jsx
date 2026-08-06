@@ -5,13 +5,10 @@ import {
   LifeBuoy,
   Plus,
   X,
-  Send,
   Loader2,
   ChevronLeft,
-  Clock,
-  CheckCircle2,
   AlertCircle,
-  MessageSquare,
+  Mail,
   RefreshCw,
 } from "lucide-react";
 import supportService from "../services/supportService";
@@ -24,6 +21,16 @@ const getUser = () => {
   } catch {
     return null;
   }
+};
+
+// root / super_admin see every ticket raised across their organization, so
+// the list gains a "Raised by" column and the reply thread shows who raised
+// it. Everyone else only ever sees their own tickets, so that context would
+// be redundant.
+const isOrgAdmin = (user) => {
+  const roles = Array.isArray(user?.role) ? user.role : [user?.role || ""];
+  const normalized = roles.map((r) => (r || "").toString().toLowerCase());
+  return normalized.includes("root") || normalized.includes("super_admin");
 };
 
 const CATEGORIES = ["General", "Billing", "Technical", "Access", "Other"];
@@ -49,12 +56,39 @@ const fmtDate = (d) => {
     return new Date(d).toLocaleString(undefined, {
       month: "short",
       day: "numeric",
-      hour: "2-digit",
+      year: "numeric",
+      hour: "numeric",
       minute: "2-digit",
     });
   } catch {
     return "";
   }
+};
+
+const fmtShortDate = (d) => {
+  if (!d) return "";
+  try {
+    return new Date(d).toLocaleDateString(undefined, {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  } catch {
+    return "";
+  }
+};
+
+const initials = (name) => {
+  if (!name) return "?";
+  const parts = name.trim().split(/\s+/);
+  return ((parts[0]?.[0] || "") + (parts[1]?.[0] || "")).toUpperCase() || name[0]?.toUpperCase();
+};
+
+const avatarColor = (seed) => {
+  const palette = ["#2563eb", "#7c3aed", "#0891b2", "#ea580c", "#059669", "#c026d3"];
+  let hash = 0;
+  for (const ch of seed || "?") hash = (hash * 31 + ch.charCodeAt(0)) % palette.length;
+  return palette[Math.abs(hash) % palette.length];
 };
 
 // ── Small UI atoms ───────────────────────────────────────────────────────────
@@ -88,6 +122,9 @@ const EmptyState = ({ onNew }) => (
       textAlign: "center",
       padding: "60px 24px",
       color: "#64748b",
+      background: "#fff",
+      border: "1px solid #e2e8f0",
+      borderRadius: 12,
     }}
   >
     <div
@@ -108,7 +145,8 @@ const EmptyState = ({ onNew }) => (
       No support tickets yet
     </h3>
     <p style={{ margin: "6px 0 20px", fontSize: 14, maxWidth: 320 }}>
-      Run into an issue or have a question? Raise a ticket and our team will get back to you.
+      Run into an issue or have a question? Raise a ticket and our team will get back to you —
+      by email or right here.
     </p>
     <button onClick={onNew} style={primaryBtnStyle}>
       <Plus size={16} /> New Ticket
@@ -121,9 +159,9 @@ const primaryBtnStyle = {
   alignItems: "center",
   gap: 8,
   padding: "10px 16px",
-  borderRadius: 10,
+  borderRadius: 8,
   border: "none",
-  background: "#2563eb",
+  background: "#0f172a",
   color: "#fff",
   fontSize: 14,
   fontWeight: 600,
@@ -135,7 +173,7 @@ const secondaryBtnStyle = {
   alignItems: "center",
   gap: 8,
   padding: "10px 16px",
-  borderRadius: 10,
+  borderRadius: 8,
   border: "1px solid #e2e8f0",
   background: "#fff",
   color: "#334155",
@@ -205,7 +243,7 @@ const NewTicketModal = ({ onClose, onCreated }) => {
       <div
         style={{
           background: "#fff",
-          borderRadius: 16,
+          borderRadius: 14,
           width: "100%",
           maxWidth: 480,
           maxHeight: "90vh",
@@ -291,8 +329,8 @@ const NewTicketModal = ({ onClose, onCreated }) => {
               Cancel
             </button>
             <button type="submit" style={primaryBtnStyle} disabled={submitting}>
-              {submitting ? <Loader2 size={16} className="spin" /> : <Send size={16} />}
-              {submitting ? "Submitting..." : "Submit Ticket"}
+              {submitting && <Loader2 size={16} className="spin" />}
+              {submitting ? "Submitting..." : "Submit"}
             </button>
           </div>
         </form>
@@ -309,16 +347,87 @@ const labelStyle = {
   marginBottom: 6,
 };
 
-// ── Ticket thread / detail view ──────────────────────────────────────────────
+// ── A single message in the thread, styled as an email, not a chat bubble ──
 
-const TicketThread = ({ ticket, currentUserId, onBack, onReply }) => {
+const MessageRow = ({ msg, isLast }) => {
+  const displayName = msg.senderRole === "admin" ? "CalVant" : (msg.senderName || "You");
+  const fromEmail = msg.channel === "EMAIL";
+
+  return (
+    <div style={{ display: "flex", gap: 14, padding: "20px 0", borderBottom: isLast ? "none" : "1px solid #f1f5f9" }}>
+      <div
+        style={{
+          width: 38,
+          height: 38,
+          borderRadius: "50%",
+          background: msg.senderRole === "admin" ? "#000" : avatarColor(displayName),
+          color: "#fff",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: 13,
+          fontWeight: 700,
+          flexShrink: 0,
+          overflow: "hidden",
+        }}
+      >
+        {msg.senderRole === "admin" ? (
+          <img
+            src="/favicon-light.png"
+            alt="CalVant"
+            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+          />
+        ) : (
+          initials(displayName)
+        )}
+      </div>
+      <div style={{ minWidth: 0, flex: 1 }}>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap", marginBottom: 6 }}>
+          <span style={{ fontWeight: 700, fontSize: 14, color: "#0f172a" }}>{displayName}</span>
+          <span style={{ fontSize: 12, color: "#94a3b8" }}>{fmtDate(msg.createdAt)}</span>
+          {fromEmail && (
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                fontSize: 11,
+                fontWeight: 600,
+                color: "#64748b",
+                background: "#f1f5f9",
+                border: "1px solid #e2e8f0",
+                borderRadius: 999,
+                padding: "1px 8px",
+              }}
+            >
+              <Mail size={10} /> via Email
+            </span>
+          )}
+        </div>
+        <div
+          style={{
+            fontSize: 14,
+            lineHeight: 1.7,
+            color: "#334155",
+            whiteSpace: "pre-wrap",
+          }}
+        >
+          {msg.message}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ── Ticket thread / detail view — styled like a support-desk email view ────
+
+const TicketThread = ({ ticket, isAdmin, onBack, onReply }) => {
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
 
   const statusPalette = STATUS_STYLE[ticket.status] || STATUS_STYLE.OPEN;
   const priorityPalette = PRIORITY_STYLE[ticket.priority] || PRIORITY_STYLE.MEDIUM;
-  const closed = ticket.status === "CLOSED" || ticket.status === "RESOLVED";
 
   const handleSend = async (e) => {
     e.preventDefault();
@@ -356,111 +465,139 @@ const TicketThread = ({ ticket, currentUserId, onBack, onReply }) => {
         <ChevronLeft size={16} /> Back to all tickets
       </button>
 
-      <div
-        style={{
-          background: "#fff",
-          border: "1px solid #e2e8f0",
-          borderRadius: 14,
-          overflow: "hidden",
-        }}
-      >
-        <div style={{ padding: "18px 20px", borderBottom: "1px solid #f1f5f9" }}>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 8 }}>
-            <Badge palette={statusPalette}>{statusPalette.label}</Badge>
-            <Badge palette={priorityPalette}>{ticket.priority}</Badge>
-            {ticket.category && <Badge palette={PRIORITY_STYLE.LOW}>{ticket.category}</Badge>}
+      <div style={{ display: "flex", gap: 20, alignItems: "flex-start", flexWrap: "wrap" }}>
+        {/* Main thread column */}
+        <div style={{ flex: "1 1 560px", minWidth: 0 }}>
+          <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: "20px 24px", marginBottom: 16 }}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
+              <Badge palette={statusPalette}>{statusPalette.label}</Badge>
+              <Badge palette={priorityPalette}>{ticket.priority}</Badge>
+              {ticket.category && <Badge palette={PRIORITY_STYLE.LOW}>{ticket.category}</Badge>}
+            </div>
+            <h2 style={{ margin: 0, fontSize: 19, fontWeight: 700, color: "#0f172a" }}>{ticket.subject}</h2>
+            <p style={{ margin: "4px 0 0", fontSize: 13, color: "#94a3b8" }}>
+              {ticket.ticketNumber} &middot; opened {fmtDate(ticket.createdAt)}
+            </p>
           </div>
-          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#0f172a" }}>
-            {ticket.subject}
-          </h2>
-          <p style={{ margin: "4px 0 0", fontSize: 13, color: "#94a3b8" }}>
-            {ticket.ticketNumber} &middot; opened {fmtDate(ticket.createdAt)}
-          </p>
-        </div>
 
-        <div style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: 16, maxHeight: 480, overflowY: "auto" }}>
-          {(ticket.messages || []).map((m, i) => {
-            const mine = m.senderId === currentUserId || m.senderRole === "user";
-            return (
-              <div
-                key={i}
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: mine ? "flex-end" : "flex-start",
-                }}
-              >
-                <div
-                  style={{
-                    maxWidth: "80%",
-                    background: mine ? "#2563eb" : "#f1f5f9",
-                    color: mine ? "#fff" : "#0f172a",
-                    padding: "10px 14px",
-                    borderRadius: 12,
-                    borderBottomRightRadius: mine ? 4 : 12,
-                    borderBottomLeftRadius: mine ? 12 : 4,
-                    fontSize: 14,
-                    lineHeight: 1.5,
-                    whiteSpace: "pre-wrap",
-                  }}
-                >
-                  {m.message}
-                </div>
-                <span style={{ fontSize: 11, color: "#94a3b8", marginTop: 4 }}>
-                  {m.senderRole === "admin" ? "Support Team" : m.senderName || "You"} &middot; {fmtDate(m.createdAt)}
-                </span>
-              </div>
-            );
-          })}
-        </div>
+          <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: "4px 24px" }}>
+            {(ticket.messages || []).map((m, i) => (
+              <MessageRow key={i} msg={m} isLast={i === ticket.messages.length - 1} />
+            ))}
+          </div>
 
-        <div style={{ padding: "16px 20px", borderTop: "1px solid #f1f5f9" }}>
-          {closed ? (
-            <div
+          {/* Reply — a mail compose box, not a chat input */}
+          <div style={{ marginTop: 16 }}>
+            <form
+              onSubmit={handleSend}
               style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                color: "#64748b",
-                fontSize: 13,
-                background: "#f8fafc",
+                background: "#fff",
                 border: "1px solid #e2e8f0",
-                borderRadius: 10,
-                padding: "10px 14px",
+                borderRadius: 12,
+                overflow: "hidden",
               }}
             >
-              <CheckCircle2 size={16} />
-              This ticket is {statusPalette.label.toLowerCase()}. Reply to reopen the conversation.
-            </div>
-          ) : null}
-          <form onSubmit={handleSend} style={{ display: "flex", gap: 10, marginTop: closed ? 12 : 0 }}>
-            <input
-              style={{ ...inputStyle, flex: 1 }}
-              placeholder="Write a reply..."
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-            />
-            <button type="submit" style={primaryBtnStyle} disabled={sending || !message.trim()}>
-              {sending ? <Loader2 size={16} className="spin" /> : <Send size={16} />}
-            </button>
-          </form>
-          {error && (
-            <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#b91c1c", fontSize: 13, marginTop: 8 }}>
-              <AlertCircle size={15} />
-              {error}
-            </div>
-          )}
+              <div style={{ padding: "12px 16px", borderBottom: "1px solid #f1f5f9", fontSize: 12, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: 0.4 }}>
+                Reply
+              </div>
+              <textarea
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                placeholder="Write your reply here..."
+                style={{
+                  width: "100%",
+                  minHeight: 140,
+                  border: "none",
+                  outline: "none",
+                  resize: "vertical",
+                  padding: "16px",
+                  fontSize: 14,
+                  fontFamily: "inherit",
+                  color: "#0f172a",
+                  lineHeight: 1.6,
+                }}
+              />
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "12px 16px",
+                  borderTop: "1px solid #f1f5f9",
+                  gap: 12,
+                  flexWrap: "wrap",
+                }}
+              >
+                <span style={{ fontSize: 12, color: "#94a3b8" }}>
+                  You can also reply straight from your email — we'll add it to this thread automatically.
+                </span>
+                <button type="submit" style={primaryBtnStyle} disabled={sending || !message.trim()}>
+                  {sending && <Loader2 size={16} className="spin" />}
+                  {sending ? "Submitting..." : "Submit"}
+                </button>
+              </div>
+            </form>
+            {error && (
+              <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#b91c1c", fontSize: 13, marginTop: 8 }}>
+                <AlertCircle size={15} />
+                {error}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Info side panel */}
+        <div style={{ flex: "0 1 260px", minWidth: 220 }}>
+          <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: "18px 20px" }}>
+            <InfoRow label="Id" value={ticket.ticketNumber} />
+            {isAdmin && <InfoRow label="Raised by" value={`${ticket.raisedByName || "—"}${ticket.raisedByEmail ? ` (${ticket.raisedByEmail})` : ""}`} />}
+            <InfoRow label="Created" value={fmtDate(ticket.createdAt)} />
+            <InfoRow label="Last update" value={fmtDate(ticket.updatedAt)} />
+            <InfoRow label="Category" value={ticket.category || "—"} last />
+          </div>
         </div>
       </div>
     </div>
   );
 };
 
-// ── Ticket list row ──────────────────────────────────────────────────────────
+const InfoRow = ({ label, value, last }) => (
+  <div style={{ padding: "10px 0", borderBottom: last ? "none" : "1px solid #f1f5f9" }}>
+    <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 3 }}>
+      {label}
+    </div>
+    <div style={{ fontSize: 13, color: "#0f172a", wordBreak: "break-word" }}>{value}</div>
+  </div>
+);
 
-const TicketRow = ({ ticket, onOpen }) => {
+// ── Ticket list row — a table row, not a chat-list card ─────────────────────
+
+const TicketListHeader = ({ showRaisedBy }) => (
+  <div
+    style={{
+      display: "flex",
+      alignItems: "center",
+      gap: 12,
+      padding: "10px 16px",
+      fontSize: 11,
+      fontWeight: 700,
+      color: "#94a3b8",
+      textTransform: "uppercase",
+      letterSpacing: 0.4,
+      borderBottom: "1px solid #e2e8f0",
+    }}
+  >
+    <span style={{ flex: "1 1 auto", minWidth: 0 }}>Subject</span>
+    {showRaisedBy && <span style={{ width: 140, flexShrink: 0 }}>Raised by</span>}
+    <span style={{ width: 90, flexShrink: 0 }}>Id</span>
+    <span style={{ width: 110, flexShrink: 0 }}>Created</span>
+    <span style={{ width: 130, flexShrink: 0 }}>Last comment</span>
+    <span style={{ width: 100, flexShrink: 0, textAlign: "right" }}>Status</span>
+  </div>
+);
+
+const TicketRow = ({ ticket, onOpen, showRaisedBy }) => {
   const statusPalette = STATUS_STYLE[ticket.status] || STATUS_STYLE.OPEN;
-  const priorityPalette = PRIORITY_STYLE[ticket.priority] || PRIORITY_STYLE.MEDIUM;
 
   return (
     <button
@@ -468,29 +605,22 @@ const TicketRow = ({ ticket, onOpen }) => {
       style={{
         display: "flex",
         alignItems: "center",
-        justifyContent: "space-between",
+        gap: 12,
         width: "100%",
         textAlign: "left",
         background: "#fff",
-        border: "1px solid #e2e8f0",
-        borderRadius: 12,
+        border: "none",
+        borderBottom: "1px solid #f1f5f9",
         padding: "14px 16px",
         cursor: "pointer",
-        gap: 12,
       }}
     >
-      <div style={{ minWidth: 0, flex: 1 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-          <span style={{ fontSize: 12, color: "#94a3b8", fontWeight: 600 }}>{ticket.ticketNumber}</span>
-          {ticket.lastMessageBy === "admin" && (
-            <span style={{ fontSize: 11, color: "#2563eb", fontWeight: 700 }}>&bull; New reply</span>
-          )}
-        </div>
+      <span style={{ flex: "1 1 auto", minWidth: 0 }}>
         <div
           style={{
             fontSize: 14,
             fontWeight: 600,
-            color: "#0f172a",
+            color: "#1d4ed8",
             overflow: "hidden",
             textOverflow: "ellipsis",
             whiteSpace: "nowrap",
@@ -498,15 +628,18 @@ const TicketRow = ({ ticket, onOpen }) => {
         >
           {ticket.subject}
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6, fontSize: 12, color: "#94a3b8" }}>
-          <Clock size={12} /> updated {fmtDate(ticket.updatedAt)}
-        </div>
-      </div>
-
-      <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
-        <Badge palette={priorityPalette}>{ticket.priority}</Badge>
+      </span>
+      {showRaisedBy && (
+        <span style={{ width: 140, flexShrink: 0, fontSize: 13, color: "#475569", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {ticket.raisedByName || "—"}
+        </span>
+      )}
+      <span style={{ width: 90, flexShrink: 0, fontSize: 13, color: "#64748b" }}>{ticket.ticketNumber}</span>
+      <span style={{ width: 110, flexShrink: 0, fontSize: 13, color: "#64748b" }}>{fmtShortDate(ticket.createdAt)}</span>
+      <span style={{ width: 130, flexShrink: 0, fontSize: 13, color: "#64748b" }}>{fmtShortDate(ticket.updatedAt)}</span>
+      <span style={{ width: 100, flexShrink: 0, textAlign: "right" }}>
         <Badge palette={statusPalette}>{statusPalette.label}</Badge>
-      </div>
+      </span>
     </button>
   );
 };
@@ -525,6 +658,8 @@ const SupportCentrePage = () => {
   useEffect(() => {
     setUser(getUser());
   }, []);
+
+  const admin = isOrgAdmin(user);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -571,7 +706,7 @@ const SupportCentrePage = () => {
   });
 
   return (
-    <div style={{ maxWidth: 900, margin: "0 auto", padding: "24px 20px 60px" }}>
+    <div style={{ maxWidth: 1000, margin: "0 auto", padding: "24px 20px 60px" }}>
       <style>{`
         .spin { animation: spin 0.8s linear infinite; }
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
@@ -608,8 +743,9 @@ const SupportCentrePage = () => {
                   Support Centre
                 </h1>
                 <p style={{ margin: 0, fontSize: 13, color: "#64748b" }}>
-                  {user?.organizationName ? `${user.organizationName} · ` : ""}
-                  Raise a ticket and track replies from our team
+                  {admin
+                    ? "Every ticket raised across your organization"
+                    : "Your support tickets — replies also work by email"}
                 </p>
               </div>
             </div>
@@ -676,9 +812,10 @@ const SupportCentrePage = () => {
           ) : filtered.length === 0 ? (
             <EmptyState onNew={() => setShowNew(true)} />
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, overflow: "hidden" }}>
+              <TicketListHeader showRaisedBy={admin} />
               {filtered.map((t) => (
-                <TicketRow key={t.id} ticket={t} onOpen={openTicket} />
+                <TicketRow key={t.id} ticket={t} onOpen={openTicket} showRaisedBy={admin} />
               ))}
             </div>
           )}
@@ -688,7 +825,7 @@ const SupportCentrePage = () => {
       {selected && (
         <TicketThread
           ticket={selected}
-          currentUserId={user?.id || user?._id}
+          isAdmin={admin}
           onBack={() => {
             setSelected(null);
             load();

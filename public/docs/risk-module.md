@@ -22,11 +22,11 @@ Click the Risk icon at the top of the sidebar to land on your Risk Dashboard.
 
 The Risk Dashboard is your home base for the module. It gives you an at-a-glance summary of all risks in your organization. The screen is organized into three zones: the Overview Zone, the Visual Representation Zone, and the Quick Actions Zone. 
 
-### Overview Zone 
+#### Overview Zone 
 
 A row of summary tiles showing total risks, and counts by severity (High / Medium / Low) and status (Open / Closed). 
 
-### Quick Actions Zone
+#### Quick Actions Zone 
 
 Gives one-click access to the most common tasks: 
 
@@ -40,7 +40,7 @@ View Risks - Opens the departmental risk register/list view
 
 Statment of Applicability- Opens the Statement of Applicability screen 
 
-### Visual Representation Zone 
+###### Visual Representation Zone 
 
 Risk Distribution — a donut chart showing the proportion of risks by severity level. 
 

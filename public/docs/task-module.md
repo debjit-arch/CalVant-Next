@@ -22,11 +22,11 @@ The Task Dashboard is your home base for centralized activity tracking. It gives
 
 The screen is organized into three zones: the Overview Zone, the Quick Actions Zone, and the Visual Representation Zone. 
 
-### Overview Zone 
+#### Overview Zone 
 
 A row of summary tiles showing My Tasks, Reported Tasks, Orgwide Tasks, In Progress, Due Soon, Overdue, Done, and Archived Tasks counts. 
 
-### Quick Actions Zone 
+#### Quick Actions Zone  
 
 Gives one-click access to the most common tasks: 
 
@@ -34,7 +34,7 @@ Gives one-click access to the most common tasks:
 
 - Create Task — Launch the guided workflow to add a new task. 
 
-### Visual Representation Zone 
+###### Visual Representation Zone 
 
 - Tasks Distribution — A donut chart showing task status breakdown. 
 
