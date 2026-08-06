@@ -32,7 +32,7 @@ Gives one-click access to:
 
 Detailed View — Opens the detailed compliance register. 
 
-## Visual Representation Zone 
+##### Visual Representation Zone 
 
 A donut chart per framework (e.g., ISO 27001) showing that framework's compliance percentage. 
 

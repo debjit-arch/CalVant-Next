@@ -10,21 +10,32 @@ import { X, BookOpen, LifeBuoy, ChevronRight } from "lucide-react";
  *   1. Help Center       → opens the knowledge base in a new tab (/help-center)
  *   2. Support & Tickets → opens the in-app Support Centre in a new tab (/support-centre)
  *
- * Note: these are opened WITHOUT "noopener,noreferrer". That flag is for
- * untrusted external links — here both routes are same-origin, and dropping
- * it lets the browser copy the current tab's sessionStorage (where the auth
- * token lives) into the new tab, so the user isn't asked to log in again.
+ * New tabs don't inherit sessionStorage reliably across browsers, so instead
+ * of a plain link we route through /auth-bridge — the same mechanism the
+ * cross-subdomain login flow uses — passing the current token/user along and
+ * telling it where to land. That writes the session into the new tab before
+ * it ever hits a protected page, so there's no login prompt.
  */
 const HelpNavPanel = ({ open, onClose }) => {
-  const handleHelpCenter = () => {
-    window.open("/help-center", "_blank");
+  const openInNewTab = (path) => {
+    const token = sessionStorage.getItem("token");
+    const user = sessionStorage.getItem("user");
+
+    if (token && user) {
+      const params = new URLSearchParams({ token, user, redirect: path });
+      const email = sessionStorage.getItem("email") || sessionStorage.getItem("userEmail");
+      if (email) params.set("email", email);
+      window.open(`/auth-bridge?${params.toString()}`, "_blank");
+    } else {
+      // No session to carry over — let the destination's own auth guard
+      // handle it (e.g. send them to /login).
+      window.open(path, "_blank");
+    }
     onClose?.();
   };
 
-  const handleSupportTickets = () => {
-    window.open("/support-centre", "_blank");
-    onClose?.();
-  };
+  const handleHelpCenter = () => openInNewTab("/help-center");
+  const handleSupportTickets = () => openInNewTab("/support-centre");
 
   return (
     <AnimatePresence>

@@ -22,11 +22,11 @@ The DPIA Dashboard is your home base for privacy impact assessments. It gives yo
 
 The screen is organized into three zones: the Overview Zone, the Quick Actions Zone, and the Visual Representation Zone. 
 
-### Overview Zone 
+#### Overview Zone 
 
 A row of summary tiles showing Total, Submitted, In Progress, and Pending assessment counts. 
 
-### Quick Actions Zone 
+#### Quick Actions Zone  
 
 Gives one-click access to the most common tasks: 
 
@@ -36,7 +36,7 @@ Gives one-click access to the most common tasks:
 
 - Manage DPIA — View and edit existing assignments. 
 
-### Visual Representation Zone 
+###### Visual Representation Zone 
 
 - Assessment Status — A breakdown showing the total number of assessments and their tracking statuses. 
 

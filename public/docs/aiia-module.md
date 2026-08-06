@@ -22,11 +22,11 @@ The AI Impact Assessment Dashboard is your home base for managing artificial int
 
 The screen is organized into three zones: the Overview Zone, the Quick Actions Zone, and the Visual Representation Zone. 
 
-### Overview Zone
+#### Overview Zone
 
 A row of summary tiles showing Total assessments, Approved counts, Completed counts, Pending counts, and Average Complete percentage. 
 
-### Quick Actions Zone 
+#### Quick Actions Zone  
 
 Gives one-click access to the most common tasks: 
 
@@ -38,7 +38,7 @@ Gives one-click access to the most common tasks:
 
 - Manage AI IA — Edit, update, or delete existing AI assessments. 
 
-## Visual Representation Zone 
+##### Visual Representation Zone 
 
 - Assessment Status — A breakdown showing assessment approval and completion 
 
