@@ -6,19 +6,24 @@ import { X, BookOpen, LifeBuoy, ChevronRight } from "lucide-react";
 /**
  * HelpNavPanel
  *
- * Replaces the old "Help" modal with a slide-in left panel offering exactly
- * two entry points:
+ * Slide-in left panel offering exactly two entry points:
  *   1. Help Center       → opens the knowledge base in a new tab (/help-center)
- *   2. Support & Tickets → placeholder, no backend yet
+ *   2. Support & Tickets → opens the in-app Support Centre in a new tab (/support-centre)
+ *
+ * Note: these are opened WITHOUT "noopener,noreferrer". That flag is for
+ * untrusted external links — here both routes are same-origin, and dropping
+ * it lets the browser copy the current tab's sessionStorage (where the auth
+ * token lives) into the new tab, so the user isn't asked to log in again.
  */
 const HelpNavPanel = ({ open, onClose }) => {
   const handleHelpCenter = () => {
-    window.open("/help-center", "_blank", "noopener,noreferrer");
+    window.open("/help-center", "_blank");
     onClose?.();
   };
 
   const handleSupportTickets = () => {
-    // Backend not built yet — intentionally a no-op for now.
+    window.open("/support-centre", "_blank");
+    onClose?.();
   };
 
   return (
