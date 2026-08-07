@@ -714,6 +714,7 @@ import { useSession } from "../../context/SessionContext";
 import { useFramework } from "../../context/FrameworkContex";
 import { Report } from "@material-ui/icons";
 import useModuleEntitlements from "../../modules/admin/hooks/useModuleEntitlements";
+import { isNoSidebarRoute } from "../../utils/layoutRoutes";
 
 /* ─────────────────────────────────────────────
    Custom hook for media query
@@ -936,6 +937,7 @@ const PersistentSidebar = () => {
   };
 
   const isExpanded = sidebarExpanded || (!isMobileScreen && isHovered);
+  const hideSidebar = isNoSidebarRoute(pathname);
 
   /* ─────────────────────────────────────────────
      🔒 Role-based nav filter
@@ -972,7 +974,7 @@ const PersistentSidebar = () => {
   return (
     <>
       {/* ── Mobile Backdrop Overlay ── */}
-      {isMobileScreen && sidebarExpanded && (
+      {!hideSidebar && isMobileScreen && sidebarExpanded && (
         <div
           className="fixed inset-0 bg-black/50 z-[998] lg:hidden"
           onClick={handleBackdropClick}
@@ -993,6 +995,7 @@ const PersistentSidebar = () => {
         "
       >
         <div className="flex items-center gap-3 sm:gap-4">
+          {!hideSidebar && (
           <button
             onClick={toggleSidebar}
             aria-label={isExpanded ? "Collapse menu" : "Expand menu"}
@@ -1010,6 +1013,7 @@ const PersistentSidebar = () => {
               <Menu size={16} className="sm:w-[18px] sm:h-[18px] md:w-5 md:h-5" />
             )}
           </button>
+          )}
 
           <div onClick={() => router.push("/")} style={{ cursor: "pointer" }}>
             <DualLogo calvantSrc="/image.png" height="36px" />
@@ -1028,6 +1032,7 @@ const PersistentSidebar = () => {
       </header>
 
       {/* ── Persistent Sidebar ── */}
+      {!hideSidebar && (
       <nav
         aria-label="Main navigation"
         onMouseEnter={() =>
@@ -1246,6 +1251,7 @@ const PersistentSidebar = () => {
           </div>
         )}
       </nav>
+      )}
 
       <HelpNavPanel open={helpNavOpen} onClose={closeHelpNav} />
     </>
