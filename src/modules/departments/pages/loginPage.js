@@ -583,8 +583,20 @@ const LoginPageInner = () => {
         // await-ing a zero-timeout yields to the JS event loop once, which
         // is enough for React to flush the login() update before the new
         // route mounts.
+        // Check if this is the first time the user is logging in on this device
+        const hasLoggedInKey = `hasLoggedIn_${email}`;
+        const hasLoggedInBefore = localStorage.getItem(hasLoggedInKey);
+
+        let finalRedirect = redirectTo;
+        if (!hasLoggedInBefore && redirectTo === "/") {
+          localStorage.setItem(hasLoggedInKey, "true");
+          finalRedirect = "/admin/onboarding";
+        } else if (!hasLoggedInBefore) {
+          localStorage.setItem(hasLoggedInKey, "true");
+        }
+
         await new Promise((r) => setTimeout(r, 0));
-        router.replace(redirectTo);
+        router.replace(finalRedirect);
         return;
       }
 
@@ -621,8 +633,20 @@ const LoginPageInner = () => {
         sessionStorage.setItem("user", JSON.stringify({ ...loginRes.data, email }));
         sessionStorage.setItem("userEmail", email);
         login();
+
+        const hasLoggedInKey = `hasLoggedIn_${email}`;
+        const hasLoggedInBefore = localStorage.getItem(hasLoggedInKey);
+
+        let finalRedirect = redirectTo;
+        if (!hasLoggedInBefore && redirectTo === "/") {
+          localStorage.setItem(hasLoggedInKey, "true");
+          finalRedirect = "/admin/onboarding";
+        } else if (!hasLoggedInBefore) {
+          localStorage.setItem(hasLoggedInKey, "true");
+        }
+
         await new Promise((r) => setTimeout(r, 0));
-        router.replace(redirectTo);
+        router.replace(finalRedirect);
         return;
       }
 
@@ -641,13 +665,24 @@ const LoginPageInner = () => {
 
       const subdomain = configuredDomain.split(".")[0];
 
+      const hasLoggedInKey = `hasLoggedIn_${email}`;
+      const hasLoggedInBefore = localStorage.getItem(hasLoggedInKey);
+
+      let finalRedirect = redirectTo;
+      if (!hasLoggedInBefore && redirectTo === "/") {
+        localStorage.setItem(hasLoggedInKey, "true");
+        finalRedirect = "/admin/onboarding";
+      } else if (!hasLoggedInBefore) {
+        localStorage.setItem(hasLoggedInKey, "true");
+      }
+
       // STEP 5: REDIRECT TO TENANT SUBDOMAIN
       // Pass the intended destination along so /auth-bridge on the target
       // subdomain can forward the user there once the session is set up,
       // instead of always landing on the dashboard.
       window.location.href = `https://${subdomain}.${baseDomain}/auth-bridge?token=${token}&user=${encodeURIComponent(
         JSON.stringify({ ...loginRes.data, email }),
-      )}&email=${encodeURIComponent(email)}&redirect=${encodeURIComponent(redirectTo)}`;
+      )}&email=${encodeURIComponent(email)}&redirect=${encodeURIComponent(finalRedirect)}`;
 
     } catch (err) {
       console.error("Login/Routing Error:", err);

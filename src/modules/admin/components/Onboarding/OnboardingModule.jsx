@@ -30,6 +30,8 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { jwtDecode } from "jwt-decode";
+import useModuleEntitlements from "../../hooks/useModuleEntitlements";
+import CreateDept from "../Departments/CreateDept";
 
 const API = "https://api.calvant.com/user-service";
 
@@ -331,11 +333,13 @@ function Tag({ label, color = "#6366f1" }) {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function OnboardingModule() {
+  const { seatLimit } = useModuleEntitlements();
   const [progress, setProgress] = useState(null);
   const [org, setOrg] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeStep, setActiveStep] = useState(1);
   const [error, setError] = useState(null);
+  const [teamSizeError, setTeamSizeError] = useState(null);
 
   // Step 1 state
   const [biz, setBiz] = useState({
@@ -350,7 +354,6 @@ export default function OnboardingModule() {
     primaryContactEmail: "",
     primaryContactPhone: "",
     domain: "",
-    goLiveDate: "",
   });
   const [step1Saving, setStep1Saving] = useState(false);
 
@@ -358,7 +361,10 @@ export default function OnboardingModule() {
   const [departments, setDepartments] = useState([]);
   const [newDeptName, setNewDeptName] = useState("");
   const [deptSaving, setDeptSaving] = useState(false);
+  const [addingDept, setAddingDept] = useState(false);
+  const [lastCreatedDept, setLastCreatedDept] = useState(null);
   const [users, setUsers] = useState([]);
+  const [lastCreatedUser, setLastCreatedUser] = useState(null);
   // ── State: add modules field ──────────────────────────────────────────────
   const [newUser, setNewUser] = useState({
     name: "",
@@ -389,12 +395,23 @@ export default function OnboardingModule() {
       const { progress: p, organization: o } = res.data;
       setProgress(p);
       setOrg(o);
+      // The root login that created this org — used to auto-fill the
+      // Primary Contact fields below instead of asking for them again.
+      let rootLogin = {};
+      try {
+        const u = JSON.parse(sessionStorage.getItem("user") || "{}");
+        rootLogin = { name: u.name || u.username || "", email: u.email || "" };
+      } catch {
+        rootLogin = {};
+      }
       // Pre-fill step 1 from org
       setBiz((prev) => ({
         ...prev,
         address: o.address || "",
         phone: o.phone || "",
         website: o.website || "",
+        primaryContactName: rootLogin.name || prev.primaryContactName,
+        primaryContactEmail: rootLogin.email || prev.primaryContactEmail,
         ...(p.businessInfo || {}),
       }));
       if (p.trainingInfo) setTraining(p.trainingInfo);
@@ -420,6 +437,15 @@ export default function OnboardingModule() {
   useEffect(() => {
     fetchOnboarding();
   }, [fetchOnboarding]);
+
+  const fetchDepartments = async () => {
+    try {
+      const deptRes = await ax.get(`${API}/api/departments`);
+      setDepartments(deptRes.data || []);
+    } catch (e) {
+      console.error("Failed to fetch departments", e);
+    }
+  };
 
   // ── Step 1 save ────────────────────────────────────────────────────────────
   const saveStep1 = async () => {
@@ -533,14 +559,24 @@ export default function OnboardingModule() {
         }
       })();
 
-      // Priority: session user object → JWT claim → onboarding API org id (last resort)
-      const orgId =
-        sessionUser?.organization || decoded?.organization || org?.id || "";
+      // Priority: JWT claim → session user object → onboarding API org id
+      let orgId = decoded?.organization;
+      if (orgId && typeof orgId === "object") {
+        orgId = orgId.id || orgId._id;
+      }
+      if (!orgId) {
+        if (typeof sessionUser?.organization === "string")
+          orgId = sessionUser.organization;
+        else if (sessionUser?.organization?.id)
+          orgId = sessionUser.organization.id;
+        else if (sessionUser?.organization?._id)
+          orgId = sessionUser.organization._id;
+        else orgId = org?.id || org?._id || "";
+      }
 
       const res = await ax.post(`${API}/api/users/register`, {
         name: newUser.name,
         email: newUser.email.toLowerCase(),
-        username: newUser.email.toLowerCase(),
         password: newUser.password,
         role: roleArr,
         department: deptArr,
@@ -552,6 +588,7 @@ export default function OnboardingModule() {
       });
 
       setUsers((u) => [...u, res.data]);
+      setLastCreatedUser(newUser.name);
       setNewUser({
         name: "",
         email: "",
@@ -561,7 +598,12 @@ export default function OnboardingModule() {
         modules: [],
       });
     } catch (e) {
-      setError(e.response?.data?.message || "Failed to create user.");
+      console.error("Create User Error:", e.response?.data);
+      setError(
+        e.response?.data?.message ||
+          e.response?.data?.error ||
+          "Failed to create user.",
+      );
     } finally {
       setUserSaving(false);
     }
@@ -1001,7 +1043,10 @@ export default function OnboardingModule() {
                 <Tag key={f} label={f} color="#8b5cf6" />
               ))}
               {org?.tprmEnabled && <Tag label="TPRM Enabled" color="#0ea5e9" />}
-              <Tag label={`Max Users: ${org?.maxUsers}`} color="#f59e0b" />
+              <Tag
+                label={`Max Users: ${seatLimit > 0 ? seatLimit : "Unlimited"}`}
+                color="#f59e0b"
+              />
             </div>
           </div>
 
@@ -1081,11 +1126,41 @@ export default function OnboardingModule() {
               <Input
                 type="number"
                 value={biz.complianceTeamSize}
-                onChange={(e) =>
-                  setBiz({ ...biz, complianceTeamSize: e.target.value })
-                }
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (seatLimit > 0 && parseInt(val, 10) > seatLimit) {
+                    setTeamSizeError(
+                      `Under your subscription plan, only ${seatLimit} users are allowed. Please upgrade your plan or purchase additional user seats to add more.`,
+                    );
+                  } else {
+                    setTeamSizeError(null);
+                    setBiz({ ...biz, complianceTeamSize: val });
+                  }
+                }}
                 placeholder="e.g. 5"
               />
+              {teamSizeError && (
+                <div
+                  style={{
+                    color: "#ef4444",
+                    fontSize: 12,
+                    marginTop: 6,
+                    fontWeight: 500,
+                  }}
+                >
+                  <AlertCircle
+                    size={14}
+                    style={{
+                      display: "inline",
+                      verticalAlign: "middle",
+                      marginRight: 4,
+                    }}
+                  />
+                  <span style={{ verticalAlign: "middle" }}>
+                    {teamSizeError}
+                  </span>
+                </div>
+              )}
             </Field>
 
             <Field
@@ -1121,7 +1196,7 @@ export default function OnboardingModule() {
               gap: "0 24px",
             }}
           >
-            <Field label="Full Name" required>
+            <Field label="Full Name" required hint="Auto-filled from your login — editable">
               <Input
                 value={biz.primaryContactName}
                 onChange={(e) =>
@@ -1131,7 +1206,7 @@ export default function OnboardingModule() {
                 prefix={<User size={14} />}
               />
             </Field>
-            <Field label="Email" required>
+            <Field label="Email" required hint="Auto-filled from your login — editable">
               <Input
                 type="email"
                 value={biz.primaryContactEmail}
@@ -1153,17 +1228,6 @@ export default function OnboardingModule() {
               />
             </Field>
           </div>
-
-          <Field
-            label="Target Go-Live Date"
-            hint="When do you plan to complete your first compliance cycle?"
-          >
-            <Input
-              type="date"
-              value={biz.goLiveDate}
-              onChange={(e) => setBiz({ ...biz, goLiveDate: e.target.value })}
-            />
-          </Field>
 
           <div style={{ marginTop: 12 }}>
             <Btn onClick={saveStep1} loading={step1Saving} variant="primary">
@@ -1255,20 +1319,52 @@ export default function OnboardingModule() {
               </div>
             )}
 
-            <div style={{ display: "flex", gap: 10 }}>
-              <Input
-                value={newDeptName}
-                onChange={(e) => setNewDeptName(e.target.value)}
-                placeholder="Department name, e.g. IT, HR, Finance"
-              />
-              <Btn
-                onClick={addDepartment}
-                loading={deptSaving}
-                variant="secondary"
+            {addingDept ? (
+              <div
+                style={{
+                  background: "#fff",
+                  padding: "16px",
+                  borderRadius: "12px",
+                  border: "1px solid #e2e8f0",
+                }}
               >
-                <Plus size={14} /> Add
+                {lastCreatedDept ? (
+                  <div style={{ textAlign: "center", padding: "12px 0" }}>
+                    <div
+                      style={{
+                        color: "#10b981",
+                        fontWeight: 600,
+                        marginBottom: "16px",
+                      }}
+                    >
+                      ✓ Your department "{lastCreatedDept}" is created.
+                    </div>
+                    <Btn
+                      onClick={() => setLastCreatedDept(null)}
+                      variant="secondary"
+                    >
+                      <Plus size={14} /> Add more departments
+                    </Btn>
+                  </div>
+                ) : (
+                  <CreateDept
+                    embedded={true}
+                    onSuccess={(deptName) => {
+                      setLastCreatedDept(deptName);
+                      fetchDepartments();
+                    }}
+                    onCancel={() => {
+                      setAddingDept(false);
+                      setLastCreatedDept(null);
+                    }}
+                  />
+                )}
+              </div>
+            ) : (
+              <Btn onClick={() => setAddingDept(true)} variant="secondary">
+                <Plus size={14} /> Add Department
               </Btn>
-            </div>
+            )}
           </div>
 
           {/* ── User creation section ── */}
@@ -1285,86 +1381,156 @@ export default function OnboardingModule() {
               <span style={{ fontWeight: 700, fontSize: 15, color: "#1e293b" }}>
                 Add Team Members
               </span>
+              <Tag
+                label={
+                  seatLimit > 0
+                    ? `${users.length} / ${seatLimit} seats used`
+                    : "Unlimited seats"
+                }
+                color={
+                  seatLimit > 0 && users.length >= seatLimit
+                    ? "#ef4444"
+                    : "#f59e0b"
+                }
+              />
             </div>
 
             {/* User form */}
-            <div
-              style={{
-                background: "#f8fafc",
-                border: "1.5px dashed #cbd5e1",
-                borderRadius: 12,
-                padding: 20,
-                marginBottom: 16,
-              }}
-            >
+            {departments.length === 0 ? (
               <div
                 style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
-                  gap: "0 24px",
+                  background: "#f8fafc",
+                  border: "1.5px dashed #cbd5e1",
+                  borderRadius: 12,
+                  padding: "32px 20px",
+                  marginBottom: 16,
+                  textAlign: "center",
+                  color: "#64748b",
                 }}
               >
-                <Field label="Full Name" required>
-                  <Input
-                    value={newUser.name}
-                    onChange={(e) =>
-                      setNewUser({ ...newUser, name: e.target.value })
-                    }
-                    placeholder="John Doe"
-                    prefix={<User size={14} />}
-                  />
-                </Field>
-                <Field label="Email" required>
-                  <Input
-                    type="email"
-                    value={newUser.email}
-                    onChange={(e) =>
-                      setNewUser({ ...newUser, email: e.target.value })
-                    }
-                    placeholder="john@company.com"
-                    prefix={<Mail size={14} />}
-                  />
-                </Field>
-                <Field label="Role" required>
-                  <Select
-                    value={newUser.role}
-                    onChange={(e) =>
-                      setNewUser({ ...newUser, role: e.target.value })
-                    }
-                    options={ROLE_OPTIONS}
-                  />
-                </Field>
-                <Field label="Department">
-                  <Select
-                    value={newUser.department}
-                    onChange={(e) =>
-                      setNewUser({ ...newUser, department: e.target.value })
-                    }
-                    options={departments.map((d) => ({
-                      value: d.name,
-                      label: d.name,
-                    }))}
-                  />
-                </Field>
-                <Field label="Temporary Password" required>
-                  <Input
-                    type="password"
-                    value={newUser.password}
-                    onChange={(e) =>
-                      setNewUser({ ...newUser, password: e.target.value })
-                    }
-                    placeholder="Min 8 characters"
-                  />
-                </Field>
+                <div
+                  style={{
+                    marginBottom: 12,
+                    display: "flex",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Briefcase size={32} color="#94a3b8" />
+                </div>
+                <div
+                  style={{
+                    fontWeight: 600,
+                    fontSize: 15,
+                    color: "#1e293b",
+                    marginBottom: 4,
+                  }}
+                >
+                  Department Required
+                </div>
+                <div style={{ fontSize: 13, maxWidth: 400, margin: "0 auto" }}>
+                  Please create at least one department above before you can
+                  start adding team members to your organization.
+                </div>
               </div>
-              <Btn
-                onClick={createUser}
-                loading={userSaving}
-                variant="secondary"
+            ) : (
+              <div
+                style={{
+                  background: "#f8fafc",
+                  border: "1.5px dashed #cbd5e1",
+                  borderRadius: 12,
+                  padding: 20,
+                  marginBottom: 16,
+                }}
               >
-                <Plus size={14} /> Create User
-              </Btn>
-            </div>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: "0 24px",
+                  }}
+                >
+                  <Field label="Full Name" required>
+                    <Input
+                      value={newUser.name}
+                      onChange={(e) =>
+                        setNewUser({ ...newUser, name: e.target.value })
+                      }
+                      placeholder="John Doe"
+                      prefix={<User size={14} />}
+                    />
+                  </Field>
+                  <Field label="Email" required>
+                    <Input
+                      type="email"
+                      value={newUser.email}
+                      onChange={(e) =>
+                        setNewUser({ ...newUser, email: e.target.value })
+                      }
+                      placeholder="john@company.com"
+                      prefix={<Mail size={14} />}
+                    />
+                  </Field>
+                  <Field label="Role" required>
+                    <Select
+                      value={newUser.role}
+                      onChange={(e) =>
+                        setNewUser({ ...newUser, role: e.target.value })
+                      }
+                      options={ROLE_OPTIONS}
+                    />
+                  </Field>
+                  <Field label="Department">
+                    <Select
+                      value={newUser.department}
+                      onChange={(e) =>
+                        setNewUser({ ...newUser, department: e.target.value })
+                      }
+                      options={departments.map((d) => ({
+                        value: d.id,
+                        label: d.name,
+                      }))}
+                    />
+                  </Field>
+                  <Field label="Temporary Password" required>
+                    <Input
+                      type="password"
+                      value={newUser.password}
+                      onChange={(e) =>
+                        setNewUser({ ...newUser, password: e.target.value })
+                      }
+                      placeholder="Min 8 characters"
+                    />
+                  </Field>
+                </div>
+                {lastCreatedUser ? (
+                  <div style={{ textAlign: "center", padding: "12px 0" }}>
+                    <div
+                      style={{
+                        color: "#10b981",
+                        fontWeight: 600,
+                        marginBottom: "16px",
+                      }}
+                    >
+                      ✓ User "{lastCreatedUser}" is created.
+                    </div>
+                    <Btn
+                      onClick={() => setLastCreatedUser(null)}
+                      variant="secondary"
+                    >
+                      <Plus size={14} /> Add more user
+                    </Btn>
+                  </div>
+                ) : (
+                  <Btn
+                    onClick={createUser}
+                    loading={userSaving}
+                    variant="secondary"
+                  >
+                    <Plus size={14} /> Create User
+                  </Btn>
+                )}
+              </div>
+            )}
 
             {/* Users added so far */}
             {users.length > 0 && (
@@ -1423,7 +1589,13 @@ export default function OnboardingModule() {
                         {u.email}
                       </div>
                     </div>
-                    <Tag label={u.role?.replace(/_/g, " ")} color="#6366f1" />
+                    <Tag
+                      label={(Array.isArray(u.role) ? u.role[0] : u.role)?.replace(
+                        /_/g,
+                        " ",
+                      )}
+                      color="#6366f1"
+                    />
                     <Trash2
                       size={14}
                       color="#ef4444"
@@ -1437,7 +1609,17 @@ export default function OnboardingModule() {
           </div>
 
           <div style={{ marginTop: 16 }}>
-            <Btn onClick={saveStep2} loading={step2Saving} variant="primary">
+            <Btn
+              onClick={saveStep2}
+              loading={step2Saving}
+              variant="primary"
+              disabled={departments.length === 0}
+              title={
+                departments.length === 0
+                  ? "Create at least one department to continue"
+                  : ""
+              }
+            >
               Save & Continue <ChevronRight size={16} />
             </Btn>
             <span style={{ fontSize: 12, color: "#94a3b8", marginLeft: 12 }}>

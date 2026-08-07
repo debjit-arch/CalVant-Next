@@ -872,6 +872,7 @@ const PersistentSidebar = () => {
   aiia,
   vendor,
 } = useModuleEntitlements();
+  const { showDpia, showAiia, frameworksLoading } = useFramework();
   const { helpNavOpen, closeHelpNav } = useUI();
   const [isHovered, setIsHovered] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -944,17 +945,22 @@ const PersistentSidebar = () => {
      the current user has at least one matching role.
   ───────────────────────────────────────────── */
   const visibleNavItems = NAV_ITEMS.filter((item) => {
-  // Hide until entitlements have loaded
-  if (
-    item.moduleKey === "dpia" ||
-    item.moduleKey === "aiia" ||
-    item.moduleKey === "vendor"
-  ) {
+  // Vendors has no framework-mandated fallback — purely a paid add-on.
+  if (item.moduleKey === "vendor") {
     if (entLoading) return false;
+    if (!vendor) return false;
+  }
 
-    if (item.moduleKey === "dpia" && !dpia) return false;
-    if (item.moduleKey === "aiia" && !aiia) return false;
-    if (item.moduleKey === "vendor" && !vendor) return false;
+  // DPIA/AI IA show either because the module was bought directly, or
+  // because a currently-selected framework mandates it (see the
+  // Risk/DPIA/AI IA applicability table — e.g. ISO 27701 mandates DPIA).
+  // Both sources must finish loading before we can safely hide the item,
+  // otherwise a framework-only org would see it flash and disappear.
+  if (item.moduleKey === "dpia" || item.moduleKey === "aiia") {
+    if (entLoading || frameworksLoading) return false;
+
+    if (item.moduleKey === "dpia" && !(dpia || showDpia)) return false;
+    if (item.moduleKey === "aiia" && !(aiia || showAiia)) return false;
   }
 
   if (item.roles?.length) {

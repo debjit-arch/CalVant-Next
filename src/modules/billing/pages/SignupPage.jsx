@@ -5,6 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, CheckCircle2, Eye, EyeOff, ShieldCheck } from "lucide-react";
 import { selfServeSignup } from "../api/billingApi";
 import { FRAMEWORK_CHOICES } from "../utils/frameworkChoices";
+import SiteHeader from "@/components/SiteHeader";
+import SiteFooter from "@/components/SiteFooter";
 import "./SignupPage.css";
 
 const CYCLE_ANNUAL = "ANNUAL";
@@ -65,31 +67,37 @@ export default function SignupPage() {
   if (result) {
     const trialEndsAt = result.trialEndsAt ? new Date(result.trialEndsAt) : null;
     return (
-      <div className="signup-page">
-        <div className="signup-card signup-success">
-          <CheckCircle2 size={40} className="signup-success-icon" />
-          <h1>You're all set!</h1>
-          <p>
-            Your 14-day free trial for <strong>{form.orgName}</strong> is live — every module
-            and add-on is unlocked while you explore.
-          </p>
-          {trialEndsAt && (
-            <p className="signup-trial-note">
-              Trial ends on <strong>{trialEndsAt.toLocaleDateString()}</strong>. Add a payment
-              method anytime before then from Manage Subscription to keep everything you tried.
+      <>
+        <SiteHeader />
+        <div className="signup-page">
+          <div className="signup-card signup-success">
+            <CheckCircle2 size={40} className="signup-success-icon" />
+            <h1>You're all set!</h1>
+            <p>
+              Your 14-day free trial for <strong>{form.orgName}</strong> is live — every module
+              and add-on is unlocked while you explore.
             </p>
-          )}
-          <button className="signup-cta" onClick={() => router.push("/login")}>
-            Go to login <ArrowRight size={16} />
-          </button>
+            {trialEndsAt && (
+              <p className="signup-trial-note">
+                Trial ends on <strong>{trialEndsAt.toLocaleDateString()}</strong>. Add a payment
+                method anytime before then from Manage Subscription to keep everything you tried.
+              </p>
+            )}
+            <button className="signup-cta" onClick={() => router.push("/login")}>
+              Go to login <ArrowRight size={16} />
+            </button>
+          </div>
         </div>
-      </div>
+        <SiteFooter />
+      </>
     );
   }
 
   return (
-    <div className="signup-page">
-      <form className="signup-card" onSubmit={handleSubmit}>
+    <>
+      <SiteHeader />
+      <div className="signup-page">
+        <form className="signup-card" onSubmit={handleSubmit}>
         <h1>Start your free trial</h1>
         <p className="signup-sub">
           14 days, every add-on unlocked, no card required.
@@ -190,7 +198,9 @@ export default function SignupPage() {
         <p className="signup-footnote">
           <ShieldCheck size={13} /> You won't be charged until you add a payment method.
         </p>
-      </form>
-    </div>
+        </form>
+      </div>
+      <SiteFooter />
+    </>
   );
 }

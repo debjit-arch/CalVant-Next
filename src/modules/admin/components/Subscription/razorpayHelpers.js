@@ -50,6 +50,7 @@ export async function openRazorpayCheckout(session, { description, onSuccess, on
     const checkoutId = pick(session, [
       "providerOrderOrSubscriptionId", "orderId", "providerOrderId", "id", "providerCheckoutId",
     ]);
+    
 
     if (checkoutId && !keyId) {
       onSuccess?.();

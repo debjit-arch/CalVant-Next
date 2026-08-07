@@ -141,6 +141,7 @@
   border-top: 2px solid #e5e7eb;
   padding-top: 14px;
 }
+.ms-table-subrow td { padding: 0 10px 10px; border-bottom: 1px solid #f3f4f6; }
 
 /* ── Next payment card ───────────────────────────────────────────────── */
 .ms-payment-card {
@@ -247,6 +248,7 @@
 .ms-table-wrap { max-height: 340px; overflow-y: auto; margin-bottom: 18px; }
 .ms-item-name { font-weight: 600; font-size: 13px; color: #1f2937; }
 .ms-item-sub { font-size: 11px; color: #9ca3af; margin-top: 2px; }
+.ms-item-sub--owned { color: #2563eb; font-weight: 600; }
 
 .ms-checkbox input { width: 16px; height: 16px; }
 

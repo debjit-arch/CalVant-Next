@@ -35,6 +35,7 @@ import TPRMQuestionsModal from "../components/TPRMQuestionModal";
 import ConductTPRMModal from "../components/ConductTPRMModal";
 import TPRMReportModal from "../components/TPRMReportModal";
 import HelpDocModal from "@/components/shared/HelpDocModal";
+import { getCurrentSubscription } from "@/modules/admin/api/adminBillingApi";
 
 const TPRMSection = () => {
   const router = useRouter();
@@ -59,6 +60,37 @@ const TPRMSection = () => {
   });
 
   const [modal, setModal] = useState(null);
+  const [entLoading, setEntLoading] = useState(true);
+  const [vendorEntitled, setVendorEntitled] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const subData = await getCurrentSubscription();
+        if (cancelled) return;
+        const sub = subData?.subscription;
+        const hasAddOn = !!sub?.addOns?.find(
+          (l) => l.addOnCode === "MODULE_VENDOR_MGMT" && l.quantity > 0
+        );
+        setVendorEntitled(hasAddOn);
+      } catch (err) {
+        console.error(err);
+        setVendorEntitled(false);
+      } finally {
+        if (!cancelled) setEntLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    if (!mounted || entLoading) return;
+    if (!vendorEntitled) {
+      router.replace("/");
+    }
+  }, [mounted, entLoading, vendorEntitled, router]);
+
   const [hasMounted, setHasMounted] = useState(false);
   useEffect(() => { setHasMounted(true); }, []); // "questions" | "conduct" | "report"
   const [run, setRun] = useState(false);
@@ -258,6 +290,14 @@ Vendors complete their assigned assessments through their own portal view, which
   }, [loadData]);
 
   if (!mounted || !user) return null;
+
+  if (!mounted || entLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-slate-50">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
 
   // ── Vendor view for non-admins ──────────────────────────
   if (!isAdmin) return <VendorSection />;

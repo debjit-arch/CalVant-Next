@@ -15,6 +15,7 @@
 // import { openRazorpayCheckout } from "./razorpayHelpers";
 // import { controlTypeFor, CONTROL_CHECKBOX, WIZARD_ADDON_ORDER } from "./subscriptionCatalogConfig";
 // import UpgradeAddOnsWizard from "./UpgradeAddOnsWizard";
+// import BuyFrameworkModal from "./BuyFrameworkModal";
 // import "./ManageSubscription.css";
 
 // /**
@@ -58,6 +59,7 @@
 //   const [activating, setActivating] = useState(false);
 //   const [wizard, setWizard] = useState(null); // "upgrade" | "downgrade" | null
 //   const [showChangePlanInfo, setShowChangePlanInfo] = useState(false);
+//   const [showFrameworkStore, setShowFrameworkStore] = useState(false);
 //   const [buyingCode, setBuyingCode] = useState(null);
 //   const [consultantDays, setConsultantDays] = useState(1);
 //   const [awaitingWebhook, setAwaitingWebhook] = useState(false);
@@ -103,6 +105,13 @@
 //    * which usually means webhook delivery itself is the problem (e.g. the
 //    * URL registered in the Razorpay dashboard can't reach this environment),
 //    * not that the payment failed.
+//    *
+//    * Only used for the Starter plan activation below — that's the one flow
+//    * whose success is actually gated by Subscription.status flipping via
+//    * webhook. Per-add-on purchases inside UpgradeAddOnsWizard don't have an
+//    * equivalent status flag to poll for today (see that file's header note
+//    * on the addOnSubscriptions/addOns backend gap), so they just refetch
+//    * once via onWizardComplete below.
 //    */
 //   const waitForStatusChange = async (previousStatus, { attempts = 8, delayMs = 2500 } = {}) => {
 //     setAwaitingWebhook(true);
@@ -224,6 +233,33 @@
 //     }
 //   };
 
+//   /**
+//    * Called by UpgradeAddOnsWizard's "Done" button with the per-item result
+//    * list it built up (seats + each add-on it touched). A wizard run can now
+//    * be a PARTIAL success — e.g. seats updated fine but one add-on's
+//    * Razorpay popup got dismissed — so this message reflects that instead of
+//    * always claiming full success.
+//    */
+//   const handleWizardComplete = async (itemResults = []) => {
+//     setWizard(null);
+//     const failed = itemResults.filter((r) => r.status === "failed");
+//     if (failed.length === 0) {
+//       setMessage(
+//         itemResults.length === 0
+//           ? "No changes were needed."
+//           : "Your subscription has been updated."
+//       );
+//       setError("");
+//     } else if (failed.length === itemResults.length) {
+//       setMessage("");
+//       setError("Couldn't complete your changes. Please try again.");
+//     } else {
+//       setMessage(`${itemResults.length - failed.length} of ${itemResults.length} change(s) applied.`);
+//       setError(`Didn't go through: ${failed.map((f) => f.label).join(", ")}. You can retry these from the wizard.`);
+//     }
+//     await loadAll();
+//   };
+
 //   if (loading) {
 //     return (
 //       <div className="ms-page ms-loading">
@@ -283,9 +319,9 @@
 //               </div>
 //             </div>
 //             <div className="ms-header-actions">
-//               <button className="ms-btn ms-btn--outline" onClick={() => setShowChangePlanInfo(true)}>
+//               {/* <button className="ms-btn ms-btn--outline" onClick={() => setShowChangePlanInfo(true)}>
 //                 Change Plan
-//               </button>
+//               </button> */}
 //               <button
 //                 className="ms-btn ms-btn--primary"
 //                 disabled={!canManage}
@@ -301,6 +337,14 @@
 //                 onClick={() => setWizard("downgrade")}
 //               >
 //                 Downgrade User/Add-Ons
+//               </button>
+//               <button
+//                 className="ms-btn ms-btn--outline"
+//                 disabled={!canManage}
+//                 title={!canManage ? "Only a root or super admin can buy frameworks" : undefined}
+//                 onClick={() => setShowFrameworkStore(true)}
+//               >
+//                 Buy a Framework
 //               </button>
 //             </div>
 //           </div>
@@ -433,11 +477,18 @@
 //           catalog={catalog}
 //           billingCycle={billingCycle}
 //           onClose={() => setWizard(null)}
-//           onComplete={async () => {
-//             setWizard(null);
-//             setMessage(wizard === "downgrade" ? "Your downgrade has been scheduled." : "Your subscription has been updated.");
-//             await loadAll();
-//           }}
+//           onComplete={handleWizardComplete}
+//         />
+//       )}
+
+//       {showFrameworkStore && (
+//         <BuyFrameworkModal
+//           sub={sub}
+//           starter={starter}
+//           catalog={catalog}
+//           billingCycle={billingCycle}
+//           onClose={() => setShowFrameworkStore(false)}
+//           onComplete={() => loadAll({ silent: true })}
 //         />
 //       )}
 
@@ -478,6 +529,7 @@ import {
 } from "@/modules/billing/utils/billingFormat";
 import { openRazorpayCheckout } from "./razorpayHelpers";
 import { controlTypeFor, CONTROL_CHECKBOX, WIZARD_ADDON_ORDER } from "./subscriptionCatalogConfig";
+import { getOrganization, fetchFrameworkLibrary } from "../../api/adminFrameworkStoreApi";
 import UpgradeAddOnsWizard from "./UpgradeAddOnsWizard";
 import BuyFrameworkModal from "./BuyFrameworkModal";
 import "./ManageSubscription.css";
@@ -510,6 +562,7 @@ function useCanManageBilling() {
 }
 
 export default function ManageSubscription() {
+  const FRAMEWORK_EXTRA_CODE = "FRAMEWORK_EXTRA";
   const { canManage, checked: roleChecked } = useCanManageBilling();
 
   const [sub, setSub] = useState(null);
@@ -558,6 +611,41 @@ export default function ManageSubscription() {
   };
 
   useEffect(() => { loadAll(); }, []);
+
+  // Human-readable names for the frameworks this org already owns — same
+  // data UpgradeAddOnsWizard uses, fetched here too so the "Additional
+  // compliance framework" row shows names instead of a bare unit count.
+  const [orgFrameworks, setOrgFrameworks] = useState(null);
+  const [frameworkLibrary, setFrameworkLibrary] = useState([]);
+  useEffect(() => {
+    if (!sub?.orgId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const [org, lib] = await Promise.all([
+          getOrganization(sub.orgId),
+          fetchFrameworkLibrary(),
+        ]);
+        if (cancelled) return;
+        setOrgFrameworks(Array.isArray(org?.frameworks) ? org.frameworks : []);
+        setFrameworkLibrary(lib);
+      } catch (err) {
+        console.error(err);
+        if (!cancelled) setOrgFrameworks((prev) => prev ?? []);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [sub?.orgId]);
+
+  const ownedFrameworkLabels = useMemo(
+    () => (orgFrameworks || []).map((code) => {
+      const fw = (frameworkLibrary || []).find(
+        (f) => (f.code || "").toUpperCase() === (code || "").toUpperCase()
+      );
+      return fw?.label || code;
+    }),
+    [orgFrameworks, frameworkLibrary]
+  );
 
   /**
    * Razorpay's client-side `handler` fires the instant the checkout modal
@@ -831,11 +919,22 @@ export default function ManageSubscription() {
                     const opted = line && line.quantity > 0;
                     const isCheckbox = controlTypeFor(item.addOnCode) === CONTROL_CHECKBOX;
                     return (
-                      <tr key={item.addOnCode}>
+                      <React.Fragment key={item.addOnCode}>
+                      <tr>
                         <td>{item.displayName}</td>
                         <td>{opted ? (isCheckbox ? "Opted" : `${line.quantity} units`) : "Not Opted"}</td>
                         <td>{opted ? formatINR((perCycleRateFor(item, billingCycle) || 0) * line.quantity) : formatINR(0)}</td>
                       </tr>
+                      {item.addOnCode === FRAMEWORK_EXTRA_CODE && ownedFrameworkLabels.length > 0 && (
+                        <tr className="ms-table-subrow">
+                          <td colSpan={3}>
+                            <span className="ms-item-sub ms-item-sub--owned">
+                              Currently unlocked: {ownedFrameworkLabels.join(", ")}
+                            </span>
+                          </td>
+                        </tr>
+                      )}
+                      </React.Fragment>
                     );
                   })}
                   <tr className="ms-table-total-row">

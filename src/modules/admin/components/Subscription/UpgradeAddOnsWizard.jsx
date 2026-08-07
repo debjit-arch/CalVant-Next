@@ -489,28 +489,53 @@
 //                               ) : lockedFrameworks.length === 0 ? (
 //                                 <p className="ms-fineprint">No more frameworks available to unlock.</p>
 //                               ) : (
-//                                 <div className="fw-picker-grid">
-//                                   {lockedFrameworks.map((fw) => {
-//                                     const code = (fw.code || "").toUpperCase();
-//                                     const checked = selectedNewFrameworkCodes.includes(code);
-//                                     const disabled = !checked && selectedNewFrameworkCodes.length >= frameworksNeeded;
-//                                     return (
-//                                       <label
-//                                         key={code}
-//                                         className={`fw-picker-option${disabled ? " fw-picker-option--disabled" : ""}`}
-//                                       >
-//                                         <input
-//                                           type="checkbox"
-//                                           checked={checked}
-//                                           disabled={disabled}
-//                                           onChange={() => toggleFrameworkSelection(code, frameworksNeeded)}
-//                                         />
-//                                         {!checked && disabled && <Lock size={12} />}
-//                                         {fw.label || code}
-//                                       </label>
-//                                     );
-//                                   })}
-//                                 </div>
+//                                 <>
+//                                   <select
+//                                     className="fw-picker-select"
+//                                     value=""
+//                                     disabled={selectedNewFrameworkCodes.length >= frameworksNeeded}
+//                                     onChange={(e) => {
+//                                       if (e.target.value) toggleFrameworkSelection(e.target.value, frameworksNeeded);
+//                                     }}
+//                                   >
+//                                     <option value="" disabled>
+//                                       {selectedNewFrameworkCodes.length >= frameworksNeeded
+//                                         ? "Selection complete"
+//                                         : "Select a framework…"}
+//                                     </option>
+//                                     {lockedFrameworks
+//                                       .filter((fw) => !selectedNewFrameworkCodes.includes((fw.code || "").toUpperCase()))
+//                                       .map((fw) => {
+//                                         const code = (fw.code || "").toUpperCase();
+//                                         return (
+//                                           <option key={code} value={code}>
+//                                             {fw.label || code}
+//                                           </option>
+//                                         );
+//                                       })}
+//                                   </select>
+
+//                                   {selectedNewFrameworkCodes.length > 0 && (
+//                                     <div className="fw-picker-chips">
+//                                       {selectedNewFrameworkCodes.map((code) => {
+//                                         const fw = lockedFrameworks.find((f) => (f.code || "").toUpperCase() === code);
+//                                         return (
+//                                           <span key={code} className="fw-picker-chip">
+//                                             {fw?.label || code}
+//                                             <button
+//                                               type="button"
+//                                               className="fw-picker-chip-remove"
+//                                               aria-label={`Remove ${fw?.label || code}`}
+//                                               onClick={() => toggleFrameworkSelection(code, frameworksNeeded)}
+//                                             >
+//                                               <X size={12} />
+//                                             </button>
+//                                           </span>
+//                                         );
+//                                       })}
+//                                     </div>
+//                                   )}
+//                                 </>
 //                               )}
 //                             </div>
 //                           </td>
@@ -660,6 +685,7 @@
 //   );
 // }
 
+
 'use client'
  
 import React, { useEffect, useMemo, useState } from "react";
@@ -751,6 +777,19 @@ export default function UpgradeAddOnsWizard({ mode = "upgrade", sub, starter, ca
   const ownedCodesUpper = useMemo(
     () => new Set((orgFrameworks || []).map((c) => (c || "").toUpperCase())),
     [orgFrameworks]
+  );
+
+  // Human-readable names for every framework the org already owns — shown
+  // next to the framework-slot row so the person can see what they bought
+  // instead of just a bare unit count.
+  const ownedFrameworkLabels = useMemo(
+    () => (orgFrameworks || []).map((code) => {
+      const fw = (frameworkLibrary || []).find(
+        (f) => (f.code || "").toUpperCase() === (code || "").toUpperCase()
+      );
+      return fw?.label || code;
+    }),
+    [orgFrameworks, frameworkLibrary]
   );
  
   // Only frameworks the backend will actually accept on org.frameworks —
@@ -1114,6 +1153,11 @@ export default function UpgradeAddOnsWizard({ mode = "upgrade", sub, starter, ca
                             {formatINR(rate)} / {billingCycle === "ANNUAL" ? "yr" : "6mo"}
                             {isCheckbox ? "" : " per unit"}
                           </div>
+                          {item.addOnCode === FRAMEWORK_EXTRA_CODE && ownedFrameworkLabels.length > 0 && (
+                            <div className="ms-item-sub ms-item-sub--owned">
+                              Currently unlocked: {ownedFrameworkLabels.join(", ")}
+                            </div>
+                          )}
                         </td>
                         <td>
                           {isCheckbox ? (
