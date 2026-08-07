@@ -14,6 +14,7 @@ import Header from "../components/Header/Header";
 import Sidebar from "../components/Sidebar/Sidebar";
 import Workspace from "../components/Workspace/Workspace";
 import useActivityLogger from "../hooks/useActivityLogger";
+import useModuleEntitlements from "../../hooks/useModuleEntitlements";
 
 
 import { useEffectiveOrg } from '../../../../hooks/useEffectiveOrg';
@@ -76,13 +77,20 @@ const Dashboard = () => {
   const [state, dispatch] = useAppState();
   const [opened, setOpened] = useState(false);
   const location = useLocation();
+  const { loading: entLoading, vendor: vendorEntitled } = useModuleEntitlements();
 
   const filteredRoutes = React.useMemo(() => {
     console.log("isPartnerOrg at render:", sessionStorage.getItem("isPartnerOrg"));
     const result = getFilteredRoutes();
     console.log("filtered route names:", result.map(r => r.name));
-    return result;
-  }, []);
+    if (entLoading) return result;
+    return result.filter((item) => {
+      if (item.path === "/vendors" && !vendorEntitled) {
+        return false;
+      }
+      return true;
+    });
+  }, [entLoading, vendorEntitled]);
 
   // ─── Activity logging ───────────────────────────────────────────────────
   // Automatically sends a PAGE_LOAD log (item: null) on every route change.

@@ -1,11 +1,11 @@
-﻿'use client'
+"use client";
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { jwtDecode } from "jwt-decode";
 import api from "../../api/adminAxios";
 
-import { useEffectiveOrg } from '../../../../hooks/useEffectiveOrg';
+import { useEffectiveOrg } from "../../../../hooks/useEffectiveOrg";
 /* ---------------- PREDEFINED DEPARTMENTS ---------------- */
 const PREDEFINED_DEPARTMENTS = [
   "Security Officer",
@@ -20,8 +20,9 @@ const PREDEFINED_DEPARTMENTS = [
   "IT Applications",
 ];
 
-export default function CreateDept() {
-  const { isPartnerRoot, isOrgManager, effectiveOrgId, selectedChildOrg } = useEffectiveOrg();
+export default function CreateDept({ embedded = false, onSuccess, onCancel }) {
+  const { isPartnerRoot, isOrgManager, effectiveOrgId, selectedChildOrg } =
+    useEffectiveOrg();
   const navigate = useRouter();
 
   const [name, setName] = useState("");
@@ -33,7 +34,8 @@ export default function CreateDept() {
   const [organizations, setOrganizations] = useState([]);
   const [selectedOrg, setSelectedOrg] = useState("");
 
-  const token = sessionStorage.getItem("token") || localStorage.getItem("token");
+  const token =
+    sessionStorage.getItem("token") || localStorage.getItem("token");
   const decoded = token ? jwtDecode(token) : null;
   const loggedInRole = Array.isArray(decoded?.role)
     ? decoded.role[0]
@@ -41,7 +43,8 @@ export default function CreateDept() {
   /* -------- Get Organization from JWT -------- */
   // Replace the existing useEffect that sets organizationId:
   useEffect(() => {
-    const token = sessionStorage.getItem("token") || localStorage.getItem("token");
+    const token =
+      sessionStorage.getItem("token") || localStorage.getItem("token");
     if (token) {
       try {
         const decoded = jwtDecode(token);
@@ -111,7 +114,13 @@ export default function CreateDept() {
 
       await api.post("/departments", payload);
       alert("Department created successfully!");
-      navigate.push("/admin/departments");
+      if (onSuccess) {
+        onSuccess(name.trim());
+        setName("");
+        setMapping("");
+      } else {
+        navigate.push("/admin/departments");
+      }
     } catch (err) {
       console.error(err);
       alert(err.response?.data?.error || "Failed to create department");
@@ -123,16 +132,24 @@ export default function CreateDept() {
   const isAutoMapped = name.trim() && !showMapping;
 
   return (
-    <div style={styles.page}>
-      <div style={styles.card}>
+    <div style={embedded ? { width: "100%" } : styles.page}>
+      <div
+        style={
+          embedded
+            ? { ...styles.card, boxShadow: "none", padding: 0 }
+            : styles.card
+        }
+      >
         {/* Header */}
-        <div style={styles.header}>
-          <div style={styles.headerIcon}>🏢</div>
-          <h2 style={styles.heading}>Create Department</h2>
-          <p style={styles.subheading}>
-            Add a new department to your organization
-          </p>
-        </div>
+        {!embedded && (
+          <div style={styles.header}>
+            <div style={styles.headerIcon}>🏢</div>
+            <h2 style={styles.heading}>Create Department</h2>
+            <p style={styles.subheading}>
+              Add a new department to your organization
+            </p>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} style={styles.form}>
           {isPartnerRoot && (
@@ -267,14 +284,22 @@ export default function CreateDept() {
               )}
             </button>
 
-            <button
-              type="button"
-              style={styles.secondaryBtn}
-              onClick={() => navigate.push("/admin/departments")}
-              disabled={loading}
-            >
-              Cancel
-            </button>
+            {(!embedded || onCancel) && (
+              <button
+                type="button"
+                style={styles.secondaryBtn}
+                onClick={() => {
+                  if (onCancel) {
+                    onCancel();
+                  } else {
+                    navigate.push("/admin/departments");
+                  }
+                }}
+                disabled={loading}
+              >
+                Cancel
+              </button>
+            )}
           </div>
         </form>
       </div>

@@ -32,6 +32,8 @@ import {
   Chip,
   OutlinedInput,
   Tooltip,
+  Checkbox,
+  ListItemText,
 } from "@mui/material";
 
 import SaveIcon from "@mui/icons-material/Save";
@@ -495,7 +497,12 @@ function ListUsers() {
                               })
                               .map((r) => (
                                 <MenuItem key={r} value={r}>
-                                  {formatRoleLabel(r)}
+                                  <Checkbox
+                                    checked={draft.role.includes(r)}
+                                    size="small"
+                                    sx={{ p: 0.5, mr: 1 }}
+                                  />
+                                  <ListItemText primary={formatRoleLabel(r)} />
                                 </MenuItem>
                               ))}
                           </Select>

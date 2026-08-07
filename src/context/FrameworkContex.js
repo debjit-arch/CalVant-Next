@@ -14,7 +14,7 @@ const DEFAULT_META = { color: "#64748b", path: "/" };
 
 export const MODULE_FRAMEWORK_SUPPORT = {
   dpia: new Set(["ISO 27701", "SOC 2", "KSA PDPL", "GDPR", "DPDPA"]),
-  aiia: new Set(["ISO 42001"]),
+  aiia: new Set(["ISO 42001", "EU AI Act"]),
 };
 
 // FrameworkContext.jsx

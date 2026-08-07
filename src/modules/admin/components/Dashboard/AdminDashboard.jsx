@@ -414,6 +414,7 @@ import { useRouter } from "next/navigation";
 import { jwtDecode } from "jwt-decode";
 import axios from "axios";
 import api from "../../api/adminApi";
+import useModuleEntitlements from "../../hooks/useModuleEntitlements";
 
 const RISK_URL   = process.env.NEXT_PUBLIC_SP + "/risk-service/api/risks";
 const VENDOR_URL = process.env.NEXT_PUBLIC_SP + "/tprm-service/api/tprm/vendors";
@@ -700,6 +701,12 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState({ users: [], departments: [], vendors: [], risks: [] });
 
+  // Vendor Management is a paid-only add-on — never granted during a free
+  // trial (see useModuleEntitlements). Until it's purchased, hide the
+  // "Active Vendors" metric and the Vendor Ledger panel below, and skip the
+  // vendor fetch entirely so a non-entitled org doesn't hit tprm-service.
+  const { loading: entLoading, vendor: vendorEntitled } = useModuleEntitlements();
+
   useEffect(() => {
     if (!token) return;
     const load = async () => {
@@ -715,10 +722,12 @@ export default function AdminDashboard() {
           headers: { Authorization: `Basic ${BASIC_TOKEN}`, "Content-Type": "application/json" },
         }).then(r => r.ok ? r.json() : []).catch(() => []);
         const risks = Array.isArray(risksRaw) ? risksRaw : (risksRaw?.content ?? []);
-        const vendors = await axios.get(VENDOR_URL, {
-          headers: { Authorization: `Bearer ${token}` },
-          params: { organization: orgId },
-        }).then(r => Array.isArray(r.data) ? r.data : (r.data?.content ?? [])).catch(() => []);
+        const vendors = vendorEntitled
+          ? await axios.get(VENDOR_URL, {
+              headers: { Authorization: `Bearer ${token}` },
+              params: { organization: orgId },
+            }).then(r => Array.isArray(r.data) ? r.data : (r.data?.content ?? [])).catch(() => [])
+          : [];
         setData({ users, departments: depts, vendors, risks });
       } catch (err) {
         console.error("Dashboard load error", err);
@@ -727,7 +736,7 @@ export default function AdminDashboard() {
       }
     };
     load();
-  }, [token, orgId]);
+  }, [token, orgId, vendorEntitled]);
 
   const deptWorkforce = useMemo(() => {
     const orgUsers = data.users.filter(u => String(u.organization) === String(orgId));
@@ -749,13 +758,16 @@ export default function AdminDashboard() {
   const metrics = [
     { title: "Total Users",    value: data.users.length,       icon: "👥", accent: C.blue,  accentLight: C.blueLight,  trend: "+12 this month",    trendColor: C.green },
     { title: "Departments",    value: data.departments.length, icon: "🏛", accent: C.cyan,  accentLight: C.cyanLight,  trend: "Across 3 regions",  trendColor: C.text3 },
-    { title: "Active Vendors", value: data.vendors.length,     icon: "🏪", accent: C.green, accentLight: C.greenLight, trend: "+4 onboarded",      trendColor: C.green },
+    // Only shown once Vendor Mgmt is actually purchased — hidden for free-trial orgs.
+    ...(vendorEntitled
+      ? [{ title: "Active Vendors", value: data.vendors.length, icon: "🏪", accent: C.green, accentLight: C.greenLight, trend: "+4 onboarded", trendColor: C.green }]
+      : []),
     { title: "Global Risks",   value: data.risks.length,       icon: "⚠️", accent: C.red,   accentLight: C.redLight,   trend: "6 critical open",   trendColor: C.red },
   ];
 
   const deptAccents = [C.blue, C.cyan, C.violet, C.green, C.amber, C.orange];
 
-  if (loading) return <LoadingScreen />;
+  if (loading || entLoading) return <LoadingScreen />;
 
   const today = new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 
@@ -784,7 +796,7 @@ export default function AdminDashboard() {
         </div>
 
         {/* ── Metric Cards ── */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: 20 }}>
+        <div style={{ display: "grid", gridTemplateColumns: `repeat(${metrics.length},1fr)`, gap: 14, marginBottom: 20 }}>
           {metrics.map((m, i) => (
             <div key={i} style={{ ...S.card, padding: "18px 20px", position: "relative", overflow: "hidden" }}>
               <div style={{ position: "absolute", top: 0, left: 0, width: 4, height: "100%", background: m.accent, borderRadius: "4px 0 0 4px" }} />
@@ -873,41 +885,43 @@ export default function AdminDashboard() {
         </div>
 
         {/* ── Bottom Row ── */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: vendorEntitled ? "1fr 1fr" : "1fr", gap: 16 }}>
 
-          {/* Vendor Ledger */}
-          <div style={S.card}>
-            <div style={S.cardHeader}>
-              <div>
-                <div style={S.cardTitle}>🏪 Vendor Ledger</div>
-                <div style={S.cardSub}>{data.vendors.length} vendors onboarded</div>
+          {/* Vendor Ledger — only for orgs that have actually purchased Vendor Mgmt */}
+          {vendorEntitled && (
+            <div style={S.card}>
+              <div style={S.cardHeader}>
+                <div>
+                  <div style={S.cardTitle}>🏪 Vendor Ledger</div>
+                  <div style={S.cardSub}>{data.vendors.length} vendors onboarded</div>
+                </div>
+                <ViewBtn onClick={() => history.push("/admin/vendors")} />
               </div>
-              <ViewBtn onClick={() => history.push("/admin/vendors")} />
+              {data.vendors.length === 0 ? (
+                <div style={{ padding: "40px 0", textAlign: "center", fontSize: 12, color: C.text4, textTransform: "uppercase", letterSpacing: 1.5 }}>No Vendor Data</div>
+              ) : (
+                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <THead cols={[{ label: "Vendor" }, { label: "Contact" }, { label: "Status" }]} />
+                  <tbody>
+                    {data.vendors.slice(0, 8).map((v, i) => (
+                      <TRow key={i}>
+                        <td style={S.td}><div style={{ fontWeight: 600, fontSize: 12.5, color: C.text1 }}>{v.vendorName || v.name || "—"}</div></td>
+                        <td style={S.td}>
+                          <div style={{ fontSize: 12, color: C.text2 }}>{v.poc || "N/A"}</div>
+                          <div style={{ fontSize: 11, color: C.text4 }}>{v.pocEmail || "No email"}</div>
+                        </td>
+                        <td style={S.td}>
+                          {v.active === false
+                            ? <Chip label="Inactive" bg={C.redLight}  color={C.redText} />
+                            : <Chip label="Active"   bg={C.greenBg}   color={C.greenText} />}
+                        </td>
+                      </TRow>
+                    ))}
+                  </tbody>
+                </table>
+              )}
             </div>
-            {data.vendors.length === 0 ? (
-              <div style={{ padding: "40px 0", textAlign: "center", fontSize: 12, color: C.text4, textTransform: "uppercase", letterSpacing: 1.5 }}>No Vendor Data</div>
-            ) : (
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <THead cols={[{ label: "Vendor" }, { label: "Contact" }, { label: "Status" }]} />
-                <tbody>
-                  {data.vendors.slice(0, 8).map((v, i) => (
-                    <TRow key={i}>
-                      <td style={S.td}><div style={{ fontWeight: 600, fontSize: 12.5, color: C.text1 }}>{v.vendorName || v.name || "—"}</div></td>
-                      <td style={S.td}>
-                        <div style={{ fontSize: 12, color: C.text2 }}>{v.poc || "N/A"}</div>
-                        <div style={{ fontSize: 11, color: C.text4 }}>{v.pocEmail || "No email"}</div>
-                      </td>
-                      <td style={S.td}>
-                        {v.active === false
-                          ? <Chip label="Inactive" bg={C.redLight}  color={C.redText} />
-                          : <Chip label="Active"   bg={C.greenBg}   color={C.greenText} />}
-                      </td>
-                    </TRow>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
+          )}
 
           {/* Workforce Share */}
           <div style={S.card}>

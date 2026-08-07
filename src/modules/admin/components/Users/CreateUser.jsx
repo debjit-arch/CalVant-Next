@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useState, useEffect } from "react";
 import { jwtDecode } from "jwt-decode";
@@ -22,26 +22,37 @@ import {
   Stack,
   Alert,
   Chip,
+  InputAdornment,
+  IconButton,
+  Checkbox,
+  ListItemText,
 } from "@mui/material";
 
 // Icons
 import SaveIcon from "@mui/icons-material/Save";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import LockIcon from "@mui/icons-material/Lock";
+import Visibility from "@mui/icons-material/Visibility";
+import VisibilityOff from "@mui/icons-material/VisibilityOff";
 
-import { useEffectiveOrg } from '../../../../hooks/useEffectiveOrg';
+import { useEffectiveOrg } from "../../../../hooks/useEffectiveOrg";
 import useModuleEntitlements from "../../hooks/useModuleEntitlements";
 const TPRM_VENDORS_URL =
   "https://api.calvant.com/tprm-service/api/tprm/vendors";
 
 export default function UserForm({ userToEdit = null, onSuccess }) {
-  const { isPartnerRoot, isOrgManager, effectiveOrgId, selectedChildOrg } = useEffectiveOrg();
+  const { isPartnerRoot, isOrgManager, effectiveOrgId, selectedChildOrg } =
+    useEffectiveOrg();
 
   // ── Seat cap (fulfilment) — same idea as the integration slot cap:
   // block creating a NEW user once seatsUsed >= purchased seats
   // (adminUserCount + normalUserCount). Editing an existing user, and
   // super_admin (platform admin, not org-scoped), are never blocked.
-  const { loading: seatLoading, seatLimit, seatsUsed } = useModuleEntitlements();
+  const {
+    loading: seatLoading,
+    seatLimit,
+    seatsUsed,
+  } = useModuleEntitlements();
   const navigate = useRouter();
   const [loading, setLoading] = useState(false);
   const [departments, setDepartments] = useState([]);
@@ -49,6 +60,7 @@ export default function UserForm({ userToEdit = null, onSuccess }) {
   const [vendors, setVendors] = useState([]);
   const [vendorMap, setVendorMap] = useState({}); // id → displayName
   const [error, setError] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   // Decode JWT
   const token =
@@ -129,6 +141,7 @@ export default function UserForm({ userToEdit = null, onSuccess }) {
     modules: [],
     vendors: [],
   });
+  const [lastCreatedUser, setLastCreatedUser] = useState(null);
 
   const normalizeArray = (data, keepEmpty = false) => {
     if (!data) return [];
@@ -366,7 +379,9 @@ export default function UserForm({ userToEdit = null, onSuccess }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (atSeatCap) {
-      setError("You've used all your user seats. Upgrade your plan under Manage Subscription to add more.");
+      setError(
+        "You've used all your user seats. Upgrade your plan under Manage Subscription to add more.",
+      );
       return;
     }
     setLoading(true);
@@ -420,7 +435,7 @@ export default function UserForm({ userToEdit = null, onSuccess }) {
           "https://api.calvant.com/user-service/api/users/register",
           payload,
         );
-        alert("User created successfully!");
+        setLastCreatedUser(formData.name);
         setFormData({
           name: "",
           email: "",
@@ -470,17 +485,20 @@ export default function UserForm({ userToEdit = null, onSuccess }) {
           </Typography>
         </Stack>
 
-        {!userToEdit && loggedInRole !== "super_admin" && !seatLoading && seatLimit > 0 && (
-          <Alert
-            severity={atSeatCap ? "warning" : "info"}
-            icon={atSeatCap ? <LockIcon fontSize="inherit" /> : undefined}
-            sx={{ mb: 1 }}
-          >
-            {atSeatCap
-              ? `You've used all ${seatLimit} of your user seats (${seatsUsed}/${seatLimit}). Upgrade your plan under Manage Subscription to add more.`
-              : `User seats: ${seatsUsed} of ${seatLimit} used (${seatLimit - seatsUsed} remaining).`}
-          </Alert>
-        )}
+        {!userToEdit &&
+          loggedInRole !== "super_admin" &&
+          !seatLoading &&
+          seatLimit > 0 && (
+            <Alert
+              severity={atSeatCap ? "warning" : "info"}
+              icon={atSeatCap ? <LockIcon fontSize="inherit" /> : undefined}
+              sx={{ mb: 1 }}
+            >
+              {atSeatCap
+                ? `You've used all ${seatLimit} of your user seats (${seatsUsed}/${seatLimit}). Upgrade your plan under Manage Subscription to add more.`
+                : `User seats: ${seatsUsed} of ${seatLimit} used (${seatLimit - seatsUsed} remaining).`}
+            </Alert>
+          )}
 
         {error && (
           <Alert severity="error" sx={{ mb: 1 }}>
@@ -508,10 +526,23 @@ export default function UserForm({ userToEdit = null, onSuccess }) {
             <TextField
               label={userToEdit ? "New Password" : "Password"}
               name="password"
-              type="password"
+              type={showPassword ? "text" : "password"}
               value={formData.password}
               onChange={handleChange}
               required={!userToEdit}
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      aria-label="toggle password visibility"
+                      onClick={() => setShowPassword(!showPassword)}
+                      edge="end"
+                    >
+                      {showPassword ? <VisibilityOff /> : <Visibility />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
             />
 
             {/* Roles */}
@@ -545,7 +576,12 @@ export default function UserForm({ userToEdit = null, onSuccess }) {
                   })
                   .map((r) => (
                     <MenuItem key={r} value={r}>
-                      {formatRoleLabel(r)}
+                      <Checkbox
+                        checked={formData.role.includes(r)}
+                        size="small"
+                        sx={{ p: 0.5, mr: 1 }}
+                      />
+                      <ListItemText primary={formatRoleLabel(r)} />
                     </MenuItem>
                   ))}
               </Select>
@@ -690,17 +726,53 @@ export default function UserForm({ userToEdit = null, onSuccess }) {
                 </Select>
               </FormControl>
             )}
+            {lastCreatedUser && !userToEdit && (
+              <div
+                style={{
+                  padding: "12px",
+                  background: "#ecfdf5",
+                  color: "#10b981",
+                  borderRadius: "8px",
+                  textAlign: "center",
+                  fontWeight: 600,
+                }}
+              >
+                ✓ User "{lastCreatedUser}" was created successfully.
+              </div>
+            )}
 
-            <Button
-              type="submit"
-              variant="contained"
-              disabled={loading || atSeatCap}
-              startIcon={
-                loading ? <CircularProgress size={20} /> : atSeatCap ? <LockIcon /> : <SaveIcon />
-              }
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: "12px",
+                marginTop: "16px",
+              }}
             >
-              {atSeatCap ? "Upgrade to add more seats" : userToEdit ? "Update User" : "Create User"}
-            </Button>
+              <Button variant="outlined" onClick={() => navigate.back()}>
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                variant="contained"
+                disabled={loading || atSeatCap}
+                startIcon={
+                  loading ? (
+                    <CircularProgress size={20} />
+                  ) : atSeatCap ? (
+                    <LockIcon />
+                  ) : (
+                    <SaveIcon />
+                  )
+                }
+              >
+                {atSeatCap
+                  ? "Upgrade to add more seats"
+                  : userToEdit
+                    ? "Update User"
+                    : "Create User"}
+              </Button>
+            </div>
           </Stack>
         </form>
       </Paper>

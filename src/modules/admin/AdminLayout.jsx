@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { Plug } from "lucide-react";
 import { CreditCard } from "lucide-react";
+import useModuleEntitlements from "./hooks/useModuleEntitlements";
 
 // ── Nav Config ────────────────────────────────────────────────────────────────
 
@@ -121,6 +122,7 @@ export default function AdminLayout({ children }) {
     risks: false, vendors: false, frameworks: false,
     gap: false, seo: false, sampledocs: false,
   });
+  const { loading: entLoading, vendor: vendorEntitled } = useModuleEntitlements();
 
   // ── Auth check runs once after mount (client-side only) ───────────────────
   useEffect(() => {
@@ -146,6 +148,14 @@ export default function AdminLayout({ children }) {
     }
   }, [router]);
 
+  // ── Vendor entitlement guard (redirects if accessing vendors without purchase)
+  useEffect(() => {
+    if (!mounted || !canAccess || entLoading) return;
+    if (pathname?.startsWith("/admin/vendors") && !vendorEntitled) {
+      router.replace("/404");
+    }
+  }, [mounted, canAccess, entLoading, vendorEntitled, pathname, router]);
+
   // ── Derived nav (computed from state, not hooks) ──────────────────────────
   const NAV = (isPartnerRoot
     ? [
@@ -154,9 +164,10 @@ export default function AdminLayout({ children }) {
         ...NAV_BASE.slice(NAV_BASE.findIndex(i => i.group === "departments") + 1),
       ]
     : NAV_BASE
-  ).filter(item =>
-    !item.group || !SUPER_ADMIN_ONLY_GROUPS.has(item.group) || isSuperAdmin
-  );
+  ).filter(item => {
+    if (item.group === "vendors" && !entLoading && !vendorEntitled) return false;
+    return !item.group || !SUPER_ADMIN_ONLY_GROUPS.has(item.group) || isSuperAdmin;
+  });
 
   const isActive = (path, exact = false) =>
     exact ? pathname === path : pathname === path || pathname.startsWith(path + "/");

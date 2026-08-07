@@ -37,8 +37,9 @@ const AuthBridge = () => {
       }
 
       // ✅ Fixed: was window.router.replaceState (typo)
-      window.history.replaceState({}, document.title, "/");
-      router.replace("/");
+      const redirectUrl = params.get("redirect") || "/";
+      window.history.replaceState({}, document.title, redirectUrl);
+      router.replace(redirectUrl);
     } else {
       router.replace("/login");
     }
