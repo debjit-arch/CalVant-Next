@@ -121,7 +121,7 @@
 
 /* ✅ ENHANCED FORM CARD */
 .demo-form-card {
-  height: 100%;
+  height: auto;
   position: relative;
   display: flex;
   flex-direction: column;
@@ -185,6 +185,7 @@
   color: #e5e7eb;
   display: flex;
   flex-direction: column;
+  align-items: center;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
@@ -230,9 +231,10 @@
 
 /* main layout */
 .demo-main {
-  flex: 1;
   display: grid;
   grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  align-items: stretch;
+  width: 100%;
   max-width: 1120px;
   margin: 0 auto 48px;
   gap: 32px;
@@ -378,7 +380,7 @@
 }
 
 .demo-form-card {
-  height: 100%;
+  height: auto;
 }
 
 .demo-form-title {

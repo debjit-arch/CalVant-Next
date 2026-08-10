@@ -409,7 +409,7 @@ export default function FrameworkPageClient({ framework }) {
                 className="fw-btn-secondary"
                 onClick={() => goTo("/demo")}
               >
-                Talk to an expert
+                Subscribe Now
               </button>
             </div>
           </div>

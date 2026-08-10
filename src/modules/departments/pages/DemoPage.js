@@ -3,6 +3,8 @@ import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import "./DemoPage.css";
 import Modal from "../../../components/navigations/Modal";
+import SiteHeader from "@/components/SiteHeader";
+import SiteFooter from "@/components/SiteFooter";
 const DemoPage = () => {
   const router = useRouter();
   const [form, setForm] = useState({
@@ -84,32 +86,20 @@ const DemoPage = () => {
   };
 
   return (
-    <div className="demo-page">
+    <>
+      <SiteHeader />
+      <div className="demo-page">
       <Modal
         isOpen={isModalOpen}
         title="Success"
         message="Thank you for your demo request! Our team will contact you shortly."
         onClose={handleCloseModal}
       />
-      <header className="demo-header">
-        <div className="demo-logo">CalVant</div>
-        <nav className="demo-nav">
-          <button onClick={() => router.push("/")} className="demo-nav-link">
-            Home
-          </button>
-          <button
-            onClick={() => router.push("/login")}
-            className="demo-nav-link-demo"
-          >
-            Login
-          </button>
-        </nav>
-      </header>
 
       <main className="demo-main">
         <section className="demo-left">
           <div className="demo-left-inner">
-            <div className="demo-badge">#1 Compliance Risk Management Platform</div>
+            <div className="demo-badge">Digital Compliance Management Simplified</div>
 
             <h1 className="demo-title">
               Schedule
@@ -128,19 +118,19 @@ const DemoPage = () => {
                 <strong>Real-time dashboards</strong> with risk scoring
               </span>
               <span>
-                <strong>ISO 27001 </strong>
+                <strong>Cyber Security</strong>
               </span>
               <span>
-                <strong>ISO 27701</strong>
+                <strong>Information security</strong>
               </span>
                <span>
-                <strong>ISO 42001 </strong>
+                <strong>Data privacy</strong>
               </span>
               <span>
-                <strong>KSA PDPL</strong>
+                <strong>Artificial Intelligence</strong>
               </span>
               <span>
-                <strong>SOC 2 </strong>
+                <strong>Regional / Statutory / Regulatory Requirements</strong>
               </span>
 
               <span>
@@ -155,8 +145,8 @@ const DemoPage = () => {
 
             <div className="demo-trust">
               <div className="demo-trust-item">
-                <div className="demo-trust-number">10K+</div>
-                <div>Teams Protected</div>
+                <div className="demo-trust-number">100%</div>
+                <div>Compliance-Ready</div>
               </div>
               <div className="demo-trust-item">
                 <div className="demo-trust-number">99.9%</div>
@@ -282,7 +272,7 @@ const DemoPage = () => {
                     <div>Support</div>
                   </div>
                   <div className="demo-stat">
-                    <div className="demo-stat-number">2 min</div>
+                    <div className="demo-stat-number">60 minutes</div>
                     <div>Response</div>
                   </div>
                   <div className="demo-stat">
@@ -301,6 +291,8 @@ const DemoPage = () => {
         </section>
       </main>
     </div>
+      <SiteFooter />
+    </>
   );
 };
 
