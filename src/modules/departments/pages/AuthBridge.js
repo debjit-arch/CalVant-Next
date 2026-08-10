@@ -17,6 +17,11 @@ const AuthBridge = () => {
       const emailParam = params.get("email");
       if (emailParam) sessionStorage.setItem("email", emailParam);
 
+      // Where to land once the session is set up. Falls back to the
+      // dashboard when no redirect was passed (e.g. the original
+      // cross-subdomain login flow before this param existed).
+      const redirectTo = params.get("redirect") || "/";
+
       try {
         const userObj = JSON.parse(userParam);
         const email = emailParam || userObj.email || "unknown@example.com";
@@ -36,10 +41,15 @@ const AuthBridge = () => {
         console.warn('Login log failed in bridge:', err);
       }
 
+<<<<<<< HEAD
       // ✅ Fixed: was window.router.replaceState (typo)
       const redirectUrl = params.get("redirect") || "/";
       window.history.replaceState({}, document.title, redirectUrl);
       router.replace(redirectUrl);
+=======
+      window.history.replaceState({}, document.title, redirectTo);
+      router.replace(redirectTo);
+>>>>>>> 2938b830257df5ba6c434edd7a765c47d801699d
     } else {
       router.replace("/login");
     }

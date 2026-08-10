@@ -22,11 +22,11 @@ The Policies Dashboard is your home base for the module. It gives you an at-a-gl
 
 ![Risk Dashboard overview](/Screenshots/Policy/1.png)
 
-### Overview Zone 
+#### Overview Zone 
 
 A row of summary tiles showing the total number of policies, and counts by Uploaded, Pending, and Archived. 
 
-### Quick Actions Zone 
+#### Quick Actions Zone  
 
 Gives one-click access to the most common tasks: 
 
@@ -38,7 +38,7 @@ View Documents — Opens the policy register, entry point for browsing existing 
 
 Archived — Opens the Archived Policies page. 
 
-### Visual Representation Zone 
+###### Visual Representation Zone 
 
 Document Status — a donut chart showing the proportion of uploaded versus pending documents. 
 
