@@ -1,3 +1,5 @@
+//cf-tool-frontend-main\src\modules\admin\components\Users\CreateUser.jsx
+
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -318,27 +320,7 @@ export default function UserForm({ userToEdit = null, onSuccess }) {
       let finalNewValue = [...newValue];
 
       if (name === "role") {
-        const hasUser = finalNewValue.includes("user");
-        const hasOther = finalNewValue.some((r) => r !== "user");
-        const hasSpecial = finalNewValue.some((r) =>
-          ["dpo", "ciso", "aio"].includes(r),
-        );
-
-        if (hasUser && hasOther) {
-          if (prev.role.includes("user")) {
-            finalNewValue = finalNewValue.filter((r) => r !== "user");
-          } else {
-            finalNewValue = ["user"];
-          }
-        }
-
-        // Clear modules & vendors if no longer "user" or "steering_committee_member" role
-        if (
-          !finalNewValue.includes("user") &&
-          !finalNewValue.includes("steering_committee_member")
-        ) {
-          return { ...prev, [name]: finalNewValue, modules: [], vendors: [] };
-        }
+        // Multi-roles are supported cumulatively (e.g. Risk Owner + User)
       }
 
       // If modules change and tprm is removed, clear vendors

@@ -4,7 +4,7 @@
 const BASE_URL = "https://api.calvant.com/control-ownership-service";
 
 const getHeaders = () => {
-  const token = localStorage.getItem("token");
+  const token = sessionStorage.getItem("token") || localStorage.getItem("token");
   return {
     "Content-Type": "application/json",
     Authorization: `Bearer ${token}`,

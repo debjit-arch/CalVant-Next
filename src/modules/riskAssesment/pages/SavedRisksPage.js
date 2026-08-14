@@ -1,6 +1,10 @@
+//cf-tool-frontend-main\src\modules\riskAssesment\pages\SavedRisksPage.js
+
+
 import React, { useState, useEffect } from "react";
 import { useEffectiveOrg } from "@/hooks/useEffectiveOrg";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { matchesDepartment, getUserRoles, getUserDepartments, isSameOrg } from "@/utils/departmentUtils";
 import {
   ClipboardList,
   ShieldAlert,
@@ -100,22 +104,44 @@ const SavedRisksPage = () => {
   const [soaProgress, setSoaProgress] = useState({ current: 0, total: 0 });
 
   const {
-    user, mounted, isRoot, isPrivilegedRole, isViewingManagedOrg,
+    user, mounted, isRoot, isRiskOwner, isPrivilegedRole, isViewingManagedOrg,
     effectiveOrgId, effectiveOrgIds, selectedChildOrg,
   } = useEffectiveOrg();
 
   const userRoles = Array.isArray(user?.role) ? user.role : [user?.role].filter(Boolean);
   const isSuperAdmin = userRoles.includes("super_admin");
 
-  const displayedRisks = React.useMemo(() => {
+  const searchParams = useSearchParams();
+  const filterParam = searchParams.get("filter") || "Total";
+
+  const baseRisks = React.useMemo(() => {
     if (!allowedRiskTypes) return savedRisks;
     return savedRisks.filter((r) => riskMatchesFilter(r, allowedRiskTypes));
   }, [savedRisks, allowedRiskTypes]);
 
+  const displayedRisks = React.useMemo(() => {
+    let base = baseRisks;
+    if (filterParam === "High") {
+      base = base.filter((r) => {
+        const lvl = calculateRiskLevel(r);
+        return lvl === "High" || lvl === "Critical";
+      });
+    } else if (filterParam === "Medium") {
+      base = base.filter((r) => calculateRiskLevel(r) === "Medium");
+    } else if (filterParam === "Low") {
+      base = base.filter((r) => calculateRiskLevel(r) === "Low");
+    } else if (filterParam === "Open") {
+      base = base.filter((r) => (r.status || "").toLowerCase() !== "closed");
+    } else if (filterParam === "Closed") {
+      base = base.filter((r) => (r.status || "").toLowerCase() === "closed");
+    }
+    return base;
+  }, [baseRisks, filterParam]);
+
   const stats = React.useMemo(() => {
-    const total = displayedRisks.length;
+    const total = baseRisks.length;
     let high = 0, medium = 0, low = 0, open = 0, closed = 0, critical = 0;
-    displayedRisks.forEach((risk) => {
+    baseRisks.forEach((risk) => {
       const level = calculateRiskLevel(risk);
       if (level === "High") high++;
       if (level === "Medium") medium++;
@@ -125,7 +151,7 @@ const SavedRisksPage = () => {
       if (s === "closed") closed++; else open++;
     });
     return { total, high, medium, low, open, closed, critical };
-  }, [displayedRisks]); // eslint-disable-line
+  }, [baseRisks]); // eslint-disable-line
 
   // ── Scroll hide/show ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -167,32 +193,29 @@ const SavedRisksPage = () => {
         url: "/risk-assessment/saved",
       });
 
-      const risks = await riskService.getAllRisks();
+      const [risks, departmentsList] = await Promise.all([
+        riskService.getAllRisks(),
+        getDepartments().catch(() => []),
+      ]);
       if (!Array.isArray(risks)) { setSavedRisks([]); return; }
 
-      let filteredRisks;
-      if (isSuperAdmin) {
-        filteredRisks = risks;
-      } else if (isRoot) {
-        const userOrg = (effectiveOrgId || "").toString().toLowerCase();
-        filteredRisks = risks.filter(
-          (r) => (r.organization || "").toString().toLowerCase() === userOrg,
-        );
-      } else {
-        const userOrg = (effectiveOrgId || "").toString().toLowerCase();
-        const userDeptNames = (user.departments || []).map((d) =>
-          (d.name || "").toString().toLowerCase(),
-        );
-        filteredRisks = risks.filter((r) => {
-          const riskOrg = (r.organization || "").toString().toLowerCase();
-          const riskDept = (r.department || "").toString().toLowerCase();
-          return riskOrg === userOrg && userDeptNames.includes(riskDept);
-        });
-      }
+      // Privileged roles see all.
+      const seeAll = isRoot || isSuperAdmin || isPrivilegedRole || isViewingManagedOrg;
+      const userDepts = getUserDepartments(user);
 
-      const deptDisplay = user.departments?.length > 1
+      const filteredRisks = risks.filter((r) => {
+        if (!isSameOrg(r.organization, effectiveOrgId)) {
+          return false;
+        }
+        if (seeAll) return true;
+        return matchesDepartment(r.department, userDepts, departmentsList);
+      });
+
+      const deptDisplay = seeAll
+        ? "All"
+        : userDepts.length > 1
         ? "Multiple Departments"
-        : user.departments?.[0]?.name || "All";
+        : userDepts[0]?.name || (typeof userDepts[0] === "string" ? userDepts[0] : "Your");
       setDepartmentName(deptDisplay);
       setSavedRisks(filteredRisks);
     } catch (error) {
@@ -468,11 +491,12 @@ const SavedRisksPage = () => {
   };
 
   const FrameworkFilterInfo = () => {
-    if (isAllSelected) return null;
+    const hasFilter = filterParam && filterParam !== "Total";
+    if (isAllSelected && !hasFilter) return null;
     return (
       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginTop: 10, paddingTop: 10, borderTop: "1px solid #f1f5f9", fontSize: 11, color: "#64748b" }}>
         <span style={{ fontWeight: 600, color: "#475569" }}>Filtered by:</span>
-        {selectedFrameworks.map((fwId) => {
+        {!isAllSelected && selectedFrameworks.map((fwId) => {
           const fwObj = availableFrameworks?.find(f => f.id === fwId);
           const bg = fwObj?.color ? fwObj.color + "15" : "#f1f5f9";
           const color = fwObj?.color || "#334155";
@@ -483,6 +507,21 @@ const SavedRisksPage = () => {
             </span>
           );
         })}
+        {hasFilter && (
+          <span style={{ padding: "2px 9px", borderRadius: 12, background: "#eff6ff", color: "#2563eb", border: "1px solid #dbeafe", fontWeight: 700, fontSize: 11, display: "inline-flex", alignItems: "center", gap: 4 }}>
+            {filterParam} Risks
+            <button 
+              onClick={() => {
+                const params = new URLSearchParams(window.location.search);
+                params.delete("filter");
+                router.push(`${window.location.pathname}?${params.toString()}`);
+              }}
+              style={{ background: "transparent", border: "none", color: "#2563eb", cursor: "pointer", fontWeight: "bold", fontSize: 10, padding: 0, marginLeft: 2 }}
+            >
+              ✕
+            </button>
+          </span>
+        )}
         <span style={{ color: "#94a3b8" }}>·</span>
         <span style={{ color: "#475569", fontWeight: 600 }}>{displayedRisks.length} of {savedRisks.length} risks shown</span>
         {allowedRiskTypes && allowedRiskTypes.size > 0 && (
@@ -569,6 +608,8 @@ const SavedRisksPage = () => {
               { label: "Closed",   value: stats.closed   },
             ].map((s, i) => <StatCard key={s.label} value={s.value} label={s.label} index={i} />)}
           </section>
+
+
 
           {displayedRisks.length === 0 ? (
             savedRisks.length > 0 && !isAllSelected ? (

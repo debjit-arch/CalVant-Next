@@ -1,3 +1,5 @@
+//cf-tool-frontend-main\src\components\MainContentWrapper.jsx
+
 "use client";
 import { useEffect, useState } from "react";
 import { useSession } from "@/context/SessionContext";
@@ -12,24 +14,30 @@ export default function MainContentWrapper({ children }) {
   const [mounted, setMounted] = useState(false);
   const hideSidebar = isNoSidebarRoute(pathname);
 
-  useEffect(() => { setMounted(true); }, []);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [pathname]);
 
-  const authRoutes = ["/login", "/register", "/forgot-password", "/auth-bridge"];
+  const authRoutes = [
+    "/login",
+    "/register",
+    "/forgot-password",
+    "/auth-bridge",
+  ];
   const isAuthPage = authRoutes.includes(pathname);
+  const isAdminPage = pathname?.startsWith("/admin");
 
-  if (!isAuthenticated || isAuthPage) {
+  if (!isAuthenticated || isAuthPage || isAdminPage) {
     return <>{children}</>;
   }
 
   if (!mounted) {
     return (
-      <div className="pt-14 sm:pt-16 lg:pt-[72px] min-h-screen">
-        {children}
-      </div>
+      <div className="pt-14 sm:pt-16 lg:pt-[72px] min-h-screen">{children}</div>
     );
   }
 

@@ -514,6 +514,40 @@ const selectStyle = {
 // ─────────────────────────────────────────────────────────────────────────────
 // ── MLD Component ─────────────────────────────────────────────────────────────
 // ─────────────────────────────────────────────────────────────────────────────
+const getResolvedDepartmentInfo = (currentUser, allDepartments) => {
+  if (!currentUser) return { ids: [], names: [] };
+  const depts = currentUser.departments || (currentUser.department ? (Array.isArray(currentUser.department) ? currentUser.department : [currentUser.department]) : []);
+  const ids = [];
+  const names = [];
+
+  depts.forEach((dept) => {
+    if (!dept) return;
+    if (typeof dept === "object") {
+      const idVal = dept._id || dept.id || "";
+      if (idVal) ids.push(String(idVal).toLowerCase());
+      
+      if (dept.name) {
+        names.push(String(dept.name));
+      } else if (idVal) {
+        const found = allDepartments.find((d) => String(d._id) === String(idVal) || String(d.id) === String(idVal));
+        if (found && found.name) {
+          names.push(String(found.name));
+        }
+      }
+    } else if (typeof dept === "string") {
+      ids.push(dept.toLowerCase());
+      const found = allDepartments.find((d) => String(d._id) === String(dept) || String(d.id) === String(dept));
+      if (found && found.name) {
+        names.push(String(found.name));
+      } else {
+        names.push(dept);
+      }
+    }
+  });
+
+  return { ids, names };
+};
+
 const MLD = () => {
   const router = useRouter();
   const {
@@ -527,6 +561,7 @@ const MLD = () => {
     selectedChildOrg,
   } = useEffectiveOrg();
   const { selectedFrameworks, toggleFramework, isAllSelected, availableFrameworks } = useFramework();
+  const [allDepartments, setAllDepartments] = useState([]);
   const fwColorMap = useMemo(
     () => Object.fromEntries(availableFrameworks.map((fw) => [fw.code, fw.color])),
     [availableFrameworks]
@@ -571,6 +606,18 @@ const MLD = () => {
       checker.hydrateDocs(uploadedDocIds);
     }
   }, [documents]);
+
+  // Read search parameters to pre-select filters (e.g. when coming from the Dashboard Upload card)
+  useEffect(() => {
+    const initialSort = searchParams.get("sort");
+    const initialFilter = searchParams.get("filter");
+    if (initialSort) {
+      setSoaSort(initialSort);
+    }
+    if (initialFilter) {
+      setUploadFilter(initialFilter);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (!effectiveOrgId) return;
@@ -629,6 +676,24 @@ const MLD = () => {
       url: "/documentation/mld",
     });
   }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
+    const token = sessionStorage.getItem("token");
+    fetch("https://api.calvant.com/user-service/api/departments", {
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setAllDepartments(data);
+        }
+      })
+      .catch(console.error);
+  }, [mounted]);
 
   useEffect(() => {
     if (previewModalOpen) {
@@ -735,7 +800,36 @@ const MLD = () => {
     try {
       const docs = (await documentationService.getDocuments()) || [];
       const orgDocs = docs.filter((d) => d.organization === effectiveOrgId);
-      setDocuments(orgDocs);
+      
+      const { ids: userDeptIds, names: resolvedNames } = getResolvedDepartmentInfo(user, allDepartments);
+
+      // Extra fallback: if allDepartments hadn't loaded yet, also resolve directly from user.department
+      const directName =
+        user?.department?.name ||
+        allDepartments.find(
+          (d) =>
+            String(d._id) === String(user?.department?._id || user?.department) ||
+            String(d.id) === String(user?.department?._id || user?.department)
+        )?.name ||
+        null;
+
+      const allResolvedNames = [
+        ...resolvedNames,
+        ...(directName && !resolvedNames.includes(directName) ? [directName] : []),
+      ];
+      const lowercaseUserDeptNames = allResolvedNames.map((n) => n.toLowerCase());
+
+      const filteredDocs = orgDocs.filter((doc) => {
+        const docDept = String(doc.departmentName || doc.department || doc.dept || "").toLowerCase();
+        return (
+          isPrivilegedRole ||
+          !docDept ||
+          lowercaseUserDeptNames.includes(docDept) ||
+          userDeptIds.includes(docDept)
+        );
+      });
+
+      setDocuments(filteredDocs);
       const soaList = (await documentationService.getSoAEntries()) || [];
       const orgSoas = soaList.filter((s) => s.organization === effectiveOrgId);
       setSoas(orgSoas);
@@ -744,7 +838,7 @@ const MLD = () => {
       setDocuments([]);
       setSoas([]);
     }
-  }, [effectiveOrgId]);
+  }, [effectiveOrgId, user, allDepartments, isPrivilegedRole]);
 
   useEffect(() => {
     if (mounted) {
@@ -755,6 +849,9 @@ const MLD = () => {
   // Build rows
   const allDocRows = useMemo(() => {
     if (controlsLoading || backendControls.length === 0) return [];
+    
+    const { ids: userDeptIds, names: userDeptNames } = getResolvedDepartmentInfo(user, allDepartments);
+
     const soaMap = {};
     soas.forEach((soa) => {
       const fw = (soa.framework || "").trim();
@@ -779,6 +876,17 @@ const MLD = () => {
 
       docsList.forEach(({ doc, type, dept }) => {
         if (!doc) return;
+
+        // Department Access Check (unless privileged/admin)
+        const docDeptVal = String(dept || "").toLowerCase();
+        const lowercaseUserDeptNames = userDeptNames.map((n) => n.toLowerCase());
+        const hasAccess =
+          isPrivilegedRole ||
+          !docDeptVal ||
+          lowercaseUserDeptNames.includes(docDeptVal) ||
+          userDeptIds.includes(docDeptVal);
+        if (!hasAccess) return;
+
         const docName = doc.trim();
         const key = `${framework}:${cat}:${docName}`;
         if (seen.has(key)) return;
@@ -794,7 +902,7 @@ const MLD = () => {
       });
     });
     return rows;
-  }, [backendControls, controlsLoading, soas]);
+  }, [backendControls, controlsLoading, soas, user, allDepartments, isPrivilegedRole]);
 
   // ── Column sort handler ────────────────────────────────────────────────
   const handleColSort = useCallback((key) => {
@@ -972,12 +1080,50 @@ const MLD = () => {
     }
   }, [searchParams, filteredDocRows]);
 
+  const getLatestDocForSoA = (soaId) => {
+    // Resolve user's department info for access check
+    const { ids: userDeptIds, names: userDeptNames } = getResolvedDepartmentInfo(user, allDepartments);
+    const lowercaseUserDeptNames = userDeptNames.map((n) => n.toLowerCase());
+    // Filter documents belonging to the given SoA and that the user has access to
+    const accessibleDocs = documents
+      .filter((d) => String(d.soaId) === String(soaId))
+      .filter((d) => {
+        const docDept = String(d.departmentName || d.department || d.dept || "").toLowerCase();
+        return (
+          isPrivilegedRole ||
+          !docDept ||
+          lowercaseUserDeptNames.includes(docDept) ||
+          userDeptIds.includes(docDept)
+        );
+      })
+      .sort((a, b) => b.version - a.version);
+    return accessibleDocs.find((d) => !d.deleted) || accessibleDocs[0];
+  };
+
   // Counts
   const totalDocsToUpload = allDocRows.length;
   const docCount = useMemo(() => {
-    const soaIds = new Set(soas.map((s) => s.id.toString()));
-    return documents.filter((d) => soaIds.has(d.soaId?.toString())).length;
-  }, [documents, soas]);
+    // Inline department filtering here so all deps are declared explicitly.
+    // Previously this called getLatestDocForSoA() which captured user/allDepartments
+    // via closure but those were missing from the dep array — causing the count
+    // to be wrong (often 0) when allDepartments loaded after documents.
+    const { ids: userDeptIds, names: userDeptNames } = getResolvedDepartmentInfo(user, allDepartments);
+    const lcNames = userDeptNames.map((n) => n.toLowerCase());
+
+    return allDocRows.filter((row) => {
+      const soaId = row.soaEntry?.id ?? null;
+      if (!soaId) return false;
+      const doc = documents
+        .filter((d) => String(d.soaId) === String(soaId))
+        .filter((d) => {
+          const dept = String(d.departmentName || d.department || d.dept || "").toLowerCase();
+          return isPrivilegedRole || !dept || lcNames.includes(dept) || userDeptIds.includes(dept);
+        })
+        .filter((d) => !d.deleted)
+        .sort((a, b) => b.version - a.version)[0];
+      return !!doc;
+    }).length;
+  }, [allDocRows, documents, user, allDepartments, isPrivilegedRole]);
 
   const frameworkCounts = useMemo(
     () => Object.fromEntries(
@@ -985,13 +1131,6 @@ const MLD = () => {
     ),
     [allDocRows, availableFrameworks]
   );
-
-  const getLatestDocForSoA = (soaId) => {
-    const docs = documents
-      .filter((d) => String(d.soaId) === String(soaId))
-      .sort((a, b) => b.version - a.version);
-    return docs.find((d) => !d.deleted) || docs[0];
-  };
 
   const handlePreviewClick = (soaEntry) => {
     const doc = documents.find((d) => String(d.soaId) === String(soaEntry.id) && !d.deleted);
@@ -1017,7 +1156,7 @@ const MLD = () => {
     setPreviewUrl("");
   };
 
-  const handleSingleButtonUpload = async (soaId) => {
+  const handleSingleButtonUpload = async (soaId, rowDocDept) => {
     const input = document.createElement("input");
     input.type = "file";
     input.accept = "*/*";
@@ -1026,10 +1165,33 @@ const MLD = () => {
       if (!file) return;
       try {
         setUploading((p) => ({ ...p, [soaId]: true }));
+
+        // Priority 1: use the department already on this row (set by backend control data)
+        // Priority 2: resolve from user profile + allDepartments lookup
+        // Priority 3: fallback to raw department id stored on user
+        let primaryDeptName = rowDocDept ? rowDocDept.trim() : "";
+        if (!primaryDeptName) {
+          const { names: resolvedDeptNames } = getResolvedDepartmentInfo(user, allDepartments);
+          primaryDeptName = resolvedDeptNames[0]
+            ? resolvedDeptNames[0]
+            : (
+                // last-resort: pull from user.department directly if it's a populated object
+                user?.department?.name ||
+                // or look it up by the raw ID in allDepartments
+                allDepartments.find(
+                  (d) =>
+                    String(d._id) === String(user?.department?._id || user?.department) ||
+                    String(d.id) === String(user?.department?._id || user?.department)
+                )?.name ||
+                ""
+              );
+        }
+        // Normalise: store consistently in UPPERCASE so filter comparisons work
+        primaryDeptName = (primaryDeptName || "N/A").toUpperCase();
         await documentationService.uploadDocument({
           file, soaId, controlId: "",
           uploaderName: user?.name ?? "Unknown",
-          departmentName: user?.departments?.[0]?.name ?? "N/A",
+          departmentName: primaryDeptName,
           organization: effectiveOrgId,
         });
         captureActivity({
@@ -1516,7 +1678,7 @@ const MLD = () => {
                             {soaId ? (
                               <button
                                 id="mld-upload-btn"
-                                onClick={() => !isUploaded && handleSingleButtonUpload(soaId)}
+                                onClick={() => !isUploaded && handleSingleButtonUpload(soaId, docDept)}
                                 disabled={isUploaded || uploading[soaId]}
                                 style={{
                                   backgroundColor: isUploaded ? "#2ecc71" : "#f1f1f1",
