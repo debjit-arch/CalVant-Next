@@ -1,4 +1,6 @@
-﻿'use client'
+//cf-tool-frontend-main\src\modules\admin\components\Users\ListUser.jsx
+
+"use client";
 
 import React, { useEffect, useState } from "react";
 import { jwtDecode } from "jwt-decode";
@@ -127,7 +129,9 @@ function ListUsers() {
 
   const fetchUsers = async () => {
     try {
-      const { data } = await api.get("https://api.calvant.com/user-service/api/users");
+      const { data } = await api.get(
+        "https://api.calvant.com/user-service/api/users",
+      );
       // partner root sees users from their own org + all child orgs
       // backend already filters by org from JWT, but we need child org users too
       // so for partner root, fetch all and filter client-side by known child orgs
@@ -149,7 +153,9 @@ function ListUsers() {
 
   const fetchDepartments = async () => {
     try {
-      const { data } = await api.get("https://api.calvant.com/user-service/api/departments");
+      const { data } = await api.get(
+        "https://api.calvant.com/user-service/api/departments",
+      );
       setDepartments(Array.isArray(data) ? data : []);
     } catch {}
   };
@@ -188,16 +194,6 @@ function ListUsers() {
 
       if (field === "role") {
         finalValue = Array.isArray(value) ? [...value] : [value];
-        const hasUser = finalValue.includes("user");
-        const hasOther = finalValue.some((r) => r !== "user");
-
-        if (hasUser && hasOther) {
-          if (prev.role.includes("user")) {
-            finalValue = finalValue.filter((r) => r !== "user");
-          } else {
-            finalValue = ["user"];
-          }
-        }
       }
 
       const updated = { ...prev, [field]: finalValue };

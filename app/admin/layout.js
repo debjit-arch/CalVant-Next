@@ -1,3 +1,7 @@
+//cf-tool-frontend-main\app\admin\layout.js
+
+
+
 'use client'
 
 // AdminLayout.jsx and AdminProtectedRoute.jsx are merged here.
@@ -6,13 +10,17 @@
 
 import AdminLayout from '@/modules/admin/AdminLayout'
 import AdminProtectedRoute from '@/modules/admin/AdminProtectedRoute'
+import AppProvider from '@/modules/admin/shell/components/AppProvider/AppProvider'
 
 export default function AdminRootLayout({ children }) {
   return (
     <AdminProtectedRoute>
-      <AdminLayout>
-        {children}
-      </AdminLayout>
+      <AppProvider>
+        <AdminLayout>
+          {children}
+        </AdminLayout>
+      </AppProvider>
     </AdminProtectedRoute>
   )
 }
+

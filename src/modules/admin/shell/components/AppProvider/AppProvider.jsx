@@ -5,7 +5,6 @@ import { ThemeProvider, createTheme } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
 import { CacheProvider } from "@emotion/react";
 import createCache from "@emotion/cache";
-import rtlPlugin from "stylis-plugin-rtl";
 import { indigo, red } from "@mui/material/colors";
 
 const Context = createContext();
@@ -25,7 +24,11 @@ const reducer = (state, action) => {
 const createEmotionCache = (dir) =>
   createCache({
     key: dir === "rtl" ? "mui-rtl" : "mui",
-    stylisPlugins: dir === "rtl" ? [rtlPlugin] : [],
+    // NOTE: stylis-plugin-rtl isn't in package.json, so RTL CSS flipping is
+    // skipped. document.body.dir is still set to "rtl"/"ltr" below, which
+    // covers native browser RTL layout; only the MUI stylis-level property
+    // flipping (e.g. margin-left <-> margin-right) is unavailable.
+    stylisPlugins: [],
   });
 
 // ---------------- Provider ----------------

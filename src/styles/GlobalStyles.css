@@ -1,3 +1,6 @@
+ /* global style css */
+
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -57,4 +60,53 @@ main header,
 .page-header {
   text-align: left !important;
 }
+
+/* ==========================================================================
+   ADMIN PANEL TEXT COLOR & FONT WEIGHT CORRECTION
+   Forces proper dark slate colors and font weights on all admin page elements,
+   resolving the client-side navigation style fade/un-bold bug.
+   ========================================================================== */
+
+/* Target admin content text classes while excluding specific overrides (errors, alerts, chips, indicators) */
+.admin-content-container .MuiTypography-h1:not(.MuiTypography-colorError):not(.MuiTypography-colorSuccess):not(.MuiTypography-colorWarning):not(.MuiTypography-colorInfo):not(.MuiAlert-message):not(.MuiAlert-root *),
+.admin-content-container .MuiTypography-h2:not(.MuiTypography-colorError):not(.MuiTypography-colorSuccess):not(.MuiTypography-colorWarning):not(.MuiTypography-colorInfo):not(.MuiAlert-message):not(.MuiAlert-root *),
+.admin-content-container .MuiTypography-h3:not(.MuiTypography-colorError):not(.MuiTypography-colorSuccess):not(.MuiTypography-colorWarning):not(.MuiTypography-colorInfo):not(.MuiAlert-message):not(.MuiAlert-root *),
+.admin-content-container .MuiTypography-h4:not(.MuiTypography-colorError):not(.MuiTypography-colorSuccess):not(.MuiTypography-colorWarning):not(.MuiTypography-colorInfo):not(.MuiAlert-message):not(.MuiAlert-root *),
+.admin-content-container .MuiTypography-h5:not(.MuiTypography-colorError):not(.MuiTypography-colorSuccess):not(.MuiTypography-colorWarning):not(.MuiTypography-colorInfo):not(.MuiAlert-message):not(.MuiAlert-root *),
+.admin-content-container .MuiTypography-h6:not(.MuiTypography-colorError):not(.MuiTypography-colorSuccess):not(.MuiTypography-colorWarning):not(.MuiTypography-colorInfo):not(.MuiAlert-message):not(.MuiAlert-root *),
+.admin-content-container .MuiTypography-subtitle1:not(.MuiTypography-colorError):not(.MuiTypography-colorSuccess):not(.MuiTypography-colorWarning):not(.MuiTypography-colorInfo):not(.MuiAlert-message):not(.MuiAlert-root *),
+.admin-content-container .MuiTypography-subtitle2:not(.MuiTypography-colorError):not(.MuiTypography-colorSuccess):not(.MuiTypography-colorWarning):not(.MuiTypography-colorInfo):not(.MuiAlert-message):not(.MuiAlert-root *),
+.admin-content-container .MuiTypography-body1:not(.MuiTypography-colorError):not(.MuiTypography-colorSuccess):not(.MuiTypography-colorWarning):not(.MuiTypography-colorInfo):not(.MuiAlert-message):not(.MuiAlert-root *):not(.MuiChip-label),
+.admin-content-container .MuiTableCell-root:not(.MuiTableCell-paddingCheckbox *),
+.admin-content-container .MuiInputLabel-root,
+.admin-content-container .MuiFormLabel-root,
+.admin-content-container h1, .admin-content-container h2, .admin-content-container h3, .admin-content-container h4, .admin-content-container h5, .admin-content-container h6 {
+  color: #1e293b !important;
+}
+
+/* Ensure headings are properly bold */
+.admin-content-container .MuiTypography-h1,
+.admin-content-container .MuiTypography-h2,
+.admin-content-container .MuiTypography-h3,
+.admin-content-container .MuiTypography-h4,
+.admin-content-container .MuiTypography-h5,
+.admin-content-container .MuiTypography-h6,
+.admin-content-container h1, .admin-content-container h2, .admin-content-container h3, .admin-content-container h4, .admin-content-container h5, .admin-content-container h6 {
+  font-weight: 700 !important;
+}
+
+/* Subtitles / Secondary text - make sure it's readable dark gray, not faded */
+.admin-content-container .MuiTypography-colorTextSecondary:not(.MuiTypography-colorError):not(.MuiTypography-colorSuccess):not(.MuiAlert-message):not(.MuiAlert-root *),
+.admin-content-container .MuiTypography-body2:not(.MuiTypography-colorError):not(.MuiTypography-colorSuccess):not(.MuiTypography-colorWarning):not(.MuiTypography-colorInfo):not(.MuiAlert-message):not(.MuiAlert-root *):not(.MuiChip-label),
+.admin-content-container .MuiTypography-root[color="text.secondary"]:not(.MuiAlert-message):not(.MuiAlert-root *),
+.admin-content-container .MuiTypography-root[color="textSecondary"]:not(.MuiAlert-message):not(.MuiAlert-root *) {
+  color: #475569 !important;
+}
+
+/* Disabled/Helper text - readable gray, never faded out */
+.admin-content-container .MuiTypography-root[color="text.disabled"]:not(.MuiAlert-message):not(.MuiAlert-root *),
+.admin-content-container .MuiFormHelperText-root {
+  color: #64748b !important;
+}
+
 

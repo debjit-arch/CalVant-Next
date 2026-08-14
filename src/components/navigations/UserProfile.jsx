@@ -11,6 +11,7 @@ const UserProfile = ({ handleLogout }) => {
   const [frameworkOpen, setFrameworkOpen] = useState(false);
   const modalRef = useRef(null);
   const [childOrgs, setChildOrgs] = useState([]);
+  const [allDepartments, setAllDepartments] = useState([]);
 
   const {
     user,
@@ -74,6 +75,25 @@ const UserProfile = ({ handleLogout }) => {
     }
   }, [mounted, showOrgSwitcher, isPartnerRoot, isOrgManager, managedOrgs]);
 
+  // ── Fetch all departments for mapping ID to Name ────────────────────────
+  useEffect(() => {
+    if (!mounted) return;
+    const token = sessionStorage.getItem("token");
+    fetch("https://api.calvant.com/user-service/api/departments", {
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setAllDepartments(data);
+        }
+      })
+      .catch(console.error);
+  }, [mounted]);
+
   // ── Org switcher handler ──────────────────────────────────────────────────
   const handleOrgChange = (e) => {
     if (!e.target.value) {
@@ -130,11 +150,30 @@ const UserProfile = ({ handleLogout }) => {
         )
       : ["root", "dpo", "ciso", "aio", "super_admin"].includes(user.role);
     if (isPrivileged || isViewingManagedOrg) return "All";
-    if (user.departments?.length > 0)
-      return user.departments.map((d) => d.name).join(", ");
-    if (Array.isArray(user.department))
-      return user.department.map((d) => d?.name || d).join(", ");
-    return user.department?.name || "—";
+
+    const resolveDeptName = (dept) => {
+      if (!dept) return "";
+      if (typeof dept === "object") {
+        if (dept.name) return dept.name;
+        const found = allDepartments.find(
+          (d) => d._id === dept._id || d.id === dept.id || d._id === dept || d.id === dept
+        );
+        return found ? found.name : (dept._id || dept.id || "");
+      }
+      if (typeof dept === "string") {
+        const found = allDepartments.find((d) => d._id === dept || d.id === dept);
+        return found ? found.name : dept;
+      }
+      return "";
+    };
+
+    if (user.departments?.length > 0) {
+      return user.departments.map(resolveDeptName).filter(Boolean).join(", ");
+    }
+    if (Array.isArray(user.department)) {
+      return user.department.map(resolveDeptName).filter(Boolean).join(", ");
+    }
+    return resolveDeptName(user.department) || "—";
   };
 
   // ── AccordionRow (unchanged) ──────────────────────────────────────────────

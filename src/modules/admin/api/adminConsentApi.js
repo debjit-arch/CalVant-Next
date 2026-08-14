@@ -1,4 +1,6 @@
 /**
+ * 
+ *cf-tool-frontend-main\src\modules\admin\api\adminConsentApi.js
  * consentApi.js
  * API layer for the Consent Management microservice.
  * Follows the same fetch + authHeaders pattern as trustCentreApi.js.
@@ -24,7 +26,7 @@ const CONSENT_BASE_URL =
 
 const BASE = `${CONSENT_BASE_URL}/api/v1`;
 
-const getToken = () => localStorage.getItem("token");
+const getToken = () => sessionStorage.getItem("token") || localStorage.getItem("token");
 
 const authHeaders = (extra = {}) => ({
   Authorization: `Bearer ${getToken()}`,

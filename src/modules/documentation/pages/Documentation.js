@@ -1044,6 +1044,40 @@ import { motion, AnimatePresence } from "framer-motion";
 // Documentation dashboard
 // ---------------------------------------------------------------------------
 
+const getResolvedDepartmentInfo = (currentUser, allDepartments) => {
+  if (!currentUser) return { ids: [], names: [] };
+  const depts = currentUser.departments || (currentUser.department ? (Array.isArray(currentUser.department) ? currentUser.department : [currentUser.department]) : []);
+  const ids = [];
+  const names = [];
+
+  depts.forEach((dept) => {
+    if (!dept) return;
+    if (typeof dept === "object") {
+      const idVal = dept._id || dept.id || "";
+      if (idVal) ids.push(String(idVal).toLowerCase());
+      
+      if (dept.name) {
+        names.push(String(dept.name));
+      } else if (idVal) {
+        const found = allDepartments.find((d) => String(d._id) === String(idVal) || String(d.id) === String(idVal));
+        if (found && found.name) {
+          names.push(String(found.name));
+        }
+      }
+    } else if (typeof dept === "string") {
+      ids.push(dept.toLowerCase());
+      const found = allDepartments.find((d) => String(d._id) === String(dept) || String(d.id) === String(dept));
+      if (found && found.name) {
+        names.push(String(found.name));
+      } else {
+        names.push(dept);
+      }
+    }
+  });
+
+  return { ids, names };
+};
+
 const Documentation = () => {
   const router = useRouter();
   const chartsContainerRef = useRef(null);
@@ -1059,10 +1093,12 @@ const Documentation = () => {
     selectedChildOrg,
   } = useEffectiveOrg();
 
+  const [allDepartments, setAllDepartments] = useState([]);
+  const resolvedDept = useMemo(() => getResolvedDepartmentInfo(user, allDepartments), [user, allDepartments]);
   const userRoles = Array.isArray(user?.role) ? user.role : [user?.role || ""];
   const deptLabel = isPrivilegedRole
     ? "All"
-    : (user?.departments || []).map((d) => d.name).join(", ") || "Your";
+    : resolvedDept.names.map((n) => n.toUpperCase()).join(", ") || "Your";
 
   const [documentStats, setDocumentStats] = useState({
     total: 0,
@@ -1273,15 +1309,32 @@ When no policies have been archived, the screen shows a **No Archived Policies**
     }
   }, [mounted, user, router]);
 
+  useEffect(() => {
+    if (!mounted) return;
+    const token = sessionStorage.getItem("token");
+    fetch("https://api.calvant.com/user-service/api/departments", {
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setAllDepartments(data);
+        }
+      })
+      .catch(console.error);
+  }, [mounted]);
+
   // useEffect(() => {
   //   collapseSidebar();
   // }, [collapseSidebar]);
 
   // ── Count total required docs from backend controls ───────────────────────
   const getTotalFromBackendControls = (controls, currentUser, userIsAdmin) => {
-    const userDeptNames = (currentUser?.departments || []).map((d) =>
-      (d.name || "").toLowerCase(),
-    );
+    const { ids: userDeptIds, names: userDeptNames } = getResolvedDepartmentInfo(currentUser, allDepartments);
+    const lowercaseUserDeptNames = userDeptNames.map((n) => n.toLowerCase());
     const docsSet = new Set();
     controls.forEach((ctrl) => {
       if (!ctrl.documents?.length) return;
@@ -1295,7 +1348,7 @@ When no policies have been archived, the screen shows a **No Archived Policies**
       const hasAccess =
         userIsAdmin ||
         allDepts.length === 0 ||
-        allDepts.some((d) => userDeptNames.includes(d));
+        allDepts.some((d) => lowercaseUserDeptNames.includes(d) || userDeptIds.includes(d));
       if (!hasAccess) return;
       ctrl.documents.forEach(({ doc }) => {
         if (doc) docsSet.add(doc);
@@ -1330,19 +1383,42 @@ When no policies have been archived, the screen shows a **No Archived Policies**
         if (soa.id) soaFrameworkMap[String(soa.id)] = soa.framework;
       });
 
+      const { ids: userDeptIds, names: userDeptNames } = getResolvedDepartmentInfo(user, allDepartments);
+      const lowercaseUserDeptNames = userDeptNames.map((n) => n.toLowerCase());
+
       const orgDocs = (docs || [])
         .filter((d) => d.organization === effectiveOrgId)
         .map((doc) => ({
           ...doc,
           framework:
             soaFrameworkMap[String(doc.soaId)] || doc.framework || null,
-        }));
+        }))
+        .filter((doc) => {
+          const docDept = String(doc.departmentName || doc.department || doc.dept || "").toLowerCase();
+          return (
+            isPrivilegedRole ||
+            !docDept ||
+            lowercaseUserDeptNames.includes(docDept) ||
+            userDeptIds.includes(docDept)
+          );
+        });
 
       const frameworkDocs = orgDocs.filter((doc) =>
         selectedFW.includes(normalize(doc.framework)),
       );
 
-      setAllDocuments(frameworkDocs.filter((d) => !d.deleted));
+      // Deduplicate to only keep the latest version for each soaId
+      const uniqueDocsMap = {};
+      frameworkDocs.forEach((doc) => {
+        if (!doc.soaId) return;
+        const existing = uniqueDocsMap[doc.soaId];
+        if (!existing || doc.version > existing.version) {
+          uniqueDocsMap[doc.soaId] = doc;
+        }
+      });
+      const uniqueFrameworkDocs = Object.values(uniqueDocsMap).filter((d) => !d.deleted);
+
+      setAllDocuments(uniqueFrameworkDocs);
 
       const frameworkControls = availableFrameworks
         .flatMap((fw, i) =>
@@ -1359,12 +1435,12 @@ When no policies have been archived, the screen shows a **No Archived Policies**
         isPrivilegedRole,
       );
 
-      const uploaded = frameworkDocs.filter(
-        (doc) => !!doc.url && !doc.deleted,
+      const uploaded = uniqueFrameworkDocs.filter(
+        (doc) => !!doc.url,
       ).length;
 
-      // Count archived (soft-deleted) docs
-      const archived = frameworkDocs.filter(
+      // Count archived (soft-deleted) docs where the latest version is deleted
+      const archived = Object.values(uniqueDocsMap).filter(
         (doc) => doc.deleted === true,
       ).length;
 
@@ -1378,7 +1454,7 @@ When no policies have been archived, the screen shows a **No Archived Policies**
       console.error("Error loading document stats:", error);
       setDocumentStats({ total: 0, uploaded: 0, pending: 0, archived: 0 });
     }
-  }, [user, selectedFrameworks, isAllSelected, isPrivilegedRole, availableFrameworks, effectiveOrgId]);
+  }, [user, selectedFrameworks, isAllSelected, isPrivilegedRole, availableFrameworks, effectiveOrgId, allDepartments]);
 
   useEffect(() => {
     captureActivity({
@@ -1533,16 +1609,8 @@ When no policies have been archived, the screen shows a **No Archived Policies**
       icon: FolderOpen,
       title: "Upload",
       subtitle: "Documents",
-      path: "/documentation/mld",
+      path: "/documentation/mld?sort=soa_first&filter=not_uploaded",
       color: "from-blue-500 to-blue-600",
-    },
-    {
-      id: "view",
-      icon: FolderOpen,
-      title: "View",
-      subtitle: "Documents",
-      path: "/documentation/mld",
-      color: "from-orange-400 to-red-500",
     },
     {
       id: "archived",
@@ -1571,42 +1639,35 @@ When no policies have been archived, the screen shows a **No Archived Policies**
         {/* Header */}
         <motion.header
           id="dashboard-header"
-          className="bg-white/80 backdrop-blur-md border border-slate-100/50 rounded-xl shadow-md mb-2 p-6 !text-left"
-          style={{
-            textAlign: "left",
-            width: "100%",
-            justifyContent: "flex-start",
-            alignItems: "flex-start",
-          }}
+          className="bg-white/80 backdrop-blur-md border border-slate-100/50 rounded-xl shadow-md mb-2 lg:mb-2 p-4 lg:p-5 !text-left"
+          style={{ textAlign: "left", width: "100%", justifyContent: "flex-start", alignItems: "flex-start", justifyItems: "flex-start" }}
           initial={hasMounted ? { opacity: 0, y: -15 } : false}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
         >
           <div className="flex items-center justify-between w-full">
-            <div
-              className="flex items-center gap-4 flex-1"
-              style={{
-                justifyContent: "flex-start",
-                textAlign: "left",
-                alignItems: "flex-start",
-              }}
-            >
-              <div className="w-14 h-14 bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
-                <FileText className="w-7 h-7 text-white drop-shadow-sm" />
+
+            {/* LEFT SIDE: ICON + TITLE */}
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
+                <FileText className="w-6 h-6 text-white" />
               </div>
-              <div style={{ textAlign: "left" }}>
-                <h1 className="text-2xl font-semibold text-slate-800 leading-tight">
+
+              <div>
+                <h1 className="text-xl font-semibold text-slate-800">
                   Policies Dashboard
                 </h1>
-                <p className="text-base text-slate-600 mt-1">
+                <p className="text-sm text-slate-600">
                   {deptLabel} •{" "}
-                  <span className="font-bold text-2xl text-slate-900">
+                  <span className="font-bold text-slate-900">
                     {documentStats.total}
                   </span>{" "}
                   total policies
                 </p>
               </div>
             </div>
+
+            {/* RIGHT SIDE: BUTTONS */}
             <div className="flex items-center gap-3">
               <span className={`text-xs font-bold px-3 py-1.5 rounded-full ${isPrivilegedRole ? "bg-blue-100 text-blue-700" : "bg-violet-100 text-violet-700"}`}>
                 {isPrivilegedRole ? "Root" : (userRoles[0] ? userRoles[0].replace("_", " ") : "User")}
@@ -1633,7 +1694,7 @@ When no policies have been archived, the screen shows a **No Archived Policies**
                 <BookOpen size={15} className="text-slate-500" />
               </motion.button>
               <motion.button
-                className="px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 flex items-center gap-2"
+                className="px-5 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white text-sm font-semibold rounded-xl shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 flex items-center gap-2"
                 onClick={() => {
                   setRun(false);
                   setTimeout(() => setRun(true), 100);
@@ -1642,15 +1703,16 @@ When no policies have been archived, the screen shows a **No Archived Policies**
                 whileTap={{ scale: 0.98 }}
               >
                 <HelpCircle size={18} />
-                <span>Tutorial</span>
+                <span>Guide</span>
               </motion.button>
             </div>
+
           </div>
         </motion.header>
 
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 w-full min-w-0">
-          {/* LEFT */}
-          <div className="space-y-10 w-full min-w-0">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 lg:gap-10 h-full">
+          {/* Left: Stats + Actions */}
+          <div className="space-y-8 lg:space-y-10">
             {/* Stats Grid */}
             <motion.section
               id="stats-grid"
@@ -1674,7 +1736,7 @@ When no policies have been archived, the screen shows a **No Archived Policies**
                   label: "Uploaded",
                   color: "from-emerald-400 to-emerald-500",
                   id: "uploaded-docs",
-                  path: "/documentation/mld",
+                  path: "/documentation/mld?filter=uploaded&sort=soa_first",
                 },
                 {
                   Icon: AlertCircle,
@@ -1682,7 +1744,7 @@ When no policies have been archived, the screen shows a **No Archived Policies**
                   label: "Pending",
                   color: "from-orange-400 to-orange-500",
                   id: "pending-docs",
-                  path: "/documentation/mld",
+                  path: "/documentation/mld?filter=not_uploaded&sort=soa_first",
                 },
                 {
                   Icon: Archive,
@@ -1730,7 +1792,7 @@ When no policies have been archived, the screen shows a **No Archived Policies**
               <h3 className="text-lg lg:text-xl font-semibold text-slate-800 mb-6 px-1">
                 Quick Actions
               </h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 h-15">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3 h-15">
                 <AnimatePresence>
                   {actionCards.map(
                     ({ id, icon: Icon, title, subtitle, path, color, primary, badge }, index) => (
@@ -1778,25 +1840,30 @@ When no policies have been archived, the screen shows a **No Archived Policies**
             </motion.section>
           </div>
 
-          {/* RIGHT — Charts */}
+          {/* Right: Charts */}
           <div
             ref={chartsContainerRef}
             id="charts-container"
-            className="space-y-1 w-full min-w-0"
+            className="space-y-4 lg:space-y-3"
           >
-            {/* Pie Chart */}
+            {/* Pie Chart - Document Status Distribution */}
             <motion.div
-              className="bg-white/70 backdrop-blur-sm border border-slate-100/50 rounded-2xl p-3 shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-400 h-64 flex flex-col w-full min-w-0"
+              className="bg-white/70 backdrop-blur-sm border border-slate-100/50 rounded-2xl p-6 lg:p-7 shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-400 h-80 flex flex-col"
               initial={hasMounted ? { opacity: 0, scale: 0.95 } : false}
               animate={{ opacity: 1, scale: 1 }}
               whileHover={{ scale: 1.01 }}
             >
-              <h3 className="text-lg font-semibold text-slate-800 mb-6">
-                Document Status
-              </h3>
-              <div className="h-40 flex items-center justify-center w-full min-w-0">
+              <div className="mb-1 px-1 flex-shrink-0">
+                <h3 className="text-base lg:text-lg font-semibold text-slate-800">
+                  Document Status
+                </h3>
+                <p className="text-xs text-slate-500 font-medium">
+                  Uploaded vs Pending
+                </p>
+              </div>
+              <div className="flex-1 flex items-center justify-center min-h-0">
                 {documentStats.total > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%" debounce={50}>
+                  <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
                         data={pieData}
@@ -1804,8 +1871,8 @@ When no policies have been archived, the screen shows a **No Archived Policies**
                         nameKey="name"
                         cx="50%"
                         cy="50%"
-                        innerRadius={35}
-                        outerRadius={65}
+                        innerRadius={38}
+                        outerRadius={66}
                         paddingAngle={2}
                         stroke="white"
                         strokeWidth={3}
@@ -1819,8 +1886,10 @@ When no policies have been archived, the screen shows a **No Archived Policies**
                         x="50%"
                         y="42%"
                         textAnchor="middle"
-                        dominantBaseline="left"
-                        className="fill-slate-700 text-sm font-semibold"
+                        dominantBaseline="middle"
+                        fill="#475569"
+                        fontSize={12}
+                        fontWeight={600}
                       >
                         Total
                       </text>
@@ -1829,7 +1898,9 @@ When no policies have been archived, the screen shows a **No Archived Policies**
                         y="52%"
                         textAnchor="middle"
                         dominantBaseline="middle"
-                        className="fill-slate-900 text-2xl font-bold"
+                        fill="#111827"
+                        fontSize={20}
+                        fontWeight={700}
                       >
                         {documentStats.total}
                       </text>
@@ -1853,84 +1924,142 @@ When no policies have been archived, the screen shows a **No Archived Policies**
               </div>
             </motion.div>
 
-            {/* Bar Chart */}
+            {/* Bar Chart - Monthly Upload Trends */}
             <motion.div
-              className="bg-white/70 backdrop-blur-sm border border-slate-100/50 rounded-2xl p-6 shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300 h-72 w-full min-w-0"
+              style={{
+                background: "rgba(255,255,255,0.7)",
+                backdropFilter: "blur(8px)",
+                border: "1px solid #f1f5f9",
+                borderRadius: "16px",
+                padding: "24px",
+                height: "288px",
+                display: "flex",
+                flexDirection: "column",
+                boxShadow: "0 8px 20px rgba(0,0,0,0.05)",
+                transition: "all 0.4s ease",
+              }}
               initial={hasMounted ? { opacity: 0, scale: 0.95 } : false}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.5, delay: 0.3 }}
               whileHover={{ scale: 1.01 }}
             >
-              <div className="mb-3">
-                <h3 className="text-base font-semibold text-slate-800 mb-1">
-                  Upload Trends
+              <div style={{ marginBottom: "14px" }}>
+                <h3
+                  style={{
+                    fontSize: "16px",
+                    fontWeight: 600,
+                    color: "#1e293b",
+                    marginBottom: "4px",
+                  }}
+                >
+                  📈 Monthly Upload Trends
                 </h3>
-                <p className="text-xs text-slate-500">
-                  Documents by month{" "}
-                  <span className="ml-1 px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full font-semibold">
-                    {barData.reduce((s, d) => s + d.value, 0)} total
-                  </span>
+
+                <p
+                  style={{
+                    fontSize: "13px",
+                    color: "#64748b",
+                    fontWeight: 500,
+                  }}
+                >
+                  Each bar shows NEW documents uploaded each month
                 </p>
               </div>
-              {barData.some((d) => d.value > 0) ? (
-                <ResponsiveContainer width="100%" height="75%" debounce={50}>
-                  <BarChart
-                    data={barData}
-                    margin={{ top: 10, right: 10, left: 0, bottom: 5 }}
+
+              <div style={{ flex: 1 }}>
+                {barData.some((d) => d.value > 0) ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={barData}
+                      margin={{ top: 10, right: 10, left: -10, bottom: 0 }}
+                      barCategoryGap="25%"
+                    >
+                      <CartesianGrid
+                        vertical={false}
+                        stroke="#f1f5f9"
+                        strokeDasharray="3 3"
+                      />
+
+                      <XAxis
+                        dataKey="name"
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{
+                          fontSize: 12,
+                          fill: "#6b7280",
+                          fontWeight: 500,
+                        }}
+                      />
+
+                      <Tooltip content={<CustomBarTooltip />} />
+
+                      <Bar dataKey="value" radius={[6, 6, 0, 0]} barSize={24}>
+                        {barData.map((entry, index) => (
+                          <Cell
+                            key={`bar-${index}`}
+                            fill={
+                              [
+                                "#3b82f6",
+                                "#60a5fa",
+                                "#93c5fd",
+                                "#bfdbfe",
+                                "#dbeafe",
+                                "#eff6ff",
+                                "#e0f2fe",
+                                "#bae6fd",
+                                "#7dd3fc",
+                                "#38bdf8",
+                                "#0ea5e9",
+                                "#0284c7",
+                              ][index]
+                            }
+                          />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      height: "100%",
+                      textAlign: "center",
+                    }}
                   >
-                    <CartesianGrid
-                      vertical={false}
-                      stroke="#f8fafc"
-                      strokeDasharray="3 3"
+                    <BarChart3
+                      size={38}
+                      style={{
+                        color: "#cbd5f5",
+                        marginBottom: "8px",
+                      }}
+                      strokeWidth={1.5}
                     />
-                    <XAxis
-                      dataKey="name"
-                      axisLine={false}
-                      tickLine={false}
-                      tick={{ fontSize: 11, fill: "#94a3b8", fontWeight: 500 }}
-                    />
-                    <YAxis hide />
-                    <Tooltip content={<CustomBarTooltip />} />
-                    <Bar dataKey="value" radius={[5, 5, 0, 0]} barSize={24}>
-                      {barData.map((entry, index) => (
-                        <Cell
-                          key={`bar-${index}`}
-                          fill={
-                            [
-                              "#3b82f6",
-                              "#60a5fa",
-                              "#93c5fd",
-                              "#bfdbfe",
-                              "#dbeafe",
-                              "#eff6ff",
-                              "#e0f2fe",
-                              "#bae6fd",
-                              "#7dd3fc",
-                              "#38bdf8",
-                              "#0ea5e9",
-                              "#0284c7",
-                            ][index % 12]
-                          }
-                        />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="flex flex-col items-center justify-center h-full text-center">
-                  <BarChart3
-                    size={40}
-                    className="text-slate-300 mb-3"
-                    strokeWidth={1.5}
-                  />
-                  <p className="text-base font-semibold text-slate-400 mb-1">
-                    No Upload Data
-                  </p>
-                  <p className="text-sm text-slate-400">
-                    Documents need to be uploaded to display trends
-                  </p>
-                </div>
-              )}
+
+                    <p
+                      style={{
+                        fontSize: "14px",
+                        fontWeight: 600,
+                        color: "#94a3b8",
+                        marginBottom: "4px",
+                      }}
+                    >
+                      No Upload Data
+                    </p>
+
+                    <p
+                      style={{
+                        fontSize: "12px",
+                        color: "#94a3b8",
+                      }}
+                    >
+                      Documents need to be uploaded to display trends
+                    </p>
+                  </div>
+                )}
+              </div>
             </motion.div>
           </div>
         </div>
@@ -1942,9 +2071,9 @@ When no policies have been archived, the screen shows a **No Archived Policies**
         content={DOCUMENTATION_HELP_CONTENT}
       />
 
-      <footer className="bg-white/90 backdrop-blur-md border-t border-slate-100/50 shadow-lg px-8 py-5 sticky bottom-0 z-50">
+      <footer className="bg-white/90 backdrop-blur-md border-t border-slate-100/50 shadow-lg px-6 py-4 lg:px-8 lg:py-5 sticky bottom-0 z-0">
         <div className="max-w-7xl mx-auto text-center">
-          <p className="text-base text-slate-600 font-medium">
+          <p className="text-sm lg:text-base text-slate-600 font-medium">
             © {new Date().getFullYear()} CalVant. All rights reserved.
           </p>
         </div>

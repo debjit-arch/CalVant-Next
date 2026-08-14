@@ -1,5 +1,8 @@
+//cf-tool-frontend-main\src\hooks\useEffectiveOrg.js
+
 import { useState, useEffect, useMemo } from "react";
 import axios from "axios";
+import { getUserRoles } from "@/utils/departmentUtils";
 
 export function useEffectiveOrg() {
   const [user, setUser] = useState(null);
@@ -37,6 +40,17 @@ export function useEffectiveOrg() {
         if (!currentUser) {
           setMounted(true);
           return;
+        }
+
+        // Preserve populated department objects from login session if /me returns raw ID array
+        const stored = sessionStorage.getItem("user");
+        if (stored) {
+          try {
+            const storedUser = JSON.parse(stored);
+            if (!currentUser.departments && storedUser?.departments) {
+              currentUser.departments = storedUser.departments;
+            }
+          } catch (e) {}
         }
 
         setUser(currentUser);
@@ -84,20 +98,10 @@ export function useEffectiveOrg() {
   }, [mounted]);
 
   // ── role derivations ──────────────────────────────────────────────────────
-  const isRoot = useMemo(
-    () =>
-      Array.isArray(user?.role)
-        ? user.role.includes("root")
-        : user?.role === "root",
-    [user],
-  );
-  const isSuperAdmin = useMemo(
-    () =>
-      Array.isArray(user?.role)
-        ? user.role.includes("super_admin")
-        : user?.role === "super_admin",
-    [user],
-  );
+  const userRoles = useMemo(() => getUserRoles(user), [user]);
+  const isRoot = useMemo(() => userRoles.includes("root"), [userRoles]);
+  const isSuperAdmin = useMemo(() => userRoles.includes("super_admin"), [userRoles]);
+  const isRiskOwner = useMemo(() => userRoles.includes("risk_owner"), [userRoles]);
 
   const isPartnerRoot = isPartnerOrg && isRoot;
   const managedOrgs = useMemo(() => user?.managedOrgs || [], [user]);
@@ -107,10 +111,8 @@ export function useEffectiveOrg() {
     () =>
       isRoot ||
       isSuperAdmin ||
-      (Array.isArray(user?.role)
-        ? user.role.some((r) => ["dpo", "ciso", "aio"].includes(r))
-        : ["dpo", "ciso", "aio"].includes(user?.role)),
-    [isRoot, isSuperAdmin, user],
+      userRoles.some((r) => ["dpo", "ciso", "aio", "steering_committee_member"].includes(r)),
+    [isRoot, isSuperAdmin, userRoles],
   );
 
   const hasFullOrgAccess = isPrivilegedRole || isOrgManager;
@@ -257,6 +259,8 @@ export function useEffectiveOrg() {
     isOrgManager,
     isViewingManagedOrg,
     isPrivilegedRole,
+    isRiskOwner,
+    userRoles,
     hasFullOrgAccess,
     userDepartmentIds,
     isDepartmentScoped,
