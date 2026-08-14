@@ -213,3 +213,4 @@ export const TYPE_COLORS = {
   CLOUD: 'primary', HRMS: 'secondary', IAM: 'warning',
   TICKETING: 'info', COMMUNICATION: 'success', CUSTOM: 'default',
 };
+
