@@ -133,7 +133,7 @@ export default function SiteHeader() {
               >
                 Home
               </button>
-              <button
+              {/* <button
                 onClick={() => router.push("/pricing")}
                 style={{
                   display: "inline-flex", alignItems: "center", gap: "8px", padding: "8px 12px",
@@ -143,7 +143,7 @@ export default function SiteHeader() {
                 }}
               >
                 Pricing
-              </button>
+              </button> */}
             </>
           )}
 

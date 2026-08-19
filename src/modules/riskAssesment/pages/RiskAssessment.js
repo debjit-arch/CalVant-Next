@@ -400,28 +400,26 @@ const RiskAssessment = () => {
     return filteredRisks.reduce(
       (acc, risk) => {
         acc.total++;
-        const impact = Math.max(
-          parseInt(risk.confidentiality) || 0,
-          parseInt(risk.integrity) || 0,
-          parseInt(risk.availability) || 0,
-        );
-        const probability = parseInt(risk.probability) || 0;
-        const riskScore = impact * probability;
-        const level =
-          riskScore <= 3
-            ? "low"
-            : riskScore <= 8
-              ? "medium"
-              : riskScore <= 12
-                ? "high"
-                : "critical";
+        let score = 0;
+        if ((risk.status || "").toLowerCase() === "closed") {
+          score = parseInt(risk.likelihoodAfterTreatment || 0) * parseInt(risk.impactAfterTreatment || 0);
+        } else {
+          const impact = Math.max(
+            parseInt(risk.confidentiality) || 0,
+            parseInt(risk.integrity) || 0,
+            parseInt(risk.availability) || 0,
+          );
+          score = impact * (parseInt(risk.probability) || 0);
+        }
+        
+        const level = score <= 3 ? "low" : score <= 8 ? "medium" : "high";
         acc[level]++;
         (risk.status || "").toLowerCase() === "closed"
           ? acc.closed++
           : acc.open++;
         return acc;
       },
-      { total: 0, low: 0, medium: 0, high: 0, critical: 0, open: 0, closed: 0 },
+      { total: 0, low: 0, medium: 0, high: 0, open: 0, closed: 0 },
     );
   }, [filteredRisks]);
 
@@ -558,12 +556,6 @@ const RiskAssessment = () => {
       value: riskStats.high,
       color: "#ef4444",
       desc: `${riskStats.high} high priority risks`,
-    },
-    {
-      name: "Critical Risk",
-      value: riskStats.critical,
-      color: "#dc2626",
-      desc: `${riskStats.critical} critical risks`,
     },
   ].filter((d) => d.value > 0);
 
@@ -859,7 +851,7 @@ const RiskAssessment = () => {
             >
               {[
                 { Icon: BarChart3, value: riskStats.total, label: "Total", color: "from-blue-400 to-blue-500" },
-                { Icon: AlertTriangle, value: riskStats.high + riskStats.critical, label: "High", color: "from-red-400 to-red-500" },
+                { Icon: AlertTriangle, value: riskStats.high, label: "High", color: "from-red-400 to-red-500" },
                 { Icon: XCircle, value: riskStats.medium, label: "Medium", color: "from-orange-400 to-orange-500" },
                 { Icon: CheckCircle2, value: riskStats.low, label: "Low", color: "from-emerald-400 to-emerald-500" },
                 { Icon: Circle, value: riskStats.open, label: "Open", color: "from-sky-400 to-sky-500" },
