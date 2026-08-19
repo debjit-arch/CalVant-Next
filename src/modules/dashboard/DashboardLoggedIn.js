@@ -737,13 +737,18 @@ const orgIdsToFetch = useMemo(() => {
 
   const riskStats = useMemo(() => filteredRisks.reduce((acc, risk) => {
     acc.total++;
-    const impact = Math.max(parseInt(risk.confidentiality) || 0, parseInt(risk.integrity) || 0, parseInt(risk.availability) || 0);
-    const score = impact * (parseInt(risk.probability) || 0);
-    const level = score <= 3 ? "low" : score <= 8 ? "medium" : score <= 12 ? "high" : "critical";
+    let score = 0;
+    if (risk.status?.toLowerCase() === "closed") {
+      score = parseInt(risk.likelihoodAfterTreatment || 0) * parseInt(risk.impactAfterTreatment || 0);
+    } else {
+      const impact = Math.max(parseInt(risk.confidentiality) || 0, parseInt(risk.integrity) || 0, parseInt(risk.availability) || 0);
+      score = impact * (parseInt(risk.probability) || 0);
+    }
+    const level = score <= 3 ? "low" : score <= 8 ? "medium" : "high";
     acc[level]++;
     risk.status?.toLowerCase() === "closed" ? acc.closed++ : acc.open++;
     return acc;
-  }, { total: 0, low: 0, medium: 0, high: 0, critical: 0, open: 0, closed: 0 }), [filteredRisks]);
+  }, { total: 0, low: 0, medium: 0, high: 0, open: 0, closed: 0 }), [filteredRisks]);
 
   // ── DOCUMENTATION ─────────────────────────────────────────────────────────
   const [documentStats, setDocumentStats] = useState({ total: 0, uploaded: 0, pending: 0 });
@@ -1451,9 +1456,9 @@ const orgIdsToFetch = useMemo(() => {
               data={getPieChartData([
                 { name: "Low", value: riskStats.low, color: "#22c55e" },
                 { name: "Medium", value: riskStats.medium, color: "#f59e0b" },
-                { name: "High", value: riskStats.high + riskStats.critical, color: "#ef4444" }
+                { name: "High", value: riskStats.high, color: "#ef4444" }
               ])}
-              legend={[["#22c55e", riskStats.low, "Low"], ["#f59e0b", riskStats.medium, "Med"], ["#ef4444", riskStats.high + riskStats.critical, "High"], ["#9ca3af", riskStats.open, "Open"]]}
+              legend={[["#22c55e", riskStats.low, "Low"], ["#f59e0b", riskStats.medium, "Med"], ["#ef4444", riskStats.high, "High"], ["#9ca3af", riskStats.open, "Open"]]}
               centerValue={riskStats.total}
               centerLabel="Total"
             />

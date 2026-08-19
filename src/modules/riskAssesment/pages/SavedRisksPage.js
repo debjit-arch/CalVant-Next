@@ -36,26 +36,26 @@ function riskMatchesFilter(risk, allowedRiskTypes) {
 
 const STAT_CONFIG = {
   Total:    { gradient: "linear-gradient(135deg,#4f8ef7,#2563eb)",  Icon: ClipboardList  },
-  High:     { gradient: "linear-gradient(135deg,#f97316,#ea580c)",  Icon: AlertTriangle  },
-  Critical: { gradient: "linear-gradient(135deg,#ef4444,#dc2626)",  Icon: AlertOctagon   },
+  High:     { gradient: "linear-gradient(135deg,#ef4444,#dc2626)",  Icon: AlertTriangle  },
   Medium:   { gradient: "linear-gradient(135deg,#f59e0b,#d97706)",  Icon: ShieldAlert    },
   Low:      { gradient: "linear-gradient(135deg,#10b981,#059669)",  Icon: CheckCircle2   },
   Open:     { gradient: "linear-gradient(135deg,#6366f1,#4f46e5)",  Icon: Unlock         },
   Closed:   { gradient: "linear-gradient(135deg,#14b8a6,#0d9488)",  Icon: Lock           },
 };
 
-function StatCard({ value, label, index }) {
+function StatCard({ value, label, index, onClick }) {
   const s = STAT_CONFIG[label] || STAT_CONFIG["Total"];
   return (
     <div
+      onClick={onClick}
       style={{
         background: "white", border: "1px solid #f1f5f9", borderRadius: 12,
         padding: "14px 16px", boxShadow: "0 1px 4px rgba(0,0,0,0.05)",
-        display: "flex", alignItems: "center", gap: 12, cursor: "default",
-        transition: "box-shadow 0.2s", animation: `cardIn 0.4s ease ${index * 0.05}s both`,
+        display: "flex", alignItems: "center", gap: 12, cursor: onClick ? "pointer" : "default",
+        transition: "box-shadow 0.2s, transform 0.2s", animation: `cardIn 0.4s ease ${index * 0.05}s both`,
       }}
-      onMouseEnter={(e) => (e.currentTarget.style.boxShadow = "0 4px 14px rgba(0,0,0,0.09)")}
-      onMouseLeave={(e) => (e.currentTarget.style.boxShadow = "0 1px 4px rgba(0,0,0,0.05)")}
+      onMouseEnter={(e) => { e.currentTarget.style.boxShadow = "0 4px 14px rgba(0,0,0,0.09)"; e.currentTarget.style.transform = "translateY(-2px)"; }}
+      onMouseLeave={(e) => { e.currentTarget.style.boxShadow = "0 1px 4px rgba(0,0,0,0.05)"; e.currentTarget.style.transform = "translateY(0)"; }}
     >
       <div style={{
         width: 40, height: 40, borderRadius: 10, background: s.gradient,
@@ -122,10 +122,7 @@ const SavedRisksPage = () => {
   const displayedRisks = React.useMemo(() => {
     let base = baseRisks;
     if (filterParam === "High") {
-      base = base.filter((r) => {
-        const lvl = calculateRiskLevel(r);
-        return lvl === "High" || lvl === "Critical";
-      });
+      base = base.filter((r) => calculateRiskLevel(r) === "High");
     } else if (filterParam === "Medium") {
       base = base.filter((r) => calculateRiskLevel(r) === "Medium");
     } else if (filterParam === "Low") {
@@ -140,17 +137,16 @@ const SavedRisksPage = () => {
 
   const stats = React.useMemo(() => {
     const total = baseRisks.length;
-    let high = 0, medium = 0, low = 0, open = 0, closed = 0, critical = 0;
+    let high = 0, medium = 0, low = 0, open = 0, closed = 0;
     baseRisks.forEach((risk) => {
       const level = calculateRiskLevel(risk);
       if (level === "High") high++;
       if (level === "Medium") medium++;
       if (level === "Low") low++;
-      if (level === "Critical") critical++;
       const s = (risk.status || "").toLowerCase();
       if (s === "closed") closed++; else open++;
     });
-    return { total, high, medium, low, open, closed, critical };
+    return { total, high, medium, low, open, closed };
   }, [baseRisks]); // eslint-disable-line
 
   // ── Scroll hide/show ──────────────────────────────────────────────────────
@@ -323,8 +319,7 @@ const SavedRisksPage = () => {
     }
     if (riskScore <= 3) return "Low";
     if (riskScore <= 8) return "Medium";
-    if (riskScore <= 12) return "High";
-    return "Critical";
+    return "High";
   }
 
   const calculateRiskScore = (risk) => {
@@ -601,12 +596,19 @@ const SavedRisksPage = () => {
             {[
               { label: "Total",    value: stats.total    },
               { label: "High",     value: stats.high     },
-              { label: "Critical", value: stats.critical },
               { label: "Medium",   value: stats.medium   },
               { label: "Low",      value: stats.low      },
               { label: "Open",     value: stats.open     },
               { label: "Closed",   value: stats.closed   },
-            ].map((s, i) => <StatCard key={s.label} value={s.value} label={s.label} index={i} />)}
+            ].map((s, i) => (
+              <StatCard 
+                key={s.label} 
+                value={s.value} 
+                label={s.label} 
+                index={i} 
+                onClick={() => router.push(s.label === "Total" ? "/risk-assessment/saved" : `/risk-assessment/saved?filter=${encodeURIComponent(s.label)}`)} 
+              />
+            ))}
           </section>
 
 
