@@ -242,11 +242,6 @@ function AddTaskModal({ row, user, users, departments, onClose, onSuccess, effec
 
     setSaving(true);
     try {
-      /**
-       * Payload is IDENTICAL in shape to TaskManagement.saveTask payload.
-       * source: "Compliance" + controlId flags it as a Compliance task in
-       * TaskManagement's getSourceModule() helper — no backend change needed.
-       */
       const payload = {
         // context linkage
         riskId: undefined,
@@ -293,7 +288,6 @@ function AddTaskModal({ row, user, users, departments, onClose, onSuccess, effec
     }
   };
 
-  // ── Modal overlay ──────────────────────────────────────────────────────────
   return (
     <div style={{
       position: "fixed", inset: 0, background: "rgba(0,0,0,0.52)",
@@ -307,7 +301,6 @@ function AddTaskModal({ row, user, users, departments, onClose, onSuccess, effec
         fontFamily: "'DM Sans', sans-serif",
         animation: "taskModalIn 0.22s ease",
       }}>
-        {/* Header */}
         <div style={{
           background: "linear-gradient(135deg, #0d1117 0%, #1a1f2e 50%, #0d2241 100%)",
           borderRadius: "16px 16px 0 0", padding: "18px 22px",
@@ -344,11 +337,9 @@ function AddTaskModal({ row, user, users, departments, onClose, onSuccess, effec
           </div>
         </div>
 
-        {/* Body */}
         <div style={{ padding: "22px 22px 0" }}>
           <div style={{ display: "grid", gap: 14 }}>
 
-            {/* Department */}
             <div>
               <label style={labelStyle}>Department <span style={{ color: "#c92a2a" }}>*</span></label>
               <select
@@ -363,7 +354,6 @@ function AddTaskModal({ row, user, users, departments, onClose, onSuccess, effec
               </select>
             </div>
 
-            {/* Assign To */}
             <div>
               <label style={labelStyle}>Assign To</label>
               <select
@@ -388,7 +378,6 @@ function AddTaskModal({ row, user, users, departments, onClose, onSuccess, effec
               )}
             </div>
 
-            {/* Description */}
             <div>
               <label style={labelStyle}>Task Description <span style={{ color: "#c92a2a" }}>*</span></label>
               <textarea
@@ -400,7 +389,6 @@ function AddTaskModal({ row, user, users, departments, onClose, onSuccess, effec
               />
             </div>
 
-            {/* Dates */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <div>
                 <label style={labelStyle}>Start Date <span style={{ color: "#c92a2a" }}>*</span></label>
@@ -420,7 +408,6 @@ function AddTaskModal({ row, user, users, departments, onClose, onSuccess, effec
               </div>
             </div>
 
-            {/* Priority */}
             <div>
               <label style={labelStyle}>Priority</label>
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
@@ -446,7 +433,6 @@ function AddTaskModal({ row, user, users, departments, onClose, onSuccess, effec
               </div>
             </div>
 
-            {/* Remarks */}
             <div>
               <label style={labelStyle}>Remarks</label>
               <textarea
@@ -465,7 +451,6 @@ function AddTaskModal({ row, user, users, departments, onClose, onSuccess, effec
           </div>
         </div>
 
-        {/* Footer */}
         <div style={{ padding: "16px 22px 22px", display: "flex", gap: 10, justifyContent: "flex-end" }}>
           <button onClick={onClose} style={{
             padding: "9px 20px", borderRadius: 8, border: "1.5px solid #e9ecef",
@@ -498,7 +483,6 @@ function AddTaskModal({ row, user, users, departments, onClose, onSuccess, effec
   );
 }
 
-// shared micro-styles for AddTaskModal inputs
 const labelStyle = {
   fontSize: 13, fontWeight: 600, display: "block", marginBottom: 6, color: "#343a40",
 };
@@ -550,6 +534,7 @@ const getResolvedDepartmentInfo = (currentUser, allDepartments) => {
 
 const MLD = () => {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const {
     user,
     mounted,
@@ -595,9 +580,6 @@ const MLD = () => {
   const checker = useDocChecker();
   const [gateModal, setGateModal] = useState({ open: false, docId: null });
 
-  // Load users + departments once (needed for AddTaskModal) — does NOT touch
-  // any existing state; purely additive.
-  // Hydrate any previously-verified docs on page load (one batch, not per-row)
   useEffect(() => {
     const uploadedDocIds = documents
       .filter((d) => !d.deleted && d.id)
@@ -803,7 +785,6 @@ const MLD = () => {
       
       const { ids: userDeptIds, names: resolvedNames } = getResolvedDepartmentInfo(user, allDepartments);
 
-      // Extra fallback: if allDepartments hadn't loaded yet, also resolve directly from user.department
       const directName =
         user?.department?.name ||
         allDepartments.find(
@@ -846,7 +827,6 @@ const MLD = () => {
     }
   }, [refreshDocuments, mounted]);
 
-  // Build rows
   const allDocRows = useMemo(() => {
     if (controlsLoading || backendControls.length === 0) return [];
     
@@ -877,7 +857,6 @@ const MLD = () => {
       docsList.forEach(({ doc, type, dept }) => {
         if (!doc) return;
 
-        // Department Access Check (unless privileged/admin)
         const docDeptVal = String(dept || "").toLowerCase();
         const lowercaseUserDeptNames = userDeptNames.map((n) => n.toLowerCase());
         const hasAccess =
@@ -904,7 +883,6 @@ const MLD = () => {
     return rows;
   }, [backendControls, controlsLoading, soas, user, allDepartments, isPrivilegedRole]);
 
-  // ── Column sort handler ────────────────────────────────────────────────
   const handleColSort = useCallback((key) => {
     setColSort((prev) => ({
       key,
@@ -913,7 +891,6 @@ const MLD = () => {
     setSoaSort("none");
   }, []);
 
-  // Filter + Sort
   const filteredDocRows = useMemo(() => {
     let list = [...allDocRows];
 
@@ -1063,7 +1040,6 @@ const MLD = () => {
     mappingsByControl, uploadFilter, documents, isAllSelected,
     selectedFrameworks, fwLabelToCode, fwOrder,
   ]);
-  const searchParams = useSearchParams();
 
   useEffect(() => {
     const openControlId = searchParams.get("openControlId");
@@ -1074,17 +1050,14 @@ const MLD = () => {
       setTimeout(() => {
         document.getElementById(`policy-row-${match.rowKey}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
       }, 100);
-      // clear the highlight after a few seconds
       const t = setTimeout(() => setHighlightedRowKey(null), 4000);
       return () => clearTimeout(t);
     }
   }, [searchParams, filteredDocRows]);
 
   const getLatestDocForSoA = (soaId) => {
-    // Resolve user's department info for access check
     const { ids: userDeptIds, names: userDeptNames } = getResolvedDepartmentInfo(user, allDepartments);
     const lowercaseUserDeptNames = userDeptNames.map((n) => n.toLowerCase());
-    // Filter documents belonging to the given SoA and that the user has access to
     const accessibleDocs = documents
       .filter((d) => String(d.soaId) === String(soaId))
       .filter((d) => {
@@ -1100,13 +1073,8 @@ const MLD = () => {
     return accessibleDocs.find((d) => !d.deleted) || accessibleDocs[0];
   };
 
-  // Counts
   const totalDocsToUpload = allDocRows.length;
   const docCount = useMemo(() => {
-    // Inline department filtering here so all deps are declared explicitly.
-    // Previously this called getLatestDocForSoA() which captured user/allDepartments
-    // via closure but those were missing from the dep array — causing the count
-    // to be wrong (often 0) when allDepartments loaded after documents.
     const { ids: userDeptIds, names: userDeptNames } = getResolvedDepartmentInfo(user, allDepartments);
     const lcNames = userDeptNames.map((n) => n.toLowerCase());
 
@@ -1166,18 +1134,13 @@ const MLD = () => {
       try {
         setUploading((p) => ({ ...p, [soaId]: true }));
 
-        // Priority 1: use the department already on this row (set by backend control data)
-        // Priority 2: resolve from user profile + allDepartments lookup
-        // Priority 3: fallback to raw department id stored on user
         let primaryDeptName = rowDocDept ? rowDocDept.trim() : "";
         if (!primaryDeptName) {
           const { names: resolvedDeptNames } = getResolvedDepartmentInfo(user, allDepartments);
           primaryDeptName = resolvedDeptNames[0]
             ? resolvedDeptNames[0]
             : (
-                // last-resort: pull from user.department directly if it's a populated object
                 user?.department?.name ||
-                // or look it up by the raw ID in allDepartments
                 allDepartments.find(
                   (d) =>
                     String(d._id) === String(user?.department?._id || user?.department) ||
@@ -1186,7 +1149,6 @@ const MLD = () => {
                 ""
               );
         }
-        // Normalise: store consistently in UPPERCASE so filter comparisons work
         primaryDeptName = (primaryDeptName || "N/A").toUpperCase();
         await documentationService.uploadDocument({
           file, soaId, controlId: "",
@@ -1262,7 +1224,6 @@ const MLD = () => {
           padding: 2px 7px; border-radius: 8px;
           font-weight: 600; white-space: nowrap;
         }
-        /* ── Add Task button ── */
         .add-task-btn {
           display: inline-flex; align-items: center; gap: 4px;
           padding: 4px 10px; border-radius: 6px; border: none;
@@ -1300,7 +1261,6 @@ const MLD = () => {
         </button>
       ))}
 
-      {/* Header */}
       <div id="mld-header" style={{
         background: "linear-gradient(135deg,#667eea 0%,#764ba2 100%)",
         borderRadius: "12px", padding: "20px", marginBottom: "20px",
@@ -1327,7 +1287,6 @@ const MLD = () => {
         )}
       </div>
 
-      {/* Controls bar */}
       <div style={{
         display: "flex", gap: "12px", alignItems: "center",
         marginBottom: "12px", justifyContent: "space-between", flexWrap: "wrap",
@@ -1379,7 +1338,6 @@ const MLD = () => {
         </div>
       )}
 
-      {/* Task success toast */}
       {taskSuccessMsg && (
         <div style={{
           marginBottom: "10px", padding: "10px 16px", borderRadius: "8px",
@@ -1396,7 +1354,6 @@ const MLD = () => {
         </div>
       )}
 
-      {/* Table */}
       <div style={{
         background: "white", borderRadius: "12px", padding: "20px",
         marginBottom: "28px", boxShadow: "0 3px 15px rgba(0,0,0,0.06)",
@@ -1428,11 +1385,9 @@ const MLD = () => {
                 <SortableHeader label="Review Date" sortKey="reviewDate" currentSort={colSort} onSort={handleColSort} />
                 <th style={thStyle}>Upload</th>
                 <th style={thStyle}>Remarks</th>
-                {/* ── NEW column: doc-checker ── */}
                 <th style={{ ...thStyle, background: "#eef9f0", color: "#166534" }}>
                   Quality Check
                 </th>
-                {/* ── NEW column ── */}
                 <th style={{ ...thStyle, background: "#f0f4ff", color: "#3b5bdb" }}>
                   Add Task
                 </th>
@@ -1469,17 +1424,8 @@ const MLD = () => {
                     const ownership = ownershipMap[`${framework.trim()}:${controlCode.trim()}`] || {};
                     const approvedBy = doc?.approvedBy || doc?.approverName || (doc?.approvalDate ? "—" : "—");
 
-
-                    // The row object we'll pass into AddTaskModal
                     const taskRow = { rowKey, cId, docName, docType, docDept, controlCode, controlTitle, soaEntry, framework, controlMongoId };
 
-
-                    // The row object we'll pass into the doc-checker hook.
-                    // mldDocName is intentionally row.docName (the MLD's
-                    // expected title for this control) — NOT doc.name —
-                    // since the whole point of the check is verifying the
-                    // uploaded file's title matches what the MLD says it
-                    // should be.
                     const docCheckRow = isUploaded && doc ? {
                       docId: doc.id,
                       docUrl: doc.url,
@@ -1487,22 +1433,13 @@ const MLD = () => {
                       organizationId: effectiveOrgId,
                       soaId: soaEntry?.id,
                       controlId: cId,
-                      // ── NEW: framework-aware control mapping ──
-                      // Lets doc-checker-service factor coverage of this control's actual
-                      // requirements directly into the policyStatements score (see
-                      // GroqAuditService). Sourced straight from this row's already-destructured
-                      // values — no extra fetch needed.
                       framework,
                       controlCode,
                       controlTitle,
                     } : null;
 
-
                     const handleApprove = async () => {
                       if (!doc) return;
-                      // ── NEW: doc-checker gate ──────────────────────────
-                      // Block approval until the document has cleared the
-                      // quality check (title match + score >= APPROVAL_THRESHOLD).
                       if (!checker.canApprove(doc.id)) {
                         setGateModal({ open: true, docId: doc.id });
                         return;
@@ -1530,21 +1467,19 @@ const MLD = () => {
                       }
                     };
 
-
                     return (
                       <tr
                         key={rowKey}
-                        id={`policy-row-${rowKey}`}   // ← add this
+                        id={`policy-row-${rowKey}`}
                         style={{
                           borderBottom: "1px solid #f1f1f1",
-                          backgroundColor: rowKey === highlightedRowKey ? "#fff3cd" : rowBg,  // ← highlight
+                          backgroundColor: rowKey === highlightedRowKey ? "#fff3cd" : rowBg,
                           borderLeft: isSoaLinked ? "4px solid #28a745" : "4px solid transparent",
                           transition: "background-color 0.3s ease",
                         }}
                         onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = isSoaLinked ? "#e6f9ed" : "#f8f9fa"; }}
                         onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = rowBg; }}
                       >
-                        {/* Control ID */}
                         <td style={{ padding: "12px 14px", verticalAlign: "middle", maxWidth: "180px" }}>
                           <span style={{
                             display: "block", fontFamily: "monospace", fontWeight: 700,
@@ -1556,8 +1491,6 @@ const MLD = () => {
                           </span>
                         </td>
 
-
-                        {/* Policy Name */}
                         <td
                           onClick={() => {
                             if (!soaEntry) return;
@@ -1577,20 +1510,14 @@ const MLD = () => {
                           )}
                         </td>
 
-
-                        {/* Related Framework */}
                         <td style={{ padding: "12px 14px", textAlign: "center", verticalAlign: "middle" }}>
                           <FrameworkCell framework={framework} mappings={mappings} colorMap={fwColorMap} />
                         </td>
 
-
-                        {/* Type */}
                         <td style={{ padding: "12px 14px", textAlign: "center", verticalAlign: "middle", color: "#6c757d", fontSize: "12px" }}>
                           {docType || "—"}
                         </td>
 
-
-                        {/* Control Code + title */}
                         <td style={{ padding: "12px 14px", verticalAlign: "middle", maxWidth: "220px" }}>
                           <span style={{ display: "block", fontFamily: "monospace", fontWeight: 700, fontSize: "12px", color: "#374151" }}>
                             {controlCode}
@@ -1602,8 +1529,6 @@ const MLD = () => {
                           )}
                         </td>
 
-
-                        {/* Ownership */}
                         <td style={{ padding: "12px 14px", textAlign: "center", verticalAlign: "middle" }}>
                           {ownershipLoading ? (
                             <span style={{ fontSize: "11px", color: "#aaa" }}>…</span>
@@ -1625,14 +1550,10 @@ const MLD = () => {
                           )}
                         </td>
 
-
-                        {/* Department */}
                         <td style={{ padding: "12px 14px", textAlign: "center", verticalAlign: "middle", color: "#2c3e50", fontSize: "13px" }}>
                           {docDept || "—"}
                         </td>
 
-
-                        {/* CalVant Version */}
                         <td style={{ padding: "12px 14px", textAlign: "center", verticalAlign: "middle", color: "#2c3e50" }}>
                           {doc?.version != null ? (
                             <span style={{ background: "#f0f4ff", color: "#3b5bdb", border: "1px solid #c5d4fb", borderRadius: "6px", padding: "2px 8px", fontSize: "12px", fontWeight: 700 }}>
@@ -1641,38 +1562,26 @@ const MLD = () => {
                           ) : "—"}
                         </td>
 
-
-                        {/* Status */}
                         <td style={{ padding: "12px 14px", textAlign: "center", verticalAlign: "middle" }}>
                           <StatusBadge status={status} />
                         </td>
 
-
-                        {/* Submitted By */}
                         <td style={{ padding: "12px 14px", textAlign: "center", verticalAlign: "middle", color: "#2c3e50" }}>
                           {doc?.uploaderName ?? "—"}
                         </td>
 
-
-                        {/* Submission Date */}
                         <td style={{ padding: "12px 14px", textAlign: "center", verticalAlign: "middle", color: "#2c3e50" }}>
                           {submissionDate}
                         </td>
 
-
-                        {/* Approved By */}
                         <td style={{ padding: "12px 14px", textAlign: "center", verticalAlign: "middle", color: "#2c3e50" }}>
                           {doc?.approvalDate ? (approvedBy || user?.name || "—") : "—"}
                         </td>
 
-
-                        {/* Review Date */}
                         <td style={{ padding: "12px 14px", textAlign: "center", verticalAlign: "middle", color: "#2c3e50" }}>
                           {reviewDate}
                         </td>
 
-
-                        {/* Upload + inline actions */}
                         <td style={{ padding: "12px 14px", textAlign: "center", verticalAlign: "middle" }}>
                           <div style={{ display: "flex", flexDirection: "column", gap: "4px", alignItems: "center" }}>
                             {soaId ? (
@@ -1699,7 +1608,6 @@ const MLD = () => {
                             ) : (
                               <span style={{ fontSize: "11px", color: "#aaa", fontStyle: "italic", whiteSpace: "nowrap" }}>Not assessed</span>
                             )}
-
 
                             {isUploaded && soaId && (
                               <div style={{ display: "flex", gap: "4px", justifyContent: "center", flexWrap: "wrap" }}>
@@ -1770,14 +1678,10 @@ const MLD = () => {
                           </div>
                         </td>
 
-
-                        {/* Remarks */}
                         <td style={{ padding: "12px 14px", textAlign: "center", color: "#2c3e50", fontSize: "12px" }}>
                           {doc?.deleteComment ?? "—"}
                         </td>
 
-
-                        {/* ── NEW: Quality Check cell (doc-checker) ── */}
                         <td style={{ padding: "12px 14px", textAlign: "center", verticalAlign: "middle", background: "#f6fbf7" }}>
                           {docCheckRow ? (
                             <VerifyCell
@@ -1792,8 +1696,6 @@ const MLD = () => {
                           )}
                         </td>
 
-
-                        {/* ── NEW: Add Task cell ── */}
                         <td style={{ padding: "12px 14px", textAlign: "center", verticalAlign: "middle", background: "#f8f9ff" }}>
                           <button
                             className="add-task-btn"
@@ -1814,8 +1716,6 @@ const MLD = () => {
         </div>
       </div>
 
-
-      {/* Preview Modal */}
       {previewModalOpen && (
         <div style={{
           position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
@@ -1881,7 +1781,6 @@ const MLD = () => {
         }
       />
 
-      {/* ── NEW: Doc-checker approval gate modal ── */}
       {gateModal.open && (
         <ApproveGateModal
           docId={gateModal.docId}
@@ -1890,7 +1789,6 @@ const MLD = () => {
         />
       )}
 
-      {/* ── NEW: Add Task Modal ── */}
       {addTaskModal.open && (
         <AddTaskModal
           row={addTaskModal.row}
@@ -1918,7 +1816,6 @@ const MLD = () => {
   );
 };
 
-// shared TH style to avoid repetition
 const thStyle = {
   padding: "12px 14px", textAlign: "center",
   borderBottom: "2px solid #e6e6e6", fontWeight: 600, whiteSpace: "nowrap",
