@@ -45,9 +45,7 @@ export default function ChangePasswordModal({ onClose }) {
         newPassword,
       });
 
-      setMessage("✅ Password changed successfully!");
-      // ... rest of your success logic
-      setMessage("✅ Password changed successfully!");
+      setMessage("✅ Password changed successfully! Logging you in...");
       setOldPassword("");
       setNewPassword("");
       setConfirmPassword("");
@@ -88,7 +86,15 @@ export default function ChangePasswordModal({ onClose }) {
           <Lock className="w-6 h-6" /> Change Password
         </h2>
 
-        {message && <p className="text-center mb-4">{message}</p>}
+        {message && (
+          <p
+            className={`text-center mb-4 font-medium ${
+              message.startsWith("✅") ? "text-green-600" : "text-red-600"
+            }`}
+          >
+            {message}
+          </p>
+        )}
 
         <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
           <input

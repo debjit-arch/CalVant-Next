@@ -549,6 +549,25 @@ const LoginPageInner = () => {
       sessionStorage.removeItem("user");      // clear stale user object
       sessionStorage.removeItem("userEmail"); // clear stale cached email
 
+      // FORCED PASSWORD CHANGE ─────────────────────────────────────────────
+      // Root-created accounts start on a system-generated temp password
+      // (mustChangePassword=true from the backend). Send the user straight
+      // to the change-password screen before any tenant/subdomain routing.
+      // ChangePasswordModal asks for the old password itself, so nothing
+      // needs to be carried over from the login form beyond the session token.
+      if (loginRes.data.mustChangePassword) {
+        sessionStorage.setItem("token", token);
+        sessionStorage.setItem(
+          "user",
+          JSON.stringify({ ...loginRes.data, email }),
+        );
+        sessionStorage.setItem("userEmail", email);
+        login();
+        await new Promise((r) => setTimeout(r, 0));
+        router.replace(`/change-password?redirect=${encodeURIComponent(redirectTo)}`);
+        return;
+      }
+
       // LOCALHOST / DEV BYPASS ───────────────────────────────────────────────
       if (
         currentHost.includes("localhost") ||
