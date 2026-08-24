@@ -639,6 +639,7 @@ const StatCard = ({ value, label, index, active, onClick }) => (
 
 const MLD = () => {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const {
     user,
     mounted,
@@ -1152,7 +1153,6 @@ const MLD = () => {
     mappingsByControl, uploadFilter, documents, isAllSelected,
     selectedFrameworks, fwLabelToCode, fwOrder,
   ]);
-  const searchParams = useSearchParams();
 
   useEffect(() => {
     const openControlId = searchParams.get("openControlId");
