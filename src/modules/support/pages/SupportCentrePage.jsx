@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import {
   LifeBuoy,
   Plus,
@@ -10,8 +10,23 @@ import {
   AlertCircle,
   Mail,
   RefreshCw,
+  Paperclip,
+  FileText,
+  Download,
 } from "lucide-react";
 import supportService from "../services/supportService";
+
+// ── Attachment helpers ───────────────────────────────────────────────────────
+
+const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024; // 10MB — matches support-service's cap
+const MAX_ATTACHMENTS = 5;
+
+const fmtBytes = (bytes) => {
+  if (!bytes && bytes !== 0) return "";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -193,6 +208,139 @@ const inputStyle = {
   fontFamily: "inherit",
 };
 
+// ── Attachment picker — used in both the New Ticket modal and the reply box ─
+
+const AttachmentPicker = ({ files, setFiles, error, setError }) => {
+  const inputRef = useRef(null);
+
+  const addFiles = (fileList) => {
+    const incoming = Array.from(fileList || []);
+    if (!incoming.length) return;
+    setError("");
+
+    const combined = [...files, ...incoming];
+    if (combined.length > MAX_ATTACHMENTS) {
+      setError(`You can attach at most ${MAX_ATTACHMENTS} file(s).`);
+      return;
+    }
+    const tooBig = incoming.find((f) => f.size > MAX_ATTACHMENT_SIZE);
+    if (tooBig) {
+      setError(`${tooBig.name} is too large — max ${fmtBytes(MAX_ATTACHMENT_SIZE)} per file.`);
+      return;
+    }
+    setFiles(combined);
+  };
+
+  const removeFile = (idx) => setFiles(files.filter((_, i) => i !== idx));
+
+  return (
+    <div>
+      <input
+        ref={inputRef}
+        type="file"
+        multiple
+        onChange={(e) => {
+          addFiles(e.target.files);
+          e.target.value = "";
+        }}
+        style={{ display: "none" }}
+      />
+      <button
+        type="button"
+        onClick={() => inputRef.current?.click()}
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 6,
+          background: "none",
+          border: "1px dashed #cbd5e1",
+          borderRadius: 8,
+          padding: "7px 12px",
+          fontSize: 13,
+          fontWeight: 600,
+          color: "#475569",
+          cursor: "pointer",
+        }}
+      >
+        <Paperclip size={14} /> Attach files
+      </button>
+
+      {files.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 10 }}>
+          {files.map((f, i) => (
+            <div
+              key={`${f.name}-${i}`}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                fontSize: 13,
+                color: "#334155",
+                background: "#f8fafc",
+                border: "1px solid #e2e8f0",
+                borderRadius: 8,
+                padding: "6px 10px",
+              }}
+            >
+              <FileText size={14} color="#64748b" />
+              <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {f.name}
+              </span>
+              <span style={{ fontSize: 11, color: "#94a3b8", flexShrink: 0 }}>{fmtBytes(f.size)}</span>
+              <button
+                type="button"
+                onClick={() => removeFile(i)}
+                style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8", flexShrink: 0, display: "flex" }}
+              >
+                <X size={14} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ── Attachments already on a sent message — shown as download chips ────────
+
+const AttachmentChips = ({ attachments, ticketId }) => {
+  if (!attachments || attachments.length === 0) return null;
+
+  return (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 10 }}>
+      {attachments.map((a) => (
+        <button
+          key={a.id}
+          type="button"
+          onClick={() => supportService.downloadAttachment(ticketId, a.id, a.fileName)}
+          title={`Download ${a.fileName}`}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            background: "#f8fafc",
+            border: "1px solid #e2e8f0",
+            borderRadius: 999,
+            padding: "5px 12px",
+            fontSize: 12,
+            fontWeight: 600,
+            color: "#334155",
+            cursor: "pointer",
+          }}
+        >
+          <FileText size={13} color="#64748b" />
+          <span style={{ maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {a.fileName}
+          </span>
+          <span style={{ color: "#94a3b8", fontWeight: 500 }}>{fmtBytes(a.size)}</span>
+          <Download size={12} color="#64748b" />
+        </button>
+      ))}
+    </div>
+  );
+};
+
 // ── New Ticket modal ─────────────────────────────────────────────────────────
 
 const NewTicketModal = ({ onClose, onCreated }) => {
@@ -200,6 +348,7 @@ const NewTicketModal = ({ onClose, onCreated }) => {
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState(CATEGORIES[0]);
   const [priority, setPriority] = useState("MEDIUM");
+  const [files, setFiles] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
@@ -217,6 +366,7 @@ const NewTicketModal = ({ onClose, onCreated }) => {
         description: description.trim(),
         category,
         priority,
+        files,
       });
       onCreated(ticket);
     } catch (err) {
@@ -317,6 +467,11 @@ const NewTicketModal = ({ onClose, onCreated }) => {
             />
           </div>
 
+          <div>
+            <label style={labelStyle}>Attachments (optional)</label>
+            <AttachmentPicker files={files} setFiles={setFiles} error={error} setError={setError} />
+          </div>
+
           {error && (
             <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#b91c1c", fontSize: 13 }}>
               <AlertCircle size={15} />
@@ -349,7 +504,7 @@ const labelStyle = {
 
 // ── A single message in the thread, styled as an email, not a chat bubble ──
 
-const MessageRow = ({ msg, isLast }) => {
+const MessageRow = ({ msg, isLast, ticketId }) => {
   const displayName = msg.senderRole === "admin" ? "CalVant" : (msg.senderName || "You");
   const fromEmail = msg.channel === "EMAIL";
 
@@ -414,6 +569,7 @@ const MessageRow = ({ msg, isLast }) => {
         >
           {msg.message}
         </div>
+        <AttachmentChips attachments={msg.attachments} ticketId={ticketId} />
       </div>
     </div>
   );
@@ -423,6 +579,7 @@ const MessageRow = ({ msg, isLast }) => {
 
 const TicketThread = ({ ticket, isAdmin, onBack, onReply }) => {
   const [message, setMessage] = useState("");
+  const [files, setFiles] = useState([]);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
 
@@ -435,8 +592,9 @@ const TicketThread = ({ ticket, isAdmin, onBack, onReply }) => {
     setSending(true);
     setError("");
     try {
-      await onReply(ticket.id, message.trim());
+      await onReply(ticket.id, message.trim(), files);
       setMessage("");
+      setFiles([]);
     } catch (err) {
       setError(err.message || "Failed to send reply.");
     } finally {
@@ -482,7 +640,7 @@ const TicketThread = ({ ticket, isAdmin, onBack, onReply }) => {
 
           <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: "4px 24px" }}>
             {(ticket.messages || []).map((m, i) => (
-              <MessageRow key={i} msg={m} isLast={i === ticket.messages.length - 1} />
+              <MessageRow key={i} msg={m} isLast={i === ticket.messages.length - 1} ticketId={ticket.id} />
             ))}
           </div>
 
@@ -517,6 +675,9 @@ const TicketThread = ({ ticket, isAdmin, onBack, onReply }) => {
                   lineHeight: 1.6,
                 }}
               />
+              <div style={{ padding: "0 16px 12px" }}>
+                <AttachmentPicker files={files} setFiles={setFiles} error={error} setError={setError} />
+              </div>
               <div
                 style={{
                   display: "flex",
@@ -687,8 +848,8 @@ const SupportCentrePage = () => {
     }
   };
 
-  const handleReply = async (id, message) => {
-    const updated = await supportService.replyToTicket(id, message);
+  const handleReply = async (id, message, files) => {
+    const updated = await supportService.replyToTicket(id, message, files);
     setSelected(updated);
     setTickets((prev) => prev.map((t) => (t.id === id ? updated : t)));
   };
