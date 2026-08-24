@@ -9,6 +9,7 @@ export default function ChangePasswordModal({ onClose }) {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
 
   useEffect(() => {
     const handleEsc = (e) => {
@@ -46,6 +47,7 @@ export default function ChangePasswordModal({ onClose }) {
       });
 
       setMessage("✅ Password changed successfully! Logging you in...");
+      setSuccess(true);
       setOldPassword("");
       setNewPassword("");
       setConfirmPassword("");
@@ -76,12 +78,14 @@ export default function ChangePasswordModal({ onClose }) {
         className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 mx-4 relative"
         onClick={(e) => e.stopPropagation()}
       >
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 text-gray-500 hover:text-gray-800 font-bold text-lg"
-        >
-          ✕
-        </button>
+        {!success && (
+          <button
+            onClick={onClose}
+            className="absolute top-4 right-4 text-gray-500 hover:text-gray-800 font-bold text-lg"
+          >
+            ✕
+          </button>
+        )}
         <h2 className="text-2xl font-bold mb-4 flex items-center gap-2 text-indigo-600">
           <Lock className="w-6 h-6" /> Change Password
         </h2>
@@ -96,39 +100,41 @@ export default function ChangePasswordModal({ onClose }) {
           </p>
         )}
 
-        <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
-          <input
-            type="password"
-            placeholder="Old Password"
-            value={oldPassword}
-            onChange={(e) => setOldPassword(e.target.value)}
-            className="border border-gray-300 px-3 py-2 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-            required
-          />
-          <input
-            type="password"
-            placeholder="New Password"
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-            className="border border-gray-300 px-3 py-2 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-            required
-          />
-          <input
-            type="password"
-            placeholder="Confirm New Password"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            className="border border-gray-300 px-3 py-2 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-            required
-          />
-          <button
-            type="submit"
-            disabled={loading}
-            className="bg-indigo-600 text-white py-2 rounded-lg font-medium hover:bg-indigo-700 transition"
-          >
-            {loading ? "Changing..." : "Change Password"}
-          </button>
-        </form>
+        {!success && (
+          <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
+            <input
+              type="password"
+              placeholder="Old Password"
+              value={oldPassword}
+              onChange={(e) => setOldPassword(e.target.value)}
+              className="border border-gray-300 px-3 py-2 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+              required
+            />
+            <input
+              type="password"
+              placeholder="New Password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              className="border border-gray-300 px-3 py-2 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+              required
+            />
+            <input
+              type="password"
+              placeholder="Confirm New Password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              className="border border-gray-300 px-3 py-2 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+              required
+            />
+            <button
+              type="submit"
+              disabled={loading}
+              className="bg-indigo-600 text-white py-2 rounded-lg font-medium hover:bg-indigo-700 transition"
+            >
+              {loading ? "Changing..." : "Change Password"}
+            </button>
+          </form>
+        )}
       </div>
     </div>,
     document.body

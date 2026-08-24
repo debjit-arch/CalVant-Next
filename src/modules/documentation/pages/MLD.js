@@ -1,3 +1,7 @@
+// C:\Users\ak192\Downloads\CalVant-Next-master (3)\CalVant-Next-master\src\modules\documentation\pages\MLD.js
+
+
+
 //Working Model
 import React, { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -9,7 +13,7 @@ import { getAllUsers, getDepartments } from "../../departments/services/userServ
 //import { useDocChecker, APPROVAL_THRESHOLD, BORDERLINE_THRESHOLD, getComplianceStatus } from "./useDocChecker";
 import { useDocChecker, APPROVAL_THRESHOLD } from "./useDocChecker";          // ← NEW (doc-checker)
 import { VerifyCell, ApproveGateModal } from "./VerifyCell";                  // ← NEW (doc-checker)
-import { Trash2, UploadCloud, Calendar, Check, ArrowUpDown, ArrowUp, ArrowDown, Plus, X } from "lucide-react";
+import { FileText,  Trash2, UploadCloud, Calendar, Check, ArrowUpDown, ArrowUp, ArrowDown, Plus, X  } from "lucide-react";
 import Modal from "../../../components/navigations/Modal";
 import Joyride, { STATUS } from "react-joyride";
 import { useFramework, ALL_FRAMEWORKS } from "../../../context/FrameworkContex";
@@ -136,10 +140,28 @@ const FrameworkCell = ({ framework, mappings, colorMap }) => {
     }, []);
   }, [mappings, framework]);
 
+  const allFrameworks = [framework, ...mapped];
+  const hiddenCount = mapped.length;
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "3px" }}>
-      <FrameworkBadge framework={framework} color={colorMap[framework]} />
-      {mapped.map((fw) => <FrameworkBadge key={fw} framework={fw} color={colorMap[fw]} />)}
+    <div 
+      style={{ position: "relative", display: "inline-block", cursor: hiddenCount > 0 ? "pointer" : "default" }}
+      onMouseEnter={(e) => { if(hiddenCount > 0) e.currentTarget.lastChild.style.display = "flex"; }}
+      onMouseLeave={(e) => { if(hiddenCount > 0) e.currentTarget.lastChild.style.display = "none"; }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: "4px", background: "#f8fafc", border: "1px solid #e2e8f0", padding: "2px 4px 2px 2px", borderRadius: "12px" }}>
+        <FrameworkBadge framework={framework} color={colorMap[framework]} />
+        {hiddenCount > 0 && (
+          <span style={{ fontSize: "10px", color: "#64748b", fontWeight: 700, paddingRight: "4px" }}>+{hiddenCount} ▼</span>
+        )}
+      </div>
+      
+      {hiddenCount > 0 && (
+        <div style={{ display: "none", position: "absolute", top: "100%", left: "50%", transform: "translateX(-50%)", marginTop: "4px", backgroundColor: "white", border: "1px solid #e2e8f0", borderRadius: "8px", boxShadow: "0 10px 25px rgba(0,0,0,0.1)", padding: "8px", flexDirection: "column", gap: "6px", zIndex: 100, minWidth: "max-content" }}>
+          <div style={{ fontSize: "10px", fontWeight: 600, color: "#94a3b8", textTransform: "uppercase", paddingBottom: "2px", borderBottom: "1px solid #f1f5f9" }}>Mapped Frameworks</div>
+          {mapped.map((fw) => <FrameworkBadge key={fw} framework={fw} color={colorMap[fw]} />)}
+        </div>
+      )}
     </div>
   );
 };
@@ -151,15 +173,16 @@ const SortableHeader = ({ label, subLabel, sortKey, currentSort, onSort, style =
   const isDesc = isActive && currentSort.dir === "desc";
   return (
     <th onClick={() => onSort(sortKey)} style={{
-      padding: "12px 14px", textAlign: "center", borderBottom: "2px solid #e6e6e6",
-      fontWeight: 600, whiteSpace: "nowrap", cursor: "pointer", userSelect: "none",
-      background: isActive ? "#f0f4ff" : "#f8f9fa", transition: "background 0.15s", ...style,
+      padding: "4px 8px", textAlign: "center", borderBottom: "2px solid #e2e8f0",
+      fontWeight: 700, fontSize: 11, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.06em",
+      whiteSpace: "nowrap", cursor: "pointer", userSelect: "none",
+      background: isActive ? "#f0f4ff" : "#f8fafc", transition: "background 0.15s", ...style,
     }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "4px" }}>
         <span>{label}</span>
         {isAsc ? <ArrowUp size={13} style={{ color: "#667eea" }} />
           : isDesc ? <ArrowDown size={13} style={{ color: "#667eea" }} />
-            : <ArrowUpDown size={13} style={{ color: "#bbb" }} />}
+            : <ArrowUpDown size={13} style={{ color: "#cbd5e1" }} />}
       </div>
       {subLabel && (
         <span style={{ display: "block", fontSize: "9px", fontWeight: 500, color: "#8b5cf6", marginTop: "2px" }}>
@@ -242,6 +265,11 @@ function AddTaskModal({ row, user, users, departments, onClose, onSuccess, effec
 
     setSaving(true);
     try {
+      /**
+       * Payload is IDENTICAL in shape to TaskManagement.saveTask payload.
+       * source: "Compliance" + controlId flags it as a Compliance task in
+       * TaskManagement's getSourceModule() helper — no backend change needed.
+       */
       const payload = {
         // context linkage
         riskId: undefined,
@@ -288,6 +316,7 @@ function AddTaskModal({ row, user, users, departments, onClose, onSuccess, effec
     }
   };
 
+  // ── Modal overlay ──────────────────────────────────────────────────────────
   return (
     <div style={{
       position: "fixed", inset: 0, background: "rgba(0,0,0,0.52)",
@@ -301,45 +330,54 @@ function AddTaskModal({ row, user, users, departments, onClose, onSuccess, effec
         fontFamily: "'DM Sans', sans-serif",
         animation: "taskModalIn 0.22s ease",
       }}>
-        <div style={{
-          background: "linear-gradient(135deg, #0d1117 0%, #1a1f2e 50%, #0d2241 100%)",
-          borderRadius: "16px 16px 0 0", padding: "18px 22px",
-        }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        {/* Header */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12, paddingBottom: 10, borderBottom: "1px solid #f1f5f9", padding: "18px 22px 10px" }}>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: "linear-gradient(135deg, #6366f1, #4f46e5)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 4px 12px rgba(99,102,241,0.3)" }}>
+              <Plus size={18} color="white" strokeWidth={2.5} />
+            </div>
             <div>
-              <div style={{ fontSize: 10, fontWeight: 700, color: "#868e96", textTransform: "uppercase", letterSpacing: "1px", marginBottom: 4 }}>
-                MLD → Task Management
-              </div>
-              <div style={{ fontSize: 17, fontWeight: 800, color: "#fff", letterSpacing: "-0.4px" }}>
+              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#1e293b", letterSpacing: "-0.01em" }}>
                 Create Task
-              </div>
-              {row && (
-                <div style={{ marginTop: 6, display: "flex", gap: 6, flexWrap: "wrap" }}>
-                  <span style={{ fontSize: 10, fontWeight: 700, background: "#3b5bdb22", color: "#93c5fd", border: "1px solid #3b5bdb55", padding: "2px 8px", borderRadius: 8 }}>
+              </h3>
+              {row ? (
+                <div style={{ marginTop: 6, display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, background: "#e0e7ff", color: "#4338ca", padding: "2px 8px", borderRadius: 6 }}>
                     {row.cId}
                   </span>
-                  <span style={{ fontSize: 10, fontWeight: 700, background: "#7c3aed22", color: "#c4b5fd", border: "1px solid #7c3aed55", padding: "2px 8px", borderRadius: 8 }}>
+                  <span style={{ fontSize: 11, fontWeight: 600, background: "#f1f5f9", color: "#475569", padding: "2px 8px", borderRadius: 6 }}>
                     {row.controlCode}
                   </span>
-                  <span style={{ fontSize: 10, color: "#6c757d", padding: "2px 6px" }}>
+                  <span style={{ fontSize: 11, color: "#64748b", fontWeight: 500 }}>
                     {row.docName}
                   </span>
                 </div>
+              ) : (
+                <p style={{ margin: "4px 0 0", fontSize: 13, color: "#64748b", fontWeight: 500 }}>
+                  Fill in the task details below
+                </p>
               )}
             </div>
-            <button onClick={onClose} style={{
-              background: "rgba(255,255,255,0.1)", border: "none", borderRadius: 8,
-              width: 32, height: 32, cursor: "pointer", color: "#adb5bd",
-              display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16,
-            }}>
-              <X size={16} />
-            </button>
           </div>
+          <button
+            onClick={onClose}
+            style={{
+              border: "1.5px solid #e2e8f0", background: "white", borderRadius: 8,
+              width: 30, height: 30, cursor: "pointer", fontSize: 16, color: "#64748b",
+              display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s",
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = "#fef2f2"; e.currentTarget.style.color = "#dc2626"; e.currentTarget.style.borderColor = "#fca5a5"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = "white"; e.currentTarget.style.color = "#64748b"; e.currentTarget.style.borderColor = "#e2e8f0"; }}
+          >
+            <X size={16} />
+          </button>
         </div>
 
+        {/* Body */}
         <div style={{ padding: "22px 22px 0" }}>
           <div style={{ display: "grid", gap: 14 }}>
 
+            {/* Department */}
             <div>
               <label style={labelStyle}>Department <span style={{ color: "#c92a2a" }}>*</span></label>
               <select
@@ -354,6 +392,7 @@ function AddTaskModal({ row, user, users, departments, onClose, onSuccess, effec
               </select>
             </div>
 
+            {/* Assign To */}
             <div>
               <label style={labelStyle}>Assign To</label>
               <select
@@ -378,6 +417,7 @@ function AddTaskModal({ row, user, users, departments, onClose, onSuccess, effec
               )}
             </div>
 
+            {/* Description */}
             <div>
               <label style={labelStyle}>Task Description <span style={{ color: "#c92a2a" }}>*</span></label>
               <textarea
@@ -389,6 +429,7 @@ function AddTaskModal({ row, user, users, departments, onClose, onSuccess, effec
               />
             </div>
 
+            {/* Dates */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <div>
                 <label style={labelStyle}>Start Date <span style={{ color: "#c92a2a" }}>*</span></label>
@@ -408,9 +449,10 @@ function AddTaskModal({ row, user, users, departments, onClose, onSuccess, effec
               </div>
             </div>
 
+            {/* Priority */}
             <div>
               <label style={labelStyle}>Priority</label>
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              <div style={{ display: "flex", gap: 8 }}>
                 {Object.values(TASK_PRIORITY).map((p) => {
                   const cfg = PRIORITY_CFG[p];
                   const sel = form.priority === p;
@@ -419,20 +461,22 @@ function AddTaskModal({ row, user, users, departments, onClose, onSuccess, effec
                       key={p} type="button"
                       onClick={() => setF({ priority: p })}
                       style={{
-                        padding: "6px 12px", borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: "pointer",
-                        border: `1.5px solid ${sel ? cfg.color : "#e9ecef"}`,
-                        background: sel ? cfg.bg : "#fff",
-                        color: sel ? cfg.color : "#868e96",
-                        transition: "all 0.15s",
+                        fontSize: 12, fontWeight: 600, padding: "6px 14px",
+                        borderRadius: 20, border: "1.5px solid", cursor: "pointer", transition: "all 0.15s",
+                        background: sel ? cfg.color : "#f8fafc",
+                        borderColor: sel ? cfg.color : "#cbd5e1",
+                        color: sel ? "#fff" : "#64748b",
+                        display: "flex", alignItems: "center", gap: 4, flex: 1, justifyItems: "center", justifyContent: "center"
                       }}
                     >
-                      {cfg.icon} {p}
+                      <span style={{ fontSize: 10 }}>{cfg.icon}</span> {p}
                     </button>
                   );
                 })}
               </div>
             </div>
 
+            {/* Remarks */}
             <div>
               <label style={labelStyle}>Remarks</label>
               <textarea
@@ -451,18 +495,23 @@ function AddTaskModal({ row, user, users, departments, onClose, onSuccess, effec
           </div>
         </div>
 
-        <div style={{ padding: "16px 22px 22px", display: "flex", gap: 10, justifyContent: "flex-end" }}>
+        {/* Footer */}
+        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 16, padding: "16px 22px 22px", borderTop: "1px solid #f1f5f9" }}>
           <button onClick={onClose} style={{
-            padding: "9px 20px", borderRadius: 8, border: "1.5px solid #e9ecef",
-            background: "#fff", color: "#495057", fontWeight: 700, fontSize: 13, cursor: "pointer",
-          }}>
+            padding: "10px 22px", borderRadius: 12, border: "1.5px solid #e2e8f0",
+            background: "white", color: "#475569", fontWeight: 700, fontSize: 13, cursor: "pointer",
+            transition: "all 0.15s", display: "inline-block"
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = "#f8fafc")}
+          onMouseLeave={(e) => (e.currentTarget.style.background = "white")}
+          >
             Cancel
           </button>
           <button
             onClick={handleSave} disabled={saving}
             style={{
               padding: "9px 20px", borderRadius: 8, border: "none",
-              background: saving ? "#adb5bd" : "#0052CC",
+              background: saving ? "#94a3b8" : "linear-gradient(135deg,#3b82f6,#2563eb)",
               color: "#fff", fontWeight: 700, fontSize: 13,
               cursor: saving ? "not-allowed" : "pointer",
               display: "flex", alignItems: "center", gap: 6,
@@ -483,16 +532,30 @@ function AddTaskModal({ row, user, users, departments, onClose, onSuccess, effec
   );
 }
 
-const labelStyle = {
-  fontSize: 13, fontWeight: 600, display: "block", marginBottom: 6, color: "#343a40",
-};
+// shared micro-styles for AddTaskModal inputs
 const inputStyle = {
-  width: "100%", padding: "8px 10px", borderRadius: 6, border: "1.5px solid #e9ecef",
-  fontSize: 13, fontFamily: "inherit", outline: "none", background: "#f8f9fa",
+  width: "100%",
+  border: "1px solid #e2e8f0",
+  borderRadius: 10,
+  padding: "10px 14px",
+  fontSize: 13,
+  background: "#f8fafc",
+  outline: "none",
   boxSizing: "border-box",
+  fontFamily: "inherit",
 };
+
 const selectStyle = {
-  ...inputStyle, cursor: "pointer",
+  ...inputStyle,
+  cursor: "pointer"
+};
+
+const labelStyle = {
+  display: "block",
+  fontSize: 12,
+  fontWeight: 600,
+  color: "#475569",
+  marginBottom: 5,
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -532,9 +595,50 @@ const getResolvedDepartmentInfo = (currentUser, allDepartments) => {
   return { ids, names };
 };
 
+// ── StatCard Component ──────────────────────────────────────────────────────
+const StatCard = ({ value, label, index, active, onClick }) => (
+  <div
+    onClick={onClick}
+    style={{
+      background: active ? "#eff6ff" : "white",
+      border: active ? "1.5px solid #3b82f6" : "1px solid #e2e8f0",
+      borderRadius: 12, padding: "16px",
+      display: "flex", flexDirection: "column", gap: 4,
+      boxShadow: active ? "0 4px 12px rgba(59,130,246,0.15)" : "0 1px 3px rgba(0,0,0,0.05)",
+      cursor: onClick ? "pointer" : "default",
+      transition: "all 0.2s ease-in-out",
+      transform: active ? "translateY(-2px)" : "none",
+      animation: `fadeUp 0.3s ease ${0.1 + index * 0.05}s both`,
+      position: "relative", overflow: "hidden",
+    }}
+    onMouseEnter={(e) => {
+      if (!active) {
+        e.currentTarget.style.transform = "translateY(-2px)";
+        e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.08)";
+        e.currentTarget.style.borderColor = "#cbd5e1";
+      }
+    }}
+    onMouseLeave={(e) => {
+      if (!active) {
+        e.currentTarget.style.transform = "none";
+        e.currentTarget.style.boxShadow = "0 1px 3px rgba(0,0,0,0.05)";
+        e.currentTarget.style.borderColor = "#e2e8f0";
+      }
+    }}
+  >
+    <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+      <span style={{ fontSize: 24, fontWeight: 800, color: active ? "#1d4ed8" : "#1e293b", letterSpacing: "-0.02em", lineHeight: 1 }}>
+        {value}
+      </span>
+    </div>
+    <span style={{ fontSize: 12, fontWeight: 700, color: active ? "#3b82f6" : "#64748b", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+      {label}
+    </span>
+  </div>
+);
+
 const MLD = () => {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const {
     user,
     mounted,
@@ -580,6 +684,9 @@ const MLD = () => {
   const checker = useDocChecker();
   const [gateModal, setGateModal] = useState({ open: false, docId: null });
 
+  // Load users + departments once (needed for AddTaskModal) — does NOT touch
+  // any existing state; purely additive.
+  // Hydrate any previously-verified docs on page load (one batch, not per-row)
   useEffect(() => {
     const uploadedDocIds = documents
       .filter((d) => !d.deleted && d.id)
@@ -785,6 +892,7 @@ const MLD = () => {
       
       const { ids: userDeptIds, names: resolvedNames } = getResolvedDepartmentInfo(user, allDepartments);
 
+      // Extra fallback: if allDepartments hadn't loaded yet, also resolve directly from user.department
       const directName =
         user?.department?.name ||
         allDepartments.find(
@@ -827,6 +935,7 @@ const MLD = () => {
     }
   }, [refreshDocuments, mounted]);
 
+  // Build rows
   const allDocRows = useMemo(() => {
     if (controlsLoading || backendControls.length === 0) return [];
     
@@ -857,6 +966,7 @@ const MLD = () => {
       docsList.forEach(({ doc, type, dept }) => {
         if (!doc) return;
 
+        // Department Access Check (unless privileged/admin)
         const docDeptVal = String(dept || "").toLowerCase();
         const lowercaseUserDeptNames = userDeptNames.map((n) => n.toLowerCase());
         const hasAccess =
@@ -883,6 +993,7 @@ const MLD = () => {
     return rows;
   }, [backendControls, controlsLoading, soas, user, allDepartments, isPrivilegedRole]);
 
+  // ── Column sort handler ────────────────────────────────────────────────
   const handleColSort = useCallback((key) => {
     setColSort((prev) => ({
       key,
@@ -891,6 +1002,7 @@ const MLD = () => {
     setSoaSort("none");
   }, []);
 
+  // Filter + Sort
   const filteredDocRows = useMemo(() => {
     let list = [...allDocRows];
 
@@ -1040,6 +1152,7 @@ const MLD = () => {
     mappingsByControl, uploadFilter, documents, isAllSelected,
     selectedFrameworks, fwLabelToCode, fwOrder,
   ]);
+  const searchParams = useSearchParams();
 
   useEffect(() => {
     const openControlId = searchParams.get("openControlId");
@@ -1050,14 +1163,17 @@ const MLD = () => {
       setTimeout(() => {
         document.getElementById(`policy-row-${match.rowKey}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
       }, 100);
+      // clear the highlight after a few seconds
       const t = setTimeout(() => setHighlightedRowKey(null), 4000);
       return () => clearTimeout(t);
     }
   }, [searchParams, filteredDocRows]);
 
   const getLatestDocForSoA = (soaId) => {
+    // Resolve user's department info for access check
     const { ids: userDeptIds, names: userDeptNames } = getResolvedDepartmentInfo(user, allDepartments);
     const lowercaseUserDeptNames = userDeptNames.map((n) => n.toLowerCase());
+    // Filter documents belonging to the given SoA and that the user has access to
     const accessibleDocs = documents
       .filter((d) => String(d.soaId) === String(soaId))
       .filter((d) => {
@@ -1073,8 +1189,13 @@ const MLD = () => {
     return accessibleDocs.find((d) => !d.deleted) || accessibleDocs[0];
   };
 
+  // Counts
   const totalDocsToUpload = allDocRows.length;
   const docCount = useMemo(() => {
+    // Inline department filtering here so all deps are declared explicitly.
+    // Previously this called getLatestDocForSoA() which captured user/allDepartments
+    // via closure but those were missing from the dep array — causing the count
+    // to be wrong (often 0) when allDepartments loaded after documents.
     const { ids: userDeptIds, names: userDeptNames } = getResolvedDepartmentInfo(user, allDepartments);
     const lcNames = userDeptNames.map((n) => n.toLowerCase());
 
@@ -1134,13 +1255,18 @@ const MLD = () => {
       try {
         setUploading((p) => ({ ...p, [soaId]: true }));
 
+        // Priority 1: use the department already on this row (set by backend control data)
+        // Priority 2: resolve from user profile + allDepartments lookup
+        // Priority 3: fallback to raw department id stored on user
         let primaryDeptName = rowDocDept ? rowDocDept.trim() : "";
         if (!primaryDeptName) {
           const { names: resolvedDeptNames } = getResolvedDepartmentInfo(user, allDepartments);
           primaryDeptName = resolvedDeptNames[0]
             ? resolvedDeptNames[0]
             : (
+                // last-resort: pull from user.department directly if it's a populated object
                 user?.department?.name ||
+                // or look it up by the raw ID in allDepartments
                 allDepartments.find(
                   (d) =>
                     String(d._id) === String(user?.department?._id || user?.department) ||
@@ -1149,6 +1275,7 @@ const MLD = () => {
                 ""
               );
         }
+        // Normalise: store consistently in UPPERCASE so filter comparisons work
         primaryDeptName = (primaryDeptName || "N/A").toUpperCase();
         await documentationService.uploadDocument({
           file, soaId, controlId: "",
@@ -1195,39 +1322,44 @@ const MLD = () => {
 
   const filterPill = (active) => ({
     padding: "6px 14px", borderRadius: "20px",
-    border: `1.5px solid ${active ? "#667eea" : "#dde3ef"}`,
-    background: active ? "#667eea" : "#f7f9fc",
-    color: active ? "#fff" : "#555",
+    border: `1.5px solid ${active ? "#3b82f6" : "#e2e8f0"}`,
+    background: active ? "#3b82f6" : "#f8fafc",
+    color: active ? "#fff" : "#475569",
     fontWeight: active ? 700 : 500, fontSize: "12px",
     cursor: "pointer", transition: "all 0.15s ease",
   });
 
   return (
-    <div style={{ padding: "10px", maxWidth: "1400px", margin: "0px auto" }}>
+    <div style={{ padding: "4px 2px 6px", maxWidth: 1280, margin: "0 auto", width: "100%", boxSizing: "border-box", overflowX: "hidden" }}>
       <style>{`
         @keyframes spin { to { transform: rotate(360deg) } }
         .mld-table-wrapper {
           width: 100%; overflow-x: auto;
-          max-height: 72vh; overflow-y: auto; border-radius: 8px;
+          max-height: 72vh; overflow-y: auto;
+          padding-bottom: 120px;
         }
         .mld-table {
-          width: 100%; border-collapse: separate;
-          border-spacing: 0; min-width: 1500px;
+          width: 100%; border-collapse: collapse;
+          min-width: 1500px; background: transparent;
         }
         .mld-table thead tr th {
           position: sticky; top: 0; z-index: 10;
-          background: #f8f9fa; box-shadow: 0 2px 0 #e6e6e6;
+          padding: 11px 12px; font-weight: 700; font-size: 11px;
+          color: #64748b; text-transform: uppercase; letter-spacing: 0.06em;
+          white-space: nowrap; background: #f8fafc;
         }
-        .mld-table tbody tr:hover td { background: inherit; }
+        .mld-table tbody tr:hover td { background: #f8fafc !important; }
+        .mld-table tbody tr { transition: background 0.15s; }
         .ownership-chip {
           display: inline-block; font-size: 10px;
           padding: 2px 7px; border-radius: 8px;
           font-weight: 600; white-space: nowrap;
         }
+        /* ── Add Task button ── */
         .add-task-btn {
           display: inline-flex; align-items: center; gap: 4px;
           padding: 4px 10px; border-radius: 6px; border: none;
-          background: #0052CC; color: #fff;
+          background: linear-gradient(135deg,#3b82f6,#2563eb); color: #fff; box-shadow: 0 4px 12px rgba(37,99,235,0.3);
           font-size: 11px; font-weight: 700; cursor: pointer;
           transition: background 0.15s, transform 0.1s;
           white-space: nowrap;
@@ -1244,64 +1376,110 @@ const MLD = () => {
         }}
       />
 
-      {[
-        { label: "Tutorial", bg: "linear-gradient(90deg,#ffb74d,#ff9800)", onClick: () => setJoyrideRun(true) },
-        { label: "← Back to Dashboard", bg: "#005FCC", onClick: () => router.push("/documentation") },
-      ].map(({ label, bg, onClick }) => (
-        <button key={label} onClick={onClick} style={{
-          position: "sticky", top: 0, margin: "10px", padding: "10px 24px",
-          borderRadius: "8px", background: bg, border: "none", color: "#fff",
-          fontWeight: 600, fontSize: "14px", cursor: "pointer",
-          boxShadow: "0 4px 12px rgba(0,0,0,0.15)", transition: "transform 0.3s ease,opacity 0.3s ease",
-          zIndex: 999,
-          transform: showButtons ? "translateY(0)" : "translateY(-100%)",
-          opacity: showButtons ? 1 : 0,
-        }}>
-          {label}
+      {/* ── Back button ── */}
+      <div style={{ marginBottom: 12 }}>
+        <button
+          onClick={() => router.push("/documentation")}
+          style={{
+            padding: "10px 20px",
+            background: "linear-gradient(135deg,#3b82f6,#2563eb)",
+            color: "white", border: "none", borderRadius: 10,
+            fontSize: 13, fontWeight: 600, cursor: "pointer",
+            display: "inline-flex", alignItems: "center", gap: 6,
+            boxShadow: "0 4px 12px rgba(37,99,235,0.3)",
+            transition: "all 0.2s",
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = "0 6px 16px rgba(37,99,235,0.35)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "0 4px 12px rgba(37,99,235,0.3)"; }}
+        >
+          ← Back to Dashboard
         </button>
-      ))}
-
-      <div id="mld-header" style={{
-        background: "linear-gradient(135deg,#667eea 0%,#764ba2 100%)",
-        borderRadius: "12px", padding: "20px", marginBottom: "20px",
-        boxShadow: "0 5px 20px rgba(102,126,234,0.25)",
-        border: "1px solid rgba(255,255,255,0.1)", color: "white",
-      }}>
-        <h1 style={{ marginBottom: "8px", fontSize: "28px", fontWeight: 700 }}>Policies</h1>
-        <p style={{ fontSize: "16px", opacity: 0.95, marginBottom: "12px" }}>
-          Upload and manage your policies
-        </p>
-        {controlsLoading ? (
-          <p style={{ fontSize: "14px", opacity: 0.8 }}>Loading controls from server…</p>
-        ) : (
-          <div style={{ display: "flex", gap: "24px", fontSize: "14px", opacity: 0.95, flexWrap: "wrap" }}>
-            <div><span style={{ fontWeight: 600 }}>Total:</span> {totalDocsToUpload}</div>
-            <div><span style={{ fontWeight: 600 }}>Uploaded:</span> {docCount}</div>
-            <div><span style={{ fontWeight: 600 }}>SoA Linked:</span> {allDocRows.filter((r) => r.soaEntry).length}</div>
-            {availableFrameworks.map((fw) => (
-              <div key={fw.code}>
-                <span style={{ fontWeight: 600 }}>{fw.label}:</span> {frameworkCounts[fw.code] || 0}
-              </div>
-            ))}
-          </div>
-        )}
       </div>
 
-      <div style={{
-        display: "flex", gap: "12px", alignItems: "center",
-        marginBottom: "12px", justifyContent: "space-between", flexWrap: "wrap",
+      {/* ── Header card ── */}
+      <div id="mld-header" style={{
+        background: "rgba(255,255,255,0.85)", backdropFilter: "blur(8px)",
+        border: "1px solid rgba(241,245,249,0.8)", borderRadius: 14,
+        boxShadow: "0 2px 10px rgba(0,0,0,0.06)",
+        padding: "18px 24px 16px", marginBottom: 16,
       }}>
-        <div style={{ display: "flex", gap: "12px", alignItems: "center", flexWrap: "wrap" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+            <div style={{ width: 48, height: 48, borderRadius: 12, background: "linear-gradient(135deg,#3b82f6,#2563eb)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 4px 12px rgba(37,99,235,0.3)" }}>
+              <FileText size={22} color="white" strokeWidth={2} />
+            </div>
+            <div>
+              <h1 style={{ margin: 0, fontSize: "18px", fontWeight: 700, color: "#1e293b", letterSpacing: "-0.01em", lineHeight: 1.2 }}>Policies</h1>
+              <p style={{ margin: "3px 0 0", fontSize: "13px", color: "#64748b", fontWeight: 400 }}>Upload and manage your policies</p>
+            </div>
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <button
+              onClick={() => setJoyrideRun(true)}
+              style={{
+                padding: "10px 20px", borderRadius: 10,
+                background: "linear-gradient(90deg,#ffb74d,#ff9800)",
+                border: "none", color: "white", fontWeight: 600, fontSize: 13,
+                cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6,
+                boxShadow: "0 4px 12px rgba(255,152,0,0.3)", transition: "all 0.2s",
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = "0 6px 16px rgba(255,152,0,0.35)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "0 4px 12px rgba(255,152,0,0.3)"; }}
+            >
+              Tutorial
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Stat Cards ── */}
+      {/* !controlsLoading && (
+        <section
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+            gap: 14, marginBottom: 18,
+          }}
+        >
+          <StatCard value={totalDocsToUpload} label="Total" index={0} active={false} />
+          <StatCard value={docCount} label="Uploaded" index={1} active={false} />
+          <StatCard value={allDocRows.filter((r) => r.soaEntry).length} label="SoA Linked" index={2} active={false} />
+          {availableFrameworks.map((fw, i) => (
+            <StatCard key={fw.code} value={frameworkCounts[fw.code] || 0} label={fw.label} index={3 + i} active={false} />
+          ))}
+        </section>
+      ) */}
+
+      {/* ── Filter / Toolbar ── */}
+      <div style={{
+        background: "rgba(255,255,255,0.85)", backdropFilter: "blur(8px)",
+        border: "1px solid rgba(241,245,249,0.8)", borderRadius: 12,
+        boxShadow: "0 1px 4px rgba(0,0,0,0.04)",
+        padding: "8px 16px", marginBottom: 16,
+        display: "flex", alignItems: "center", gap: 8,
+        flexWrap: "wrap", overflow: "visible",
+        position: "relative", zIndex: 100,
+      }}>
+        <div style={{ display: "flex", gap: "16px", alignItems: "center", flexWrap: "wrap", flex: 1 }}>
           <input
             id="mld-search" type="text"
             placeholder="Search policy, control ID or C-ID…"
             value={soaSearch} onChange={(e) => setSoaSearch(e.target.value)}
-            style={{ padding: "8px 12px", borderRadius: "8px", border: "1px solid #ccc", minWidth: "240px" }}
+            style={{ padding: "7px 10px", border: "1.5px solid #e2e8f0", borderRadius: 8, fontSize: 13,
+                outline: "none", background: "#f8fafc", boxSizing: "border-box",
+                transition: "all 0.2s", color: "#1e293b", fontWeight: 600, minWidth: 240 }}
+            onFocus={(e) => { e.target.style.borderColor = "#3b82f6"; e.target.style.background = "#fff"; e.target.style.boxShadow = "0 0 0 3px rgba(59,130,246,.1)"; }}
+            onBlur={(e) => { e.target.style.borderColor = "#e2e8f0"; e.target.style.background = "#f8fafc"; e.target.style.boxShadow = "none"; }}
           />
           <select
             id="mld-sort" value={soaSort}
             onChange={(e) => { setSoaSort(e.target.value); setColSort({ key: null, dir: "asc" }); }}
-            style={{ padding: "8px 12px", borderRadius: "8px", border: "1px solid #ccc", background: "white" }}
+            style={{ padding: "6px 11px", border: "1.5px solid #e2e8f0", borderRadius: 8,
+                fontSize: 13, background: "#f8fafc", cursor: "pointer", outline: "none",
+                fontWeight: 600, color: "#1e293b", transition: "all 0.15s" }}
+            onFocus={(e) => { e.target.style.borderColor = "#3b82f6"; e.target.style.background = "#fff"; e.target.style.boxShadow = "0 0 0 3px rgba(59,130,246,.1)"; }}
+            onBlur={(e) => { e.target.style.borderColor = "#e2e8f0"; e.target.style.background = "#f8fafc"; e.target.style.boxShadow = "none"; }}
           >
             <option value="framework">By Framework (27001 → 27701 → SOC2 → 42001 → PDPL)</option>
             <option value="name">Policy Name (A → Z)</option>
@@ -1313,8 +1491,9 @@ const MLD = () => {
             {soaSort === "none" && <option value="none">Column Sort Active</option>}
           </select>
 
-          <div id="mld-upload-filter" style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-            <span style={{ fontSize: "12px", fontWeight: 600, color: "#666" }}>Uploaded:</span>
+          <div style={{ width: 1, height: 24, background: "#e2e8f0", flexShrink: 0 }} />
+          <div id="mld-upload-filter" style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.06em", whiteSpace: "nowrap" }}>Upload Status</span>
             {[
               { val: "ALL", label: "All" },
               { val: "uploaded", label: "✓ Uploaded" },
@@ -1326,9 +1505,8 @@ const MLD = () => {
             ))}
           </div>
         </div>
-        <div style={{ color: "#666", fontSize: "14px", marginRight: "150px" }}>
-          Showing {filteredDocRows.length} of {totalDocsToUpload}
-        </div>
+        <span style={{ fontSize: 12, color: "#94a3b8", fontWeight: 600, whiteSpace: "nowrap", flexShrink: 0 }}>
+          Showing {filteredDocRows.length} of {totalDocsToUpload}</span>
       </div>
 
       {mappingsLoading && (
@@ -1338,6 +1516,7 @@ const MLD = () => {
         </div>
       )}
 
+      {/* Task success toast */}
       {taskSuccessMsg && (
         <div style={{
           marginBottom: "10px", padding: "10px 16px", borderRadius: "8px",
@@ -1354,22 +1533,17 @@ const MLD = () => {
         </div>
       )}
 
+      {/* ── Table card ── */}
       <div style={{
-        background: "white", borderRadius: "12px", padding: "20px",
-        marginBottom: "28px", boxShadow: "0 3px 15px rgba(0,0,0,0.06)",
-        border: "1px solid #e9ecef",
+        background: "rgba(255,255,255,0.8)", backdropFilter: "blur(8px)",
+        borderRadius: 14, boxShadow: "0 2px 12px rgba(0,0,0,0.06)",
+        border: "1px solid rgba(241,245,249,0.8)",
+        overflow: "hidden", marginBottom: 16,
       }}>
-        <h2 style={{
-          color: "#2c3e50", marginBottom: "16px", fontSize: "18px",
-          borderBottom: "3px solid #667eea", paddingBottom: "8px",
-        }}>
-          Policies
-        </h2>
-
-        <div className="mld-table-wrapper">
+          <div className="mld-table-wrapper">
           <table id="mld-upload-table" className="mld-table">
             <thead>
-              <tr style={{ backgroundColor: "#f8f9fa" }}>
+              <tr style={{ background: "#f8fafc", borderBottom: "2px solid #e2e8f0" }}>
                 <SortableHeader label="Control ID" sortKey="cId" currentSort={colSort} onSort={handleColSort} />
                 <th style={thStyle}>Policy Name</th>
                 <th style={thStyle}>Related Framework</th>
@@ -1385,9 +1559,11 @@ const MLD = () => {
                 <SortableHeader label="Review Date" sortKey="reviewDate" currentSort={colSort} onSort={handleColSort} />
                 <th style={thStyle}>Upload</th>
                 <th style={thStyle}>Remarks</th>
+                {/* ── NEW column: doc-checker ── */}
                 <th style={{ ...thStyle, background: "#eef9f0", color: "#166534" }}>
                   Quality Check
                 </th>
+                {/* ── NEW column ── */}
                 <th style={{ ...thStyle, background: "#f0f4ff", color: "#3b5bdb" }}>
                   Add Task
                 </th>
@@ -1424,8 +1600,17 @@ const MLD = () => {
                     const ownership = ownershipMap[`${framework.trim()}:${controlCode.trim()}`] || {};
                     const approvedBy = doc?.approvedBy || doc?.approverName || (doc?.approvalDate ? "—" : "—");
 
+
+                    // The row object we'll pass into AddTaskModal
                     const taskRow = { rowKey, cId, docName, docType, docDept, controlCode, controlTitle, soaEntry, framework, controlMongoId };
 
+
+                    // The row object we'll pass into the doc-checker hook.
+                    // mldDocName is intentionally row.docName (the MLD's
+                    // expected title for this control) — NOT doc.name —
+                    // since the whole point of the check is verifying the
+                    // uploaded file's title matches what the MLD says it
+                    // should be.
                     const docCheckRow = isUploaded && doc ? {
                       docId: doc.id,
                       docUrl: doc.url,
@@ -1433,13 +1618,22 @@ const MLD = () => {
                       organizationId: effectiveOrgId,
                       soaId: soaEntry?.id,
                       controlId: cId,
+                      // ── NEW: framework-aware control mapping ──
+                      // Lets doc-checker-service factor coverage of this control's actual
+                      // requirements directly into the policyStatements score (see
+                      // GroqAuditService). Sourced straight from this row's already-destructured
+                      // values — no extra fetch needed.
                       framework,
                       controlCode,
                       controlTitle,
                     } : null;
 
+
                     const handleApprove = async () => {
                       if (!doc) return;
+                      // ── NEW: doc-checker gate ──────────────────────────
+                      // Block approval until the document has cleared the
+                      // quality check (title match + score >= APPROVAL_THRESHOLD).
                       if (!checker.canApprove(doc.id)) {
                         setGateModal({ open: true, docId: doc.id });
                         return;
@@ -1467,20 +1661,21 @@ const MLD = () => {
                       }
                     };
 
+
                     return (
                       <tr
                         key={rowKey}
-                        id={`policy-row-${rowKey}`}
+                        id={`policy-row-${rowKey}`}   // ← add this
                         style={{
                           borderBottom: "1px solid #f1f1f1",
-                          backgroundColor: rowKey === highlightedRowKey ? "#fff3cd" : rowBg,
-                          borderLeft: isSoaLinked ? "4px solid #28a745" : "4px solid transparent",
+                          backgroundColor: rowKey === highlightedRowKey ? "#fff3cd" : rowBg,  // ← highlight
                           transition: "background-color 0.3s ease",
                         }}
                         onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = isSoaLinked ? "#e6f9ed" : "#f8f9fa"; }}
                         onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = rowBg; }}
                       >
-                        <td style={{ padding: "12px 14px", verticalAlign: "middle", maxWidth: "180px" }}>
+                        {/* Control ID */}
+                        <td style={{ padding: "4px 8px", verticalAlign: "middle", maxWidth: "180px" }}>
                           <span style={{
                             display: "block", fontFamily: "monospace", fontWeight: 700,
                             color: "#3b5bdb", fontSize: "12px", background: "#f1f5f9",
@@ -1491,6 +1686,8 @@ const MLD = () => {
                           </span>
                         </td>
 
+
+                        {/* Policy Name */}
                         <td
                           onClick={() => {
                             if (!soaEntry) return;
@@ -1500,7 +1697,7 @@ const MLD = () => {
                             }
                             if (isUploaded) handlePreviewClick(soaEntry);
                           }}
-                          style={{ padding: "12px 14px", verticalAlign: "middle", cursor: isUploaded && soaEntry ? "pointer" : "default", color: doc?.deleted ? "#999" : "#2c3e50" }}
+                          style={{ padding: "4px 8px", verticalAlign: "middle", cursor: isUploaded && soaEntry ? "pointer" : "default", color: doc?.deleted ? "#999" : "#2c3e50", fontSize: "12px", fontWeight: 500 }}
                         >
                           {docName}
                           {isSoaLinked && (
@@ -1510,15 +1707,21 @@ const MLD = () => {
                           )}
                         </td>
 
-                        <td style={{ padding: "12px 14px", textAlign: "center", verticalAlign: "middle" }}>
+
+                        {/* Related Framework */}
+                        <td style={{ padding: "4px 8px", textAlign: "center", verticalAlign: "middle" }}>
                           <FrameworkCell framework={framework} mappings={mappings} colorMap={fwColorMap} />
                         </td>
 
-                        <td style={{ padding: "12px 14px", textAlign: "center", verticalAlign: "middle", color: "#6c757d", fontSize: "12px" }}>
+
+                        {/* Type */}
+                        <td style={{ padding: "4px 8px", textAlign: "center", verticalAlign: "middle", color: "#6c757d", fontSize: "12px" }}>
                           {docType || "—"}
                         </td>
 
-                        <td style={{ padding: "12px 14px", verticalAlign: "middle", maxWidth: "220px" }}>
+
+                        {/* Control Code + title */}
+                        <td style={{ padding: "4px 8px", verticalAlign: "middle", maxWidth: "220px" }}>
                           <span style={{ display: "block", fontFamily: "monospace", fontWeight: 700, fontSize: "12px", color: "#374151" }}>
                             {controlCode}
                           </span>
@@ -1529,7 +1732,9 @@ const MLD = () => {
                           )}
                         </td>
 
-                        <td style={{ padding: "12px 14px", textAlign: "center", verticalAlign: "middle" }}>
+
+                        {/* Ownership */}
+                        <td style={{ padding: "4px 8px", textAlign: "center", verticalAlign: "middle" }}>
                           {ownershipLoading ? (
                             <span style={{ fontSize: "11px", color: "#aaa" }}>…</span>
                           ) : ownership.owner || ownership.manager ? (
@@ -1550,11 +1755,15 @@ const MLD = () => {
                           )}
                         </td>
 
-                        <td style={{ padding: "12px 14px", textAlign: "center", verticalAlign: "middle", color: "#2c3e50", fontSize: "13px" }}>
+
+                        {/* Department */}
+                        <td style={{ padding: "4px 8px", textAlign: "center", verticalAlign: "middle", color: "#475569", fontSize: "11px", fontWeight: 500, fontSize: "13px" }}>
                           {docDept || "—"}
                         </td>
 
-                        <td style={{ padding: "12px 14px", textAlign: "center", verticalAlign: "middle", color: "#2c3e50" }}>
+
+                        {/* CalVant Version */}
+                        <td style={{ padding: "4px 8px", textAlign: "center", verticalAlign: "middle", color: "#475569", fontSize: "11px", fontWeight: 500 }}>
                           {doc?.version != null ? (
                             <span style={{ background: "#f0f4ff", color: "#3b5bdb", border: "1px solid #c5d4fb", borderRadius: "6px", padding: "2px 8px", fontSize: "12px", fontWeight: 700 }}>
                               v{doc.version}
@@ -1562,27 +1771,39 @@ const MLD = () => {
                           ) : "—"}
                         </td>
 
-                        <td style={{ padding: "12px 14px", textAlign: "center", verticalAlign: "middle" }}>
+
+                        {/* Status */}
+                        <td style={{ padding: "4px 8px", textAlign: "center", verticalAlign: "middle" }}>
                           <StatusBadge status={status} />
                         </td>
 
-                        <td style={{ padding: "12px 14px", textAlign: "center", verticalAlign: "middle", color: "#2c3e50" }}>
+
+                        {/* Submitted By */}
+                        <td style={{ padding: "4px 8px", textAlign: "center", verticalAlign: "middle", color: "#475569", fontSize: "11px", fontWeight: 500 }}>
                           {doc?.uploaderName ?? "—"}
                         </td>
 
-                        <td style={{ padding: "12px 14px", textAlign: "center", verticalAlign: "middle", color: "#2c3e50" }}>
+
+                        {/* Submission Date */}
+                        <td style={{ padding: "4px 8px", textAlign: "center", verticalAlign: "middle", color: "#475569", fontSize: "11px", fontWeight: 500 }}>
                           {submissionDate}
                         </td>
 
-                        <td style={{ padding: "12px 14px", textAlign: "center", verticalAlign: "middle", color: "#2c3e50" }}>
+
+                        {/* Approved By */}
+                        <td style={{ padding: "4px 8px", textAlign: "center", verticalAlign: "middle", color: "#475569", fontSize: "11px", fontWeight: 500 }}>
                           {doc?.approvalDate ? (approvedBy || user?.name || "—") : "—"}
                         </td>
 
-                        <td style={{ padding: "12px 14px", textAlign: "center", verticalAlign: "middle", color: "#2c3e50" }}>
+
+                        {/* Review Date */}
+                        <td style={{ padding: "4px 8px", textAlign: "center", verticalAlign: "middle", color: "#475569", fontSize: "11px", fontWeight: 500 }}>
                           {reviewDate}
                         </td>
 
-                        <td style={{ padding: "12px 14px", textAlign: "center", verticalAlign: "middle" }}>
+
+                        {/* Upload + inline actions */}
+                        <td style={{ padding: "4px 8px", textAlign: "center", verticalAlign: "middle" }}>
                           <div style={{ display: "flex", flexDirection: "column", gap: "4px", alignItems: "center" }}>
                             {soaId ? (
                               <button
@@ -1590,99 +1811,127 @@ const MLD = () => {
                                 onClick={() => !isUploaded && handleSingleButtonUpload(soaId, docDept)}
                                 disabled={isUploaded || uploading[soaId]}
                                 style={{
-                                  backgroundColor: isUploaded ? "#2ecc71" : "#f1f1f1",
-                                  border: "1px solid #ccc", borderRadius: "6px", padding: "4px 8px",
+                                  backgroundColor: isUploaded ? "#ecfdf5" : "#f1f5f9",
+                                  border: isUploaded ? "1px solid #10b981" : "1px solid #cbd5e1",
+                                  borderRadius: "6px", padding: "4px 8px",
                                   cursor: isUploaded ? "default" : "pointer",
                                   display: "flex", alignItems: "center", justifyContent: "center",
-                                  color: isUploaded ? "white" : "inherit", minWidth: "80px",
+                                  color: isUploaded ? "#059669" : "#475569", minWidth: "120px",
+                                  fontWeight: 600, fontSize: "12px",
                                 }}
                               >
                                 {uploading[soaId] ? (
-                                  <><UploadCloud size={16} style={{ marginRight: "4px" }} />Uploading…</>
+                                  <><UploadCloud size={14} style={{ marginRight: "6px" }} />Uploading…</>
                                 ) : isUploaded ? (
-                                  <Check size={20} style={{ margin: "0 25px" }} />
+                                  <><Check size={14} style={{ marginRight: "6px" }} />Uploaded</>
                                 ) : (
-                                  <><UploadCloud size={16} style={{ marginRight: "4px" }} />Upload</>
+                                  <><UploadCloud size={14} style={{ marginRight: "6px" }} />Upload</>
                                 )}
                               </button>
                             ) : (
                               <span style={{ fontSize: "11px", color: "#aaa", fontStyle: "italic", whiteSpace: "nowrap" }}>Not assessed</span>
                             )}
 
+
                             {isUploaded && soaId && (
-                              <div style={{ display: "flex", gap: "4px", justifyContent: "center", flexWrap: "wrap" }}>
-                                {doc?.approvalDate ? (
-                                  <div style={{ backgroundColor: "#2ecc71", color: "white", padding: "2px 6px", borderRadius: "4px", fontSize: "11px" }}>
-                                    Approved
-                                  </div>
-                                ) : (
-                                  <button
-                                    onClick={handleApprove}
-                                    title={checker.canApprove(doc.id)
-                                      ? "Approve this policy"
-                                      : `Requires a passing quality check (≥${APPROVAL_THRESHOLD}% with matching title)`}
-                                    style={{
-                                      backgroundColor: "#2ecc71", color: "white", border: "none", borderRadius: "6px", padding: "4px 6px", cursor: "pointer", display: "flex", alignItems: "center", fontSize: "11px",
-                                      opacity: checker.canApprove(doc.id) ? 1 : 0.45,
-                                    }}
-                                  >
-                                    <Calendar size={13} style={{ marginRight: "3px" }} />Approve
-                                  </button>
-                                )}
-                                <button
-                                  onClick={() => setDeleteModal({ open: true, docId: doc.id, comment: "" })}
-                                  style={{ backgroundColor: "#f59e0b", color: "white", border: "none", borderRadius: "6px", padding: "4px 6px", cursor: "pointer", display: "flex", alignItems: "center", gap: "3px", fontSize: "11px" }}
-                                >
-                                  <Trash2 size={13} />Archive
-                                </button>
-                                <button
-                                  onClick={async () => {
-                                    captureActivity({ action: ACTIONS.CLICK, item: "Documentation · Checked version history for document " + doc.id, url: "/documentation/mld" });
-                                    const versions = await documentationService.getDocVersions(doc.id);
-                                    const safe = versions.filter((v) => v.organization === effectiveOrgId);
-                                    setDocVersions((prev) => ({ ...prev, [doc.id]: safe }));
-                                    setModal({
-                                      isOpen: true, title: "Version History",
-                                      showCancel: false,
-                                      onConfirm: () => setModal((m) => ({ ...m, isOpen: false })),
-                                      message: (
-                                        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                                          <thead>
-                                            <tr>
-                                              {["CalVant Version", "Submitted By", "Submission Date", "Remarks", "Deleted At"].map((h) => (
-                                                <th key={h} style={{ padding: "6px 8px", borderBottom: "1px solid #dee2e6" }}>{h}</th>
-                                              ))}
-                                            </tr>
-                                          </thead>
-                                          <tbody>
-                                            {safe.map((v, i) => (
-                                              <tr key={i}>
-                                                <td style={{ padding: "6px 8px" }}>v{v.version}</td>
-                                                <td style={{ padding: "6px 8px" }}>{v.uploaderName}</td>
-                                                <td style={{ padding: "6px 8px" }}>{v.approvalDate ? new Date(v.approvalDate).toLocaleDateString() : "—"}</td>
-                                                <td style={{ padding: "6px 8px" }}>{v.deleteComment ?? "—"}</td>
-                                                <td style={{ padding: "6px 8px" }}>{v.deletedAt ? new Date(v.deletedAt).toLocaleDateString() : "—"}</td>
-                                              </tr>
-                                            ))}
-                                          </tbody>
-                                        </table>
-                                      ),
-                                    });
+                              <div 
+                                style={{ position: "relative", marginTop: "4px", width: "100%", maxWidth: "120px" }}
+                                tabIndex={-1}
+                                onBlur={(e) => {
+                                  if (!e.currentTarget.contains(e.relatedTarget)) {
+                                    e.currentTarget.lastChild.style.display = "none";
+                                  }
+                                }}
+                              >
+                                <button 
+                                  onClick={(e) => { 
+                                    const dd = e.currentTarget.nextElementSibling;
+                                    dd.style.display = dd.style.display === "flex" ? "none" : "flex"; 
                                   }}
-                                  style={{ backgroundColor: "#3498db", color: "white", border: "none", borderRadius: "6px", padding: "4px 6px", cursor: "pointer", fontSize: "11px" }}
+                                  style={{ backgroundColor: "#f8fafc", color: "#475569", border: "1px solid #cbd5e1", borderRadius: "6px", padding: "4px 8px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: "11px", fontWeight: 600, width: "100%" }}
                                 >
-                                  History
+                                  Actions <span style={{ fontSize: "9px" }}>▼</span>
                                 </button>
+                                
+                                <div style={{ display: "none", position: "absolute", top: "100%", right: "0", marginTop: "4px", backgroundColor: "white", border: "1px solid #e2e8f0", borderRadius: "8px", boxShadow: "0 10px 25px rgba(0,0,0,0.1)", padding: "6px", flexDirection: "column", gap: "4px", zIndex: 100, minWidth: "120px" }}>
+                                  {doc?.approvalDate ? (
+                                    <div style={{ backgroundColor: "#ecfdf5", color: "#059669", border: "1px solid #10b981", padding: "4px 6px", borderRadius: "4px", fontSize: "11px", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 600 }}>
+                                      Approved
+                                    </div>
+                                  ) : (
+                                    <button
+                                      onClick={handleApprove}
+                                      title={checker.canApprove(doc.id)
+                                        ? "Approve this policy"
+                                        : `Requires a passing quality check (≥${APPROVAL_THRESHOLD}% with matching title)`}
+                                      style={{
+                                        backgroundColor: "#ecfdf5", color: "#059669", border: "1px solid #10b981", borderRadius: "4px", padding: "4px 6px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", fontWeight: 600, width: "100%",
+                                        opacity: checker.canApprove(doc.id) ? 1 : 0.45,
+                                      }}
+                                    >
+                                      Approve
+                                    </button>
+                                  )}
+                                  <button
+                                    onClick={() => setDeleteModal({ open: true, docId: doc.id, comment: "" })}
+                                    style={{ backgroundColor: "#fef3c7", color: "#d97706", border: "1px solid #f59e0b", borderRadius: "4px", padding: "4px 6px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", fontWeight: 600, width: "100%" }}
+                                  >
+                                    Archive
+                                  </button>
+                                  <button
+                                    onClick={async () => {
+                                      captureActivity({ action: ACTIONS.CLICK, item: "Documentation · Checked version history for document " + doc.id, url: "/documentation/mld" });
+                                      const versions = await documentationService.getDocVersions(doc.id);
+                                      const safe = versions.filter((v) => v.organization === effectiveOrgId);
+                                      setDocVersions((prev) => ({ ...prev, [doc.id]: safe }));
+                                      setModal({
+                                        isOpen: true, 
+                                        title: <div style={{ display: "flex", alignItems: "center", gap: "8px" }}><Calendar size={18} color="#3b82f6" /> Version History</div>,
+                                        showCancel: false,
+                                        onConfirm: () => setModal((m) => ({ ...m, isOpen: false })),
+                                        message: (
+                                          <table style={{ width: "100%", borderCollapse: "collapse", borderRadius: "8px", overflow: "hidden", border: "1px solid #e2e8f0" }}>
+                                            <thead>
+                                              <tr style={{ backgroundColor: "#f8fafc" }}>
+                                                {["CalVant Version", "Submitted By", "Submission Date", "Remarks", "Deleted At"].map((h) => (
+                                                  <th key={h} style={{ padding: "10px 12px", borderBottom: "1px solid #e2e8f0", textAlign: "left", fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em" }}>{h}</th>
+                                                ))}
+                                              </tr>
+                                            </thead>
+                                            <tbody>
+                                              {safe.map((v, i) => (
+                                                <tr key={i} style={{ borderBottom: "1px solid #f1f5f9", transition: "background 0.2s" }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "#f8fafc"} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "transparent"}>
+                                                  <td style={{ padding: "10px 12px", fontSize: "12px", fontWeight: 500, color: "#334155" }}>v{v.version}</td>
+                                                  <td style={{ padding: "10px 12px", fontSize: "12px", color: "#475569" }}>{v.uploaderName}</td>
+                                                  <td style={{ padding: "10px 12px", fontSize: "12px", color: "#475569" }}>{v.approvalDate ? new Date(v.approvalDate).toLocaleDateString() : "—"}</td>
+                                                  <td style={{ padding: "10px 12px", fontSize: "12px", color: "#475569", maxWidth: "200px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={v.deleteComment || ""}>{v.deleteComment ?? "—"}</td>
+                                                  <td style={{ padding: "10px 12px", fontSize: "12px", color: "#475569" }}>{v.deletedAt ? new Date(v.deletedAt).toLocaleDateString() : "—"}</td>
+                                                </tr>
+                                              ))}
+                                            </tbody>
+                                          </table>
+                                        ),
+                                      });
+                                    }}
+                                    style={{ backgroundColor: "#eff6ff", color: "#2563eb", border: "1px solid #3b82f6", borderRadius: "4px", padding: "4px 6px", cursor: "pointer", fontSize: "11px", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 600, width: "100%" }}
+                                  >
+                                    History
+                                  </button>
+                                </div>
                               </div>
                             )}
                           </div>
                         </td>
 
-                        <td style={{ padding: "12px 14px", textAlign: "center", color: "#2c3e50", fontSize: "12px" }}>
+
+                        {/* Remarks */}
+                        <td style={{ padding: "4px 8px", textAlign: "center", color: "#2c3e50", fontSize: "12px" }}>
                           {doc?.deleteComment ?? "—"}
                         </td>
 
-                        <td style={{ padding: "12px 14px", textAlign: "center", verticalAlign: "middle", background: "#f6fbf7" }}>
+
+                        {/* ── NEW: Quality Check cell (doc-checker) ── */}
+                        <td style={{ padding: "4px 8px", textAlign: "center", verticalAlign: "middle", background: "#f6fbf7" }}>
                           {docCheckRow ? (
                             <VerifyCell
                               row={docCheckRow}
@@ -1696,7 +1945,9 @@ const MLD = () => {
                           )}
                         </td>
 
-                        <td style={{ padding: "12px 14px", textAlign: "center", verticalAlign: "middle", background: "#f8f9ff" }}>
+
+                        {/* ── NEW: Add Task cell ── */}
+                        <td style={{ padding: "4px 8px", textAlign: "center", verticalAlign: "middle", background: "#f8f9ff" }}>
                           <button
                             className="add-task-btn"
                             onClick={() => setAddTaskModal({ open: true, row: taskRow })}
@@ -1716,6 +1967,8 @@ const MLD = () => {
         </div>
       </div>
 
+
+      {/* Preview Modal */}
       {previewModalOpen && (
         <div style={{
           position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
@@ -1741,7 +1994,9 @@ const MLD = () => {
       />
 
       <Modal
-        isOpen={deleteModal.open} title="Archive Policy" showCancel
+        isOpen={deleteModal.open} 
+        title={<div style={{ display: "flex", alignItems: "center", gap: "8px" }}><Trash2 size={18} color="#ef4444" /> Archive Policy</div>} 
+        showCancel
         onClose={() => setDeleteModal({ open: false })}
         onConfirm={async () => {
           try {
@@ -1767,20 +2022,28 @@ const MLD = () => {
           } catch (e) { console.error(e); }
         }}
         message={
-          <div>
-            <p style={{ marginBottom: "10px", fontSize: "13px", color: "#555" }}>
+          <div style={{ textAlign: "left" }}>
+            <p style={{ marginBottom: "16px", fontSize: "13px", color: "#475569", lineHeight: "1.5" }}>
               This policy will be moved to <strong>Archive</strong>. You can permanently delete it from the dashboard's Archived section.
             </p>
             <textarea
-              placeholder="Enter reason for archiving (Remarks)"
+              placeholder="Enter reason for archiving (Remarks)..."
               value={deleteModal.comment}
               onChange={(e) => setDeleteModal((m) => ({ ...m, comment: e.target.value }))}
-              style={{ width: "100%", minHeight: 80, padding: 8, borderRadius: 6, border: "1px solid #ccc" }}
+              style={{ 
+                width: "100%", minHeight: 90, padding: "12px", borderRadius: "8px", 
+                border: "1px solid #cbd5e1", backgroundColor: "#f8fafc",
+                fontSize: "13px", color: "#334155", outline: "none", resize: "none",
+                fontFamily: "inherit", boxSizing: "border-box"
+              }}
+              onFocus={(e) => { e.target.style.border = "1px solid #3b82f6"; e.target.style.backgroundColor = "#ffffff"; }}
+              onBlur={(e) => { e.target.style.border = "1px solid #cbd5e1"; e.target.style.backgroundColor = "#f8fafc"; }}
             />
           </div>
         }
       />
 
+      {/* ── NEW: Doc-checker approval gate modal ── */}
       {gateModal.open && (
         <ApproveGateModal
           docId={gateModal.docId}
@@ -1789,6 +2052,7 @@ const MLD = () => {
         />
       )}
 
+      {/* ── NEW: Add Task Modal ── */}
       {addTaskModal.open && (
         <AddTaskModal
           row={addTaskModal.row}
@@ -1816,9 +2080,12 @@ const MLD = () => {
   );
 };
 
+// shared TH style to avoid repetition
 const thStyle = {
-  padding: "12px 14px", textAlign: "center",
-  borderBottom: "2px solid #e6e6e6", fontWeight: 600, whiteSpace: "nowrap",
+  padding: "4px 8px", textAlign: "center", borderBottom: "2px solid #e2e8f0",
+  fontWeight: 700, fontSize: 11,
+  color: "#64748b", textTransform: "uppercase", letterSpacing: "0.06em",
+  whiteSpace: "nowrap", background: "#f8fafc"
 };
 
 export default MLD;
