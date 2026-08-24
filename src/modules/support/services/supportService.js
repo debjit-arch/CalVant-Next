@@ -33,6 +33,19 @@ const handle = async (res) => {
   return res.json();
 };
 
+// Any attachments (files can be anything — screenshots, logs, PDFs...) push
+// the request into multipart/form-data instead of plain JSON. The backend
+// stores each file as a blob embedded in the ticket's message, so there's
+// no separate upload step — it all goes up in the one request.
+const buildFormData = (fields, files) => {
+  const form = new FormData();
+  Object.entries(fields).forEach(([key, value]) => {
+    if (value !== undefined && value !== null) form.append(key, value);
+  });
+  (files || []).forEach((file) => form.append("attachments", file));
+  return form;
+};
+
 class SupportService {
   // ── List all tickets visible to the current user ──
   async listTickets() {
@@ -46,8 +59,16 @@ class SupportService {
     return handle(res);
   }
 
-  // ── Raise a new ticket ──
-  async createTicket({ subject, description, category, priority }) {
+  // ── Raise a new ticket (files optional — an array of File objects) ──
+  async createTicket({ subject, description, category, priority, files }) {
+    if (files && files.length > 0) {
+      const res = await fetch(BASE, {
+        method: "POST",
+        headers: authHeaders(), // no Content-Type — browser sets the multipart boundary
+        body: buildFormData({ subject, description, category, priority }, files),
+      });
+      return handle(res);
+    }
     const res = await fetch(BASE, {
       method: "POST",
       headers: jsonHeaders(),
@@ -56,14 +77,43 @@ class SupportService {
     return handle(res);
   }
 
-  // ── Reply on an existing ticket ──
-  async replyToTicket(id, message) {
+  // ── Reply on an existing ticket (files optional) ──
+  async replyToTicket(id, message, files) {
+    if (files && files.length > 0) {
+      const res = await fetch(`${BASE}/${id}/reply`, {
+        method: "POST",
+        headers: authHeaders(),
+        body: buildFormData({ message }, files),
+      });
+      return handle(res);
+    }
     const res = await fetch(`${BASE}/${id}/reply`, {
       method: "POST",
       headers: jsonHeaders(),
       body: JSON.stringify({ message }),
     });
     return handle(res);
+  }
+
+  // ── Download/view a single attachment ──
+  attachmentUrl(ticketId, attachmentId) {
+    return `${BASE}/${ticketId}/attachments/${attachmentId}`;
+  }
+
+  async downloadAttachment(ticketId, attachmentId, fileName) {
+    const res = await fetch(this.attachmentUrl(ticketId, attachmentId), {
+      headers: authHeaders(),
+    });
+    if (!res.ok) throw new Error(`Failed to download attachment (${res.status})`);
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = fileName || "attachment";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
   }
 }
 

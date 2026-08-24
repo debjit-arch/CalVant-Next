@@ -1,9 +1,11 @@
 "use client";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useSession } from "@/context/SessionContext";
 
 const AuthBridge = () => {
   const router = useRouter();
+  const { login } = useSession();
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -13,6 +15,9 @@ const AuthBridge = () => {
     if (token && userParam) {
       sessionStorage.setItem("token", token);
       sessionStorage.setItem("user", userParam);
+      
+      // Tell the security guard (SessionProvider) instantly that we are logged in!
+      if (login) login();
 
       const emailParam = params.get("email");
       if (emailParam) sessionStorage.setItem("email", emailParam);
@@ -41,8 +46,13 @@ const AuthBridge = () => {
         console.warn('Login log failed in bridge:', err);
       }
 
-      window.history.replaceState({}, document.title, redirectTo);
-      router.replace(redirectTo);
+      // Give React a tiny amount of time to update the SessionContext
+      // state before we navigate away, preventing the ProtectedPage
+      // from catching a 'false' authentication state.
+      setTimeout(() => {
+        window.history.replaceState({}, document.title, redirectTo);
+        router.replace(redirectTo);
+      }, 100);
     } else {
       router.replace("/login");
     }
