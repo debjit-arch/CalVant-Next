@@ -471,7 +471,7 @@
 // export default LoginPage;
 
 "use client";
-import React, { Suspense, useState } from "react";
+import React, { Suspense, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import axios from "axios";
 import "./loginPage.css";
@@ -491,6 +491,17 @@ const LoginPageInner = () => {
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
   const [otp, setOtp] = useState("");
+  // Seconds remaining before "Resend OTP" becomes clickable again — prevents
+  // spamming the forgot-password endpoint.
+  const [resendCooldown, setResendCooldown] = useState(0);
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = setInterval(() => {
+      setResendCooldown((prev) => (prev <= 1 ? 0 : prev - 1));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [resendCooldown]);
   const [forgotEmail, setForgotEmail] = useState("");
 
   const [infoModal, setInfoModal] = useState({
@@ -718,9 +729,10 @@ const LoginPageInner = () => {
     setOtpSent(false);
     setForgotEmail("");
     setOtp("");
+    setResendCooldown(0);
   };
 
-  const sendOtp = async () => {
+  const sendOtp = async (isResend = false) => {
     if (!forgotEmail) {
       openInfoModal("Error", "Please enter your email address.");
       return;
@@ -733,7 +745,8 @@ const LoginPageInner = () => {
         { withCredentials: true },
       );
       setOtpSent(true);
-      openInfoModal("Success", "OTP sent to your email.");
+      setResendCooldown(30);
+      openInfoModal("Success", isResend ? "OTP resent to your email." : "OTP sent to your email.");
     } catch (err) {
       openInfoModal("Error", extractErrorMessage(err, "Failed to send OTP."));
     } finally {
@@ -893,6 +906,23 @@ const LoginPageInner = () => {
                         className="login-otp-btn"
                       >
                         Verify OTP
+                      </button>
+                      <button
+                        onClick={() => sendOtp(true)}
+                        disabled={loading || resendCooldown > 0}
+                        className="login-resend-btn"
+                        style={{
+                          background: "none",
+                          border: "none",
+                          color: resendCooldown > 0 ? "#888" : "#7c8cf8",
+                          cursor: resendCooldown > 0 ? "default" : "pointer",
+                          marginTop: "8px",
+                          fontSize: "14px",
+                        }}
+                      >
+                        {resendCooldown > 0
+                          ? `Resend OTP in ${resendCooldown}s`
+                          : "Resend OTP"}
                       </button>
                     </>
                   )}
