@@ -231,6 +231,7 @@ class UserList extends Component {
                 <th style={styles.th}>Role</th>
                 <th style={styles.th}>Department</th>
                 <th style={styles.th}>Auditor</th>
+                <th style={styles.th}>Status</th>
                 <th style={styles.th}>Actions</th>
               </tr>
             </thead>
@@ -238,7 +239,7 @@ class UserList extends Component {
               {filteredUsers.length === 0 ? (
                 <tr>
                   <td
-                    colSpan="5"
+                    colSpan="6"
                     style={{ textAlign: "center", padding: "12px" }}
                   >
                     No users found.
@@ -262,6 +263,23 @@ class UserList extends Component {
                   >
                     <td style={styles.td}>{u.name}</td>
                     <td style={styles.td}>{u.email}</td>
+
+                    {/* Status */}
+                    <td style={styles.td}>
+                      <span
+                        style={{
+                          padding: "2px 10px",
+                          borderRadius: "12px",
+                          fontSize: "12px",
+                          fontWeight: 600,
+                          backgroundColor:
+                            u.status === "active" ? "#e6f7ec" : "#fff4e5",
+                          color: u.status === "active" ? "#1a7f43" : "#b76e00",
+                        }}
+                      >
+                        {u.status === "active" ? "Active" : "Pending"}
+                      </span>
+                    </td>
 
                     {/* Role */}
                     <td style={styles.td}>
