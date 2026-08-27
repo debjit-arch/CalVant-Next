@@ -5,7 +5,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { FRAMEWORK_CONFIG } from "../../context/frameworkService";
 import { hasRenderablePage } from "@/utils/frameworkStaticRoutes";
-import "./Dashboard.css";
+import SiteHeader from "@/components/SiteHeader";
 import {
   ShieldCheck,
   FileText,
@@ -96,9 +96,9 @@ const Hero3DEarth = ({ isLoggedIn, user }) => {
               <>
                 <button
                   className="hero-cta-primary"
-                  onClick={() => router.push("/login")}
+                  onClick={() => router.push("/pricing")}
                 >
-                  Get Started
+                  Get 14 Days Free Trial
                 </button>
                 <button
                   className="hero-cta-secondary"
@@ -974,134 +974,7 @@ const Dashboard = () => {
   // ============================================
   return (
     <div className="dashboard-guest">
-      {/* RESPONSIVE HEADER FOR GUESTS */}
-      <header
-        className="dashboard-header"
-        style={{
-          padding: isMobile ? "10px 12px" : "16px 24px",
-        }}
-      >
-        <div
-          className="dashboard-header-content"
-          style={{
-            maxWidth: "1280px",
-            margin: "0 auto",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            gap: isMobile ? "8px" : "24px",
-            position: "relative",
-            zIndex: 1,
-          }}
-        >
-          {/* LOGO SECTION (PNG only) */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              flex: "10px 0 auto",
-            }}
-          >
-            <Image
-              src="/CalVant Logo.svg"
-              alt="CalVant"
-              width={180}
-              height={60}
-              style={{
-                height: isMobile ? "30px" : "60px",
-                width: "auto",
-                transform: isMobile ? "scale(3.9)" : "scale(2.9)",
-                transformOrigin: "center",
-                cursor: "pointer",
-                transition: "transform 0.25s ease",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = "scale(3.7)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = "scale(3.5)";
-              }}
-            />
-          </div>
-
-          {/* HEADER RIGHT */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: isMobile ? "6px" : "16px",
-            }}
-          >
-            {!isMobile && (
-              <>
-                <HeaderDropdown
-                  label="Frameworks"
-                  options={frameworkNavOptions}
-                />
-                <button
-                  onClick={() => router.push("/pricing")}
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "8px",
-                    padding: "8px 12px",
-                    background: "transparent",
-                    border: "1px solid rgba(148, 163, 184, 0.35)",
-                    borderRadius: "8px",
-                    color: "#e5e7eb",
-                    fontSize: "14px",
-                    fontWeight: "500",
-                    cursor: "pointer",
-                    transition: "all 0.25s ease",
-                    whiteSpace: "nowrap",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.target.style.background = "rgba(15, 23, 42, 0.9)";
-                    e.target.style.borderColor = "#4f46e5";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.target.style.background = "transparent";
-                    e.target.style.borderColor = "rgba(148, 163, 184, 0.35)";
-                  }}
-                >
-                  Pricing
-                </button>
-              </>
-            )}
-
-            {/* LOGIN BUTTON */}
-            <button
-              onClick={() => router.push("/login")}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: isMobile ? "2px" : "8px",
-                padding: isMobile ? "6px 10px" : "8px 12px",
-                background: "transparent",
-                border: "1px solid rgba(148, 163, 184, 0.35)",
-                borderRadius: "8px",
-                color: "#e5e7eb",
-                fontSize: isMobile ? "10px" : "14px",
-                fontWeight: "500",
-                cursor: "pointer",
-                transition: "all 0.25s ease",
-                whiteSpace: "nowrap",
-              }}
-              onMouseEnter={(e) => {
-                e.target.style.background = "rgba(15, 23, 42, 0.9)";
-                e.target.style.borderColor = "#4f46e5";
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.background = "transparent";
-                e.target.style.borderColor = "rgba(148, 163, 184, 0.35)";
-              }}
-            >
-              <LogIn size={isMobile ? 12 : 16} />
-              {!isMobile && "Login"}
-            </button>
-          </div>
-        </div>
-      </header>
+      <SiteHeader />
 
       <main className="dashboard-main">
         <Hero3DEarth isLoggedIn={false} user={null} />

@@ -12,9 +12,14 @@ export const ALL_FRAMEWORKS = "ALL Frameworks";
 
 const DEFAULT_META = { color: "#64748b", path: "/" };
 
+const normalizeFw = (s) => (s ? String(typeof s === "object" ? s.id || s.code || s.name || "" : s).toUpperCase().replace(/[\s\-_]/g, "") : "");
+
+const DPIA_NORMS = new Set(["ISO27701", "SOC2", "KSAPDPL", "GDPR", "DPDPA", "HIPAA"]);
+const AIIA_NORMS = new Set(["ISO42001", "EUAIACT"]);
+
 export const MODULE_FRAMEWORK_SUPPORT = {
-  dpia: new Set(["ISO 27701", "SOC 2", "KSA PDPL", "GDPR", "DPDPA"]),
-  aiia: new Set(["ISO 42001", "EU AI Act"]),
+  dpia: new Set(["ISO 27701", "ISO27701", "SOC 2", "SOC2", "KSA PDPL", "KSA_PDPL", "KSAPDPL", "GDPR", "DPDPA"]),
+  aiia: new Set(["ISO 42001", "ISO42001", "EU AI Act", "EUAIACT"]),
 };
 
 // FrameworkContext.jsx
@@ -24,16 +29,14 @@ export const computeModuleVisibility = (
   availableFrameworks = [],
 ) => {
   // Resolve the actual list to check against
-  const frameworksToCheck = selectedFrameworks.includes(ALL_FRAMEWORKS)
-    ? availableFrameworks.map((fw) => fw.id) // only org's frameworks, not everything
+  const rawList = selectedFrameworks.includes(ALL_FRAMEWORKS)
+    ? availableFrameworks.map((fw) => fw.id || fw.code || fw.name || fw)
     : selectedFrameworks;
 
-  const showDpia = frameworksToCheck.some((fw) =>
-    MODULE_FRAMEWORK_SUPPORT.dpia.has(fw),
-  );
-  const showAiia = frameworksToCheck.some((fw) =>
-    MODULE_FRAMEWORK_SUPPORT.aiia.has(fw),
-  );
+  const normalizedToCheck = rawList.map(normalizeFw);
+
+  const showDpia = normalizedToCheck.some((fw) => DPIA_NORMS.has(fw));
+  const showAiia = normalizedToCheck.some((fw) => AIIA_NORMS.has(fw));
 
   return { showDpia, showAiia };
 };

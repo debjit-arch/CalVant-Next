@@ -33,6 +33,7 @@ import { useEffectiveOrg } from "@/hooks/useEffectiveOrg";
 import useModuleEntitlements from "@/modules/admin/hooks/useModuleEntitlements";
 import { getDepartments } from "../departments/services/userService";
 import { matchesDepartment, getUserDepartments, isSameOrg } from "@/utils/departmentUtils";
+import { isStrictAuditor } from "../../utils/roleUtils";
 
 // ─── Framework filter helpers ─────────────────────────────────────────────────
 function _getAllowedRiskTypes(activeDashboardCodes) {
@@ -1058,12 +1059,13 @@ const orgIdsToFetch = useMemo(() => {
   }, [activeFw, visibleFwList, frameworkComplianceData, fwCompliant, fwPartial, fwNonCompliant, fwTotal]);
 
   const showTprmActive = showTprm && vendorEntitled;
+  const isAuditorOnly = isStrictAuditor(user);
 
   // Module breakdown contributions to ensure: Total = Pending + Completed
   // 1. Risks
-  const riskTotalVal = riskStats.total;
-  const riskPendingVal = riskStats.open;
-  const riskCompletedVal = riskStats.closed;
+  const riskTotalVal = isAuditorOnly ? 0 : riskStats.total;
+  const riskPendingVal = isAuditorOnly ? 0 : riskStats.open;
+  const riskCompletedVal = isAuditorOnly ? 0 : riskStats.closed;
 
   // 2. Audits
   const auditTotalVal = auditStats.total;
@@ -1083,24 +1085,24 @@ const orgIdsToFetch = useMemo(() => {
   const taskPendingVal = taskOverdueVal + taskOnTrackVal;
 
   // 5. Documentation (Policies) - Capped to ensure exact math matching
-  const docCompletedVal = Math.min(documentStats.uploaded, documentStats.total);
-  const docPendingVal = documentStats.pending;
-  const docTotalVal = docCompletedVal + docPendingVal;
+  const docCompletedVal = isAuditorOnly ? 0 : Math.min(documentStats.uploaded, documentStats.total);
+  const docPendingVal = isAuditorOnly ? 0 : documentStats.pending;
+  const docTotalVal = isAuditorOnly ? 0 : (docCompletedVal + docPendingVal);
 
   // 6. DPIA
-  const dpiaTotalVal = displayDpia ? (dpiaStats.submitted + dpiaStats.inProgress + dpiaStats.draft) : 0;
-  const dpiaPendingVal = displayDpia ? (dpiaStats.inProgress + dpiaStats.draft) : 0;
-  const dpiaCompletedVal = displayDpia ? dpiaStats.submitted : 0;
+  const dpiaTotalVal = (displayDpia && !isAuditorOnly) ? (dpiaStats.submitted + dpiaStats.inProgress + dpiaStats.draft) : 0;
+  const dpiaPendingVal = (displayDpia && !isAuditorOnly) ? (dpiaStats.inProgress + dpiaStats.draft) : 0;
+  const dpiaCompletedVal = (displayDpia && !isAuditorOnly) ? dpiaStats.submitted : 0;
 
   // 7. AIIA
-  const aiiaTotalVal = displayAiia ? (aiiaStats.pending + aiiaStats.approved) : 0;
-  const aiiaPendingVal = displayAiia ? aiiaStats.pending : 0;
-  const aiiaCompletedVal = displayAiia ? aiiaStats.approved : 0;
+  const aiiaTotalVal = (displayAiia && !isAuditorOnly) ? (aiiaStats.pending + aiiaStats.approved) : 0;
+  const aiiaPendingVal = (displayAiia && !isAuditorOnly) ? aiiaStats.pending : 0;
+  const aiiaCompletedVal = (displayAiia && !isAuditorOnly) ? aiiaStats.approved : 0;
 
   // 8. TPRM
-  const tprmTotalVal = showTprmActive ? (tprmStats.sent + tprmStats.submitted + tprmStats.draft + tprmStats.approved + tprmStats.rejected) : 0;
-  const tprmPendingVal = showTprmActive ? (tprmStats.sent + tprmStats.submitted + tprmStats.draft) : 0;
-  const tprmCompletedVal = showTprmActive ? (tprmStats.approved + tprmStats.rejected) : 0;
+  const tprmTotalVal = (showTprmActive && !isAuditorOnly) ? (tprmStats.sent + tprmStats.submitted + tprmStats.draft + tprmStats.approved + tprmStats.rejected) : 0;
+  const tprmPendingVal = (showTprmActive && !isAuditorOnly) ? (tprmStats.sent + tprmStats.submitted + tprmStats.draft) : 0;
+  const tprmCompletedVal = (showTprmActive && !isAuditorOnly) ? (tprmStats.approved + tprmStats.rejected) : 0;
 
   // Overall sums
   const overallTotal = riskTotalVal + auditTotalVal + complianceTotalVal + taskTotalVal + docTotalVal + dpiaTotalVal + aiiaTotalVal + tprmTotalVal;
@@ -1450,19 +1452,21 @@ const orgIdsToFetch = useMemo(() => {
           </motion.div>
 
           {/* RISK */}
-          <motion.div id="risk-module" initial={hasMounted ? { opacity: 0, y: 20 } : false} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }} whileTap={{ scale: 0.98 }} onClick={() => navigateToModule("/risk-assessment")} className="module-card-premium accent-blue" style={{ ...cardStyle }}>
-            <CardHeader icon={<BarChart3 size={20} color="white" />} iconGradient="linear-gradient(135deg, #3b82f6, #1d4ed8)" title="Risks" total={riskStats.total} totalLabel={isAllSelected ? "Total Risks" : "Filtered Risks"} filterTags selectedFWs={selectedFrameworks} isAllSelected={isAllSelected} tagBg="#e0f2fe" tagColor="#0369a1" tagBorder="#bae6fd" />
-            <PieSection
-              data={getPieChartData([
-                { name: "Low", value: riskStats.low, color: "#22c55e" },
-                { name: "Medium", value: riskStats.medium, color: "#f59e0b" },
-                { name: "High", value: riskStats.high, color: "#ef4444" }
-              ])}
-              legend={[["#22c55e", riskStats.low, "Low"], ["#f59e0b", riskStats.medium, "Med"], ["#ef4444", riskStats.high, "High"], ["#9ca3af", riskStats.open, "Open"]]}
-              centerValue={riskStats.total}
-              centerLabel="Total"
-            />
-          </motion.div>
+          {!isAuditorOnly && (
+            <motion.div id="risk-module" initial={hasMounted ? { opacity: 0, y: 20 } : false} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }} whileTap={{ scale: 0.98 }} onClick={() => navigateToModule("/risk-assessment")} className="module-card-premium accent-blue" style={{ ...cardStyle }}>
+              <CardHeader icon={<BarChart3 size={20} color="white" />} iconGradient="linear-gradient(135deg, #3b82f6, #1d4ed8)" title="Risks" total={riskStats.total} totalLabel={isAllSelected ? "Total Risks" : "Filtered Risks"} filterTags selectedFWs={selectedFrameworks} isAllSelected={isAllSelected} tagBg="#e0f2fe" tagColor="#0369a1" tagBorder="#bae6fd" />
+              <PieSection
+                data={getPieChartData([
+                  { name: "Low", value: riskStats.low, color: "#22c55e" },
+                  { name: "Medium", value: riskStats.medium, color: "#f59e0b" },
+                  { name: "High", value: riskStats.high, color: "#ef4444" }
+                ])}
+                legend={[["#22c55e", riskStats.low, "Low"], ["#f59e0b", riskStats.medium, "Med"], ["#ef4444", riskStats.high, "High"], ["#9ca3af", riskStats.open, "Open"]]}
+                centerValue={riskStats.total}
+                centerLabel="Total"
+              />
+            </motion.div>
+          )}
 
           {/* TASK */}
           <motion.div id="task-module" initial={hasMounted ? { opacity: 0, y: 20 } : false} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.4 }} whileTap={{ scale: 0.98 }} onClick={() => navigateToModule("/task-management")} className="module-card-premium accent-amber" style={{ ...cardStyle }}>
@@ -1503,21 +1507,23 @@ const orgIdsToFetch = useMemo(() => {
           </motion.div>
 
           {/* POLICIES */}
-          <motion.div id="doc-module" initial={hasMounted ? { opacity: 0, y: 20 } : false} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.25 }} whileTap={{ scale: 0.98 }} onClick={() => navigateToModule("/documentation")} className="module-card-premium accent-violet" style={{ ...cardStyle }}>
-            <CardHeader icon={<FileText size={16} color="white" />} iconGradient="linear-gradient(135deg, #8b5cf6, #7c3aed)" title="Policies" total={docTotalVal} totalLabel={isAllSelected ? "Total Policies" : "Filtered Policies"} filterTags selectedFWs={selectedFrameworks} isAllSelected={isAllSelected} tagBg="#f3e8ff" tagColor="#7c3aed" tagBorder="#ddd6fe" />
-            <PieSection
-              data={getPieChartData([
-                { name: "Uploaded", value: docCompletedVal, color: "#22c55e" },
-                { name: "Pending", value: docPendingVal, color: "#ef4444" }
-              ])}
-              legend={[["#22c55e", docCompletedVal, "Uploaded"], ["#ef4444", docPendingVal, "Pending"]]}
-              centerValue={docTotalVal}
-              centerLabel="Total"
-            />
-          </motion.div>
+          {!isAuditorOnly && (
+            <motion.div id="doc-module" initial={hasMounted ? { opacity: 0, y: 20 } : false} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.25 }} whileTap={{ scale: 0.98 }} onClick={() => navigateToModule("/documentation")} className="module-card-premium accent-violet" style={{ ...cardStyle }}>
+              <CardHeader icon={<FileText size={16} color="white" />} iconGradient="linear-gradient(135deg, #8b5cf6, #7c3aed)" title="Policies" total={docTotalVal} totalLabel={isAllSelected ? "Total Policies" : "Filtered Policies"} filterTags selectedFWs={selectedFrameworks} isAllSelected={isAllSelected} tagBg="#f3e8ff" tagColor="#7c3aed" tagBorder="#ddd6fe" />
+              <PieSection
+                data={getPieChartData([
+                  { name: "Uploaded", value: docCompletedVal, color: "#22c55e" },
+                  { name: "Pending", value: docPendingVal, color: "#ef4444" }
+                ])}
+                legend={[["#22c55e", docCompletedVal, "Uploaded"], ["#ef4444", docPendingVal, "Pending"]]}
+                centerValue={docTotalVal}
+                centerLabel="Total"
+              />
+            </motion.div>
+          )}
 
           {/* DPIA */}
-          {displayDpia && (
+          {displayDpia && !isAuditorOnly && (
             <motion.div id="dpia-module" initial={hasMounted ? { opacity: 0, y: 20 } : false} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.3 }} whileTap={{ scale: 0.98 }} onClick={() => navigateToModule("/dpia")} className="module-card-premium accent-sky" style={{ ...cardStyle }}>
               <CardHeader icon={<ShieldCheck size={16} color="white" />} iconGradient="linear-gradient(135deg, #0ea5e9, #0284c7)" title="DPIA" total={dpiaTotalVal} totalLabel="Total Assessments" filterTags={false} isAllSelected={isAllSelected} />
               <PieSection data={getPieChartData([{ name: "Submitted", value: dpiaStats.submitted, color: "#10b981" }, { name: "In Progress", value: dpiaStats.inProgress, color: "#6366f1" }, { name: "Draft", value: dpiaStats.draft, color: "#f59e0b" }])} legend={[["#10b981", dpiaStats.submitted, "Submitted"], ["#6366f1", dpiaStats.inProgress, "In Progress"], ["#f59e0b", dpiaStats.draft, "Draft"]]} centerValue={dpiaTotalVal} centerLabel="Total" />
@@ -1525,7 +1531,7 @@ const orgIdsToFetch = useMemo(() => {
           )}
 
           {/* TPRM */}
-          {showTprm && vendorEntitled && (
+          {showTprm && vendorEntitled && !isAuditorOnly && (
             <motion.div id="tprm-module" initial={hasMounted ? { opacity: 0, y: 20 } : false} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.5 }} whileTap={{ scale: 0.98 }} onClick={() => navigateToModule("/tprm")} className="module-card-premium accent-indigo" style={{ ...cardStyle }}>
               <CardHeader icon={<ShieldCheck size={16} color="white" />} iconGradient="linear-gradient(135deg, #6366f1, #4f46e5)" title="TPRM" total={tprmTotalVal} totalLabel="Total Assessments" filterTags={false} isAllSelected={isAllSelected} />
               <PieSection
@@ -1543,7 +1549,7 @@ const orgIdsToFetch = useMemo(() => {
           )}
 
           {/* AIIA */}
-          {displayAiia && (
+          {displayAiia && !isAuditorOnly && (
             <motion.div id="aiia-module" initial={hasMounted ? { opacity: 0, y: 20 } : false} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.55 }} whileTap={{ scale: 0.98 }} onClick={() => navigateToModule("/aiia")} className="module-card-premium accent-fuchsia" style={{ ...cardStyle }}>
               <CardHeader icon={<Brain size={16} color="white" />} iconGradient="linear-gradient(135deg, #d946ef, #a21caf)" title="AIIA" total={aiiaTotalVal} totalLabel="Total Assessments" filterTags={false} isAllSelected={isAllSelected} />
               <PieSection data={getPieChartData([{ name: "Approved", value: aiiaStats.approved, color: "#10b981" }, { name: "Submitted", value: aiiaStats.submitted, color: "#6366f1" }, { name: "Draft", value: aiiaStats.draft, color: "#f59e0b" }])} legend={[["#10b981", aiiaStats.approved, "Approved"], ["#6366f1", aiiaStats.submitted, "Submitted"], ["#f59e0b", aiiaStats.draft, "Draft"]]} centerValue={aiiaTotalVal} centerLabel="Total" />

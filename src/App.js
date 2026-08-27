@@ -13,6 +13,7 @@ import { HelmetProvider } from "react-helmet-async";
 import { SessionProvider, useSession } from "./context/SessionContext";
 import SessionExpiredModal from "./components/SessionExpiredModal";
 import { LayoutProvider, useLayout } from "./context/LayoutContext";
+import AuditorAccessRestricted from "./components/AuditorAccessRestricted";
 
 // Navigations
 import PersistentSidebar from "./components/navigations/PersistentSidebar";
@@ -119,15 +120,12 @@ import DynamicSEO from "./components/DynamicSEO";
 // ─────────────────────────────────────────────────────────────────────────────
 
 const ProtectedRoute = ({ component: Component, ...rest }) => {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(getStoredUser);
 
-useEffect(() => {
-  const storedUser = sessionStorage.getItem("user");
+  useEffect(() => {
+    setUser(getStoredUser());
+  }, []);
 
-  if (storedUser) {
-    setUser(JSON.parse(storedUser));
-  }
-}, []);
   return (
     <Route
       {...rest}
@@ -139,15 +137,12 @@ useEffect(() => {
 };
 
 const RoleBasedRoute = ({ component: Component, allowedRoles, ...rest }) => {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(getStoredUser);
 
-useEffect(() => {
-  const storedUser = sessionStorage.getItem("user");
+  useEffect(() => {
+    setUser(getStoredUser());
+  }, []);
 
-  if (storedUser) {
-    setUser(JSON.parse(storedUser));
-  }
-}, []);
   const userRoles = Array.isArray(user?.role)
     ? user.role
     : user?.role
@@ -181,15 +176,12 @@ const FrameworkProtectedRoute = ({
   moduleKey,
   ...rest
 }) => {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(getStoredUser);
 
-useEffect(() => {
-  const storedUser = sessionStorage.getItem("user");
+  useEffect(() => {
+    setUser(getStoredUser());
+  }, []);
 
-  if (storedUser) {
-    setUser(JSON.parse(storedUser));
-  }
-}, []);
   // useFramework is safe here because this component is always rendered
   // inside <FrameworkProvider>
   const { showDpia, showAiia } = useFramework();
@@ -212,21 +204,33 @@ useEffect(() => {
 // Layout
 // ─────────────────────────────────────────────────────────────────────────────
 
+const getStoredUser = () => {
+  if (typeof window === "undefined") return null;
+  try {
+    const storedUser = sessionStorage.getItem("user");
+    return storedUser ? JSON.parse(storedUser) : null;
+  } catch {
+    return null;
+  }
+};
+
 const AppLayout = ({ children }) => {
   const { sidebarWidth, navbarHeight, isMobile } = useLayout();
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(getStoredUser);
+  const { isStrictAuditor, isAuditorAllowedPath } = require("./utils/roleUtils");
 
-useEffect(() => {
-  const storedUser = sessionStorage.getItem("user");
+  useEffect(() => {
+    const storedUser = getStoredUser();
+    setUser(storedUser);
+  }, []);
 
-  if (storedUser) {
-    setUser(JSON.parse(storedUser));
-  }
-}, []);
   const isLoggedIn = !!user;
   const location = useLocation();
   const pathname = location.pathname;
   useActivityLogger(); // Auto PAGE_LOAD logs
+
+  // Block strict auditors from any path except Home, Audits, Tasks, and Compliances
+  const isAuditorRestricted = isStrictAuditor(user) && !isAuditorAllowedPath(pathname);
 
   return (
     <div className="app">
@@ -241,7 +245,7 @@ useEffect(() => {
           transition: "margin-left cubic-bezier(0.4, .2) .3s",
         }}
       >
-        {children}
+        {isAuditorRestricted ? <AuditorAccessRestricted /> : children}
       </main>
     </div>
   );

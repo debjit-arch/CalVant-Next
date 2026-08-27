@@ -6,26 +6,31 @@ import { useEffectiveOrg } from "@/hooks/useEffectiveOrg";
 
 const addRiskStyles = `
   .addrisk-page {
+    position: relative;
     padding: 24px 32px 0 32px;
     max-width: 1120px;
     margin: 0 auto;
   }
 
   .addrisk-back-btn {
-    position: sticky;
-    top: 0;
-    margin-bottom: 16px;
-    padding: 10px 24px;
+    position: absolute;
+    top: 32px;
+    left: 32px;
+    padding: 8px 16px;
     border-radius: 8px;
-    background: #005fcc;
     border: none;
-    color: #fff;
+    color: #ffffff;
+    background: #3b82f6;
     font-weight: 500;
     font-size: 14px;
     cursor: pointer;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    transition: transform 0.3s ease, opacity 0.3s ease;
+    transition: all 0.3s ease;
     z-index: 999;
+  }
+
+  .addrisk-back-btn:hover {
+    background: #2563eb;
+    color: #ffffff;
   }
 
   .addrisk-back-btn--hidden {
@@ -130,7 +135,7 @@ const AddRisk = () => {
           router.push("/risk-assessment");
         }}
       >
-        ← Back to Dashboard
+        ← Back
       </button>
 
       <MultiStepFormManager onSubmit={handleSubmit} focusArea={focusArea} />

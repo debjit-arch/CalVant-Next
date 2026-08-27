@@ -21,13 +21,13 @@ export const useSession = () => useContext(SessionContext);
 export const SessionProvider = ({ children }) => {
   const router = useRouter();
   const [sessionExpired, setSessionExpired] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(null); // null = still checking
+  const [isAuthenticated, setIsAuthenticated] = useState(null); // null = checking (guarantees SSR hydration match)
 
   // Check auth on mount
   useEffect(() => {
-    const token = sessionStorage.getItem("token");
-    const user = sessionStorage.getItem("user");
-    setIsAuthenticated(!!token && !!user);
+    const token = sessionStorage.getItem("token") || localStorage.getItem("token");
+    const user = sessionStorage.getItem("user") || localStorage.getItem("user") || localStorage.getItem("myObject");
+    setIsAuthenticated(!!(token || user));
   }, []);
 
   // Re-check auth when sessionStorage changes (e.g. after login)
