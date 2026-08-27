@@ -5,6 +5,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import TextAreaField from "../inputs/TextAreaField";
 import Select from "react-select";
 import Joyride, { STATUS } from "react-joyride";
+import CustomTooltip from "../CustomTooltip";
 import controlService from "../../services/controlService";
 import { useFramework } from "../../../../context/FrameworkContex";
 import { getAutoSelectedControlsForFramework } from "../../../../utils/frameworkMappings";
@@ -36,148 +37,248 @@ const ControlTree = ({
   return (
     <div
       style={{
-        border: "1px solid #ccc",
-        borderRadius: "4px",
-        maxHeight: "600px",
+        border: "1px solid rgba(226, 232, 240, 0.8)",
+        borderRadius: "12px",
+        maxHeight: "550px",
         overflowY: "auto",
-        padding: "10px",
-        background: "#fff",
+        padding: "16px",
+        background: "linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)",
+        boxShadow: "inset 0 2px 10px rgba(0,0,0,0.02)",
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+        gap: "16px",
+        alignItems: "start",
       }}
     >
       {data.map((fw) => {
         const fwKey = `fw-${fw.framework}`;
         const fwObj = availableFrameworks?.find((f) => f.code === fw.framework);
-        const badge = {
-          bg: fwObj?.color ? fwObj.color + "15" : "#f5f5f5",
-          color: fwObj?.color || "#424242",
-          border: fwObj?.color ? fwObj.color + "40" : "#e0e0e0",
-        };
+        const fwColor = fwObj?.color || "#3b82f6";
+        
+        // Ensure a slightly darker stop for the gradient
+        const darkColor = fwColor === "#3b82f6" ? "#1d4ed8" : fwColor; // Simplified for default, in real app could use a shade generator
 
         return (
-          <div key={fw.framework} style={{ marginBottom: "8px" }}>
+          <div key={fw.framework} style={{ width: "100%" }}>
             <div
               onClick={() => toggle(fwKey)}
               style={{
                 cursor: "pointer",
-                fontWeight: "bold",
-                padding: "6px",
-                background: badge.bg,
-                borderRadius: "4px",
-                border: `1px solid ${badge.border}`,
+                padding: "14px 18px",
+                background: `linear-gradient(135deg, ${fwColor}dd 0%, ${darkColor} 100%)`,
+                borderRadius: "10px",
                 display: "flex",
                 alignItems: "center",
-                gap: 8,
+                gap: 12,
+                boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                transition: "transform 0.2s ease, box-shadow 0.2s ease",
+                color: "#ffffff",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = "translateY(-2px)";
+                e.currentTarget.style.boxShadow = "0 6px 16px rgba(0,0,0,0.15)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = "translateY(0)";
+                e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.1)";
               }}
             >
-              {expanded[fwKey] ? "📂" : "📁"}
-              <span style={{ color: badge.color }}>{fw.framework}</span>
+              <div
+                style={{
+                  background: "rgba(255,255,255,0.2)",
+                  padding: "6px",
+                  borderRadius: "8px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                {expanded[fwKey] ? (
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
+                ) : (
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="9 18 15 12 9 6"></polyline>
+                  </svg>
+                )}
+              </div>
+              <span style={{ fontWeight: "600", fontSize: "14px", letterSpacing: "0.3px", flex: 1 }}>
+                {fw.framework} Framework
+              </span>
+              
               {autoSelectedControls[fw.framework] &&
                 autoSelectedControls[fw.framework].length > 0 && (
                   <span
                     style={{
-                      fontSize: 10,
+                      fontSize: 11,
                       fontWeight: 700,
-                      padding: "1px 6px",
-                      borderRadius: 10,
-                      backgroundColor: badge.color,
-                      color: "#fff",
-                      marginLeft: "auto",
+                      padding: "4px 10px",
+                      borderRadius: "20px",
+                      backgroundColor: "#ffffff",
+                      color: darkColor,
+                      boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
                     }}
                   >
-                    {autoSelectedControls[fw.framework].length} auto-selected
+                    {autoSelectedControls[fw.framework].length} Auto-mapped
                   </span>
                 )}
             </div>
 
-            {expanded[fwKey] &&
-              fw.categories.map((cat) => {
-                const catKey = `cat-${fw.framework}-${cat.name}`;
-                return (
-                  <div key={cat.name} style={{ marginLeft: "18px" }}>
-                    <div
-                      onClick={() => toggle(catKey)}
-                      style={{
-                        cursor: "pointer",
-                        padding: "4px",
-                        fontSize: "14px",
-                        display: "flex",
-                        alignItems: "center",
-                      }}
-                    >
-                      {expanded[catKey] ? "📂" : "📁"}
-                      <span style={{ marginLeft: "6px" }}>{cat.name}</span>
-                    </div>
-                    {expanded[catKey] &&
-                      cat.controls.map((ctrl) => {
-                        const isSelected = selectedValues.includes(ctrl.id);
-                               const isAutoSelected = !!autoSelectedControls[
-                              fw.framework
-                                 ]?.some(
-                                   (code) =>
-                                normalizeCode(code) ===
-                                     normalizeCode(ctrl.controlCode),
-                                     );
-                        return (
-                          <div
-                            key={ctrl.id}
-                            style={{
-                              marginLeft: "25px",
-                              padding: "6px",
-                              fontSize: "13px",
-                              display: "flex",
-                              alignItems: "center",
-                              background: isAutoSelected
-                                ? "#f0fdf4"
-                                : "transparent",
-                              borderRadius: 4,
-                              border: isAutoSelected
-                                ? "1px solid #86efac"
-                                : "none",
-                            }}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={isSelected || isAutoSelected}
-                              onChange={() => {
-                                if (!isAutoSelected) onToggle(ctrl.id);
-                              }}
-                              disabled={isAutoSelected}
-                              style={{
-                                marginRight: "8px",
-                                cursor: isAutoSelected
-                                  ? "not-allowed"
-                                  : "pointer",
-                              }}
-                              title={
-                                isAutoSelected
-                                  ? "Auto-selected from ISO control"
-                                  : ""
-                              }
-                            />
-                            <span title={ctrl.title} style={{ flex: 1 }}>
-                              {ctrl.controlCode}: {ctrl.title}
-                            </span>
-                            {isAutoSelected && (
-                              <span
+            {expanded[fwKey] && (
+              <div style={{ 
+                marginTop: "12px", 
+                marginLeft: "14px", 
+                borderLeft: `2px dashed ${fwColor}66`, 
+                paddingLeft: "16px",
+                maxHeight: "350px",
+                overflowY: "auto",
+                paddingRight: "10px", // space for scrollbar
+              }}>
+                {fw.categories.map((cat) => {
+                  const catKey = `cat-${fw.framework}-${cat.name}`;
+                  return (
+                    <div key={cat.name} style={{ marginBottom: "12px" }}>
+                      <div
+                        onClick={() => toggle(catKey)}
+                        style={{
+                          cursor: "pointer",
+                          padding: "10px 14px",
+                          background: "#ffffff",
+                          border: "1px solid #e2e8f0",
+                          borderRadius: "8px",
+                          display: "flex",
+                          alignItems: "center",
+                          fontWeight: "600",
+                          color: "#1e293b",
+                          boxShadow: "0 2px 6px rgba(0,0,0,0.03)",
+                          transition: "all 0.2s ease",
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.borderColor = fwColor;
+                          e.currentTarget.style.backgroundColor = `${fwColor}08`;
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.borderColor = "#e2e8f0";
+                          e.currentTarget.style.backgroundColor = "#ffffff";
+                        }}
+                      >
+                        <div
+                          style={{
+                            marginRight: "10px",
+                            transform: expanded[catKey] ? "rotate(90deg)" : "rotate(0deg)",
+                            transition: "transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                            color: fwColor,
+                            display: "flex",
+                            alignItems: "center"
+                          }}
+                        >
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="9 18 15 12 9 6"></polyline>
+                          </svg>
+                        </div>
+                        <span style={{ flex: 1, fontSize: "13px" }}>{cat.name}</span>
+                        <span style={{ fontSize: "10px", color: fwColor, fontWeight: "600", background: `${fwColor}15`, padding: "3px 10px", borderRadius: "12px" }}>
+                          {cat.controls.length} controls
+                        </span>
+                      </div>
+                      
+                      {expanded[catKey] && (
+                        <div style={{ 
+                          marginTop: "8px", 
+                          display: "grid", 
+                          gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", 
+                          gap: "10px" 
+                        }}>
+                          {cat.controls.map((ctrl) => {
+                            const isSelected = selectedValues.includes(ctrl.id);
+                            const isAutoSelected = !!autoSelectedControls[fw.framework]?.some(
+                              (code) => normalizeCode(code) === normalizeCode(ctrl.controlCode)
+                            );
+                            
+                            const activeColor = isAutoSelected ? "#10b981" : fwColor;
+                            const isActive = isSelected || isAutoSelected;
+
+                            return (
+                              <label
+                                key={ctrl.id}
                                 style={{
-                                  fontSize: 10,
-                                  fontWeight: 700,
-                                  color: "#10b981",
-                                  marginLeft: 8,
-                                  padding: "2px 6px",
-                                  borderRadius: 3,
-                                  background: "#dcfce7",
+                                  display: "flex",
+                                  alignItems: "flex-start",
+                                  padding: "12px 14px",
+                                  background: isActive ? `${activeColor}08` : "#ffffff",
+                                  borderRadius: "8px",
+                                  border: `1px solid ${isActive ? `${activeColor}50` : "#e2e8f0"}`,
+                                  cursor: isAutoSelected ? "not-allowed" : "pointer",
+                                  boxShadow: isActive ? `0 4px 12px ${activeColor}15` : "0 2px 4px rgba(0,0,0,0.02)",
+                                  transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+                                  position: "relative",
+                                  overflow: "hidden"
+                                }}
+                                title={isAutoSelected ? "Auto-selected from mapping" : ctrl.title}
+                                onMouseEnter={(e) => {
+                                  if (!isAutoSelected) {
+                                    e.currentTarget.style.transform = "translateY(-2px)";
+                                    e.currentTarget.style.boxShadow = "0 6px 14px rgba(0,0,0,0.08)";
+                                    e.currentTarget.style.borderColor = fwColor;
+                                  }
+                                }}
+                                onMouseLeave={(e) => {
+                                  if (!isAutoSelected) {
+                                    e.currentTarget.style.transform = "translateY(0)";
+                                    e.currentTarget.style.boxShadow = isActive ? `0 4px 12px ${activeColor}15` : "0 2px 4px rgba(0,0,0,0.02)";
+                                    e.currentTarget.style.borderColor = isActive ? `${activeColor}50` : "#e2e8f0";
+                                  }
                                 }}
                               >
-                                AUTO
-                              </span>
-                            )}
-                          </div>
-                        );
-                      })}
-                  </div>
-                );
-              })}
+                                {isAutoSelected && (
+                                  <div style={{ position: "absolute", top: 0, left: 0, width: "4px", height: "100%", background: "#10b981" }} />
+                                )}
+                                <div style={{
+                                  width: "20px", height: "20px", 
+                                  borderRadius: "6px", 
+                                  border: `2px solid ${isActive ? activeColor : "#cbd5e1"}`,
+                                  background: isActive ? activeColor : "#fff",
+                                  display: "flex", alignItems: "center", justifyContent: "center",
+                                  marginRight: "12px", marginTop: "2px",
+                                  flexShrink: 0,
+                                  transition: "all 0.2s"
+                                }}>
+                                  {isActive && (
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                      <polyline points="20 6 9 17 4 12"></polyline>
+                                    </svg>
+                                  )}
+                                  <input
+                                    type="checkbox"
+                                    checked={isActive}
+                                    onChange={() => {
+                                      if (!isAutoSelected) onToggle(ctrl.id);
+                                    }}
+                                    disabled={isAutoSelected}
+                                    style={{ display: "none" }}
+                                  />
+                                </div>
+
+                                <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "4px" }}>
+                                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                                    <span style={{ color: "#0f172a", fontWeight: "600", fontSize: "13px" }}>{ctrl.controlCode}</span>
+                                    {isAutoSelected && (
+                                      <span style={{ fontSize: "9px", fontWeight: 700, color: "#059669", background: "#dcfce7", padding: "2px 6px", borderRadius: "4px", letterSpacing: "0.5px" }}>AUTO</span>
+                                    )}
+                                  </div>
+                                  <span style={{ fontSize: "12px", lineHeight: "1.4", color: "#475569", fontWeight: "400" }}>{ctrl.title}</span>
+                                </div>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         );
       })}
@@ -571,13 +672,7 @@ const TreatmentPlanForm = ({
     );
 
   const formStyle = {
-    background: "#fff",
-    padding: "20px",
-    borderRadius: "10px",
-    boxShadow: "0 2px 10px rgba(0,0,0,0.05)",
-    maxWidth: "700px",
     margin: "0 auto",
-    border: "1px solid #e9ecef",
   };
   const summaryCardStyle = {
     display: "flex",
@@ -642,12 +737,22 @@ const TreatmentPlanForm = ({
   return (
     <div style={formStyle}>
       <Joyride
-        steps={treatmentPlanTourSteps}
+        steps={treatmentPlanTourSteps.map(s => ({ ...s, disableBeacon: true }))}
         run={runTour}
         continuous
         showSkipButton
-        showProgress
-        styles={{ options: { zIndex: 10000 } }}
+        scrollOffset={200}
+        tooltipComponent={CustomTooltip}
+        styles={{
+          options: {
+            zIndex: 10000,
+            overlayColor: "rgba(0, 0, 0, 0.5)",
+          },
+          spotlight: {
+            borderRadius: "12px",
+            boxShadow: "0 0 0 3px #ffffff, 0 0 0 6px #3b82f6, 0 20px 25px -5px rgba(0, 0, 0, 0.1)",
+          }
+        }}
         callback={(data) => {
           if ([STATUS.FINISHED, STATUS.SKIPPED].includes(data.status))
             setRunTour(false);
@@ -677,62 +782,71 @@ const TreatmentPlanForm = ({
 
       <div
         style={{
-          textAlign: "center",
-          marginBottom: "25px",
-          paddingBottom: "12px",
-          borderBottom: "2px solid #e67e22",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: "20px",
+          background: "#f8f9fa",
+          padding: "10px 15px",
+          borderRadius: "8px",
+          border: "1px solid #e9ecef"
         }}
       >
-        <h2
-          style={{
-            color: "#2c3e50",
-            fontSize: "24px",
-            fontWeight: 700,
-            marginBottom: "6px",
-          }}
-        >
-          Treatment Plan
-        </h2>
-        <p style={{ color: "#7f8c8d", fontSize: "14px" }}>
-          Define controls and mitigation plan for the identified risk
-        </p>
         <button
-          style={{ ...autoGenButtonStyle, marginTop: "10px" }}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            background: "#ffffff",
+            color: "#3b82f6",
+            border: "1px solid #bfdbfe",
+            padding: "8px 16px",
+            borderRadius: "20px",
+            fontSize: "13px",
+            fontWeight: "700",
+            cursor: "pointer",
+            boxShadow: "0 2px 10px rgba(59, 130, 246, 0.15)",
+            transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+            margin: 0
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = "#eff6ff"; e.currentTarget.style.transform = "translateY(-1px)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = "#ffffff"; e.currentTarget.style.transform = "translateY(0)"; }}
           onClick={() => setRunTour(true)}
         >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
           Tutorial
         </button>
-      </div>
 
-      <div
-        style={{
-          display: "flex",
-          gap: "10px",
-          flexWrap: "wrap",
-          marginBottom: "15px",
-        }}
-      >
-        <div className="action-field" style={calculatedItemStyle}>
-          <label style={calculatedLabelStyle}>Action</label>
-          <span style={calculatedValueStyle}>{action}</span>
-        </div>
-        <div className="status-field" style={calculatedItemStyle}>
-          <label style={calculatedLabelStyle}>Status</label>
-          <div style={{ width: "120px", margin: "0 auto" }}>
-            <Select
-              name="status"
-              options={[
-                { value: "Open", label: "Open" },
-                { value: "WIP", label: "WIP" },
-                { value: "Closed", label: "Closed" },
-              ]}
-              value={{ value: statusValue, label: statusValue }}
-              onChange={(selected) =>
-                handleInputChange({
-                  target: { name: "status", value: selected.value },
-                })
-              }
-            />
+        <div style={{ display: "flex", gap: "15px", alignItems: "center" }}>
+          <div className="action-field" style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <label style={{ fontSize: "13px", fontWeight: 600, color: "#34495e", textTransform: "uppercase" }}>Action:</label>
+            <span style={{ fontSize: "14px", fontWeight: 600, padding: "4px 12px", borderRadius: "12px", background: "#3498db", color: "#fff" }}>{action}</span>
+          </div>
+          <div style={{ width: "1px", height: "24px", background: "#dee2e6" }}></div>
+          <div className="status-field" style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <label style={{ fontSize: "13px", fontWeight: 600, color: "#34495e", textTransform: "uppercase" }}>Status:</label>
+            <div style={{ width: "130px" }}>
+              <Select
+                name="status"
+                options={[
+                  { value: "Open", label: "Open" },
+                  { value: "WIP", label: "WIP" },
+                  { value: "Closed", label: "Closed" },
+                ]}
+                value={{ value: statusValue, label: statusValue }}
+                onChange={(selected) =>
+                  handleInputChange({
+                    target: { name: "status", value: selected.value },
+                  })
+                }
+                styles={{
+                  control: (base) => ({ ...base, minHeight: "32px", height: "32px" }),
+                  valueContainer: (base) => ({ ...base, padding: "0 8px" }),
+                  input: (base) => ({ ...base, margin: 0, padding: 0 }),
+                  indicatorsContainer: (base) => ({ ...base, height: "32px" }),
+                }}
+              />
+            </div>
           </div>
         </div>
       </div>

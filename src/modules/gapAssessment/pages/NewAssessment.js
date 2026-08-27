@@ -7,6 +7,7 @@ import {
   X,
   ClipboardCheck,
   Trash,
+  Trash2,
   Eye,
   CheckCircle,
   Save,
@@ -330,51 +331,51 @@ const RowTable = ({
   };
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-xs border-collapse">
+    <div className="bg-white rounded-xl shadow-sm border border-slate-200 mb-6">
+      <table className="w-max min-w-full text-xs border-collapse table-fixed">
         <thead>
-          <tr className="bg-gray-50 border-b border-gray-200">
-            <th className="border-r border-gray-200 px-2 py-1.5 text-left text-[10px] font-semibold text-gray-600 w-[30%]">
+          <tr className="bg-slate-50/80 backdrop-blur-sm border-b border-slate-200">
+            <th className="px-3 py-2.5 text-left text-[10px] font-bold text-slate-600 uppercase tracking-wider min-w-[300px] w-[300px]">
               Requirement
             </th>
-            <th className="border-r border-gray-200 px-2 py-1.5 text-center text-[10px] font-semibold text-gray-600 w-[13%]">
+            <th className="px-3 py-2.5 text-center text-[10px] font-bold text-slate-600 uppercase tracking-wider min-w-[250px] w-[250px]">
               Document Evidence
             </th>
             <th
-              className={`border-r border-gray-200 px-2 py-1.5 text-center text-[10px] font-semibold w-[11%] ${!showPracticeEvidence ? "text-gray-300 bg-gray-50" : "text-gray-600"}`}
+              className={`px-3 py-2.5 text-center text-[10px] font-bold uppercase tracking-wider min-w-[250px] w-[250px] ${!showPracticeEvidence ? "text-slate-400 bg-slate-50" : "text-slate-600"}`}
             >
               Practice Evidence
               {!showPracticeEvidence && (
-                <span className="block text-[8px] font-normal italic">
+                <span className="block text-[8px] font-medium italic normal-case mt-0.5">
                   N/A — Type 1
                 </span>
               )}
             </th>
             {isAuditor && (
               <>
-                <th className="border-r border-gray-200 px-1.5 py-1.5 text-center text-[10px] font-semibold text-gray-600 w-[60px]">
-                  Doc Score
+                <th className="px-2 py-2.5 text-center text-[10px] font-bold text-slate-600 uppercase tracking-wider min-w-[160px] w-[160px]">
+                  Document Score
                 </th>
                 <th
-                  className={`border-r border-gray-200 px-1.5 py-1.5 text-center text-[10px] font-semibold w-[60px] ${!showPracticeEvidence ? "text-gray-300 bg-gray-50" : "text-gray-600"}`}
+                  className={`px-2 py-2.5 text-center text-[10px] font-bold uppercase tracking-wider min-w-[160px] w-[160px] ${!showPracticeEvidence ? "text-slate-400 bg-slate-50" : "text-slate-600"}`}
                 >
-                  Prac Score
+                  Practice Score
                 </th>
-                <th className="border-r border-gray-200 px-1.5 py-1.5 text-center text-[10px] font-semibold text-gray-600 w-[50px]">
+                <th className="px-2 py-2.5 text-center text-[10px] font-bold text-slate-600 uppercase tracking-wider w-[50px]">
                   Total
                 </th>
-                <th className="border-r border-gray-200 px-1.5 py-1.5 text-center text-[10px] font-semibold text-gray-600 w-[90px]">
-                  Doc Remarks
+                <th className="px-2 py-2.5 text-center text-[10px] font-bold text-slate-600 uppercase tracking-wider min-w-[130px] w-[130px]">
+                  Document Remarks
                 </th>
                 <th
-                  className={`border-r border-gray-200 px-1.5 py-1.5 text-center text-[10px] font-semibold w-[90px] ${!showPracticeEvidence ? "text-gray-300 bg-gray-50" : "text-gray-600"}`}
+                  className={`px-2 py-2.5 text-center text-[10px] font-bold uppercase tracking-wider min-w-[130px] w-[130px] ${!showPracticeEvidence ? "text-slate-400 bg-slate-50" : "text-slate-600"}`}
                 >
-                  Prac Remarks
+                  Practice Remarks
                 </th>
-                <th className="border-r border-gray-200 px-1.5 py-1.5 text-center text-[10px] font-semibold text-gray-600 w-[90px]">
+                <th className="px-2 py-2.5 text-center text-[10px] font-bold text-slate-600 uppercase tracking-wider min-w-[220px] w-[220px]">
                   Findings *
                 </th>
-                <th className="px-1.5 py-1.5 text-center text-[10px] font-semibold text-gray-600 w-[110px]">
+                <th className="px-2 py-2.5 text-center text-[10px] font-bold text-slate-600 uppercase tracking-wider w-[110px]">
                   Overall Findings
                 </th>
               </>
@@ -391,15 +392,15 @@ const RowTable = ({
             return (
               <tr
                 key={row.idx}
-                className={`border-b border-gray-100 transition-colors ${missingFinding ? "bg-red-50 hover:bg-red-100" : "hover:bg-blue-50/40"}`}
+                className={`border-b border-slate-100 transition-all duration-200 hover:shadow-sm ${missingFinding ? "bg-red-50/50 hover:bg-red-100/60" : "hover:bg-blue-50/30"}`}
               >
                 {/* ── Requirement ── */}
-                <td className="border-r border-gray-100 px-2 py-1.5 align-top">
-                  <p className="text-[11px] text-gray-700 leading-snug font-medium">
+                <td className="px-3 py-3 align-top border-r border-slate-100/50">
+                  <p className="text-xs text-slate-800 leading-relaxed font-medium">
                     {row.question}
                   </p>
                   {missingFinding && (
-                    <span className="inline-flex items-center gap-0.5 mt-0.5 text-[9px] font-bold text-red-500">
+                    <span className="inline-flex items-center gap-1 mt-1.5 text-[10px] font-bold text-red-500 bg-red-50 px-2 py-0.5 rounded-full border border-red-100">
                       ⚠ Finding required
                     </span>
                   )}
@@ -441,43 +442,30 @@ const RowTable = ({
                           onClick={() =>
                             handleDeleteFile(row.idx, "documentEvidence")
                           }
-                          className="text-[9px] text-red-400 hover:text-red-600 ml-0.5"
+                          className="text-[9px] text-red-400 hover:text-red-600 font-semibold flex items-center gap-0.5"
                         >
-                          <Trash size={9} />
+                          <Trash2 size={9} />
                         </button>
                       </div>
                     )}
 
-                    {/* Upload button */}
-                    <label className="cursor-pointer inline-flex items-center gap-0.5 text-[9px] font-bold text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 border border-blue-200 hover:border-blue-400 rounded px-1.5 py-0.5 transition-colors w-fit">
-                      <Upload size={8} />
-                      {row.documentEvidence ? "Re-upload" : "Upload"}
-                      <input
-                        type="file"
-                        className="hidden"
-                        onChange={(e) =>
-                          handleFileChange(
-                            row.idx,
-                            e.target.files[0],
-                            "documentEvidence",
-                          )
-                        }
-                      />
-                    </label>
+                    {!mldDocs.length && !row.documentEvidence && (
+                      <span className="text-[10px] text-slate-400 italic">No evidence yet</span>
+                    )}
                   </div>
                 </td>
 
                 {/* ── Practice Evidence ── */}
                 {showPracticeEvidence ? (
-                  <td className="border-r border-gray-100 px-2 py-1.5 align-top">
-                    <div className="flex flex-col gap-1">
+                  <td className="px-3 py-3 align-top border-r border-slate-100/50">
+                    <div className="flex flex-col gap-1.5">
                       {/* Cloud evidence pills */}
                       {cloudEntries.length > 0 && (
-                        <div className="flex flex-col gap-0.5">
-                          <span className="text-[8px] font-bold text-blue-400 uppercase tracking-widest flex items-center gap-0.5">
+                        <div className="flex flex-col gap-1">
+                          <span className="text-[8px] font-bold text-blue-500 uppercase tracking-widest flex items-center gap-1">
                             ☁ Cloud ({cloudEntries.length})
                           </span>
-                          <div className="flex flex-wrap gap-0.5">
+                          <div className="flex flex-wrap gap-1">
                             {cloudEntries.map((entry, i) => (
                               <button
                                 key={i}
@@ -489,9 +477,9 @@ const RowTable = ({
                                   })
                                 }
                                 title={entry.metricName}
-                                className="inline-flex items-center gap-0.5 text-[9px] font-semibold text-blue-600 bg-blue-50 border border-blue-200 rounded-full px-1.5 py-0.5 hover:bg-blue-100 hover:border-blue-400 transition-colors"
+                                className="inline-flex items-center gap-1 text-[9px] font-bold text-blue-600 bg-white border border-blue-200 shadow-sm rounded-full px-2 py-0.5 hover:bg-blue-50 hover:border-blue-300 hover:shadow transition-all"
                               >
-                                <Eye size={8} />
+                                <Eye size={10} />
                                 {cloudEntries.length > 1
                                   ? `E${i + 1}`
                                   : "Evidence"}
@@ -502,54 +490,40 @@ const RowTable = ({
                       )}
 
                       {/* Uploaded practice file */}
-                      {row.practiceEvidence ? (
-                        <div className="flex items-center gap-1 bg-green-50 border border-green-200 rounded px-1.5 py-0.5">
+                      {row.practiceEvidence && (
+                        <div className="flex items-center gap-1.5 bg-green-50/50 border border-green-200 rounded-md px-2 py-1 shadow-sm">
                           <FileText
-                            size={9}
-                            className="text-green-400 flex-shrink-0"
+                            size={10}
+                            className="text-green-500 flex-shrink-0"
                           />
-                          <span className="text-[9px] text-green-700 font-medium flex-1 truncate">
+                          <span className="text-[10px] text-green-700 font-semibold flex-1 truncate">
                             Uploaded
                           </span>
                           <button
                             type="button"
                             onClick={() => setSelectedDoc(row.practiceEvidence)}
-                            className="text-[9px] text-green-600 hover:text-green-800 font-semibold flex items-center gap-0.5"
+                            className="text-[10px] text-green-600 hover:text-green-800 font-bold flex items-center gap-0.5 transition-colors"
                           >
-                            <Eye size={9} /> View
+                            <Eye size={10} /> View
                           </button>
                           <button
                             type="button"
                             onClick={() =>
                               handleDeleteFile(row.idx, "practiceEvidence")
                             }
-                            className="text-[9px] text-red-400 hover:text-red-600 ml-0.5"
+                            className="text-[10px] text-red-400 hover:text-red-600 ml-1 transition-colors"
                           >
-                            <Trash size={9} />
+                            <Trash size={10} />
                           </button>
                         </div>
-                      ) : cloudEntries.length === 0 ? (
-                        <span className="text-[9px] text-gray-300 italic">
+                      )}
+
+                      {/* Practice Evidence fallback */}
+                      {cloudEntries.length === 0 && !row.practiceEvidence && (
+                        <span className="text-[10px] text-slate-400 italic">
                           No evidence yet
                         </span>
-                      ) : null}
-
-                      {/* Upload button */}
-                      <label className="cursor-pointer inline-flex items-center gap-0.5 text-[9px] font-bold text-green-600 hover:text-green-800 bg-green-50 hover:bg-green-100 border border-green-200 hover:border-green-400 rounded px-1.5 py-0.5 transition-colors w-fit">
-                        <Upload size={8} />
-                        {row.practiceEvidence ? "Re-upload" : "Upload"}
-                        <input
-                          type="file"
-                          className="hidden"
-                          onChange={(e) =>
-                            handleFileChange(
-                              row.idx,
-                              e.target.files[0],
-                              "practiceEvidence",
-                            )
-                          }
-                        />
-                      </label>
+                      )}
                     </div>
                   </td>
                 ) : (
@@ -560,7 +534,7 @@ const RowTable = ({
                 {isAuditor && (
                   <>
                     {/* Doc Score */}
-                    <td className="border-r border-gray-100 px-1 py-1.5 align-top">
+                    <td className="px-1.5 py-3 align-top border-r border-slate-100/50">
                       <select
                         value={row.docScore}
                         onChange={(e) =>
@@ -570,18 +544,27 @@ const RowTable = ({
                             e.target.value,
                           )
                         }
-                        className="w-full border border-gray-200 rounded text-[10px] px-1 py-0.5 bg-white focus:ring-1 focus:ring-blue-400 focus:outline-none"
+                        className="w-full border border-slate-200 rounded-md shadow-sm text-[10px] px-1.5 py-1 bg-white hover:border-slate-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:outline-none transition-all cursor-pointer whitespace-normal text-wrap break-words"
+                        title={
+                          row.docScore === "0"
+                            ? "0 — Non Conformance"
+                            : row.docScore === "1"
+                              ? "1 — Partial Conformance"
+                              : row.docScore === "2"
+                                ? "2 — Conformance"
+                                : "NA"
+                        }
                       >
-                        <option value="">NA</option>
-                        <option value="0">0 — Non Conformance</option>
-                        <option value="1">1 — Partial Conformance</option>
-                        <option value="2">2 — Conformance</option>
+                        <option value="" className="whitespace-normal break-words text-wrap">NA</option>
+                        <option value="0" className="whitespace-normal break-words text-wrap" title="0 — Non Conformance">0 — Non Conformance</option>
+                        <option value="1" className="whitespace-normal break-words text-wrap" title="1 — Partial Conformance">1 — Partial Conformance</option>
+                        <option value="2" className="whitespace-normal break-words text-wrap" title="2 — Conformance">2 — Conformance</option>
                       </select>
                     </td>
 
                     {/* Practice Score */}
                     {showPracticeEvidence ? (
-                      <td className="border-r border-gray-100 px-1 py-1.5 align-top">
+                      <td className="px-1.5 py-3 align-top border-r border-slate-100/50">
                         <select
                           value={row.practiceScore}
                           onChange={(e) =>
@@ -591,12 +574,21 @@ const RowTable = ({
                               e.target.value,
                             )
                           }
-                          className="w-full border border-gray-200 rounded text-[10px] px-1 py-0.5 bg-white focus:ring-1 focus:ring-blue-400 focus:outline-none"
+                          className="w-full border border-slate-200 rounded-md shadow-sm text-[10px] px-1.5 py-1 bg-white hover:border-slate-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:outline-none transition-all cursor-pointer whitespace-normal text-wrap break-words"
+                          title={
+                            row.practiceScore === "0"
+                              ? "0 — Non Conformance"
+                              : row.practiceScore === "1"
+                                ? "1 — Partial Conformance"
+                                : row.practiceScore === "2"
+                                  ? "2 — Conformance"
+                                  : "NA"
+                          }
                         >
-                          <option value="">NA</option>
-                          <option value="0">0 — Non Conformance</option>
-                          <option value="1">1 — Partial Conformance</option>
-                          <option value="2">2 — Conformance</option>
+                          <option value="" className="whitespace-normal break-words text-wrap">NA</option>
+                          <option value="0" className="whitespace-normal break-words text-wrap" title="0 — Non Conformance">0 — Non Conformance</option>
+                          <option value="1" className="whitespace-normal break-words text-wrap" title="1 — Partial Conformance">1 — Partial Conformance</option>
+                          <option value="2" className="whitespace-normal break-words text-wrap" title="2 — Conformance">2 — Conformance</option>
                         </select>
                       </td>
                     ) : (
@@ -604,26 +596,25 @@ const RowTable = ({
                     )}
 
                     {/* Total Score */}
-                    <td className="border-r border-gray-100 px-1 py-1.5 text-center align-top">
+                    <td className="px-1.5 py-3 text-center align-top border-r border-slate-100/50">
                       <span
-                        className={`inline-block text-[11px] font-bold px-1.5 py-0.5 rounded ${
-                          row.totalScore >= 3
-                            ? "text-green-700 bg-green-50"
-                            : row.totalScore >= 1
-                              ? "text-amber-700 bg-amber-50"
-                              : row.totalScore === 0 &&
-                                  (row.docScore !== "" ||
-                                    row.practiceScore !== "")
-                                ? "text-red-600 bg-red-50"
-                                : "text-gray-500"
-                        }`}
+                        className={`inline-flex items-center justify-center min-w-[24px] h-[24px] text-[11px] font-bold rounded-md shadow-sm ${row.totalScore >= 3
+                          ? "text-green-700 bg-green-50 border border-green-200"
+                          : row.totalScore >= 1
+                            ? "text-amber-700 bg-amber-50 border border-amber-200"
+                            : row.totalScore === 0 &&
+                              (row.docScore !== "" ||
+                                row.practiceScore !== "")
+                              ? "text-red-700 bg-red-50 border border-red-200"
+                              : "text-slate-500 bg-slate-50 border border-slate-200"
+                          }`}
                       >
                         {row.totalScore}
                       </span>
                     </td>
 
                     {/* Doc Remarks */}
-                    <td className="border-r border-gray-100 px-1 py-1.5 align-top">
+                    <td className="px-1.5 py-3 align-top border-r border-slate-100/50">
                       <textarea
                         value={row.docRemarks}
                         onChange={(e) =>
@@ -633,7 +624,7 @@ const RowTable = ({
                             e.target.value,
                           )
                         }
-                        className="w-full border border-gray-200 rounded text-[10px] px-1 py-0.5 resize-none focus:ring-1 focus:ring-blue-400 focus:outline-none"
+                        className="w-full border border-slate-200 rounded-md shadow-sm text-[10px] px-2 py-1.5 resize-none bg-white hover:border-slate-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:outline-none transition-all placeholder:text-slate-400"
                         rows={2}
                         placeholder="Doc notes…"
                       />
@@ -641,7 +632,7 @@ const RowTable = ({
 
                     {/* Practice Remarks */}
                     {showPracticeEvidence ? (
-                      <td className="border-r border-gray-100 px-1 py-1.5 align-top">
+                      <td className="px-1.5 py-3 align-top border-r border-slate-100/50">
                         <textarea
                           value={row.practiceRemarks}
                           onChange={(e) =>
@@ -651,7 +642,7 @@ const RowTable = ({
                               e.target.value,
                             )
                           }
-                          className="w-full border border-gray-200 rounded text-[10px] px-1 py-0.5 resize-none focus:ring-1 focus:ring-blue-400 focus:outline-none"
+                          className="w-full border border-slate-200 rounded-md shadow-sm text-[10px] px-2 py-1.5 resize-none bg-white hover:border-slate-300 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:outline-none transition-all placeholder:text-slate-400"
                           rows={2}
                           placeholder="Practice notes…"
                         />
@@ -662,14 +653,14 @@ const RowTable = ({
 
                     {/* Findings */}
                     <td
-                      className={`border-r border-gray-100 px-1 py-1.5 align-top ${missingFinding ? "bg-red-50" : ""}`}
+                      className={`w-[110px] min-w-[110px] max-w-[110px] px-1 py-3 align-top border-r border-slate-100/50 ${missingFinding ? "bg-red-50/50" : ""}`}
                     >
                       {(() => {
                         const FINDINGS_OPTIONS = [
                           {
                             value: "",
                             label: "— Select —",
-                            cls: "text-gray-400",
+                            cls: "text-slate-400",
                           },
                           {
                             value: "Conformance",
@@ -682,8 +673,8 @@ const RowTable = ({
                             cls: "text-emerald-700 bg-emerald-50",
                           },
                           {
-                            value: "Major NC",
-                            label: "Major NC",
+                            value: "Major Non Conformance",
+                            label: "Major Non Conformance",
                             cls: "text-red-700 bg-red-50",
                           },
                           {
@@ -715,11 +706,12 @@ const RowTable = ({
                                 e.target.value,
                               )
                             }
-                            className={`w-full border rounded text-[10px] px-1 py-0.5 font-semibold focus:outline-none focus:ring-1 focus:ring-blue-400 ${
-                              missingFinding
-                                ? "border-red-400 ring-1 ring-red-300 bg-red-50"
-                                : `border-gray-200 ${selected?.cls || ""}`
-                            }`}
+                            className={`w-full border rounded-md shadow-sm text-[10px] px-1.5 py-1 font-semibold focus:outline-none transition-all cursor-pointer focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 whitespace-normal text-wrap break-words ${missingFinding
+                              ? "border-red-400 ring-1 ring-red-300 bg-red-50/80"
+                              : selected
+                                ? `${selected.cls} border-slate-200 hover:border-slate-300`
+                                : "border-slate-200 bg-white hover:border-slate-300"
+                              }`}
                           >
                             {FINDINGS_OPTIONS.map((o) => (
                               <option key={o.value} value={o.value}>
@@ -771,7 +763,7 @@ const CLAUSE_LABEL = [
   "text-[11px] font-medium",
   "text-[11px] font-normal",
 ];
-const CLAUSE_INDENT = [0, 14, 28, 42];
+const CLAUSE_INDENT = [0, 0, 0, 0];
 
 const ClauseNode = ({
   nodeKey,
@@ -806,7 +798,7 @@ const ClauseNode = ({
         </span>
         <span className={lblCls}>{node.label}</span>
         {title && (
-          <span className="truncate text-[10px] text-gray-300 ml-1">
+          <span className="truncate text-[10px] text-gray-800 font-semibold ml-1">
             {title}
           </span>
         )}
@@ -896,19 +888,19 @@ const NewAssessment = () => {
   const router = useRouter();
   const pathname = usePathname();
   const [auditContext] = useState(() => {
-  if (typeof window === "undefined") return null;
-  try {
-    const stored = sessionStorage.getItem("cv_auditContext");
-    if (stored) {
-      sessionStorage.removeItem("cv_auditContext");
-      return JSON.parse(stored);
+    if (typeof window === "undefined") return null;
+    try {
+      const stored = sessionStorage.getItem("cv_auditContext");
+      if (stored) {
+        sessionStorage.removeItem("cv_auditContext");
+        return JSON.parse(stored);
+      }
+    } catch (e) {
+      console.error("Failed to read audit context:", e);
     }
-  } catch (e) {
-    console.error("Failed to read audit context:", e);
-  }
-  return null;
-});
-const isAuditMode = !!(auditContext && auditContext.auditId);
+    return null;
+  });
+  const isAuditMode = !!(auditContext && auditContext.auditId);
 
   const [lastSaved, setLastSaved] = useState(Date.now());
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -1558,7 +1550,7 @@ const isAuditMode = !!(auditContext && auditContext.auditId);
                 : row.practiceScore,
               totalScore: hasGapScore
                 ? (gap.docScore ? parseInt(gap.docScore) : 0) +
-                  (gap.practiceScore ? parseInt(gap.practiceScore) : 0)
+                (gap.practiceScore ? parseInt(gap.practiceScore) : 0)
                 : row.totalScore,
               docRemarks: gap.docRemarks || row.docRemarks,
               practiceRemarks: gap.practiceRemarks || row.practiceRemarks,
@@ -1943,20 +1935,7 @@ const isAuditMode = !!(auditContext && auditContext.auditId);
 
             {/* Right */}
             <div className="flex items-center gap-2 flex-wrap">
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={expandAll}
-                  className="px-2 py-1 text-[10px] border border-gray-300 rounded hover:bg-gray-100 transition text-gray-500"
-                >
-                  Expand All
-                </button>
-                <button
-                  onClick={collapseAll}
-                  className="px-2 py-1 text-[10px] border border-gray-300 rounded hover:bg-gray-100 transition text-gray-500"
-                >
-                  Collapse All
-                </button>
-              </div>
+
               <div className="bg-blue-50 border border-blue-100 px-2 py-1 rounded-lg text-[10px] text-gray-600">
                 <span className="font-semibold">{user?.name || "Unknown"}</span>
                 <span className="text-gray-400 mx-1">·</span>
@@ -2121,33 +2100,35 @@ const isAuditMode = !!(auditContext && auditContext.auditId);
               Loading controls…
             </div>
           ) : (
-            <div className="rounded-xl shadow-sm border border-gray-200 bg-white overflow-hidden">
-              {isSoc2 && !showPracticeEvidence && (
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 border-b border-amber-200 text-[11px] text-amber-800">
-                  <span className="font-semibold">SOC 2 Type 1:</span>
-                  <span>
-                    Practice Evidence columns are hidden (design-only
-                    assessment)
-                  </span>
-                </div>
-              )}
-              {Object.entries(categoryTree)
-                .sort(
-                  ([a], [b]) =>
-                    getCategoryOrder(selectedFramework, a) -
-                    getCategoryOrder(selectedFramework, b),
-                )
-                .map(([category, clauseMap]) => (
-                  <CategoryBlock
-                    key={category}
-                    category={category}
-                    clauseMap={clauseMap}
-                    expandedNodes={expandedNodes}
-                    onToggle={toggleNode}
-                    tableProps={tableProps}
-                    titleMap={titleMap}
-                  />
-                ))}
+            <div className="rounded-xl shadow-sm border border-gray-200 bg-white overflow-x-auto overflow-y-hidden">
+              <div className="w-max min-w-full flex flex-col">
+                {isSoc2 && !showPracticeEvidence && (
+                  <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 border-b border-amber-200 text-[11px] text-amber-800">
+                    <span className="font-semibold">SOC 2 Type 1:</span>
+                    <span>
+                      Practice Evidence columns are hidden (design-only
+                      assessment)
+                    </span>
+                  </div>
+                )}
+                {Object.entries(categoryTree)
+                  .sort(
+                    ([a], [b]) =>
+                      getCategoryOrder(selectedFramework, a) -
+                      getCategoryOrder(selectedFramework, b),
+                  )
+                  .map(([category, clauseMap]) => (
+                    <CategoryBlock
+                      key={category}
+                      category={category}
+                      clauseMap={clauseMap}
+                      expandedNodes={expandedNodes}
+                      onToggle={toggleNode}
+                      tableProps={tableProps}
+                      titleMap={titleMap}
+                    />
+                  ))}
+              </div>
             </div>
           )}
         </div>

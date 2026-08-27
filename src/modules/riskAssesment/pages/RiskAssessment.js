@@ -24,7 +24,7 @@ import {
   Circle,
   XCircle,
   RefreshCw,
-  BookOpen, 
+  BookOpen,
   X
 } from "lucide-react";
 
@@ -41,6 +41,7 @@ import {
   CartesianGrid,
 } from "recharts";
 import Joyride from "react-joyride";
+import CustomTooltip from "../components/CustomTooltip";
 import { motion, AnimatePresence } from "framer-motion";
 import { useEffectiveOrg } from "@/hooks/useEffectiveOrg";
 import { getDepartments } from "../../departments/services/userService";
@@ -411,7 +412,7 @@ const RiskAssessment = () => {
           );
           score = impact * (parseInt(risk.probability) || 0);
         }
-        
+
         const level = score <= 3 ? "low" : score <= 8 ? "medium" : "high";
         acc[level]++;
         (risk.status || "").toLowerCase() === "closed"
@@ -519,9 +520,9 @@ const RiskAssessment = () => {
         seeAll
           ? "All"
           : userDepts
-              .map((d) => (typeof d === "string" ? d : d?.name))
-              .filter(Boolean)
-              .join(", ") || "Your",
+            .map((d) => (typeof d === "string" ? d : d?.name))
+            .filter(Boolean)
+            .join(", ") || "Your",
       );
     } catch (error) {
       console.error("Error loading risk stats:", error);
@@ -642,7 +643,7 @@ const RiskAssessment = () => {
     {
       id: "add",
       icon: PlusCircle,
-      title: "New Risk",
+      title: "New Risks",
       subtitle: "Add Risk",
       path: "/risk-assessment/add",
       color: "from-emerald-400 to-emerald-500",
@@ -687,12 +688,24 @@ const RiskAssessment = () => {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/50 to-indigo-50/30 flex flex-col overflow-hidden">
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-2 lg:py-6 pb-20 lg:pb-26 overflow-hidden">
         <Joyride
-          steps={steps}
+          steps={steps.map(s => ({ ...s, disableBeacon: true }))}
           run={run}
           continuous
           showSkipButton
           scrollToFirstStep
-          styles={{ options: { primaryColor: "#3b82f6", width: 300 } }}
+          scrollOffset={200}
+          tooltipComponent={CustomTooltip}
+          styles={{
+            options: {
+              primaryColor: "#3b82f6",
+              width: 300,
+              overlayColor: "rgba(0, 0, 0, 0.5)",
+            },
+            spotlight: {
+              borderRadius: "12px",
+              boxShadow: "0 0 0 3px #ffffff, 0 0 0 6px #3b82f6, 0 20px 25px -5px rgba(0, 0, 0, 0.1)",
+            }
+          }}
         />
 
         {/* ── Professional Header ── */}
@@ -822,17 +835,17 @@ const RiskAssessment = () => {
                 <BookOpen size={15} className="text-slate-500" />
               </motion.button>
               <motion.button
-                className="px-5 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white text-sm font-semibold rounded-xl shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 flex items-center gap-2"
+                className="px-4 py-2 bg-white text-blue-500 border border-blue-200 hover:bg-blue-50 rounded-full shadow-[0_2px_10px_rgba(59,130,246,0.15)] transition-all duration-200 flex items-center gap-2 text-sm font-bold"
                 onClick={() => {
                   captureActivity({ action: ACTIONS.CLICK, module: MODULES.RISK, item: "Open Guide", url: "/risk-assessment" });
                   setRun(false);
                   setTimeout(() => setRun(true), 100);
                 }}
-                whileHover={{ scale: 1.02 }}
+                whileHover={{ y: -1 }}
                 whileTap={{ scale: 0.98 }}
               >
-                <HelpCircle size={18} />
-                <span>Guide</span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                <span>Tutorial</span>
               </motion.button>
             </div>
           </div>
@@ -1151,7 +1164,7 @@ const RiskAssessment = () => {
             </motion.div>
           </div>
         </div>
-</main>
+      </main>
 
       {/* Help Documentation Modal */}
       <AnimatePresence>
@@ -1234,8 +1247,8 @@ const RiskAssessment = () => {
                       <td className="px-3 py-2 border-b border-slate-100 text-slate-600 align-top" {...props} />
                     ),
                     a: ({ node, ...props }) => (
-                      
-                        <a className="text-blue-600 hover:text-blue-700 hover:underline font-medium cursor-pointer"
+
+                      <a className="text-blue-600 hover:text-blue-700 hover:underline font-medium cursor-pointer"
                         {...props}
                         onClick={(e) => {
                           e.preventDefault();
