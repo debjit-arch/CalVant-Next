@@ -1,5 +1,3 @@
-//src\modules\admin\components\Toolintegrations\providerMeta.js
-
 import CloudQueueIcon from '@mui/icons-material/CloudQueue';
 import WorkspacesIcon from '@mui/icons-material/Workspaces';
 import WindowIcon from '@mui/icons-material/Window';
@@ -12,9 +10,7 @@ import BugReportIcon from '@mui/icons-material/BugReport';
 import ShieldIcon from '@mui/icons-material/Shield';
 import ArticleIcon from '@mui/icons-material/Article';
 import VisibilityIcon from '@mui/icons-material/Visibility';
-import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
-import MarkEmailReadIcon from '@mui/icons-material/MarkEmailRead';
-import ConfirmationNumberIcon from '@mui/icons-material/ConfirmationNumber';
+import CloudDoneIcon from '@mui/icons-material/CloudDone';
 // `logoUrl` can be either:
 // - a local path served from /public, e.g. '/logos/aws.svg' (recommended — see note below)
 // - a full remote URL, e.g. 'https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/aws.svg'
@@ -488,41 +484,221 @@ export const BUILT_IN_PROVIDERS = [
     description: 'Code & Infrastructure Security (DevSecOps) — SAST scan coverage and secure coding posture.',
   },
   {
+    key: 'cyberark',
+    label: 'CyberArk',
+    shortLabel: 'CyberArk',
+    accent: '#000000',
+    Icon: LockIcon,
+    logoUrl: '/logos/cyberark.svg',
+    description: 'Password & Secret Management — Safes provisioned and privileged accounts onboarded.',
+  },
+  {
+    key: 'delinea',
+    label: 'Delinea',
+    shortLabel: 'Delinea',
+    accent: '#005D90',
+    Icon: LockIcon,
+    logoUrl: '/logos/delinea.svg',
+    description: 'Password & Secret Management — Secrets vaulted and auto password rotation enforced.',
+  },
+  {
+    key: 'sailpoint',
+    label: 'SailPoint',
+    shortLabel: 'SailPoint',
+    accent: '#0047BB',
+    Icon: ShieldIcon,
+    logoUrl: '/logos/sailpoint.svg',
+    description: 'Identity & Access Management (IAM) — Identities provisioned and access certification campaigns.',
+  },
+  {
+    key: 'pingidentity',
+    label: 'Ping Identity',
+    shortLabel: 'Ping Identity',
+    accent: '#E82438',
+    Icon: ShieldIcon,
+    logoUrl: '/logos/pingidentity.svg',
+    description: 'Identity & Access Management (IAM) — Users provisioned and MFA policy enabled.',
+  },
+  {
+    key: 'meraki',
+    label: 'Cisco Meraki',
+    shortLabel: 'Meraki',
+    accent: '#78BE20',
+    Icon: ShieldIcon,
+    logoUrl: '/logos/meraki.svg',
+    description: 'Network Security & Firewall — cloud-managed firewall rules and network device health.',
+  },
+  {
+    key: 'sentinel',
+    label: 'Microsoft Sentinel',
+    shortLabel: 'Sentinel',
+    accent: '#0078D4',
+    Icon: VisibilityIcon,
+    logoUrl: '/logos/microsoft-sentinel.svg',
+    description: 'SIEM & Log Management — analytics rule coverage and incident triage pipeline.',
+  },
+  {
+    key: 'qradar',
+    label: 'IBM QRadar',
+    shortLabel: 'QRadar',
+    accent: '#054ADA',
+    Icon: VisibilityIcon,
+    logoUrl: '/logos/qradar.svg',
+    description: 'SIEM & Log Management — log source health and offense (alert) triage coverage.',
+  },
+  {
+    key: 'logrhythm',
+    label: 'LogRhythm',
+    shortLabel: 'LogRhythm',
+    accent: '#F47920',
+    Icon: VisibilityIcon,
+    logoUrl: '/logos/logrhythm.svg',
+    description: 'SIEM & Log Management — log source health and open alarm triage coverage.',
+  },
+
+  // ── New: Wiz (Cloud Security Posture Management) ──────────────────────
+  {
+    key: 'wiz',
+    label: 'Wiz',
+    shortLabel: 'Wiz',
+    accent: '#6E36E5',
+    Icon: CloudDoneIcon,
+    logoUrl: '/logos/wiz.svg',
+    description: 'Cloud Security Posture Management (CSPM) — open critical cloud issues and connected cloud account coverage.',
+  },
+
+  // ── New: Sophos (Endpoint Protection) ──────────────────────────────────
+  {
+    key: 'sophos',
+    label: 'Sophos Central',
+    shortLabel: 'Sophos',
+    accent: '#00B050',
+    Icon: ShieldIcon,
+    logoUrl: '/logos/sophos.svg',
+    description: 'Endpoint Protection — endpoint agent coverage and unresolved threat/bad-health monitoring.',
+  },
+
+  // ── New: Recorded Future (Threat Intelligence) ──────────────────────────
+  {
+    key: 'recordedfuture',
+    label: 'Recorded Future',
+    shortLabel: 'Recorded Future',
+    accent: '#C90C3E',
+    Icon: GppMaybeIcon,
+    logoUrl: '/logos/recorded-future.svg',
+    description: 'Threat Intelligence — feed connectivity and high-risk indicator (IOC) monitoring.',
+  },
+  {
     key: 'tenable',
-    label: 'Tenable.io',
+    label: 'Tenable',
     shortLabel: 'Tenable',
-    accent: '#00C0FF',
-    Icon: BugReportIcon,
+    accent: '#005571',
+    Icon: ShieldIcon,
     logoUrl: '/logos/tenable.svg',
-    description: 'Vulnerability Management — cloud-based scan coverage and critical vulnerability tracking.',
+    description: 'Vulnerability management',
   },
   {
     key: 'pagerduty',
     label: 'PagerDuty',
     shortLabel: 'PagerDuty',
-    accent: '#06AC38',
-    Icon: NotificationsActiveIcon,
+    accent: '#06D6A0',
+    Icon: ArticleIcon,
     logoUrl: '/logos/pagerduty.svg',
-    description: 'Incident Response — on-call schedules, escalation policies, and incident tracking.',
+    description: 'Incident response and alerting',
   },
   {
     key: 'mimecast',
     label: 'Mimecast',
     shortLabel: 'Mimecast',
-    accent: '#E4032E',
-    Icon: MarkEmailReadIcon,
+    accent: '#111111',
+    Icon: ShieldIcon,
     logoUrl: '/logos/mimecast.svg',
-    description: 'Email Security — threat protection, awareness training, and mail flow policy coverage.',
+    description: 'Email security and compliance',
   },
   {
     key: 'freshservice',
     label: 'Freshservice',
     shortLabel: 'Freshservice',
-    accent: '#38C793',
-    Icon: ConfirmationNumberIcon,
+    accent: '#12344D',
+    Icon: ArticleIcon,
     logoUrl: '/logos/freshservice.svg',
-    description: 'ITSM — helpdesk tickets, asset management, and change tracking.',
+    description: 'IT service management',
   },
+  {
+    key: 'orca',
+    configKey: 'orcaSecurity',
+    label: 'Orca Security',
+    shortLabel: 'Orca',
+    accent: '#000000',
+    Icon: ShieldIcon,
+    logoUrl: '/logos/orca.svg',
+    description: 'Cloud security posture management',
+  },
+  {
+    key: 'contrast',
+    configKey: 'contrastSecurity',
+    label: 'Contrast Security',
+    shortLabel: 'Contrast',
+    accent: '#EE3124',
+    Icon: ShieldIcon,
+    logoUrl: '/logos/contrast.svg',
+    description: 'Application security testing',
+  },
+  {
+    key: 'aqua',
+    configKey: 'aquaSecurity',
+    label: 'Aqua Security',
+    shortLabel: 'Aqua',
+    accent: '#007FFF',
+    Icon: ShieldIcon,
+    logoUrl: '/logos/aqua.svg',
+    description: 'Cloud native security',
+  },
+  {
+    key: 'exabeam',
+    label: 'Exabeam',
+    shortLabel: 'Exabeam',
+    accent: '#000000',
+    Icon: ShieldIcon,
+    logoUrl: '/logos/exabeam.svg',
+    description: 'SIEM and behavioral analytics',
+  },
+  {
+    key: 'jfrogxray',
+    label: 'JFrog Xray',
+    shortLabel: 'JFrog Xray',
+    accent: '#41BF4B',
+    Icon: BugReportIcon,
+    logoUrl: '/logos/jfrog.svg',
+    description: 'Software composition analysis and security',
+  },
+  {
+    key: 'semgrep',
+    label: 'Semgrep',
+    shortLabel: 'Semgrep',
+    accent: '#000000',
+    Icon: BugReportIcon,
+    logoUrl: '/logos/semgrep.svg',
+    description: 'Static application security testing',
+  },
+  {
+    key: 'bitbucket',
+    label: 'Bitbucket',
+    shortLabel: 'Bitbucket',
+    accent: '#2684FF',
+    Icon: ArticleIcon,
+    logoUrl: '/logos/bitbucket.svg',
+    description: 'Source code management and CI/CD',
+  },
+  {
+    key: 'github',
+    label: 'GitHub',
+    shortLabel: 'GitHub',
+    accent: '#181717',
+    Icon: ArticleIcon,
+    logoUrl: '/logos/github.svg',
+    description: 'Source code management and CI/CD',
+  }
 ];
 export const TYPE_COLORS = {
   CLOUD: 'primary', HRMS: 'secondary', IAM: 'warning',
