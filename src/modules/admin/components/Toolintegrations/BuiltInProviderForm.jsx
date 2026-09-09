@@ -747,16 +747,186 @@ const PROVIDERS = {
       { key: "apiKey", label: "API Key", secret: true },
     ],
   },
-  tenable: {
-    label: "Tenable.io",
-    accent: "#00C0FF",
-    note: "Generate an Access Key and Secret Key from Tenable.io under Settings → My Account → API Keys. These authenticate every Tenable.io API call with read access to vulnerability scan data.",
+  cyberark: {
+    label: "CyberArk",
+    accent: "#000000",
+    note: "Provide your CyberArk PVWA Base URL, Username, and Password.",
     fields: [
       {
         key: "baseUrl",
-        label: "Tenable.io Base URL",
+        label: "PVWA Base URL",
         secret: false,
-        placeholder: "https://cloud.tenable.io",
+        placeholder: "https://cyberark.yourcompany.com",
+      },
+      { key: "username", label: "Username", secret: false },
+      { key: "password", label: "Password", secret: true },
+    ],
+  },
+  delinea: {
+    label: "Delinea",
+    accent: "#005D90",
+    note: "Provide your Delinea Secret Server Base URL, Username, and Password for OAuth2 authentication.",
+    fields: [
+      {
+        key: "baseUrl",
+        label: "Secret Server Base URL",
+        secret: false,
+        placeholder: "https://yourcompany.secretservercloud.com",
+      },
+      { key: "username", label: "Username", secret: false },
+      { key: "password", label: "Password", secret: true },
+    ],
+  },
+  sailpoint: {
+    label: "SailPoint",
+    accent: "#0047BB",
+    note: "Provide your SailPoint IdentityNow Base URL, Client ID, and Client Secret.",
+    fields: [
+      {
+        key: "baseUrl",
+        label: "IdentityNow Base URL",
+        secret: false,
+        placeholder: "https://yourcompany.api.identitynow.com",
+      },
+      { key: "clientId", label: "Client ID", secret: false },
+      { key: "clientSecret", label: "Client Secret", secret: true },
+    ],
+  },
+  pingidentity: {
+    label: "Ping Identity",
+    accent: "#E82438",
+    note: "Provide your PingOne Environment Base URL, Client ID, and Client Secret.",
+    fields: [
+      {
+        key: "baseUrl",
+        label: "Environment Base URL",
+        secret: false,
+        placeholder: "https://api.pingone.com/v1/environments/{env-id}",
+      },
+      { key: "clientId", label: "Client ID", secret: false },
+      { key: "clientSecret", label: "Client Secret", secret: true },
+    ],
+  },
+  meraki: {
+    label: "Cisco Meraki",
+    accent: "#78BE20",
+    note: "In the Meraki Dashboard, go to Organization → Settings and enable API access, then generate a key under your user profile (My Profile → API access). Also copy your Organization ID from Organization → Settings — most Dashboard API endpoints are scoped to it.",
+    fields: [
+      {
+        key: "baseUrl",
+        label: "Meraki API Base URL",
+        secret: false,
+        placeholder: "https://api.meraki.com/api/v1",
+      },
+      { key: "organizationId", label: "Organization ID", secret: false },
+      { key: "apiKey", label: "API Key", secret: true },
+    ],
+  },
+  sentinel: {
+    label: "Microsoft Sentinel",
+    accent: "#0078D4",
+    note: "Register an app in Azure AD (App registrations → New registration), grant it the Microsoft Sentinel Reader role on the Log Analytics workspace's resource group, and create a client secret. You'll also need the Subscription ID, Resource Group, and Workspace Name from the Sentinel workspace overview page.",
+    fields: [
+      { key: "tenantId", label: "Azure Tenant ID", secret: false },
+      { key: "clientId", label: "Client ID", secret: false },
+      { key: "clientSecret", label: "Client Secret", secret: true },
+      { key: "subscriptionId", label: "Subscription ID", secret: false },
+      { key: "resourceGroup", label: "Resource Group", secret: false },
+      {
+        key: "workspaceName",
+        label: "Log Analytics Workspace Name",
+        secret: false,
+      },
+    ],
+  },
+  qradar: {
+    label: "IBM QRadar",
+    accent: "#054ADA",
+    note: "In the QRadar Console, go to Admin → User Management → Authorized Services to generate a SEC token (API token) for a service account scoped to read access on offenses and log sources.",
+    fields: [
+      {
+        key: "baseUrl",
+        label: "QRadar Console URL",
+        secret: false,
+        placeholder: "https://qradar.yourcompany.com",
+      },
+      { key: "secToken", label: "SEC Token (API Token)", secret: true },
+    ],
+  },
+  logrhythm: {
+    label: "LogRhythm",
+    accent: "#F47920",
+    note: "In LogRhythm, go to Deployment Manager → Tools → API Keys (or the Admin API settings on your appliance) to generate a Bearer API token for a service account with read access to Log Sources and Alarms.",
+    fields: [
+      {
+        key: "baseUrl",
+        label: "LogRhythm API Base URL",
+        secret: false,
+        placeholder: "https://logrhythm.yourcompany.com:8501",
+      },
+      { key: "apiToken", label: "API Token", secret: true },
+    ],
+  },
+
+  // ── New: Wiz (Cloud Security Posture Management) ──────────────────────
+  wiz: {
+    label: "Wiz",
+    accent: "#6E36E5",
+    note: "Create a Wiz Service Account under Settings → Service Accounts with read-only scope, then paste its Client ID and Client Secret below. Base URL is your tenant's regional API root (no /graphql suffix) — find it under your Wiz tenant's API endpoint documentation, e.g. https://api.us1.app.wiz.io. For local testing against the bundled mock server, set Base URL to http://localhost:8080/mock-wiz and use any non-empty Client ID / Client Secret.",
+    fields: [
+      {
+        key: "baseUrl",
+        label: "Wiz API Base URL",
+        secret: false,
+        placeholder: "https://api.us1.app.wiz.io",
+      },
+      { key: "clientId", label: "Client ID", secret: false },
+      { key: "clientSecret", label: "Client Secret", secret: true },
+    ],
+  },
+
+  // ── New: Sophos Central (Endpoint Protection) ──────────────────────────
+  sophos: {
+    label: "Sophos Central",
+    accent: "#00B050",
+    note: "Create an API credential in Sophos Central Admin under Settings → API Credential Management with read-only scope, then paste the Client ID and Client Secret below. Base URL is your tenant's resolved regional API host (from the one-time /whoami/v1 lookup), e.g. https://api-us01.central.sophos.com. For local testing against the bundled mock server, set Base URL to http://localhost:8080/mock-sophos and use any non-empty Client ID / Client Secret.",
+    fields: [
+      {
+        key: "baseUrl",
+        label: "Sophos Central API Base URL",
+        secret: false,
+        placeholder: "https://api-us01.central.sophos.com",
+      },
+      { key: "clientId", label: "Client ID", secret: false },
+      { key: "clientSecret", label: "Client Secret", secret: true },
+    ],
+  },
+
+  // ── New: Recorded Future (Threat Intelligence) ─────────────────────────
+  recordedfuture: {
+    label: "Recorded Future",
+    accent: "#C90C3E",
+    note: "Generate an API token from your Recorded Future portal under My Account → API Access. Sent as the X-RFToken header on every request. For local testing against the bundled mock server, set Base URL to http://localhost:8080/mock-recordedfuture and use any non-empty value for the API token.",
+    fields: [
+      {
+        key: "baseUrl",
+        label: "Recorded Future API Base URL",
+        secret: false,
+        placeholder: "https://api.recordedfuture.com",
+      },
+      { key: "apiToken", label: "API Token", secret: true },
+    ],
+  },
+  tenable: {
+    label: "Tenable",
+    accent: "#005571",
+    note: "Provide your Tenable Base URL, Access Key, and Secret Key.",
+    fields: [
+      {
+        key: "baseUrl",
+        label: "Base URL",
+        secret: false,
+        placeholder: "https://cloud.tenable.com",
       },
       { key: "accessKey", label: "Access Key", secret: false },
       { key: "secretKey", label: "Secret Key", secret: true },
@@ -764,28 +934,28 @@ const PROVIDERS = {
   },
   pagerduty: {
     label: "PagerDuty",
-    accent: "#06AC38",
-    note: "Generate a REST API key from PagerDuty under Integrations → API Access Keys, scoped to read-only access on incidents, services, and on-call schedules.",
+    accent: "#06D6A0",
+    note: "Provide your PagerDuty API Key.",
     fields: [
-      { key: "apiKey", label: "REST API Key", secret: true },
       {
         key: "baseUrl",
-        label: "API Base URL (optional override)",
+        label: "Base URL",
         secret: false,
         placeholder: "https://api.pagerduty.com",
       },
+      { key: "apiKey", label: "API Key", secret: true },
     ],
   },
   mimecast: {
     label: "Mimecast",
-    accent: "#E4032E",
-    note: "Register an OAuth2 API application in the Mimecast Administration Console under Services → API and Platform Integrations, then paste the Client ID, Client Secret, and your region-specific API gateway URL below.",
+    accent: "#111111",
+    note: "Provide your Mimecast Base URL, Client ID, and Client Secret.",
     fields: [
       {
         key: "baseUrl",
-        label: "API Base URL",
+        label: "Base URL",
         secret: false,
-        placeholder: "https://api.services.mimecast.com",
+        placeholder: "https://us-api.mimecast.com",
       },
       { key: "clientId", label: "Client ID", secret: false },
       { key: "clientSecret", label: "Client Secret", secret: true },
@@ -793,16 +963,139 @@ const PROVIDERS = {
   },
   freshservice: {
     label: "Freshservice",
-    accent: "#38C793",
-    note: "Find your API key in Freshservice under Profile Settings → API Key. Pair it with your Freshservice subdomain (the part before .freshservice.com) below.",
+    accent: "#12344D",
+    note: "Provide your Freshservice Domain and API Key.",
     fields: [
       {
         key: "domain",
-        label: "Freshservice Subdomain",
+        label: "Domain",
         secret: false,
-        placeholder: "yourcompany",
+        placeholder: "yourcompany.freshservice.com",
       },
       { key: "apiKey", label: "API Key", secret: true },
+    ],
+  },
+
+  exabeam: {
+    label: "Exabeam",
+    accent: "#000000",
+    note: "Provide your Exabeam Base URL, API Key, and API Secret.",
+    fields: [
+      {
+        key: "baseUrl",
+        label: "Base URL",
+        secret: false,
+        placeholder: "https://yourcompany.exabeam.com",
+      },
+      { key: "apiKey", label: "API Key", secret: false },
+      { key: "apiSecret", label: "API Secret", secret: true },
+    ],
+  },
+  jfrogxray: {
+    label: "JFrog Xray",
+    accent: "#41BF4B",
+    note: "Provide your JFrog Xray Base URL, Username, and API Key.",
+    fields: [
+      {
+        key: "baseUrl",
+        label: "Base URL",
+        secret: false,
+        placeholder: "https://yourcompany.jfrog.io/xray",
+      },
+      { key: "username", label: "Username", secret: false },
+      { key: "apiKey", label: "API Key", secret: true },
+    ],
+  },
+  semgrep: {
+    label: "Semgrep",
+    accent: "#000000",
+    note: "Provide your Semgrep Base URL, API Token, and Organization Slug.",
+    fields: [
+      {
+        key: "baseUrl",
+        label: "Base URL",
+        secret: false,
+        placeholder: "https://semgrep.dev/api/v1",
+      },
+      { key: "orgSlug", label: "Organization Slug", secret: false },
+      { key: "apiToken", label: "API Token", secret: true },
+    ],
+  },
+  bitbucket: {
+    label: "Bitbucket",
+    accent: "#2684FF",
+    note: "Provide your Bitbucket Base URL, Workspace, Username, and App Password.",
+    fields: [
+      {
+        key: "baseUrl",
+        label: "Base URL",
+        secret: false,
+        placeholder: "https://api.bitbucket.org/2.0",
+      },
+      { key: "workspace", label: "Workspace", secret: false },
+      { key: "username", label: "Username", secret: false },
+      { key: "appPassword", label: "App Password", secret: true },
+    ],
+  },
+  github: {
+    label: "GitHub",
+    accent: "#181717",
+    note: "Provide your GitHub Base URL, Organization name, and Access Token.",
+    fields: [
+      {
+        key: "baseUrl",
+        label: "Base URL",
+        secret: false,
+        placeholder: "https://api.github.com",
+      },
+      { key: "org", label: "Organization", secret: false },
+      { key: "accessToken", label: "Access Token", secret: true },
+    ],
+  },
+  orca: {
+    label: "Orca Security",
+    accent: "#1A73E8",
+    note: "Provide the Orca Security API base URL and your API token. You can generate a token under Settings → API in the Orca console.",
+    fields: [
+      {
+        key: "baseUrl",
+        label: "Base URL",
+        secret: false,
+        placeholder: "https://api.orcasecurity.io",
+      },
+      { key: "apiToken", label: "API Token", secret: true },
+    ],
+  },
+  contrast: {
+    label: "Contrast Security",
+    accent: "#EE3124",
+    note: "Provide your Contrast Security TeamServer URL, Organization ID, username, API key, and Service key. Find these under Organization Settings → API in Contrast.",
+    fields: [
+      {
+        key: "baseUrl",
+        label: "Base URL",
+        secret: false,
+        placeholder: "https://app.contrastsecurity.com/Contrast",
+      },
+      { key: "organizationId", label: "Organization ID", secret: false },
+      { key: "username", label: "Username", secret: false },
+      { key: "apiKey", label: "API Key", secret: true },
+      { key: "serviceKey", label: "Service Key", secret: true },
+    ],
+  },
+  aqua: {
+    label: "Aqua Security",
+    accent: "#007FFF",
+    note: "Provide the Aqua Security console URL and your admin credentials. Ensure the account has API access enabled.",
+    fields: [
+      {
+        key: "baseUrl",
+        label: "Base URL",
+        secret: false,
+        placeholder: "https://your-aqua-console.cloud.aquasec.com",
+      },
+      { key: "username", label: "Username", secret: false },
+      { key: "password", label: "Password", secret: true },
     ],
   },
 };

@@ -1,7 +1,7 @@
 
 // src/modules/admin/components/Integrations/integrationApi.js
 const BASE = process.env.NEXT_PUBLIC_COMPLIANCE_BRAIN_URL || 'https://api.calvant.com/compliance-brain';
-
+//const BASE = process.env.NEXT_PUBLIC_COMPLIANCE_BRAIN_URL || 'http://localhost:4014';
 const getHeaders = () => {
   const token = sessionStorage.getItem('token');
   return {
