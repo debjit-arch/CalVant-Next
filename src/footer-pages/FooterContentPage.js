@@ -1,5 +1,7 @@
 "use client";
 import React, { useState, useEffect, useRef } from "react";
+import SiteFooter from "@/components/SiteFooter";
+import SiteHeader from "@/components/SiteHeader";
 import axios from "axios";
 import Image from "next/image";
 import Link from "next/link";
@@ -268,50 +270,7 @@ const FooterContentPage = ({ type: propType, prefetchedData }) => {
     <div className={`fcp-page ${mounted ? "mounted" : ""}`}>
 
       {/* ── Navbar ── */}
-      <nav className="fcp-navbar">
-        <div className="fcp-navbar-inner">
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              flex: "10px 0 auto",
-            }}
-          >
-            <Image
-              src="/CalVant Logo.svg"
-              alt="CalVant"
-              width={180}
-              height={60}
-              style={{
-                height: isMobile ? "30px" : "60px",
-                width: "auto",
-                transform: isMobile ? "scale(3.9)" : "scale(2.9)",
-                transformOrigin: "center",
-                cursor: "pointer",
-                transition: "transform 0.25s ease",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = "scale(3.7)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = "scale(3.5)";
-              }}
-              onClick={() => router.push("/")}
-            />
-          </div>
-          <ul className="fcp-nav-links">
-            <li><Link href="/">Home</Link></li>
-            <li><Link href="/about">About</Link></li>
-            <li><Link href="/blog">Blog</Link></li>
-            <li><Link href="/security" className={type === "security" ? "active" : ""}>Security</Link></li>
-            {!isLoggedIn && (
-              <li>
-                <Link href="/login" className="fcp-nav-cta">Login</Link>
-              </li>
-            )}
-          </ul>
-        </div>
-      </nav>
+      <SiteHeader />
 
       {/* ── Hero ── */}
       <section className="fcp-hero">
@@ -515,21 +474,7 @@ const FooterContentPage = ({ type: propType, prefetchedData }) => {
       </div>
 
       {/* ── Footer ── */}
-      <footer className="fcp-footer">
-        <div className="fcp-footer-inner">
-          <div className="fcp-footer-links">
-            <Link href="/privacy">Privacy Policy</Link>
-            <Link href="/terms">Terms of Service</Link>
-            <Link href="/security">Security</Link>
-            <Link href="/blog">Blog</Link>
-            <Link href="/about">About</Link>
-            <Link href="/careers">Careers</Link>
-          </div>
-          <p className="fcp-footer-copy">
-            © {new Date().getFullYear()} CalVant. All rights reserved.
-          </p>
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   );
 };

@@ -3,6 +3,7 @@ import Image from "next/image";
 // C:\CalVant_frontend-1\src\static-pages\security.js
 import React, { useState, useEffect } from "react";
 import { Helmet } from "react-helmet-async";
+import SiteHeader from "@/components/SiteHeader";
 import {
   Shield,
   Lock,
@@ -102,71 +103,7 @@ const SecurityPage = () => {
   return (
     <div className={`security-page ${mounted ? "mounted" : ""}`}>
       {/* HEADER */}
-      <header className="security-header">
-        <div className="security-header-content">
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              flex: "10px 0 auto",
-            }}
-          >
-            <Image
-              src="/CalVant Logo.svg"
-              alt="CalVant"
-              width={180}
-              height={60}
-              style={{
-                height: isMobile ? "30px" : "60px",
-                width: "auto",
-                transform: isMobile ? "scale(3.9)" : "scale(2.9)",
-                transformOrigin: "center",
-                cursor: "pointer",
-                transition: "transform 0.25s ease",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = "scale(3.7)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = "scale(3.5)";
-              }}
-              onClick={() => (window.location.href = "/")}
-            />
-          </div>
-          <nav className="security-header-nav">
-            <button
-              className="security-mobile-menu-toggle"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            >
-              <Menu
-                size={20}
-                className={!mobileMenuOpen ? "block" : "hidden"}
-              />
-              <X size={20} className={mobileMenuOpen ? "block" : "hidden"} />
-            </button>
-            <ul
-              className={`security-nav-links ${
-                mobileMenuOpen ? "mobile-open" : ""
-              }`}
-            >
-              <Link href="/" className="about-nav-link">
-                {" "}
-                Home{" "}
-              </Link>
-
-              {!isLoggedIn && (
-                <Link
-                  href="/login"
-                  className="security-nav-link security-nav-link-cta"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  Login
-                </Link>
-              )}
-            </ul>
-          </nav>
-        </div>
-      </header>
+      <SiteHeader />
 
       {/* HERO SECTION */}
       <section className="security-hero-section">

@@ -1,3 +1,5 @@
+//C:\Users\ak192\Downloads\CalVant-Next-master (3)\CalVant-Next-master\app\frameworks\[id]\FrameworkPageClient.jsx
+
 "use client";
 
 import React from "react";
@@ -28,6 +30,8 @@ import {
   UserCircle,
 } from "lucide-react";
 import "./framework-page.css";
+import SiteHeader from "@/components/SiteHeader";
+import SiteFooter from "@/components/SiteFooter";
 import { useIsMobile } from "@/hooks/useIsMobile";
 
 // ── Icon resolver ─────────────────────────────────────────────────────────────
@@ -108,83 +112,8 @@ export default function FrameworkPageClient({ framework }) {
   }
 
   return (
-    <div
-      className="fw-root"
-      style={{ "--fw-accent": framework.color || "#0066cc" }}
-    >
-      {/* ── HEADER ── */}
-      <header className="fw-header">
-        <div className="fw-header-inner">
-          <Image
-            src="/CalVant Logo.svg"
-            alt="CalVant"
-            width={180}
-            height={60}
-            style={{
-              height: isMobile ? "30px" : "60px",
-              width: "auto",
-              transform: isMobile ? "scale(3.9)" : "scale(2.9)",
-              transformOrigin: "center",
-              cursor: "pointer",
-              transition: "transform 0.25s ease",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = "scale(3.7)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = "scale(3.5)";
-            }}
-            onClick={() => (window.location.href = "/")}
-          />
-          <nav className="fw-nav">
-            <a href="/" className="fw-nav-link">
-              Home
-            </a>
-            {pc.overviewTitle && (
-              <button
-                className="fw-nav-btn"
-                onClick={() => scrollTo("fw-overview")}
-              >
-                Overview
-              </button>
-            )}
-            {pc.clauseCards?.length > 0 && (
-              <button
-                className="fw-nav-btn"
-                onClick={() => scrollTo("fw-clauses")}
-              >
-                Requirements
-              </button>
-            )}
-            {pc.domainCards?.length > 0 && (
-              <button
-                className="fw-nav-btn"
-                onClick={() => scrollTo("fw-controls")}
-              >
-                Controls
-              </button>
-            )}
-            {pc.benefitCards?.length > 0 && (
-              <button
-                className="fw-nav-btn"
-                onClick={() => scrollTo("fw-benefits")}
-              >
-                Benefits
-              </button>
-            )}
-            {isLoggedIn ? (
-              <div className="fw-user-pill">
-                <UserCircle size={18} />
-                <span>{storedUser.name || "User"}</span>
-              </div>
-            ) : (
-              <button className="fw-nav-cta" onClick={() => goTo("/login")}>
-                Login
-              </button>
-            )}
-          </nav>
-        </div>
-      </header>
+    <div className="fw-root" style={{ "--fw-accent": "#6366f1" }}>
+      <SiteHeader />
 
       {/* ── HERO ── */}
       <section className="fw-hero">
@@ -225,7 +154,7 @@ export default function FrameworkPageClient({ framework }) {
               )}
             </div>
 
-            {pc.heroStats?.length > 0 && (
+            {pc.heroStats && pc.heroStats.length > 0 && (
               <div className="fw-hero-stats">
                 {pc.heroStats.map((stat, i) => (
                   <div key={i} className="fw-stat">
@@ -237,22 +166,17 @@ export default function FrameworkPageClient({ framework }) {
             )}
           </div>
 
-          {/* Accent orb */}
+          {/* Right side visual - Dashboard 3D Rotating Sphere */}
           <div className="fw-hero-visual">
-            <div
-              className="fw-orb"
-              style={{
-                background: `radial-gradient(circle at 30% 30%, ${framework.color || "#0066cc"}33, ${framework.color || "#0066cc"}08)`,
-              }}
-            >
-              <div className="fw-orb-ring fw-orb-r1" />
-              <div className="fw-orb-ring fw-orb-r2" />
-              <div className="fw-orb-ring fw-orb-r3" />
-              <div className="fw-orb-center">
-                <div className="fw-orb-badge">
-                  <span>{framework.label || framework.code}</span>
+            <div className="hero-sphere">
+              <div className="hero-sphere-inner" />
+              <div className="hero-sphere-badge">
+                <div className="hero-sphere-title">
+                  {framework.label || framework.code}
                 </div>
-                <p className="fw-orb-sub">{framework.sub || framework.type}</p>
+                <div className="hero-sphere-sub">
+                  {framework.sub || framework.type || "Compliance Standard"}
+                </div>
               </div>
             </div>
           </div>
@@ -416,44 +340,7 @@ export default function FrameworkPageClient({ framework }) {
         </section>
       )}
 
-      {/* ── FOOTER ── */}
-      <footer className="fw-footer">
-        <div className="fw-footer-inner">
-          <div>
-            <h4>CalVant</h4>
-            <p>
-              {pc.footerTagline ||
-                `One platform to operationalize ${framework.name} and your compliance program.`}
-            </p>
-          </div>
-          <div>
-            <h4>Frameworks</h4>
-            <ul>
-              <li>
-                <Link href="/">All frameworks</Link>
-              </li>
-            </ul>
-          </div>
-          <div>
-            <h4>Company</h4>
-            <ul>
-              <li>
-                <Link href="/about">About</Link>
-              </li>
-              <li>
-                <Link href="/privacy">Privacy</Link>
-              </li>
-              <li>
-                <Link href="/terms">Terms</Link>
-              </li>
-            </ul>
-          </div>
-        </div>
-        <div className="fw-footer-bottom">
-          © {new Date().getFullYear()} CalVant ·{" "}
-          {framework.label || framework.name} · Made in India
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }

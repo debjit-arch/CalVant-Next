@@ -518,11 +518,12 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { jwtDecode } from "jwt-decode";
 import {
-  CreditCard, Loader2, ShieldAlert, ExternalLink, Info,
+  CreditCard, Loader2, ShieldAlert, ExternalLink, Info, CalendarClock, Clock,
 } from "lucide-react";
 import {
   getCurrentSubscription, getAddOnCatalog, getStarterPackage,
   cancelSubscription, startCheckout, initiateOneTimeCheckout,
+  requestTrialExtension, getMyTrialExtensionRequests,
 } from "../../api/adminBillingApi";
 import {
   formatINR, perCycleRateFor, STATUS_LABELS, daysUntil,
@@ -581,6 +582,19 @@ export default function ManageSubscription() {
   const [consultantDays, setConsultantDays] = useState(1);
   const [awaitingWebhook, setAwaitingWebhook] = useState(false);
 
+  // ── Trial extension (Layer 2) ──────────────────────────────────────────
+  // extensionRequests holds every request this tenant has ever made
+  // (PENDING/APPROVED/REJECTED, oldest to newest as returned by the API) —
+  // latestExtensionRequest below picks the one that decides what the button/
+  // banner shows. Loaded lazily (see the effect below) only while on TRIAL,
+  // since a paid tenant never needs this.
+  const [extensionRequests, setExtensionRequests] = useState([]);
+  const [extensionLoading, setExtensionLoading] = useState(false);
+  const [showExtensionForm, setShowExtensionForm] = useState(false);
+  const [extensionReason, setExtensionReason] = useState("");
+  const [submittingExtension, setSubmittingExtension] = useState(false);
+  const [extensionError, setExtensionError] = useState("");
+
   // silent=true skips the full-page "Loading your subscription…" spinner —
   // used while polling after a payment, where we already have a page to show.
   const loadAll = async ({ silent = false } = {}) => {
@@ -637,6 +651,15 @@ export default function ManageSubscription() {
     return () => { cancelled = true; };
   }, [sub?.orgId]);
 
+  // DD/MM/YYYY, no leading zeros (e.g. "21/9/2026") — toLocaleDateString()'s
+  // default locale formatting reads as US-style MM/DD/YYYY in this app, which
+  // read as the wrong date to reviewers expecting day-first.
+  const formatDDMMYYYY = (dateStr) => {
+    if (!dateStr) return "—";
+    const d = new Date(dateStr);
+    return `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`;
+  };
+
   const ownedFrameworkLabels = useMemo(
     () => (orgFrameworks || []).map((code) => {
       const fw = (frameworkLibrary || []).find(
@@ -646,6 +669,61 @@ export default function ManageSubscription() {
     }),
     [orgFrameworks, frameworkLibrary]
   );
+
+  // Only load extension requests while actually on TRIAL — a paid tenant
+  // never needs this, and (per TrialExtensionService) an already-lapsed,
+  // never-paid tenant is also eligible, but that state currently renders the
+  // full paid dashboard here (hasPaid only checks status !== "TRIAL"), so
+  // this stays scoped to the TRIAL banner for now rather than reworking that
+  // gate.
+  useEffect(() => {
+    if (sub?.status !== "TRIAL") return;
+    let cancelled = false;
+    (async () => {
+      setExtensionLoading(true);
+      try {
+        const requests = await getMyTrialExtensionRequests();
+        if (!cancelled) setExtensionRequests(Array.isArray(requests) ? requests : []);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        if (!cancelled) setExtensionLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [sub?.status, sub?.trialExtensionGranted]);
+
+  // Most recent request decides what the banner shows — newest by
+  // requestedAt, since the backend returns them in insertion order but
+  // doesn't guarantee it.
+  const latestExtensionRequest = useMemo(() => {
+    if (!extensionRequests.length) return null;
+    return [...extensionRequests].sort(
+      (a, b) => new Date(b.requestedAt) - new Date(a.requestedAt)
+    )[0];
+  }, [extensionRequests]);
+
+  const handleRequestExtension = async () => {
+    setSubmittingExtension(true);
+    setExtensionError("");
+    try {
+      const created = await requestTrialExtension(extensionReason.trim() || undefined);
+      setExtensionRequests((prev) => [...prev, created]);
+      setShowExtensionForm(false);
+      setExtensionReason("");
+      setMessage("Your extension request has been submitted for review.");
+      setError("");
+    } catch (err) {
+      console.error(err);
+      setExtensionError(
+        err?.response?.data?.message
+          || err?.response?.data?.error
+          || "Couldn't submit your extension request. Please try again."
+      );
+    } finally {
+      setSubmittingExtension(false);
+    }
+  };
 
   /**
    * Razorpay's client-side `handler` fires the instant the checkout modal
@@ -859,6 +937,79 @@ export default function ManageSubscription() {
             <CreditCard size={15} />
             {awaitingWebhook ? "Confirming payment…" : activating ? "Redirecting…" : "Add payment method"}
           </button>
+
+          {sub?.status === "TRIAL" && (
+            <div className="ms-trial-extension">
+              {sub?.trialExtensionGranted ? (
+                <p className="ms-trial-extension-note ms-trial-extension-note--approved">
+                  <CalendarClock size={14} />
+                  You've already used your one-time trial extension
+                  {latestExtensionRequest?.newTrialEndsAt
+                    ? ` — your trial now runs through ${formatDDMMYYYY(latestExtensionRequest.newTrialEndsAt)}.`
+                    : "."}
+                </p>
+              ) : extensionLoading ? null : latestExtensionRequest?.status === "PENDING" ? (
+                <p className="ms-trial-extension-note ms-trial-extension-note--pending">
+                  <Clock size={14} />
+                  Your request for {latestExtensionRequest.requestedDays} more day(s) is pending review by a super admin.
+                </p>
+              ) : (
+                <>
+                  {latestExtensionRequest?.status === "REJECTED" && (
+                    <p className="ms-trial-extension-note ms-trial-extension-note--rejected">
+                      Your last extension request was declined
+                      {latestExtensionRequest.comments ? `: “${latestExtensionRequest.comments}”` : "."}
+                      {" "}You can submit a new request below.
+                    </p>
+                  )}
+                  {!showExtensionForm ? (
+                    <button
+                      className="ms-btn ms-btn--outline"
+                      disabled={!canManage}
+                      title={!canManage ? "Only a root or super admin can request a trial extension" : undefined}
+                      onClick={() => setShowExtensionForm(true)}
+                    >
+                      <CalendarClock size={15} />
+                      Request 3-Day Trial Extension
+                    </button>
+                  ) : (
+                    <div className="ms-trial-extension-form">
+                      <label htmlFor="ms-extension-reason">
+                        Why do you need more time? <span className="ms-trial-extension-optional">(optional)</span>
+                      </label>
+                      <textarea
+                        id="ms-extension-reason"
+                        rows={3}
+                        value={extensionReason}
+                        onChange={(e) => setExtensionReason(e.target.value)}
+                        placeholder="e.g. still onboarding our team"
+                        disabled={submittingExtension}
+                      />
+                      {extensionError && (
+                        <div className="ms-banner ms-banner--error ms-trial-extension-error">{extensionError}</div>
+                      )}
+                      <div className="ms-trial-extension-actions">
+                        <button
+                          className="ms-btn ms-btn--primary"
+                          disabled={submittingExtension}
+                          onClick={handleRequestExtension}
+                        >
+                          {submittingExtension ? "Submitting…" : "Submit Request"}
+                        </button>
+                        <button
+                          className="ms-btn ms-btn--outline"
+                          disabled={submittingExtension}
+                          onClick={() => { setShowExtensionForm(false); setExtensionError(""); }}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
         </div>
       ) : (
         <>

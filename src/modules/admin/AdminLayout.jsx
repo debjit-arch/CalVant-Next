@@ -62,8 +62,8 @@ const NAV_BASE = [
     children: [
       { label: "User List", icon: List, path: "/admin/users" },
       { label: "Create User", icon: UserPlus, path: "/admin/users/create" },
-      { label: "Bulk Upload", icon: Upload, path: "/admin/users/bulk" },
-      { label: "Assign Orgs", icon: Network, path: "/admin/users/assign-orgs" },
+      // { label: "Bulk Upload", icon: Upload, path: "/admin/users/bulk" },
+      // { label: "Assign Orgs", icon: Network, path: "/admin/users/assign-orgs" },
     ],
   },
   {

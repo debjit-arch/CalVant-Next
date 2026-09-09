@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useMemo, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { FileText, useRouter } from "next/navigation";
 import { useEffectiveOrg } from "@/hooks/useEffectiveOrg";
 import documentationService from "../services/documentationService";
-import { Trash2, UploadCloud, Calendar, Check } from "lucide-react";
+import { FileText,  Trash2, UploadCloud, Calendar, Check  } from "lucide-react";
 import { DOCUMENT_MAPPING } from "../constants";
 import Modal from "../../../components/navigations/Modal";
 
@@ -545,6 +545,8 @@ const MLD = () => {
     documents,
   );
 
+
+
   // ==================== RENDER ====================
   return (
     <div style={{ padding: "10px", maxWidth: "1200px", margin: "0px auto" }}>
@@ -597,7 +599,7 @@ const MLD = () => {
           margin: "10px",
           padding: "10px 24px",
           borderRadius: "8px",
-          background: "#005FCC",
+          background: "linear-gradient(135deg,#3b82f6,#2563eb)", boxShadow: "0 4px 12px rgba(37,99,235,0.3)",
           border: "none",
           color: "#fff",
           fontWeight: "500",
@@ -617,13 +619,10 @@ const MLD = () => {
       <div
         id="mld-header"
         style={{
-          background: "linear-gradient(135deg,#667eea 0%,#764ba2 100%)",
-          borderRadius: "12px",
-          padding: "20px",
-          marginBottom: "20px",
-          boxShadow: "0 5px 20px rgba(102,126,234,0.25)",
-          border: "1px solid rgba(255,255,255,0.1)",
-          color: "white",
+          background: "rgba(255,255,255,0.85)", backdropFilter: "blur(8px)",
+          border: "1px solid rgba(241,245,249,0.8)", borderRadius: 14,
+          boxShadow: "0 2px 10px rgba(0,0,0,0.06)",
+          padding: "18px 24px 16px", marginBottom: 16,
         }}
       >
         <h1
@@ -736,7 +735,7 @@ const MLD = () => {
             style={{ width: "100%", borderCollapse: "collapse", minWidth: 840 }}
           >
             <thead>
-              <tr style={{ backgroundColor: "#f8f9fa" }}>
+              <tr style={{ background: "#f8fafc", borderBottom: "2px solid #e2e8f0" }}>
                 <th
                   style={{
                     padding: "12px 14px",

@@ -379,7 +379,8 @@ export default function SiteHeader({ showPricing, showFramework }) {
             .filter((fw) => fw.label && hasRenderablePage(fw))
             .map((fw) => ({
               label: fw.label,
-              route: resolveStaticRoute(fw) || `/frameworks/${fw.id}`,
+              // route: resolveStaticRoute(fw) || `/frameworks/${fw.id}`,
+              route: `/frameworks/${fw.id}`,
             }));
           if (opts.length > 0) {
             setFrameworkNavOptions(opts);
