@@ -1285,18 +1285,19 @@ function ChartsColumn({
   const legendItems = pieDataRaw.filter((d) => d.value > 0);
 
   return (
-    <div id="charts-container" ref={chartsContainerRef} className="space-y-5">
+    <div id="charts-container" ref={chartsContainerRef} className="space-y-4 lg:space-y-3">
       {/* Pie Chart */}
       <motion.div
-        className="bg-white/70 backdrop-blur-sm border border-slate-100/50 rounded-2xl p-5 shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300 h-60 flex flex-col"
+        className="bg-white/70 backdrop-blur-sm border border-slate-100/50 rounded-2xl p-6 lg:p-7 shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-400 h-80 flex flex-col"
         initial={hasMounted ? { opacity: 0, scale: 0.95 } : false}
         animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.5, delay: 0.2 }}
         whileHover={{ scale: 1.01 }}
       >
-        <h3 className="text-sm font-semibold text-slate-800 mb-3">
-          Assessment Status
-        </h3>
+        <div className="mb-1 px-1 flex-shrink-0">
+          <h3 className="text-base lg:text-lg font-semibold text-slate-800">
+            Assessment Status
+          </h3>
+        </div>
 
         <div className="flex-1 flex items-center justify-center min-h-0">
           {total > 0 ? (
@@ -1305,13 +1306,14 @@ function ChartsColumn({
                 <Pie
                   data={pieData}
                   dataKey="value"
+                  nameKey="name"
                   cx="50%"
                   cy="50%"
-                  innerRadius={36}
-                  outerRadius={68}
-                  paddingAngle={3}
+                  innerRadius={38}
+                  outerRadius={66}
+                  paddingAngle={2}
                   stroke="white"
-                  strokeWidth={2}
+                  strokeWidth={3}
                 >
                   {pieData.map((e, i) => (
                     <Cell key={i} fill={e.color} />
@@ -1322,20 +1324,24 @@ function ChartsColumn({
 
                 <text
                   x="50%"
-                  y="44%"
+                  y="42%"
                   textAnchor="middle"
                   dominantBaseline="middle"
-                  style={{ fill: "#64748b", fontSize: 10, fontWeight: 600 }}
+                  fill="#475569"
+                  fontSize={12}
+                  fontWeight={600}
                 >
                   Total
                 </text>
 
                 <text
                   x="50%"
-                  y="58%"
+                  y="52%"
                   textAnchor="middle"
                   dominantBaseline="middle"
-                  style={{ fill: "#1e293b", fontSize: 20, fontWeight: 800 }}
+                  fill="#111827"
+                  fontSize={20}
+                  fontWeight={700}
                 >
                   {total}
                 </text>
@@ -1375,55 +1381,105 @@ function ChartsColumn({
 
       {/* Bar Chart */}
       <motion.div
-        className="bg-white/70 backdrop-blur-sm border border-slate-100/50 rounded-2xl p-5 shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300 h-64"
+        style={{
+          background: "rgba(255,255,255,0.7)",
+          backdropFilter: "blur(8px)",
+          border: "1px solid #f1f5f9",
+          borderRadius: "16px",
+          padding: "24px",
+          height: "288px",
+          display: "flex",
+          flexDirection: "column",
+          boxShadow: "0 8px 20px rgba(0,0,0,0.05)",
+          transition: "all 0.4s ease",
+        }}
         initial={hasMounted ? { opacity: 0, scale: 0.95 } : false}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.5, delay: 0.3 }}
         whileHover={{ scale: 1.01 }}
       >
-        <div className="mb-2">
-          <h3 className="text-sm font-semibold text-slate-800">
+        <div style={{ marginBottom: "14px" }}>
+          <h3
+            style={{
+              fontSize: "16px",
+              fontWeight: 600,
+              color: "#1e293b",
+              marginBottom: "4px",
+            }}
+          >
             Assessment Trends
           </h3>
-          <p className="text-[11px] text-slate-500">Monthly distribution</p>
+          <p
+            style={{
+              fontSize: "13px",
+              color: "#64748b",
+              fontWeight: 500,
+            }}
+          >
+            Monthly distribution
+          </p>
         </div>
 
-        {barData.some((d) => d.value > 0) ? (
-          <ResponsiveContainer width="100%" height="85%">
-            <BarChart
-              data={barData}
-              margin={{ top: 10, right: 10, left: 0, bottom: 5 }}
+        <div style={{ flex: 1 }}>
+          {barData.some((d) => d.value > 0) ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={barData}
+                margin={{ top: 10, right: 10, left: -10, bottom: 0 }}
+                barCategoryGap="25%"
+              >
+                <CartesianGrid
+                  vertical={false}
+                  stroke="#f1f5f9"
+                  strokeDasharray="3 3"
+                />
+
+                <XAxis
+                  dataKey="name"
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{
+                    fontSize: 12,
+                    fill: "#6b7280",
+                    fontWeight: 500,
+                  }}
+                />
+
+                <YAxis hide />
+
+                <Tooltip content={<BarTooltip />} />
+
+                <Bar dataKey="value" radius={[6, 6, 0, 0]} barSize={24}>
+                  {barData.map((_, i) => (
+                    <Cell key={i} fill={BAR_COLORS[i % BAR_COLORS.length]} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                height: "100%",
+                textAlign: "center",
+              }}
             >
-              <CartesianGrid
-                vertical={false}
-                stroke="#f1f5f9"
-                strokeDasharray="3 3"
-              />
-
-              <XAxis
-                dataKey="name"
-                axisLine={false}
-                tickLine={false}
-                tick={{ fontSize: 10, fill: "#94a3b8" }}
-              />
-
-              <YAxis hide />
-
-              <Tooltip content={<BarTooltip />} />
-
-              <Bar dataKey="value" radius={[4, 4, 0, 0]} barSize={18}>
-                {barData.map((_, i) => (
-                  <Cell key={i} fill={BAR_COLORS[i % BAR_COLORS.length]} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        ) : (
-          <div className="flex flex-col items-center justify-center h-full text-center">
-            <BarChart3 size={36} className="text-slate-300 mb-2" />
-            <p className="text-sm text-slate-400">No Data</p>
-          </div>
-        )}
+              <div
+                style={{
+                  fontSize: "14px",
+                  fontWeight: 600,
+                  color: "#94a3b8",
+                  marginBottom: "4px",
+                }}
+              >
+                No Trend Data
+              </div>
+            </div>
+          )}
+        </div>
       </motion.div>
     </div>
   );
@@ -1797,29 +1853,28 @@ export default function AiiaDashboard() {
         {/* ── HEADER ── */}
         <motion.header
           id="dashboard-header"
-          className="bg-white/80 backdrop-blur-md border border-slate-100/50 rounded-xl shadow-md mb-6 p-6 !text-left"
-          style={{ textAlign: "left" }}
+          className="bg-white/80 backdrop-blur-md border border-slate-100/50 rounded-xl shadow-md mb-2 lg:mb-2 p-4 lg:p-5 !text-left"
+          style={{
+            textAlign: "left",
+            width: "100%",
+            justifyContent: "flex-start",
+            alignItems: "flex-start",
+            justifyItems: "flex-start"
+          }}
           initial={hasMounted ? { opacity: 0, y: -15 } : false}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
         >
           <div className="flex items-center justify-between w-full">
-            <div
-              className="flex items-center gap-4 flex-1"
-              style={{
-                justifyContent: "flex-start",
-                textAlign: "left",
-                alignItems: "flex-start",
-              }}
-            >
-              <div className="w-14 h-14 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0">
-                <Brain className="w-7 h-7 text-white drop-shadow-sm" />
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
+                <Brain className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h1 className="text-2xl font-semibold text-slate-800 leading-tight">
+                <h1 className="text-xl font-semibold text-slate-800">
                   AI Impact Assessment
                 </h1>
-                <p className="text-base text-slate-600 mt-1">
+                <p className="text-sm text-slate-600">
                   {isRoot
                     ? "Root Dashboard"
                     : isAio
@@ -1892,18 +1947,18 @@ export default function AiiaDashboard() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 lg:gap-10 h-full">
           {/* ══════════════════════════════════════════════════════════════════
               LEFT COLUMN — split by role
           ══════════════════════════════════════════════════════════════════ */}
-          <div className="space-y-8">
+          <div className="space-y-8 lg:space-y-10">
             {/* ── ROOT / AIO: stat cards + actions ── */}
             {canPlan && (
               <>
                 {/* Stat Cards */}
                 <motion.section
                   id="stats-grid"
-                  className="grid grid-cols-2 sm:grid-cols-3 gap-4"
+                  className="grid grid-cols-2 md:grid-cols-3 gap-4 items-stretch"
                   initial={hasMounted ? { opacity: 0, y: 15 } : false}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, delay: 0.1 }}
@@ -1913,25 +1968,25 @@ export default function AiiaDashboard() {
                     return (
                       <motion.div
                         key={stat.label}
-                        className="group bg-white/70 backdrop-blur-sm border border-slate-100/50 rounded-xl p-4 shadow-sm hover:shadow-md transition-all duration-300 flex items-center gap-3 h-20 hover:bg-white"
+                        className="group bg-white/70 backdrop-blur-sm border border-slate-100/50 rounded-lg p-3 shadow-sm hover:shadow-md transition-all duration-300 cursor-default flex items-center gap-3 h-full min-h-[72px] hover:bg-white"
                         initial={hasMounted ? { opacity: 0, y: 20 } : false}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.4, delay: 0.15 + i * 0.05 }}
                         whileHover={{ scale: 1.02 }}
                       >
                         <div
-                          className={`w-12 h-12 rounded-lg bg-gradient-to-br ${stat.color} flex items-center justify-center shadow-md flex-shrink-0`}
+                          className={`w-8 h-8 rounded-lg bg-gradient-to-br ${stat.color} flex items-center justify-center shadow-sm flex-shrink-0`}
                         >
                           <Icon
-                            size={20}
+                            size={16}
                             className="text-white drop-shadow-sm"
                           />
                         </div>
-                        <div>
-                          <span className="text-2xl font-semibold text-slate-800 block leading-tight group-hover:text-slate-900">
+                        <div className="min-w-0 flex-1">
+                          <span className="text-base lg:text-lg font-bold text-slate-800 block leading-none group-hover:text-slate-900 mb-0.5">
                             {loadingStats ? "—" : stat.value}
                           </span>
-                          <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+                          <span className="text-[10px] lg:text-[11px] font-semibold text-slate-500 uppercase tracking-wider leading-none block">
                             {stat.label}
                           </span>
                         </div>
@@ -1943,21 +1998,22 @@ export default function AiiaDashboard() {
                 {/* Quick Actions — root/AIO */}
                 <motion.section
                   id="action-cards"
+                  className="space-y-1"
                   initial={hasMounted ? { opacity: 0, y: 20 } : false}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, delay: 0.25 }}
                 >
-                  <h3 className="text-lg font-semibold text-slate-800 mb-4">
+                  <h3 className="text-lg lg:text-xl font-semibold text-slate-800 mb-6 px-1">
                     Quick Actions
                   </h3>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3 h-15">
                     <AnimatePresence>
                       {quickActions.map((action, i) => {
                         const Icon = action.Icon;
                         return (
                           <motion.div
                             key={action.key}
-                            className="group bg-white/70 backdrop-blur-sm border border-slate-100/50 rounded-xl p-5 shadow-sm hover:shadow-lg hover:-translate-y-1 hover:bg-white transition-all duration-300 cursor-pointer"
+                            className={`group bg-white/70 backdrop-blur-sm border border-slate-100/50 rounded-xl p-4 h-full flex flex-col justify-between shadow-sm hover:shadow-lg hover:-translate-y-1 hover:bg-white transition-all duration-300 cursor-pointer`}
                             initial={
                               hasMounted ? { opacity: 0, scale: 0.93 } : false
                             }
@@ -1970,19 +2026,21 @@ export default function AiiaDashboard() {
                             onClick={() => handleActionClick(action)}
                           >
                             <div
-                              className={`w-12 h-12 rounded-xl bg-gradient-to-br ${action.color} flex items-center justify-center shadow-md mb-4`}
+                              className={`w-12 h-12 rounded-xl bg-gradient-to-br ${action.color} flex items-center justify-center shadow-md mb-3 flex-shrink-0`}
                             >
                               <Icon
-                                size={22}
+                                size={20}
                                 className="text-white drop-shadow-sm"
                               />
                             </div>
-                            <p className="text-sm font-bold text-slate-800 mb-1 group-hover:text-blue-600 transition-colors">
-                              {action.title}
-                            </p>
-                            <p className="text-xs text-slate-500">
-                              {action.subtitle}
-                            </p>
+                            <div className="flex-1 flex flex-col justify-center">
+                              <h4 className="text-sm lg:text-base font-semibold text-center text-slate-800 leading-tight mb-1 px-1 truncate group-hover:text-blue-600 transition-colors duration-200">
+                                {action.title}
+                              </h4>
+                              <p className="text-xs font-bold text-center text-slate-600 px-1 truncate">
+                                {action.subtitle}
+                              </p>
+                            </div>
                           </motion.div>
                         );
                       })}
@@ -2019,21 +2077,22 @@ export default function AiiaDashboard() {
 
                 <motion.section
                   id="action-cards"
+                  className="space-y-1"
                   initial={hasMounted ? { opacity: 0, y: 20 } : false}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, delay: 0.25 }}
                 >
-                  <h3 className="text-lg font-semibold text-slate-800 mb-4">
+                  <h3 className="text-lg lg:text-xl font-semibold text-slate-800 mb-6 px-1">
                     Quick Actions
                   </h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3 h-15">
                     <AnimatePresence>
                       {quickActions.map((action, i) => {
                         const Icon = action.Icon;
                         return (
                           <motion.div
                             key={action.key}
-                            className="group bg-white/70 backdrop-blur-sm border border-slate-100/50 rounded-xl p-5 shadow-sm hover:shadow-lg hover:-translate-y-1 hover:bg-white transition-all duration-300 cursor-pointer"
+                            className={`group bg-white/70 backdrop-blur-sm border border-slate-100/50 rounded-xl p-4 h-full flex flex-col justify-between shadow-sm hover:shadow-lg hover:-translate-y-1 hover:bg-white transition-all duration-300 cursor-pointer`}
                             initial={
                               hasMounted ? { opacity: 0, scale: 0.93 } : false
                             }
@@ -2046,19 +2105,21 @@ export default function AiiaDashboard() {
                             onClick={() => handleActionClick(action)}
                           >
                             <div
-                              className={`w-12 h-12 rounded-xl bg-gradient-to-br ${action.color} flex items-center justify-center shadow-md mb-4`}
+                              className={`w-12 h-12 rounded-xl bg-gradient-to-br ${action.color} flex items-center justify-center shadow-md mb-3 flex-shrink-0`}
                             >
                               <Icon
-                                size={22}
+                                size={20}
                                 className="text-white drop-shadow-sm"
                               />
                             </div>
-                            <p className="text-sm font-bold text-slate-800 mb-1 group-hover:text-blue-600 transition-colors">
-                              {action.title}
-                            </p>
-                            <p className="text-xs text-slate-500">
-                              {action.subtitle}
-                            </p>
+                            <div className="flex-1 flex flex-col justify-center">
+                              <h4 className="text-sm lg:text-base font-semibold text-center text-slate-800 leading-tight mb-1 px-1 truncate group-hover:text-blue-600 transition-colors duration-200">
+                                {action.title}
+                              </h4>
+                              <p className="text-xs font-bold text-center text-slate-600 px-1 truncate">
+                                {action.subtitle}
+                              </p>
+                            </div>
                           </motion.div>
                         );
                       })}

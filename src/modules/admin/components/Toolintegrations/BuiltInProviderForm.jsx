@@ -1,5 +1,4 @@
-//C:\Users\ak192\Downloads\CalVant-Next-master (3)\CalVant-Next-master\src\modules\admin\components\Toolintegrations\BuiltInProviderForm.jsx
-
+// C:\Users\user\Downloads\11-8-(A)cf_next-preprod\cf_next-preprod\cf-tool-frontend-main\src\modules\admin\components\Toolintegrations\BuiltInProviderForm.jsx
 import { useState } from "react";
 import {
   Box,
@@ -567,6 +566,243 @@ const PROVIDERS = {
       },
       { key: "apiKey", label: "API Key", secret: true },
       { key: "appKey", label: "Application Key", secret: true },
+    ],
+  },
+  sentinelone: {
+    label: "SentinelOne",
+    accent: "#4A154B",
+    note: "Generate a Management Console API Token under Settings → Users → your user → Generate API Token (a dedicated service account is recommended for production). For local testing against the bundled mock server, set Base URL to http://localhost:8080/mock-sentinelone and use any non-empty value for the token.",
+    fields: [
+      {
+        key: "baseUrl",
+        label: "SentinelOne Base URL",
+        secret: false,
+        placeholder: "https://yourcompany.sentinelone.net",
+      },
+      { key: "apiToken", label: "API Token", secret: true },
+    ],
+  },
+  duo: {
+    label: "Duo Security",
+    accent: "#6BC5F8",
+    note: "Create an Admin API application under Admin Panel → Applications → Protect an Application in Duo, then copy the API Hostname, Integration Key, and Secret Key it generates. The API Hostname looks like api-xxxxxxxx.duosecurity.com — not your own company domain.",
+    fields: [
+      {
+        key: "apiHostname",
+        label: "API Hostname",
+        secret: false,
+        placeholder: "api-xxxxxxxx.duosecurity.com",
+      },
+      { key: "integrationKey", label: "Integration Key", secret: false },
+      { key: "secretKey", label: "Secret Key", secret: true },
+    ],
+  },
+  lastpass: {
+    label: "LastPass",
+    accent: "#D32D27",
+    note: "In the LastPass Admin Console, go to Advanced → Enterprise API to find your Account Number (CID) and generate/reset the Provisioning Hash. Both values together authenticate every Enterprise API call — the hash is your secret credential.",
+    fields: [
+      { key: "cid", label: "Account Number (CID)", secret: false },
+      { key: "provisioningHash", label: "Provisioning Hash", secret: true },
+    ],
+  },
+  rapid7: {
+    label: "Rapid7 InsightVM",
+    accent: "#C8102E",
+    note: "Point to your InsightVM Security Console (default HTTPS port 3780) and provide a dedicated API/service account with read access to Sites and Assets. This uses the same credentials as console sign-in — a scoped, non-admin account is recommended.",
+    fields: [
+      {
+        key: "baseUrl",
+        label: "Security Console URL",
+        secret: false,
+        placeholder: "https://insightvm.yourcompany.com:3780",
+      },
+      { key: "username", label: "Username", secret: false },
+      { key: "password", label: "Password", secret: true },
+    ],
+  },
+  veracode: {
+    label: "Veracode",
+    accent: "#EF4023",
+    note: "Generate an API ID and API Key from your Veracode account under Settings → API Credentials. Requests are HMAC-signed automatically — no need to paste a raw bearer token.",
+    fields: [
+      {
+        key: "baseUrl",
+        label: "API Base URL",
+        secret: false,
+        placeholder: "https://api.veracode.com",
+      },
+      { key: "apiId", label: "API ID", secret: false },
+      { key: "apiKey", label: "API Key", secret: true },
+    ],
+  },
+  zscaler: {
+    label: "Zscaler",
+    accent: "#00A4E4",
+    note: "Use an admin account with API access enabled in the ZIA Admin Portal, and generate an API Key under Administration → API Key Management. Base URL depends on your ZIA cloud (e.g. zsapi.zscaler.net, zsapi.zscalertwo.net).",
+    fields: [
+      {
+        key: "baseUrl",
+        label: "ZIA Admin API Base URL",
+        secret: false,
+        placeholder: "https://zsapi.zscaler.net/api/v1",
+      },
+      { key: "username", label: "Admin Username", secret: false },
+      { key: "password", label: "Admin Password", secret: true },
+      { key: "apiKey", label: "API Key", secret: true },
+    ],
+  },
+  netskope: {
+    label: "Netskope",
+    accent: "#6ABE45",
+    note: "Generate a REST API v2 token from your Netskope tenant under Settings → Tools → REST API v2, with read access to DLP policies.",
+    fields: [
+      {
+        key: "baseUrl",
+        label: "Tenant URL",
+        secret: false,
+        placeholder: "https://yourcompany.goskope.com",
+      },
+      { key: "apiToken", label: "API Token", secret: true },
+    ],
+  },
+  digitalguardian: {
+    label: "Digital Guardian",
+    accent: "#002554",
+    note: "Register an OAuth2 client in the Digital Guardian ARC console (Administration → API Clients) with read access to DLP policies, then paste the Client ID and Secret below.",
+    fields: [
+      {
+        key: "baseUrl",
+        label: "ARC API Base URL",
+        secret: false,
+        placeholder: "https://api.digitalguardian.com",
+      },
+      { key: "clientId", label: "Client ID", secret: false },
+      { key: "clientSecret", label: "Client Secret", secret: true },
+    ],
+  },
+
+  elastic: {
+    label: "Elastic Security",
+    accent: "#005571",
+    note: "In Kibana, go to Stack Management → API Keys and create a key scoped to read access on the Detection Engine (rules and signals index). Paste the Kibana base URL and the Base64-encoded API key below.",
+    fields: [
+      {
+        key: "kibanaUrl",
+        label: "Kibana Base URL",
+        secret: false,
+        placeholder: "https://yourcompany.kb.us-east-1.aws.elastic-cloud.com",
+      },
+      { key: "apiKey", label: "API Key (Base64 Encoded)", secret: true },
+    ],
+  },
+
+  qualys: {
+    label: "Qualys VMDR",
+    accent: "#CC0000",
+    note: "Create a dedicated read-only user in the Qualys Cloud Platform (Users → New User, with the Reader role scoped to the asset groups you want scanned) and use its credentials below. The Base URL is your Qualys API server, which depends on your platform region.",
+    fields: [
+      {
+        key: "baseUrl",
+        label: "Qualys API Base URL",
+        secret: false,
+        placeholder: "https://qualysapi.qualys.com",
+      },
+      { key: "username", label: "Username", secret: false },
+      { key: "password", label: "Password", secret: true },
+    ],
+  },
+  sumologic: {
+    label: "Sumo Logic",
+    accent: "#004DFF",
+    note: "In Sumo Logic, go to Administration → Security → Access Keys to generate an Access ID and Access Key. The API Endpoint is deployment-specific — check Administration → Account Overview for your deployment's API URL.",
+    fields: [
+      {
+        key: "apiEndpoint",
+        label: "API Endpoint",
+        secret: false,
+        placeholder: "https://api.us2.sumologic.com/api",
+      },
+      { key: "accessId", label: "Access ID", secret: false },
+      { key: "accessKey", label: "Access Key", secret: true },
+    ],
+  },
+  checkmarx: {
+    label: "Checkmarx One",
+    accent: "#5A2D82",
+    note: "In Checkmarx One, go to Settings → API Keys to generate an API Key for a service account scoped to read access on Projects and Results. Base URL and Tenant Name depend on your Checkmarx One region and account.",
+    fields: [
+      {
+        key: "baseUrl",
+        label: "Checkmarx One Base URL",
+        secret: false,
+        placeholder: "https://ast.checkmarx.net",
+      },
+      {
+        key: "tenant",
+        label: "Tenant Name",
+        secret: false,
+        placeholder: "yourcompany",
+      },
+      { key: "apiKey", label: "API Key", secret: true },
+    ],
+  },
+  tenable: {
+    label: "Tenable.io",
+    accent: "#00C0FF",
+    note: "Generate an Access Key and Secret Key from Tenable.io under Settings → My Account → API Keys. These authenticate every Tenable.io API call with read access to vulnerability scan data.",
+    fields: [
+      {
+        key: "baseUrl",
+        label: "Tenable.io Base URL",
+        secret: false,
+        placeholder: "https://cloud.tenable.io",
+      },
+      { key: "accessKey", label: "Access Key", secret: false },
+      { key: "secretKey", label: "Secret Key", secret: true },
+    ],
+  },
+  pagerduty: {
+    label: "PagerDuty",
+    accent: "#06AC38",
+    note: "Generate a REST API key from PagerDuty under Integrations → API Access Keys, scoped to read-only access on incidents, services, and on-call schedules.",
+    fields: [
+      { key: "apiKey", label: "REST API Key", secret: true },
+      {
+        key: "baseUrl",
+        label: "API Base URL (optional override)",
+        secret: false,
+        placeholder: "https://api.pagerduty.com",
+      },
+    ],
+  },
+  mimecast: {
+    label: "Mimecast",
+    accent: "#E4032E",
+    note: "Register an OAuth2 API application in the Mimecast Administration Console under Services → API and Platform Integrations, then paste the Client ID, Client Secret, and your region-specific API gateway URL below.",
+    fields: [
+      {
+        key: "baseUrl",
+        label: "API Base URL",
+        secret: false,
+        placeholder: "https://api.services.mimecast.com",
+      },
+      { key: "clientId", label: "Client ID", secret: false },
+      { key: "clientSecret", label: "Client Secret", secret: true },
+    ],
+  },
+  freshservice: {
+    label: "Freshservice",
+    accent: "#38C793",
+    note: "Find your API key in Freshservice under Profile Settings → API Key. Pair it with your Freshservice subdomain (the part before .freshservice.com) below.",
+    fields: [
+      {
+        key: "domain",
+        label: "Freshservice Subdomain",
+        secret: false,
+        placeholder: "yourcompany",
+      },
+      { key: "apiKey", label: "API Key", secret: true },
     ],
   },
 };

@@ -568,9 +568,12 @@ import api from "../../api/adminApi";
 import useModuleEntitlements from "../../hooks/useModuleEntitlements";
 import integrationApi from "../Toolintegrations/integrationApi";
 import { BUILT_IN_PROVIDERS } from "../Toolintegrations/providerMeta";
+import { Users, Building2, ShieldAlert, Plug, LayoutDashboard, Shield, Store, Building, ShieldCheck, Activity } from "lucide-react";
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 
 const RISK_URL   = process.env.NEXT_PUBLIC_SP + "/risk-service/api/risks";
 const VENDOR_URL = process.env.NEXT_PUBLIC_SP + "/tprm-service/api/tprm/vendors";
+const LOGGING_BASE_URL = process.env.NEXT_PUBLIC_LOGGING_SERVICE_URL || "https://api.calvant.com/logging-service/api/logs";
 const BASIC_TOKEN = btoa("username:password");
 
 // ── Design tokens (light theme) ────────────────────────────────────────────────
@@ -628,7 +631,7 @@ const IconTile = ({ icon, accent, size = 30, radius = 9, fontSize = 15 }) => {
       width: size, height: size, borderRadius: radius, flexShrink: 0,
       background: g.grad, boxShadow: `0 4px 10px -2px ${g.glow}`,
       display: "flex", alignItems: "center", justifyContent: "center",
-      fontSize,
+      fontSize, color: "#fff",
     }}>
       {icon}
     </div>
@@ -638,12 +641,14 @@ const IconTile = ({ icon, accent, size = 30, radius = 9, fontSize = 15 }) => {
 // ── Shared styles ──────────────────────────────────────────────────────────────
 const S = {
   card: {
-    background: C.white,
-    border: `1px solid ${C.border}`,
+    background: "rgba(255, 255, 255, 0.75)",
+    backdropFilter: "blur(16px)",
+    WebkitBackdropFilter: "blur(16px)",
+    border: `1px solid rgba(255, 255, 255, 0.5)`,
     borderRadius: 18,
     overflow: "hidden",
-    boxShadow: "0 1px 2px rgba(15,23,42,0.04), 0 8px 20px -14px rgba(15,23,42,0.08)",
-    transition: "box-shadow .25s ease, transform .25s ease, border-color .25s ease",
+    boxShadow: "0 4px 24px -8px rgba(15,23,42,0.06), inset 0 0 0 1px rgba(255,255,255,0.2)",
+    transition: "box-shadow .3s ease, transform .3s ease, border-color .3s ease",
   },
   cardHeader: {
     display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -711,8 +716,8 @@ const StatSegment = ({ metric: m }) => (
   >
     <IconTile icon={m.icon} accent={m.accent} size={44} radius={13} fontSize={20} />
     <div style={{ minWidth: 0 }}>
-      <div style={{ fontSize: 23, fontWeight: 800, color: C.text1, letterSpacing: "-0.6px", lineHeight: 1.15 }}>{m.value}</div>
-      <div style={{ fontSize: 10.5, fontWeight: 700, color: C.text4, textTransform: "uppercase", letterSpacing: ".6px", marginTop: 3, whiteSpace: "nowrap" }}>{m.title}</div>
+      <div style={{ fontSize: 21, fontWeight: 700, color: C.text1, letterSpacing: "-0.4px", lineHeight: 1.15 }}>{m.value}</div>
+      <div style={{ fontSize: 11.5, fontWeight: 600, color: C.text3, letterSpacing: ".3px", marginTop: 3, whiteSpace: "nowrap" }}>{m.title}</div>
     </div>
   </div>
 );
@@ -801,18 +806,127 @@ const StatusChip = ({ status }) => {
 
 const RiskLevelChip = ({ risk }) => {
   const l = String(risk.riskLevel || risk.level || "").toLowerCase();
-  if (l === "critical") return <Chip label="Critical" bg={C.redLight}   color={C.redText}   border="#fecaca" />;
-  if (l === "high")     return <Chip label="High"     bg="#fff1f0"      color="#a8071a"     border="#ffa39e" />;
-  if (l === "medium")   return <Chip label="Medium"   bg={C.amberLight} color={C.amberText} border="#fde68a" />;
-  if (l === "low")      return <Chip label="Low"      bg={C.greenLight} color="#065f46"     border="#a7f3d0" />;
+  if (l === "critical") return <Chip label="Critical" bg={C.redLight}   color={C.redText} />;
+  if (l === "high")     return <Chip label="High"     bg="#fff1f0"      color="#a8071a" />;
+  if (l === "medium")   return <Chip label="Medium"   bg={C.amberLight} color={C.amberText} />;
+  if (l === "low")      return <Chip label="Low"      bg={C.greenLight} color="#065f46" />;
   return <Chip label={risk.riskScore || "—"} bg="#f3f4f6" color="#374151" />;
 };
 
-const ProgressBar = ({ pct, color, height = 5 }) => (
-  <div style={{ background: "#edf2f7", borderRadius: 100, overflow: "hidden", height }}>
+const ProgressBar = ({ pct, color, height = 6 }) => (
+  <div style={{ background: "rgba(15,23,42,0.06)", borderRadius: 100, overflow: "hidden", height }}>
     <div style={{ width: `${pct}%`, height: "100%", borderRadius: 100, background: color, transition: "width .6s ease" }} />
   </div>
 );
+
+const EmptyState = ({ title, icon }) => (
+  <div style={{ padding: "48px 20px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12 }}>
+    <div style={{ width: 56, height: 56, borderRadius: "50%", background: C.borderLight, display: "flex", alignItems: "center", justifyContent: "center", color: C.text4, boxShadow: "inset 0 2px 4px rgba(0,0,0,0.02)" }}>
+      {icon}
+    </div>
+    <div style={{ fontSize: 13, fontWeight: 700, color: C.text3, letterSpacing: "0.5px" }}>{title}</div>
+  </div>
+);
+
+// ── Activity Graph Component ───────────────────────────────────────────────────
+const ActivityGraph = ({ logs = [] }) => {
+  const [period, setPeriod] = useState("Weekly");
+
+  const data = useMemo(() => {
+    const counts = {};
+    const now = new Date();
+    
+    logs.forEach(log => {
+      const d = new Date(log.timestamp || log.createdAt);
+      if (isNaN(d)) return;
+      let key;
+      if (period === "Weekly") {
+        if ((now - d) / (1000 * 60 * 60 * 24) > 7) return;
+        key = d.toLocaleDateString("en-US", { weekday: "short" });
+      } else if (period === "Monthly") {
+        if ((now - d) / (1000 * 60 * 60 * 24) > 30) return;
+        key = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      } else {
+        if ((now - d) / (1000 * 60 * 60 * 24) > 365) return;
+        key = d.toLocaleDateString("en-US", { month: "short" });
+      }
+      counts[key] = (counts[key] || 0) + 1;
+    });
+
+    const result = [];
+    if (period === "Weekly") {
+      for(let i=6; i>=0; i--) {
+        const d = new Date(now);
+        d.setDate(d.getDate() - i);
+        const k = d.toLocaleDateString("en-US", { weekday: "short" });
+        result.push({ name: k, activities: counts[k] || 0 });
+      }
+    } else if (period === "Monthly") {
+      for(let i=29; i>=0; i-=3) {
+        const d = new Date(now);
+        d.setDate(d.getDate() - i);
+        const k = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+        result.push({ name: k, activities: counts[k] || 0 });
+      }
+    } else {
+      for(let i=11; i>=0; i--) {
+        const d = new Date(now);
+        d.setMonth(d.getMonth() - i);
+        const k = d.toLocaleDateString("en-US", { month: "short" });
+        result.push({ name: k, activities: counts[k] || 0 });
+      }
+    }
+    return result;
+  }, [logs, period]);
+
+  return (
+    <HoverCard>
+      <div style={S.cardHeader}>
+        <div>
+          <div style={S.cardTitle}><IconTile icon={<Activity size={18} strokeWidth={2.5} />} accent={C.violet} />Activity Logs</div>
+          <div style={S.cardSub}>Organization activity overview</div>
+        </div>
+        <div style={{ display: "flex", gap: 4 }}>
+          {["Weekly", "Monthly", "Yearly"].map(p => (
+            <button
+              key={p}
+              onClick={() => setPeriod(p)}
+              style={{
+                fontSize: 11, fontWeight: 600, padding: "4px 8px", borderRadius: 6,
+                border: "none", cursor: "pointer",
+                background: period === p ? C.blueLight : "transparent",
+                color: period === p ? C.blue : C.text3,
+                transition: "all .2s ease"
+              }}
+            >
+              {p}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div style={{ padding: "20px 20px 5px 0", height: 260 }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <AreaChart data={data}>
+            <defs>
+              <linearGradient id="colorAct" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor={C.blue} stopOpacity={0.3}/>
+                <stop offset="95%" stopColor={C.blue} stopOpacity={0}/>
+              </linearGradient>
+            </defs>
+            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: C.text4 }} dy={10} />
+            <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: C.text4 }} dx={-10} />
+            <Tooltip 
+              contentStyle={{ borderRadius: 12, border: `1px solid ${C.borderLight}`, boxShadow: "0 4px 14px rgba(0,0,0,0.08)" }}
+              itemStyle={{ color: C.text1, fontSize: 13, fontWeight: 700 }}
+              labelStyle={{ color: C.text4, fontSize: 11, marginBottom: 4 }}
+            />
+            <Area type="monotone" dataKey="activities" stroke={C.blue} strokeWidth={3} fillOpacity={1} fill="url(#colorAct)" />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
+    </HoverCard>
+  );
+};
 
 // ── Risk Severity + Ecosystem Health card ──────────────────────────────────────
 function RiskSummaryCard({ risks }) {
@@ -850,7 +964,7 @@ function RiskSummaryCard({ risks }) {
       <div style={S.cardHeader}>
         <div>
           <div style={S.cardTitle}>
-            <IconTile icon="▦" accent={C.violet} />
+            <IconTile icon={<LayoutDashboard size={18} strokeWidth={2.5} />} accent={C.violet} />
             Risk Severity
           </div>
           <div style={S.cardSub}>Scoped assessment · {risks.length} total</div>
@@ -953,6 +1067,7 @@ export default function AdminDashboard() {
 
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState({ users: [], departments: [], vendors: [], risks: [] });
+  const [activityLogs, setActivityLogs] = useState([]);
   const [integrationCount, setIntegrationCount] = useState(0);
 
   // Vendor Management is a paid-only add-on — never granted during a free
@@ -1018,6 +1133,15 @@ export default function AdminDashboard() {
               params: { organization: orgId },
             }).then(r => Array.isArray(r.data) ? r.data : (r.data?.content ?? [])).catch(() => [])
           : [];
+        
+        if (loggedInRole === "root") {
+          const logsRaw = await fetch(LOGGING_BASE_URL, {
+            headers: { Authorization: `Bearer ${token}` }
+          }).then(r => r.ok ? r.json() : []).catch(() => []);
+          const logs = Array.isArray(logsRaw) ? logsRaw : (logsRaw?.content ?? []);
+          setActivityLogs(logs);
+        }
+
         setData({ users, departments: depts, vendors, risks });
       } catch (err) {
         console.error("Dashboard load error", err);
@@ -1026,7 +1150,7 @@ export default function AdminDashboard() {
       }
     };
     load();
-  }, [token, orgId, vendorEntitled]);
+  }, [token, orgId, vendorEntitled, loggedInRole]);
 
   const deptWorkforce = useMemo(() => {
     const orgUsers = data.users.filter(u => String(u.organization) === String(orgId));
@@ -1046,14 +1170,14 @@ export default function AdminDashboard() {
   }, [data.users, data.departments, orgId]);
 
   const metrics = [
-    { title: "Total Users",    value: data.users.length,       icon: "👥", accent: C.blue,  accentLight: C.blueLight,  trend: "+12 this month",    trendColor: C.green },
-    { title: "Departments",    value: data.departments.length, icon: "🏛", accent: C.cyan,  accentLight: C.cyanLight,  trend: "Across 3 regions",  trendColor: C.text3 },
+    { title: "Total Users",    value: data.users.length,       icon: <Users size={24} strokeWidth={2.5} />, accent: C.blue,  accentLight: C.blueLight,  trend: "+12 this month",    trendColor: C.green },
+    { title: "Departments",    value: data.departments.length, icon: <Building2 size={24} strokeWidth={2.5} />, accent: C.cyan,  accentLight: C.cyanLight,  trend: "Across 3 regions",  trendColor: C.text3 },
     // Only shown once Vendor Mgmt is actually purchased — hidden for free-trial orgs.
     ...(vendorEntitled
-      ? [{ title: "Active Vendors", value: data.vendors.length, icon: "🏪", accent: C.green, accentLight: C.greenLight, trend: "+4 onboarded", trendColor: C.green }]
+      ? [{ title: "Active Vendors", value: data.vendors.length, icon: <Store size={24} strokeWidth={2.5} />, accent: C.green, accentLight: C.greenLight, trend: "+4 onboarded", trendColor: C.green }]
       : []),
-    { title: "Global Risks",   value: data.risks.length,       icon: "⚠️", accent: C.red,   accentLight: C.redLight,   trend: "6 critical open",   trendColor: C.red },
-    { title: "Integrations",  value: integrationCount,         icon: "🔌", accent: C.violet, accentLight: C.violetLight, trend: "Connected tools",  trendColor: C.violet },
+    { title: "Global Risks",   value: data.risks.length,       icon: <ShieldAlert size={24} strokeWidth={2.5} />, accent: C.red,   accentLight: C.redLight,   trend: "6 critical open",   trendColor: C.red },
+    { title: "Integrations",  value: integrationCount,         icon: <Plug size={24} strokeWidth={2.5} />, accent: C.violet, accentLight: C.violetLight, trend: "Connected tools",  trendColor: C.violet },
   ];
 
   const deptAccents = [C.blue, C.cyan, C.violet, C.green, C.amber, C.orange];
@@ -1078,13 +1202,11 @@ export default function AdminDashboard() {
               background: "linear-gradient(135deg, #3b82f6 0%, #7c3aed 100%)",
               borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center",
               fontSize: 20, boxShadow: "0 8px 20px -4px rgba(99,80,238,0.4)",
-            }}>🛡️</div>
+            }}><ShieldCheck color="#fff" size={24} strokeWidth={2.5} /></div>
             <div>
               <div style={{
-                fontSize: 22, fontWeight: 800, letterSpacing: "-0.6px",
-                background: "linear-gradient(90deg, #1a2036 0%, #334066 100%)",
-                WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
-                backgroundClip: "text",
+                fontSize: 22, fontWeight: 700, letterSpacing: "-0.4px",
+                color: C.text1,
               }}>Admin Dashboard</div>
               <div style={{ fontSize: 12.5, color: C.text3, marginTop: 3, fontWeight: 500 }}>Security & Risk Command Centre</div>
             </div>
@@ -1114,14 +1236,95 @@ export default function AdminDashboard() {
           </div>
         </HoverCard>
 
-        {/* ── Row 2: Risk Summary + Users ── */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+        {/* ── Row 2: Risk Summary + Activity Graph ── */}
+        <div style={{ display: "grid", gridTemplateColumns: loggedInRole === "root" ? "1fr 1fr" : "1fr", gap: 16, marginBottom: 16 }}>
           <RiskSummaryCard risks={data.risks} />
+          {loggedInRole === "root" && <ActivityGraph logs={activityLogs} />}
+        </div>
 
+        {/* ── Risk Ledger ── */}
+        <HoverCard style={{ marginBottom: 16 }}>
+          <div style={S.cardHeader}>
+            <div>
+              <div style={S.cardTitle}><IconTile icon={<Shield size={18} strokeWidth={2.5} />} accent={C.red} />Risk Ledger</div>
+              <div style={S.cardSub}>{data.risks.length} risks in scope · Live tracking</div>
+            </div>
+            <ViewBtn onClick={() => history.push("/admin/risks")} />
+          </div>
+          {data.risks.length === 0 ? (
+            <EmptyState title="No Risks Found" icon={<Shield size={24} strokeWidth={2} />} />
+          ) : (
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <THead cols={[{ label: "Risk ID" }, { label: "Department" }, { label: "Category" }, { label: "Description" }, { label: "Level", center: true }, /* { label: "Status" }, */ { label: "Updated", right: true }]} />
+                <tbody>
+                  {data.risks.slice(0, 8).map((r, i) => {
+                    const dt = r.updatedAt || r.createdAt ? new Date(r.updatedAt || r.createdAt) : null;
+                    return (
+                      <TRow key={i}>
+                        <td style={S.td}><span style={{ fontFamily: "monospace", fontSize: 12, color: C.blue, fontWeight: 700 }}>{r.riskId || `RK-${String(i + 1).padStart(3, "0")}`}</span></td>
+                        <td style={S.td}>
+                          <div style={{ fontWeight: 600, fontSize: 12.5, color: C.text1 }}>{r.department || "Global"}</div>
+                          <div style={{ fontSize: 11, color: C.text4 }}>{r.organization || "—"}</div>
+                        </td>
+                        <td style={S.td}><Chip label={r.riskType || "General"} bg={C.violetLight} color={C.violetText} border="#e9d5ff" /></td>
+                        <td style={{ ...S.td, maxWidth: 220 }}><div style={{ fontSize: 12, color: C.text3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.riskDescription || r.description || "No description."}</div></td>
+                        <td style={{ ...S.td, textAlign: "center" }}><RiskLevelChip risk={r} /></td>
+                        {/* <td style={S.td}><StatusChip status={r.status || "Open"} /></td> */}
+                        <td style={{ ...S.td, textAlign: "right" }}><span style={{ fontSize: 11, color: C.text4, fontFamily: "monospace" }}>{dt ? dt.toLocaleDateString("en-IN", { day: "2-digit", month: "short" }) : "—"}</span></td>
+                      </TRow>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </HoverCard>
+
+        {/* ── Bottom Row ── */}
+        <div style={{ display: "grid", gridTemplateColumns: vendorEntitled ? "1fr 1fr 1fr" : "1fr 1fr", gap: 16 }}>
+
+          {/* Vendor Ledger — only for orgs that have actually purchased Vendor Mgmt */}
+          {vendorEntitled && (
+            <HoverCard>
+              <div style={S.cardHeader}>
+                <div>
+                  <div style={S.cardTitle}><IconTile icon={<Store size={18} strokeWidth={2.5} />} accent={C.green} />Vendor Ledger</div>
+                  <div style={S.cardSub}>{data.vendors.length} vendors onboarded</div>
+                </div>
+                <ViewBtn onClick={() => history.push("/admin/vendors")} />
+              </div>
+              {data.vendors.length === 0 ? (
+                <EmptyState title="No Vendor Data" icon={<Store size={24} strokeWidth={2} />} />
+              ) : (
+                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <THead cols={[{ label: "Vendor" }, { label: "Contact" }, { label: "Status" }]} />
+                  <tbody>
+                    {data.vendors.slice(0, 8).map((v, i) => (
+                      <TRow key={i}>
+                        <td style={S.td}><div style={{ fontWeight: 600, fontSize: 12.5, color: C.text1 }}>{v.vendorName || v.name || "—"}</div></td>
+                        <td style={S.td}>
+                          <div style={{ fontSize: 12, color: C.text2 }}>{v.poc || "N/A"}</div>
+                          <div style={{ fontSize: 11, color: C.text4 }}>{v.pocEmail || "No email"}</div>
+                        </td>
+                        <td style={S.td}>
+                          {v.active === false
+                            ? <Chip label="Inactive" bg={C.redLight}  color={C.redText} />
+                            : <Chip label="Active"   bg={C.greenBg}   color={C.greenText} />}
+                        </td>
+                      </TRow>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </HoverCard>
+          )}
+
+          {/* Users Card */}
           <HoverCard>
             <div style={S.cardHeader}>
               <div>
-                <div style={S.cardTitle}><IconTile icon="👥" accent={C.blue} />Users</div>
+                <div style={S.cardTitle}><IconTile icon={<Users size={18} strokeWidth={2.5} />} accent={C.blue} />Users</div>
                 <div style={S.cardSub}>Members & access control</div>
               </div>
               <ViewBtn onClick={() => history.push("/admin/users")} />
@@ -1149,97 +1352,18 @@ export default function AdminDashboard() {
               </tbody>
             </table>
           </HoverCard>
-        </div>
-
-        {/* ── Risk Ledger ── */}
-        <HoverCard style={{ marginBottom: 16 }}>
-          <div style={S.cardHeader}>
-            <div>
-              <div style={S.cardTitle}><IconTile icon="🛡" accent={C.red} />Risk Ledger</div>
-              <div style={S.cardSub}>{data.risks.length} risks in scope · Live tracking</div>
-            </div>
-            <ViewBtn onClick={() => history.push("/admin/risks")} />
-          </div>
-          {data.risks.length === 0 ? (
-            <div style={{ padding: "40px 0", textAlign: "center", fontSize: 12, fontWeight: 700, color: C.text4, textTransform: "uppercase", letterSpacing: "1.5px" }}>No Risks Found</div>
-          ) : (
-            <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <THead cols={[{ label: "Risk ID" }, { label: "Department" }, { label: "Category" }, { label: "Description" }, { label: "Level", center: true }, { label: "Status" }, { label: "Updated", right: true }]} />
-                <tbody>
-                  {data.risks.slice(0, 8).map((r, i) => {
-                    const dt = r.updatedAt || r.createdAt ? new Date(r.updatedAt || r.createdAt) : null;
-                    return (
-                      <TRow key={i}>
-                        <td style={S.td}><span style={{ fontFamily: "monospace", fontSize: 12, color: C.blue, fontWeight: 700 }}>{r.riskId || `RK-${String(i + 1).padStart(3, "0")}`}</span></td>
-                        <td style={S.td}>
-                          <div style={{ fontWeight: 600, fontSize: 12.5, color: C.text1 }}>{r.department || "Global"}</div>
-                          <div style={{ fontSize: 11, color: C.text4 }}>{r.organization || "—"}</div>
-                        </td>
-                        <td style={S.td}><Chip label={r.riskType || "General"} bg={C.violetLight} color={C.violetText} border="#e9d5ff" /></td>
-                        <td style={{ ...S.td, maxWidth: 220 }}><div style={{ fontSize: 12, color: C.text3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.riskDescription || r.description || "No description."}</div></td>
-                        <td style={{ ...S.td, textAlign: "center" }}><RiskLevelChip risk={r} /></td>
-                        <td style={S.td}><StatusChip status={r.status || "Open"} /></td>
-                        <td style={{ ...S.td, textAlign: "right" }}><span style={{ fontSize: 11, color: C.text4, fontFamily: "monospace" }}>{dt ? dt.toLocaleDateString("en-IN", { day: "2-digit", month: "short" }) : "—"}</span></td>
-                      </TRow>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </HoverCard>
-
-        {/* ── Bottom Row ── */}
-        <div style={{ display: "grid", gridTemplateColumns: vendorEntitled ? "1fr 1fr" : "1fr", gap: 16 }}>
-
-          {/* Vendor Ledger — only for orgs that have actually purchased Vendor Mgmt */}
-          {vendorEntitled && (
-            <HoverCard>
-              <div style={S.cardHeader}>
-                <div>
-                  <div style={S.cardTitle}><IconTile icon="🏪" accent={C.green} />Vendor Ledger</div>
-                  <div style={S.cardSub}>{data.vendors.length} vendors onboarded</div>
-                </div>
-                <ViewBtn onClick={() => history.push("/admin/vendors")} />
-              </div>
-              {data.vendors.length === 0 ? (
-                <div style={{ padding: "40px 0", textAlign: "center", fontSize: 12, color: C.text4, textTransform: "uppercase", letterSpacing: 1.5 }}>No Vendor Data</div>
-              ) : (
-                <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                  <THead cols={[{ label: "Vendor" }, { label: "Contact" }, { label: "Status" }]} />
-                  <tbody>
-                    {data.vendors.slice(0, 8).map((v, i) => (
-                      <TRow key={i}>
-                        <td style={S.td}><div style={{ fontWeight: 600, fontSize: 12.5, color: C.text1 }}>{v.vendorName || v.name || "—"}</div></td>
-                        <td style={S.td}>
-                          <div style={{ fontSize: 12, color: C.text2 }}>{v.poc || "N/A"}</div>
-                          <div style={{ fontSize: 11, color: C.text4 }}>{v.pocEmail || "No email"}</div>
-                        </td>
-                        <td style={S.td}>
-                          {v.active === false
-                            ? <Chip label="Inactive" bg={C.redLight}  color={C.redText} />
-                            : <Chip label="Active"   bg={C.greenBg}   color={C.greenText} />}
-                        </td>
-                      </TRow>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </HoverCard>
-          )}
 
           {/* Workforce Share */}
           <HoverCard>
             <div style={S.cardHeader}>
               <div>
-                <div style={S.cardTitle}><IconTile icon="🏛" accent={C.cyan} />Workforce Share</div>
+                <div style={S.cardTitle}><IconTile icon={<Building size={18} strokeWidth={2.5} />} accent={C.cyan} />Workforce Share</div>
                 <div style={S.cardSub}>Departmental distribution</div>
               </div>
               <ViewBtn onClick={() => history.push("/admin/departments")} />
             </div>
             {deptWorkforce.length === 0 ? (
-              <div style={{ padding: "40px 0", textAlign: "center", fontSize: 12, color: C.text4, textTransform: "uppercase", letterSpacing: 1.5 }}>No Workforce Data</div>
+              <EmptyState title="No Workforce Data" icon={<Building size={24} strokeWidth={2} />} />
             ) : (
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <THead cols={[{ label: "Department" }, { label: "Count", center: true }, { label: "Share", right: true }]} />

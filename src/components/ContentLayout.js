@@ -1,12 +1,13 @@
 import Link from 'next/link';
 import React from "react";
-import BlogNavbar from "./BlogNavbar";
+import SiteFooter from "@/components/SiteFooter";
+import SiteHeader from "@/components/SiteHeader";
 import "../styles/ProfessionalLayout.css";
 
 const ContentLayout = ({ children, narrow = false, heroSection = null }) => {
   return (
     <div className="professional-layout">
-      <BlogNavbar />
+      <SiteHeader />
       
       {heroSection && (
         <section className="professional-hero">
@@ -24,20 +25,7 @@ const ContentLayout = ({ children, narrow = false, heroSection = null }) => {
         </div>
       </main>
 
-      <footer className="blog-footer">
-        <div className="professional-container">
-          <div className="blog-footer-content">
-            <div className="footer-links">
-              <Link href="/privacy">Privacy Policy</Link>
-              <Link href="/terms">Terms of Service</Link>
-              <Link href="/security">Security</Link>
-            </div>
-            <p style={{ color: '#6b7280', fontSize: '14px', margin: 0 }}>
-              &copy; {new Date().getFullYear()} CalVant. All rights reserved.
-            </p>
-          </div>
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   );
 };

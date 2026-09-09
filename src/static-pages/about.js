@@ -2,8 +2,10 @@
 "use client";
 import { useRouter } from "next/navigation";
 import React, { useState, useEffect } from "react";
+import SiteFooter from "@/components/SiteFooter";
 import Image from "next/image";
 import { Helmet } from "react-helmet-async";
+import SiteHeader from "@/components/SiteHeader";
 import {
   Shield,
   Zap,
@@ -51,112 +53,7 @@ const AboutPage = () => {
 
   return (
     <div className={`about-page ${mounted ? "mounted" : ""}`}>
-      <header className="about-header">
-        <div className="about-header-content">
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              flex: "10px 0 auto",
-            }}
-          >
-            <Image
-              src="/CalVant Logo.svg"
-              alt="CalVant"
-              width={180}
-              height={60}
-              style={{
-                height: isMobile ? "30px" : "60px",
-                width: "auto",
-                transform: isMobile ? "scale(3.9)" : "scale(2.9)",
-                transformOrigin: "center",
-                cursor: "pointer",
-                transition: "transform 0.25s ease",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = "scale(3.7)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = "scale(3.5)";
-              }}
-              onClick={() => router.push("/")}
-            />
-          </div>
-          <nav className="about-header-nav">
-            <ul
-              className={`about-nav-links ${
-                mobileMenuOpen ? "mobile-open" : ""
-              }`}
-            >
-              <li>
-                <button
-                  className="about-nav-link"
-                  onClick={() => {
-                    scrollToSection("overview");
-                    setMobileMenuOpen(false);
-                  }}
-                >
-                  Overview
-                </button>
-              </li>
-
-              <li>
-                <button
-                  className="about-nav-link"
-                  onClick={() => {
-                    scrollToSection("mission");
-                    setMobileMenuOpen(false);
-                  }}
-                >
-                  Mission
-                </button>
-              </li>
-
-              <li>
-                <button
-                  className="about-nav-link"
-                  onClick={() => {
-                    scrollToSection("team");
-                    setMobileMenuOpen(false);
-                  }}
-                >
-                  Team
-                </button>
-              </li>
-
-              <li>
-                <button
-                  className="about-nav-link"
-                  onClick={() => {
-                    scrollToSection("benefits");
-                    setMobileMenuOpen(false);
-                  }}
-                >
-                  Why Us
-                </button>
-              </li>
-
-              <Link href="/" className="about-nav-link">
-                {" "}
-                Home{" "}
-              </Link>
-
-              {/* LOGIN BUTTON (only when not logged in) */}
-              {!isLoggedIn && (
-                <li>
-                  <Link
-                    href="/login"
-                    className="about-nav-link about-nav-link-cta"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    Login
-                  </Link>
-                </li>
-              )}
-            </ul>
-          </nav>
-        </div>
-      </header>
+      <SiteHeader />
 
       {/* HERO SECTION */}
       <section className="about-hero-section">
@@ -619,96 +516,7 @@ const AboutPage = () => {
       </section>
 
       {/* FOOTER */}
-      <footer className="about-footer">
-        <div className="about-footer-content">
-          <div className="about-footer-section">
-            <h4>Product</h4>
-            <ul>
-              <li>
-                <Link href="/iso-27001">ISO 27001</Link>
-              </li>
-              <li>
-                <Link href="/iso-27701">ISO 27701</Link>
-              </li>
-              <li>
-                <Link href="/risk-assessment">Risk Management</Link>
-              </li>
-              <li>
-                <Link href="/documentation">Documentation</Link>
-              </li>
-            </ul>
-          </div>
-          <div className="about-footer-section">
-            <h4>Company</h4>
-            <ul>
-              <li>
-                <Link href="/about">About Us</Link>
-              </li>
-              <li>
-                <Link href="/careers">Careers</Link>
-              </li>
-              <li>
-                <Link href="/blog">Blog</Link>
-              </li>
-              <li>
-                <Link href="/demo">Contact</Link>
-              </li>
-            </ul>
-          </div>
-          <div className="about-footer-section">
-            <h4>Legal</h4>
-            <ul>
-              <li>
-                <Link href="/privacy">Privacy Policy</Link>
-              </li>
-              <li>
-                <Link href="/terms">Terms of Service</Link>
-              </li>
-              <li>
-                <Link href="/security">Security</Link>
-              </li>
-              <li>
-                <Link href="/compliances">Compliance</Link>
-              </li>
-            </ul>
-          </div>
-          <div className="about-footer-section">
-            <h4>Contact</h4>
-            <ul>
-              <li>
-                <Link href="mailto:support@calvant.com">
-                  support@calvant.com
-                </Link>
-              </li>
-              <li>
-                <Link href="tel:+918800000000">+91 8800 000 000</Link>
-              </li>
-              <li>
-                <Link
-                  href="https://linkedin.com"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  LinkedIn
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="https://twitter.com"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Twitter
-                </Link>
-              </li>
-            </ul>
-          </div>
-        </div>
-        <div className="about-footer-bottom">
-          © {new Date().getFullYear()} CalVant. All rights reserved. Made in
-          India 🇮🇳
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   );
 };
