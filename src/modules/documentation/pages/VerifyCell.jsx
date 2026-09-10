@@ -1067,7 +1067,6 @@
 
 //////+++++++++++++++++//////////------------------------------------------------------------------????++++++++++++++++++++++++++
 import React, { useState } from "react";
-import { createPortal } from "react-dom";
 import { RefreshCw, CheckCircle2, XCircle, AlertTriangle, Shield } from "lucide-react";
 import { APPROVAL_THRESHOLD } from "./useDocChecker";
 
@@ -1203,6 +1202,8 @@ export function VerifyCell({ row, onVerify, result, busy, error }) {
 }
 
 // ── Score Breakdown Modal ─────────────────────────────────────────────────────
+import { createPortal } from "react-dom";
+
 function ScoreBreakdownModal({ result, onClose }) {
   const breakdown    = result.scoreBreakdown || {};
   const maxBreakdown = result.maxBreakdown   || {};
@@ -1211,79 +1212,51 @@ function ScoreBreakdownModal({ result, onClose }) {
   const grade        = getGrade(result.overallScore);
   const pct          = getPct(result.overallScore);
 
-  if (typeof document === "undefined") return null;
-
-  return createPortal(
+  const modalContent = (
     <div
+      className="score-breakdown-modal"
       onClick={onClose}
       style={{
-        position: "fixed",
-        inset: 0,
-        background: "transparent",
-        display: "flex",
-        alignItems: "flex-start",
-        justifyContent: "center",
-        zIndex: 10010,
-        paddingTop: "55px",
-        paddingBottom: "20px",
-        paddingLeft: "16px",
-        paddingRight: "16px",
+        position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        zIndex: 10010, padding: 20,
       }}
     >
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          background: "#fff",
-          borderRadius: 20,
-          width: "100%",
-          maxWidth: 680,
-          height: "calc(100vh - 75px)",
-          boxShadow: "0 32px 80px rgba(15,23,42,0.22), 0 8px 24px rgba(15,23,42,0.1)",
+          background: "#fff", borderRadius: 16, width: "100%", maxWidth: 560,
+          maxHeight: "88vh", overflowY: "auto",
+          boxShadow: "0 24px 64px rgba(0,0,0,0.28)",
           fontFamily: "'DM Sans', 'Inter', sans-serif",
-          display: "flex",
-          flexDirection: "column",
-          overflow: "hidden",
         }}
       >
         {/* ── Header ─────────────────────────────────────────────────────── */}
         <div style={{
-          padding: "24px 28px 20px",
-          borderBottom: "1px solid #f1f5f9",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "flex-start",
-          background: "linear-gradient(135deg, #fafbff 0%, #f8fafc 100%)",
+          padding: "20px 24px 16px",
+          borderBottom: "1px solid #f0f0f0",
+          display: "flex", justifyContent: "space-between", alignItems: "flex-start",
         }}>
           <div>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
-              <div style={{
-                width: 34, height: 34, borderRadius: 10,
-                background: "linear-gradient(135deg, #667eea, #764ba2)",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                boxShadow: "0 4px 12px rgba(102,126,234,0.35)",
-              }}>
-                <Shield size={17} style={{ color: "#fff" }} />
-              </div>
-              <span style={{ fontSize: 18, fontWeight: 800, color: "#0f172a", letterSpacing: "-0.02em" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+              <Shield size={18} style={{ color: "#667eea" }} />
+              <span style={{ fontSize: 17, fontWeight: 800, color: "#111827" }}>
                 Document Quality Check
               </span>
             </div>
-            <div style={{ fontSize: 12, color: "#94a3b8", paddingLeft: 44 }}>
+            <div style={{ fontSize: 12, color: "#9ca3af" }}>
               Checked {result.checkedAt ? new Date(result.checkedAt).toLocaleString() : "—"}
             </div>
           </div>
 
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
-            <span style={{
-              fontSize: 42, fontWeight: 900, lineHeight: 1,
-              color: grade.color,
-              textShadow: `0 2px 8px ${grade.color}30`,
-            }}>
+          {/* Grade only — no % shown here */}
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
+            <span style={{ fontSize: 36, fontWeight: 900, lineHeight: 1, color: grade.color }}>
               {grade.grade}
             </span>
             <span style={{
-              fontSize: 11, fontWeight: 700, letterSpacing: "0.05em",
-              padding: "3px 12px", borderRadius: 20,
+              fontSize: 10, fontWeight: 700, letterSpacing: "0.06em",
+              padding: "2px 10px", borderRadius: 20,
               background: passed ? "#d1fae5" : "#fee2e2",
               color: passed ? "#065f46" : "#991b1b",
               border: `1.5px solid ${passed ? "#6ee7b7" : "#fca5a5"}`,
@@ -1293,65 +1266,45 @@ function ScoreBreakdownModal({ result, onClose }) {
           </div>
         </div>
 
-        {/* ── Scrollable body ─────────────────────────────────────────────── */}
-        <div style={{
-          padding: "22px 28px 24px",
-          display: "flex",
-          flexDirection: "column",
-          gap: 18,
-          overflowY: "auto",
-          flex: 1,
-        }}>
+        <div style={{ padding: "18px 24px 20px", display: "flex", flexDirection: "column", gap: 16 }}>
 
           {/* ── Findings ─────────────────────────────────────────────────── */}
           <Section label="Findings">
+            {/* Score bar kept as quiet context, no "Content Score" heading */}
             <div style={{
-              height: 7, borderRadius: 99, background: "#f1f5f9",
-              marginBottom: 16, overflow: "hidden",
+              height: 6, borderRadius: 99, background: "#f3f4f6",
+              marginBottom: 14, overflow: "hidden",
             }}>
               <div style={{
                 height: "100%", borderRadius: 99,
                 width: `${Math.min(result.overallScore, 100)}%`,
-                background: result.overallScore >= APPROVAL_THRESHOLD
-                  ? "linear-gradient(90deg, #10b981, #059669)"
-                  : result.overallScore >= 50
-                  ? "linear-gradient(90deg, #f59e0b, #d97706)"
-                  : "linear-gradient(90deg, #ef4444, #dc2626)",
-                transition: "width 0.6s cubic-bezier(0.4, 0, 0.2, 1)",
-                boxShadow: result.overallScore >= APPROVAL_THRESHOLD
-                  ? "0 0 8px rgba(16,185,129,0.4)"
-                  : result.overallScore >= 50
-                  ? "0 0 8px rgba(245,158,11,0.4)"
-                  : "0 0 8px rgba(239,68,68,0.4)",
+                background: result.overallScore >= APPROVAL_THRESHOLD ? "#10b981"
+                           : result.overallScore >= 50 ? "#f59e0b" : "#ef4444",
+                transition: "width 0.4s ease",
               }} />
             </div>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {/* Per-criterion rows — feedback only, no % or bar per line */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
 
-              {/* Document Title card */}
+              {/* Document Title — same card style as the criteria below it */}
               <div style={{
-                padding: "13px 16px",
-                borderRadius: 12,
-                background: "#f8fafc",
-                border: "1px solid #e2e8f0",
-                boxShadow: "0 1px 4px rgba(15,23,42,0.04)",
+                padding: "10px 12px", borderRadius: 8,
+                background: "#f9fafb", border: "1px solid #f3f4f6",
               }}>
-                <div style={{
-                  fontSize: 13, fontWeight: 700, color: "#1e293b",
-                  marginBottom: 7, textAlign: "left",
-                }}>
+                <div style={{ fontSize: 12.5, fontWeight: 700, color: "#374151", marginBottom: 6, textAlign: "left" }}>
                   Document Title
                 </div>
                 {result.titleMatch ? (
                   <div style={{
-                    fontSize: 11.5, color: "#16a34a",
-                    display: "flex", alignItems: "center", gap: 5,
+                    fontSize: 11, color: "#16a34a",
+                    display: "flex", alignItems: "center", gap: 4,
                   }}>
-                    <CheckCircle2 size={12} />
-                    No issues found
+                    <CheckCircle2 size={11} />
+                    No issues found   
                   </div>
                 ) : (
-                  <div style={{ fontSize: 11.5, color: "#b91c1c", lineHeight: 1.6, textAlign: "left" }}>
+                  <div style={{ fontSize: 11.5, color: "#b91c1c", lineHeight: 1.5, textAlign: "left" }}>
                     Mismatch: expected "{result.mldDocName}" but found "{result.extractedDocTitle || "—"}"
                   </div>
                 )}
@@ -1369,66 +1322,64 @@ function ScoreBreakdownModal({ result, onClose }) {
 
                 return (
                   <div key={key} style={{
-                    padding: "13px 16px",
-                    borderRadius: 12,
-                    background: "#f8fafc",
-                    border: "1px solid #e2e8f0",
-                    boxShadow: "0 1px 4px rgba(15,23,42,0.04)",
+                    padding: "10px 12px", borderRadius: 8,
+                    background: "#f9fafb", border: "1px solid #f3f4f6",
                   }}>
+                    {/* Criterion label — no score/bar on the right */}
                     <div style={{
-                      fontSize: 13, fontWeight: 700, color: "#1e293b", textAlign: "left",
-                      marginBottom: (!isFullScore && fb) ? 8 : 0,
+                      fontSize: 12.5, fontWeight: 700, color: "#374151", textAlign: "left",
+                      marginBottom: (!isFullScore && fb) ? 6 : 0,
                     }}>
                       {label}
                     </div>
 
+                    {/* Full score → green tick, otherwise show feedback */}
                     {isFullScore ? (
                       <div style={{
-                        fontSize: 11.5, color: "#16a34a", marginTop: 5,
-                        display: "flex", alignItems: "center", gap: 5,
+                        fontSize: 11, color: "#16a34a", marginTop: 4,
+                        display: "flex", alignItems: "center", gap: 4,
                       }}>
-                        <CheckCircle2 size={12} />
+                        <CheckCircle2 size={11} />
                         No issues found
                       </div>
                     ) : fb && (
                       isPolicyStmt && bulletPoints.length > 1 ? (
                         <ul style={{
-                          margin: 0, paddingLeft: 20,
-                          display: "flex", flexDirection: "column", gap: 5,
+                          margin: 0, paddingLeft: 18,
+                          display: "flex", flexDirection: "column", gap: 4,
                         }}>
                           {bulletPoints.map((point, i) => (
-                            <li key={i} style={{
-                              fontSize: 12, color: "#64748b",
-                              lineHeight: 1.6, listStyleType: "disc",
-                              textAlign: "left",
-                            }}>
-                              {point}
-                            </li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <div style={{
-                          fontSize: 12, color: "#64748b",
-                          lineHeight: 1.6, marginTop: 3, textAlign: "left",
-                        }}>
-                          {fb}
-                        </div>
-                      )
-                    )}
-                  </div>
-                );
-              })}
+                          <li key={i} style={{
+                            fontSize: 11.5, color: "#6b7280",
+                            lineHeight: 1.55, listStyleType: "disc",
+                            textAlign: "left",
+                          }}>
+                            {point}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <div style={{
+                        fontSize: 11.5, color: "#6b7280",
+                        lineHeight: 1.5, marginTop: 2, textAlign: "left",
+                      }}>
+                        {fb}
+                      </div>
+                    )
+                  )}
+                </div>
+              );
+            })}
             </div>
           </Section>
 
           {/* ── Grade reference table ────────────────────────────────────── */}
-          <div style={{ borderRadius: 12, border: "1px solid #e2e8f0", overflow: "hidden", boxShadow: "0 1px 4px rgba(15,23,42,0.04)" }}>
+          <div style={{ borderRadius: 10, border: "1px solid #e5e7eb", overflow: "hidden" }}>
             <div style={{
-              padding: "10px 16px",
-              background: "#f8fafc",
-              borderBottom: "1px solid #e2e8f0",
+              padding: "8px 14px", background: "#f8f9fa",
+              borderBottom: "1px solid #e5e7eb",
               fontSize: 11, fontWeight: 700,
-              letterSpacing: "0.07em", textTransform: "uppercase", color: "#94a3b8",
+              letterSpacing: "0.06em", textTransform: "uppercase", color: "#9ca3af",
             }}>
               Grade Reference
             </div>
@@ -1444,25 +1395,24 @@ function ScoreBreakdownModal({ result, onClose }) {
                   : `${band.min}–${GRADE_BANDS[i - 1].min}%`;
                 return (
                   <div key={band.grade} style={{
-                    padding: "10px 6px", textAlign: "center",
+                    padding: "8px 4px", textAlign: "center",
                     background: isCurrentGrade ? band.bg : "#fff",
-                    borderRight: i < GRADE_BANDS.length - 1 ? "1px solid #f1f5f9" : "none",
-                    transition: "background 0.2s ease",
+                    borderRight: i < GRADE_BANDS.length - 1 ? "1px solid #f3f4f6" : "none",
                   }}>
                     <div style={{
-                      fontSize: 16, fontWeight: 900,
+                      fontSize: 15, fontWeight: 900,
                       color: isCurrentGrade ? band.color : "#9ca3af",
                     }}>
                       {band.grade}
                     </div>
                     <div style={{
-                      fontSize: 9.5, fontWeight: 600, marginTop: 3,
+                      fontSize: 9, fontWeight: 600, marginTop: 2,
                       color: isCurrentGrade ? band.color : "#c4c9d4",
                     }}>
                       {rangeLabel}
                     </div>
                     <div style={{
-                      fontSize: 9, fontWeight: 600, marginTop: 2,
+                      fontSize: 9, fontWeight: 600, marginTop: 1,
                       color: isCurrentGrade ? band.color : "#c4c9d4",
                     }}>
                       {gradeStatus}
@@ -1475,13 +1425,12 @@ function ScoreBreakdownModal({ result, onClose }) {
 
           {/* ── AI Disclaimer ────────────────────────────────────────────── */}
           <div style={{
-            padding: "12px 16px", borderRadius: 12,
+            padding: "10px 14px", borderRadius: 8,
             background: "#fffbeb", border: "1.5px solid #fde68a",
-            display: "flex", gap: 12, alignItems: "flex-start",
-            boxShadow: "0 1px 4px rgba(15,23,42,0.04)",
+            display: "flex", gap: 10, alignItems: "flex-start",
           }}>
-            <span style={{ fontSize: 16, flexShrink: 0, marginTop: 1 }}>⚠️</span>
-            <p style={{ margin: 0, fontSize: 11.5, color: "#92400e", lineHeight: 1.7, textAlign: "left" }}>
+            <span style={{ fontSize: 16, flexShrink: 0 }}>⚠️</span>
+            <p style={{ margin: 0, fontSize: 11, color: "#92400e", lineHeight: 1.6, textAlign: "left" }}>
               <strong>AI-generated assessment.</strong> This quality check is produced by a large
               language model and may contain errors or omissions. Scores are indicative, not
               definitive. Always have a qualified compliance officer or document owner review
@@ -1493,38 +1442,23 @@ function ScoreBreakdownModal({ result, onClose }) {
 
         {/* ── Footer ─────────────────────────────────────────────────────── */}
         <div style={{
-          padding: "16px 28px 20px",
-          borderTop: "1px solid #f1f5f9",
+          padding: "14px 24px 18px",
+          borderTop: "1px solid #f0f0f0",
           textAlign: "right",
-          background: "#fafbff",
         }}>
-          <button
-            onClick={onClose}
-            style={{
-              padding: "9px 28px", borderRadius: 10,
-              border: "1.5px solid #e2e8f0",
-              background: "#fff",
-              color: "#374151", fontWeight: 700, fontSize: 13,
-              cursor: "pointer",
-              boxShadow: "0 1px 4px rgba(15,23,42,0.08)",
-              transition: "all 0.15s ease",
-            }}
-            onMouseEnter={(e) => {
-              e.target.style.background = "#f8fafc";
-              e.target.style.borderColor = "#cbd5e1";
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.background = "#fff";
-              e.target.style.borderColor = "#e2e8f0";
-            }}
-          >
+          <button onClick={onClose} style={{
+            padding: "8px 22px", borderRadius: 8,
+            border: "1.5px solid #e5e7eb", background: "#fff",
+            color: "#374151", fontWeight: 700, fontSize: 13, cursor: "pointer",
+          }}>
             Close
           </button>
         </div>
       </div>
-    </div>,
-    document.body
+    </div>
   );
+
+  return typeof document !== "undefined" ? createPortal(modalContent, document.body) : modalContent;
 }
 
 // ── Section wrapper ───────────────────────────────────────────────────────────
@@ -1548,8 +1482,9 @@ export function ApproveGateModal({ docId, checker, onClose }) {
   const result = checker.getResult(docId);
   const grade  = result ? getGrade(result.overallScore) : null;
 
-  return (
+  const modalContent = (
     <div
+      className="approve-gate-modal"
       onClick={onClose}
       style={{
         position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)",
@@ -1610,4 +1545,6 @@ export function ApproveGateModal({ docId, checker, onClose }) {
       </div>
     </div>
   );
+
+  return typeof document !== "undefined" ? createPortal(modalContent, document.body) : modalContent;
 }
