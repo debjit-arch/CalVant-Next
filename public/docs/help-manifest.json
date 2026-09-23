@@ -64,6 +64,7 @@
       "color": "#0ea5e9",
       "icon": "FileSearch"
     }
+<<<<<<< HEAD
   ],
   "infosecModules": [
     {
@@ -114,5 +115,7 @@
       "color": "#6366f1",
       "icon": "ListChecks"
     }
+=======
+>>>>>>> ce4fdd6d2efd339fade154a7e9b5f7b7e81e0cb8
   ]
 }

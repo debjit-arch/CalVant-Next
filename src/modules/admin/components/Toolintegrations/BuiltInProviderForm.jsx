@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 // // C:\Users\user\Downloads\11-8-(A)cf_next-preprod\cf_next-preprod\cf-tool-frontend-main\src\modules\admin\components\Toolintegrations\BuiltInProviderForm.jsx
 // import { useState } from "react";
 // import {
@@ -1366,6 +1367,8 @@
 // }
 
 
+=======
+>>>>>>> ce4fdd6d2efd339fade154a7e9b5f7b7e81e0cb8
 // C:\Users\user\Downloads\11-8-(A)cf_next-preprod\cf_next-preprod\cf-tool-frontend-main\src\modules\admin\components\Toolintegrations\BuiltInProviderForm.jsx
 import { useState } from "react";
 import {
@@ -2359,6 +2362,7 @@ const PROVIDERS = {
       { key: "apiSecret", label: "API Secret", secret: true },
     ],
   },
+<<<<<<< HEAD
 
   // ── New: Trend Micro Vision One (Endpoint Protection) ───────────────────
   trendmicro: {
@@ -2410,6 +2414,8 @@ const PROVIDERS = {
       { key: "secret", label: "Secret", secret: true },
     ],
   },
+=======
+>>>>>>> ce4fdd6d2efd339fade154a7e9b5f7b7e81e0cb8
   jfrogxray: {
     label: "JFrog Xray",
     accent: "#41BF4B",
@@ -2517,6 +2523,7 @@ const PROVIDERS = {
       { key: "password", label: "Password", secret: true },
     ],
   },
+<<<<<<< HEAD
   sonicwall: {
     label: "SonicWall",
     accent: "#FF6600",
@@ -2641,6 +2648,8 @@ const PROVIDERS = {
       { key: "apiKey", label: "API Key", secret: true },
     ],
   },
+=======
+>>>>>>> ce4fdd6d2efd339fade154a7e9b5f7b7e81e0cb8
 };
 
 export default function BuiltInProviderForm({
@@ -2906,4 +2915,8 @@ export default function BuiltInProviderForm({
       </Box>
     </Box>
   );
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> ce4fdd6d2efd339fade154a7e9b5f7b7e81e0cb8
