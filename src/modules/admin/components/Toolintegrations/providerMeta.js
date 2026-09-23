@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 // import CloudQueueIcon from '@mui/icons-material/CloudQueue';
 // import WorkspacesIcon from '@mui/icons-material/Workspaces';
 // import WindowIcon from '@mui/icons-material/Window';
@@ -707,8 +706,6 @@
 // };
 
 
-=======
->>>>>>> ce4fdd6d2efd339fade154a7e9b5f7b7e81e0cb8
 import CloudQueueIcon from '@mui/icons-material/CloudQueue';
 import WorkspacesIcon from '@mui/icons-material/Workspaces';
 import WindowIcon from '@mui/icons-material/Window';
@@ -1409,7 +1406,6 @@ export const BUILT_IN_PROVIDERS = [
     Icon: ArticleIcon,
     logoUrl: '/logos/github.svg',
     description: 'Source code management and CI/CD',
-<<<<<<< HEAD
   },
   {
     key: 'sonicwall',
@@ -1525,15 +1521,9 @@ export const BUILT_IN_PROVIDERS = [
     Icon: LockIcon,
     logoUrl: '/logos/keeper-security.svg',
     description: 'Password & Secrets Management — vault record coverage and shared-secret access auditing.',
-=======
->>>>>>> ce4fdd6d2efd339fade154a7e9b5f7b7e81e0cb8
   }
 ];
 export const TYPE_COLORS = {
   CLOUD: 'primary', HRMS: 'secondary', IAM: 'warning',
   TICKETING: 'info', COMMUNICATION: 'success', CUSTOM: 'default',
-<<<<<<< HEAD
 };
-=======
-};
->>>>>>> ce4fdd6d2efd339fade154a7e9b5f7b7e81e0cb8

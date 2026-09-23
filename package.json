@@ -42,10 +42,7 @@
     "react-router-dom": "^5.3.4",
     "react-select": "^5.10.2",
     "recharts": "^2.15.4",
-<<<<<<< HEAD
     "rehype-raw": "^7.0.0",
-=======
->>>>>>> ce4fdd6d2efd339fade154a7e9b5f7b7e81e0cb8
     "remark-gfm": "^4.0.1",
     "three": "^0.182.0",
     "web-vitals": "^2.1.4"
