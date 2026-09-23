@@ -3,6 +3,10 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+<<<<<<< HEAD
+import rehypeRaw from "rehype-raw";
+=======
+>>>>>>> ce4fdd6d2efd339fade154a7e9b5f7b7e81e0cb8
 import { ArrowLeft, Home } from "lucide-react";
 import { helpMarkdownComponents } from "@/components/shared/markdownComponents";
 
@@ -26,9 +30,20 @@ const extractToc = (markdown) => {
   for (const line of lines) {
     const m2 = line.match(/^##\s+(.*)$/);
     const m3 = line.match(/^###\s+(.*)$/);
+<<<<<<< HEAD
+    const m4 = line.match(/^####\s+(.*)$/);
+    const level = m2 ? 2 : m3 ? 3 : m4 ? 4 : null;
+    if (!level) continue;
+    let text = (m2 ? m2[1] : m3 ? m3[1] : m4[1]).trim();
+
+    // Strip HTML tags so the sidebar TOC looks clean
+    text = text.replace(/<\/?[^>]+(>|$)/g, "").trim();
+
+=======
     const level = m2 ? 2 : m3 ? 3 : null;
     if (!level) continue;
     const text = (m2 ? m2[1] : m3[1]).trim();
+>>>>>>> ce4fdd6d2efd339fade154a7e9b5f7b7e81e0cb8
     let slug = slugify(text);
     if (seen[slug] != null) {
       seen[slug] += 1;
@@ -68,7 +83,16 @@ const HelpCenterArticle = ({ slug }) => {
       try {
         const manifestRes = await fetch("/docs/help-manifest.json");
         const manifest = await manifestRes.json();
+<<<<<<< HEAD
+        const allModules = [...(manifest.modules || []), ...(manifest.infosecModules || [])];
+        const mod = allModules.find((m) => m.slug === slug);
+        let type = "module";
+        if (manifest.infosecModules?.some((m) => m.slug === slug)) {
+          type = "infosec";
+        }
+=======
         const mod = (manifest.modules || []).find((m) => m.slug === slug);
+>>>>>>> ce4fdd6d2efd339fade154a7e9b5f7b7e81e0cb8
 
         if (!mod) {
           if (!cancelled) setStatus("notfound");
@@ -79,7 +103,11 @@ const HelpCenterArticle = ({ slug }) => {
         const text = await docRes.text();
 
         if (!cancelled) {
+<<<<<<< HEAD
+          setModuleInfo({ ...mod, type });
+=======
           setModuleInfo(mod);
+>>>>>>> ce4fdd6d2efd339fade154a7e9b5f7b7e81e0cb8
           setContent(text);
           setStatus("ready");
         }
@@ -113,6 +141,27 @@ const HelpCenterArticle = ({ slug }) => {
           {...props}
         />
       ),
+<<<<<<< HEAD
+      h4: ({ node, children, ...props }) => (
+        <h4
+          className={`${shouldHideHeading(children) ? "sr-only" : "text-sm font-semibold text-slate-800 mt-5 mb-2"
+            } scroll-mt-24`}
+          {...props}
+        >
+          {children}
+        </h4>
+      ),
+      h5: ({ node, children, ...props }) => (
+        <h5
+          className={`${shouldHideHeading(children) ? "sr-only" : "text-sm font-semibold text-slate-800 mt-4 mb-2"
+            } scroll-mt-24`}
+          {...props}
+        >
+          {children}
+        </h5>
+      ),
+=======
+>>>>>>> ce4fdd6d2efd339fade154a7e9b5f7b7e81e0cb8
       img: ({ node, src, ...props }) => (
         <img
           className="rounded-lg border border-slate-200 shadow-sm my-4 w-full block"
@@ -121,8 +170,88 @@ const HelpCenterArticle = ({ slug }) => {
           {...props}
         />
       ),
+<<<<<<< HEAD
+      li: ({ node, children, className, ...props }) => {
+        let text = "";
+        const extractText = (child) => {
+          if (typeof child === "string") return child;
+          if (child && child.props && child.props.children) {
+            if (Array.isArray(child.props.children)) {
+              return child.props.children.map(extractText).join("");
+            }
+            return extractText(child.props.children);
+          }
+          return "";
+        };
+
+        if (Array.isArray(children)) {
+          text = children.map(extractText).join("");
+        } else {
+          text = extractText(children);
+        }
+
+        const isAlphaList = /^[a-zA-Z]\./.test(text.trim());
+
+        return (
+          <li
+            className={`text-sm text-slate-700 ${isAlphaList ? "list-none" : ""} ${className || ""}`}
+            {...props}
+          >
+            {children}
+          </li>
+        );
+      },
+      a: ({ node, href, children, ...props }) => {
+        // If it's an internal link, open in a new tab
+        if (href && href.startsWith("/")) {
+          return (
+            <a
+              href={href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-600 hover:underline cursor-pointer font-medium"
+            >
+              {children}
+            </a>
+          );
+        }
+        // If it's a hash link, scroll to it smoothly
+        if (href && href.startsWith("#")) {
+          return (
+            <a
+              href={href}
+              onClick={(e) => {
+                e.preventDefault();
+                const el = document.getElementById(href.substring(1));
+                if (el) {
+                  el.scrollIntoView({ behavior: "smooth", block: "start" });
+                }
+              }}
+              className="text-blue-600 hover:underline font-medium"
+            >
+              {children}
+            </a>
+          );
+        }
+        // External link
+        return (
+          <a
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-600 hover:underline font-medium"
+            {...props}
+          >
+            {children}
+          </a>
+        );
+      },
+    }),
+    [router]
+=======
     }),
     []
+>>>>>>> ce4fdd6d2efd339fade154a7e9b5f7b7e81e0cb8
   );
 
   // After the markdown has actually painted, walk the H2/H3 nodes in
@@ -130,15 +259,35 @@ const HelpCenterArticle = ({ slug }) => {
   // using — guarantees TOC clicks always find a matching element.
   useEffect(() => {
     if (status !== "ready" || !articleRef.current) return;
+<<<<<<< HEAD
+    const headings = articleRef.current.querySelectorAll("h2, h3, h4, h5");
+=======
     const headings = articleRef.current.querySelectorAll("h2, h3");
+>>>>>>> ce4fdd6d2efd339fade154a7e9b5f7b7e81e0cb8
     headings.forEach((el, i) => {
       if (toc[i]) el.id = toc[i].slug;
     });
   }, [toc, status]);
 
+<<<<<<< HEAD
+  const handleTocClick = (slug) => {
+    const el = document.getElementById(slug);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  };
+
+  // Helper to determine if a heading should be hidden from the UI but kept in the TOC.
+  // Matches patterns like "1A. ", "2B. ", "1A.1. "
+  const shouldHideHeading = (children) => {
+    if (!children) return false;
+    const text = Array.isArray(children) ? children.join("") : String(children);
+    return /^\d+[a-zA-Z](\.\d+)?\.\s/.test(text);
+=======
   const handleTocClick = (targetSlug) => {
     const el = document.getElementById(targetSlug);
     if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+>>>>>>> ce4fdd6d2efd339fade154a7e9b5f7b7e81e0cb8
   };
 
   if (status === "loading") {
@@ -170,11 +319,25 @@ const HelpCenterArticle = ({ slug }) => {
       <div className="bg-white border-b border-slate-100 px-6 py-4">
         <div className="max-w-6xl mx-auto flex items-center gap-2 text-sm text-slate-500">
           <button
+<<<<<<< HEAD
+            onClick={() =>
+              router.push(
+                moduleInfo?.type === "infosec"
+                  ? "/help-center?view=infosec_modules"
+                  : "/help-center?view=modules"
+              )
+            }
+            className="flex items-center gap-1.5 hover:text-blue-600 transition-colors font-medium"
+          >
+            <Home size={14} />
+            {moduleInfo?.type === "infosec" ? "Frameworks" : "Help Center"}
+=======
             onClick={() => router.push("/help-center")}
             className="flex items-center gap-1.5 hover:text-blue-600 transition-colors font-medium"
           >
             <Home size={14} />
             Help Center
+>>>>>>> ce4fdd6d2efd339fade154a7e9b5f7b7e81e0cb8
           </button>
           <span>/</span>
           <span className="text-slate-800 font-medium">{moduleInfo?.title}</span>
@@ -184,11 +347,25 @@ const HelpCenterArticle = ({ slug }) => {
       <div className="max-w-6xl mx-auto px-6 py-8 flex flex-col lg:flex-row gap-10">
         <aside className="lg:w-64 flex-shrink-0">
           <button
+<<<<<<< HEAD
+            onClick={() =>
+              router.push(
+                moduleInfo?.type === "infosec"
+                  ? "/help-center?view=infosec_modules"
+                  : "/help-center?view=modules"
+              )
+            }
+            className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-blue-600 mb-4"
+          >
+            <ArrowLeft size={13} />
+            {moduleInfo?.type === "infosec" ? "All Steps" : "All Modules"}
+=======
             onClick={() => router.push("/help-center")}
             className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-blue-600 mb-4"
           >
             <ArrowLeft size={13} />
             All modules
+>>>>>>> ce4fdd6d2efd339fade154a7e9b5f7b7e81e0cb8
           </button>
 
           <div className="lg:sticky lg:top-8">
@@ -200,9 +377,14 @@ const HelpCenterArticle = ({ slug }) => {
                 <button
                   key={item.slug}
                   onClick={() => handleTocClick(item.slug)}
+<<<<<<< HEAD
+                  className={`block w-full text-left text-xs py-1.5 border-l-2 -ml-px transition-colors ${item.level === 5 ? "pl-12" : item.level === 4 ? "pl-10" : item.level === 3 ? "pl-7" : "pl-4"
+                    } border-transparent hover:border-blue-400 text-slate-500 hover:text-blue-600`}
+=======
                   className={`block w-full text-left text-xs py-1.5 border-l-2 -ml-px transition-colors ${
                     item.level === 3 ? "pl-7" : "pl-4"
                   } border-transparent hover:border-blue-400 text-slate-500 hover:text-blue-600`}
+>>>>>>> ce4fdd6d2efd339fade154a7e9b5f7b7e81e0cb8
                 >
                   {item.text}
                 </button>
@@ -215,7 +397,15 @@ const HelpCenterArticle = ({ slug }) => {
           ref={articleRef}
           className="flex-1 min-w-0 bg-white rounded-2xl border border-slate-100 shadow-sm px-6 sm:px-10 py-8"
         >
+<<<<<<< HEAD
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            rehypePlugins={[rehypeRaw]}
+            components={components}
+          >
+=======
           <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
+>>>>>>> ce4fdd6d2efd339fade154a7e9b5f7b7e81e0cb8
             {content}
           </ReactMarkdown>
         </article>

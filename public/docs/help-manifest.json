@@ -64,5 +64,58 @@
       "color": "#0ea5e9",
       "icon": "FileSearch"
     }
+<<<<<<< HEAD
+  ],
+  "infosecModules": [
+    {
+      "slug": "planning-and-context-setting",
+      "title": "Planning and context setting",
+      "description": "Establish the scope and context of your information security framework.",
+      "file": null,
+      "color": "#3b82f6",
+      "icon": "Layers"
+    },
+    {
+      "slug": "gap-assessment",
+      "title": "Gap Assessment",
+      "description": "Conduct a complete gap assessment of your organization against ISO/IEC 27001:2022.",
+      "file": "/docs/infosec/gap-assessment.md",
+      "color": "#8b5cf6",
+      "icon": "FileSearch"
+    },
+    {
+      "slug": "risk-assessment",
+      "title": "Risk assessment and risk treatment",
+      "description": "Determine your organization's risk profile and document treatment plans.",
+      "file": "/docs/infosec/risk-assessment.md",
+      "color": "#ef4444",
+      "icon": "ShieldAlert"
+    },
+    {
+      "slug": "design-documentation",
+      "title": "Design and documentation",
+      "description": "Review and customize template policies mapped to controls.",
+      "file": "/docs/infosec/design-documentation.md",
+      "color": "#10b981",
+      "icon": "FileText"
+    },
+    {
+      "slug": "implementation",
+      "title": "Implementation",
+      "description": "Upload and verify practice evidence for your selected controls.",
+      "file": "/docs/infosec/implementation.md",
+      "color": "#f59e0b",
+      "icon": "ClipboardCheck"
+    },
+    {
+      "slug": "internal-audit",
+      "title": "Internal Audit",
+      "description": "Run and score full internal audits based on practice evidence.",
+      "file": "/docs/infosec/internal-audit.md",
+      "color": "#6366f1",
+      "icon": "ListChecks"
+    }
+=======
+>>>>>>> ce4fdd6d2efd339fade154a7e9b5f7b7e81e0cb8
   ]
 }
