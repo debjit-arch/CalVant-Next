@@ -1,0 +1,230 @@
+/* plan/styles/PlanStyles.css
+   Extracted verbatim from the `multiStepStyles` template string in Plan.js.
+   Import this file directly (e.g. `import "../../styles/PlanStyles.css";`)
+   wherever the original code injected the styles via <style>{multiStepStyles}</style>.
+*/
+
+.msf-wrapper {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 16px 16px 80px 16px;
+  min-height: 70vh;
+  box-sizing: border-box;
+}
+
+.msf-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  align-items: stretch;
+}
+
+.msf-stepper {
+  position: relative;
+  top: 0;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: flex-start;
+  background: transparent;
+  padding: 10px 0 24px 0;
+  z-index: 1;
+  margin-bottom: 0px;
+}
+
+.msf-stepper-line-bg {
+  position: absolute;
+  top: 24.5px;
+  left: 8.33%;
+  right: 8.33%;
+  height: 3px;
+  background: #e2e8f0;
+  z-index: 0;
+  border-radius: 2px;
+}
+
+.msf-stepper-line-active {
+  position: absolute;
+  top: 24.5px;
+  left: 8.33%;
+  height: 3px;
+  background: #3b82f6;
+  z-index: 0;
+  border-radius: 2px;
+  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.msf-step {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  background: transparent;
+  width: 16.66%;
+}
+
+.msf-step-circle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 14px;
+  transition: all 0.4s ease;
+  background: #ffffff;
+  border: 2px solid #e2e8f0;
+  color: #94a3b8;
+}
+
+.msf-step-circle.active {
+  border-color: #3b82f6;
+  color: #3b82f6;
+  transform: scale(1.1);
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+}
+
+.msf-step-circle.completed {
+  background: #3b82f6;
+  border-color: #3b82f6;
+  color: #ffffff;
+}
+
+.msf-step-label {
+  margin-left: 0;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  color: #64748b;
+  transition: color 0.3s ease;
+}
+
+.msf-step-label.active {
+  color: #0f172a;
+}
+
+.msf-main {
+  margin-bottom: 20px;
+}
+
+.msf-nav {
+  position: fixed;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 10px;
+  z-index: 100;
+  background: transparent;
+}
+
+.msf-btn {
+  padding: 10px 20px;
+  border-radius: 30px;
+  font-size: 14px;
+  font-weight: 600;
+  min-width: 110px;
+  border: none;
+  cursor: pointer;
+}
+
+.msf-btn--prev {
+  background-color: #ffffff;
+  color: #7f8c8d;
+  border: 1px solid #ecf0f1;
+}
+
+.msf-btn--save {
+  background: linear-gradient(45deg,#6c5ce7,#0984e3);
+  color: #ffffff;
+}
+
+.msf-btn--next {
+  background-color: #3498db;
+  color: #ffffff;
+}
+
+.msf-btn--submit {
+  background: linear-gradient(45deg,#27ae60,#2ecc71);
+  color: #ffffff;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: #334155;
+}
+.form-control {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 14px;
+}
+.form-control:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59,130,246,0.1);
+}
+.scope-block {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 24px;
+}
+.scope-header {
+  font-size: 16px;
+  font-weight: 600;
+  color: #0f172a;
+  margin-bottom: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.add-dept-btn {
+  background: none;
+  border: 1px dashed #3b82f6;
+  color: #3b82f6;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  font-weight: 600;
+}
+.add-dept-btn:hover {
+  background: #eff6ff;
+}
+
+/* Tree view animations (Step 2 / org-structuring tree mode) */
+@keyframes treeNodeFadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes drawLine {
+  from { height: 0; opacity: 0; }
+  to { height: 30px; opacity: 1; }
+}
+.tree-node {
+  animation: treeNodeFadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  opacity: 0;
+}
+.tree-line {
+  animation: drawLine 0.6s ease forwards;
+  opacity: 0;
+}
+.tree-dept-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 20px -8px rgba(0,0,0,0.15) !important;
+}

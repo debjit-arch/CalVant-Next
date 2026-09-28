@@ -8,6 +8,17 @@ export function resolveTaskSource(task) {
     return { label: "DPIA", kind: "direct", route: `/dpia/${encodeURIComponent(id)}` };
   }
 
+  // Plan -> queryParam route to plan review view
+  if (task.planId || task.source === "Plan") {
+    const id = task.planId || task.sourceId; // Fallback to sourceId if planId not set
+    if (!id) return null; // Can't route without an ID
+    return {
+      label: "Plan",
+      kind: "queryParam",
+      route: `/plan?view=review&taskId=${encodeURIComponent(task.taskId)}`,
+    };
+  }
+
   // AIIA — direct link, confirmed via MyAssignments.js handleCardClick
   if (task.aiiaId || task.source === "AIIA") {
     const id = task.aiiaId;
