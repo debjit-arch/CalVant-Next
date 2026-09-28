@@ -6,6 +6,7 @@ import { useEffectiveOrg } from "@/hooks/useEffectiveOrg";
 import ReactDOM from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
 import { resolveTaskSource } from "../utils/taskSourceResolver";
+import PlanReviewView from "../../plan/components/PlanReviewView";
 import {
   ClipboardList,
   Zap,
@@ -109,6 +110,7 @@ function getSourceModule(task) {
       Compliance: { label: "Compliance", bg: "#f0fdf4", color: "#166534" },
       Reports: { label: "Reports", bg: "#f0f9ff", color: "#0369a1" },
       Vendor: { label: "Vendor", bg: "#fdf2f8", color: "#be185d" },
+      "Plan Review": { label: "Plan", bg: "#eef2ff", color: "#4338ca" },
     };
     if (MODULE_SOURCE_MAP[task.subType]) return MODULE_SOURCE_MAP[task.subType];
   }
@@ -121,6 +123,7 @@ function getSourceModule(task) {
 
   // Legacy fallback — for tasks created before Type/SubType existed, or
   // auto-created directly by Risk/Audit/DPIA/Policy/Compliance modules.
+  if (task.source === "Plan") return { label: "Plan", bg: "#eef2ff", color: "#4338ca" };
   if (task.source === "Policy") return { label: "Policy", bg: "#fdf4ff", color: "#7e22ce" };
   if (task.source === "Compliance" || task.controlId) return { label: "Compliance", bg: "#f0fdf4", color: "#166534" };
   if (task.riskId) return { label: "Risk", bg: "#e7f5ff", color: "#1971c2" };
@@ -136,7 +139,7 @@ const priorityOptions = Object.values(PRIORITY);
 // are both mandatory on the create/edit form now.
 const TASK_TYPES = ["Module Based", "Framework Based", "General"];
 // Module Based sub types — Reports and Vendor added alongside the originals.
-const MODULE_SUBTYPES = ["Risk", "Audit", "Policies", "DPIA", "AIIA", "Compliance", "Reports", "Vendor"];
+const MODULE_SUBTYPES = ["Risk", "Audit", "Policies", "DPIA", "AIIA", "Compliance", "Reports", "Vendor", "Plan"];
 // General type only ever has one sub type value.
 const GENERAL_SUBTYPES = ["General"];
 // Framework Based sub types — client-subscribed framework codes only
@@ -895,14 +898,14 @@ export default function TaskManagement({ riskFormData = {}, auditFormData = {} }
       } else {
         await taskService.saveTask(payload, currentUserName);
         await fetchTasks();
-          captureActivity({ action: ACTIONS.CREATED, module: MODULES.TASK, item: fd.description });
-        }
-        if (editingTaskId || !isCreateMode) {
-          setIsModalOpen(false);
-          setEditingTaskId(null);
-        } else {
-          setTaskSuccessData(payload);
-        }
+        captureActivity({ action: ACTIONS.CREATED, module: MODULES.TASK, item: fd.description });
+      }
+      if (editingTaskId || !isCreateMode) {
+        setIsModalOpen(false);
+        setEditingTaskId(null);
+      } else {
+        setTaskSuccessData(payload);
+      }
     } catch { alert(`Failed to ${editingTaskId ? "update" : "add"} task.`); }
     finally { setIsSaving(false); }
   };
@@ -1221,7 +1224,7 @@ export default function TaskManagement({ riskFormData = {}, auditFormData = {} }
             {/* <span style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.06em", whiteSpace: "nowrap", flexShrink: 0 }}>
               Status
             </span> */}
-            
+
             {/* Assignee — CHANGED: value now keyed by user id, fixes selected-name bug */}
             <span style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.06em", whiteSpace: "nowrap", flexShrink: 0 }}>
               Assignee
@@ -1395,7 +1398,8 @@ export default function TaskManagement({ riskFormData = {}, auditFormData = {} }
                         const serialNo = (currentPage - 1) * TASKS_PER_PAGE + displayIndex + 1;
                         const isOverdue = isOverdueTask(task);
                         const source = getSourceModule(task);
-                        const sourceId = task.riskId
+                        const sourceId = task.planId || task.sourceId
+                          || task.riskId
                           || (task.auditId ? (audits.find((a) => a.id === task.auditId)?.auditId || task.auditId) : null)
                           || task.dpiaRefId || task.dpiaId
                           || task.aiiaRefId || task.aiiaId
@@ -1749,17 +1753,31 @@ export default function TaskManagement({ riskFormData = {}, auditFormData = {} }
         </footer>
       </div>
 
-      {/* ── Task Detail Panel (LOGIC UNCHANGED) ── */}
+
+      {/* ── Task Detail Panel or Plan Review View ── */}
       {selectedTask && (
-        <TaskDetailPanel
-          task={selectedTask}
-          onClose={() => setSelectedTask(null)}
-          onUpdate={handleTaskUpdate}
-          users={users}
-          departments={departments}
-          currentUser={user}
-        />
+        selectedTask.source === "Plan" ? (
+          <div style={{ position: "fixed", inset: 0, zIndex: 50, background: "rgba(15,23,42,0.6)", backdropFilter: "blur(4px)", overflowY: "auto", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "16px" }}>
+            <div style={{ width: "100%", maxWidth: 1024, margin: "24px 0", position: "relative" }}>
+              <PlanReviewView
+                taskId={selectedTask.taskId}
+                isReporterView={user && (selectedTask.reporterId === user._id || selectedTask.reporterId === user.id || selectedTask.reporter === user.name)}
+                onClose={() => setSelectedTask(null)}
+              />
+            </div>
+          </div>
+        ) : (
+          <TaskDetailPanel
+            task={selectedTask}
+            onClose={() => setSelectedTask(null)}
+            onUpdate={handleTaskUpdate}
+            users={users}
+            departments={departments}
+            currentUser={user}
+          />
+        )
       )}
+
 
       {/* ── Status Change Modal ── */}
       {statusModal && (
@@ -1799,7 +1817,7 @@ export default function TaskManagement({ riskFormData = {}, auditFormData = {} }
                 <p style={{ color: "#475569", fontSize: 14, marginBottom: 24, lineHeight: 1.5 }}>
                   Your task <strong>{taskSuccessData.description}</strong> has been successfully assigned to <strong>{taskSuccessData.employeeName}</strong>.
                 </p>
-                
+
                 <div style={{ background: "#f8fafc", borderRadius: 12, padding: "16px 20px", textAlign: "left", marginBottom: 24, border: "1px solid #e2e8f0" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
                     <span style={{ fontSize: 12, color: "#64748b", fontWeight: 600 }}>DEPARTMENT</span>
@@ -1844,269 +1862,269 @@ export default function TaskManagement({ riskFormData = {}, auditFormData = {} }
               </div>
             ) : (
               <>
-              {/* Modal header */}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, paddingBottom: 10, borderBottom: "1px solid #f1f5f9" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <div style={{ width: 36, height: 36, borderRadius: 10, background: "linear-gradient(135deg, #6366f1, #4f46e5)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 4px 12px rgba(99,102,241,0.3)" }}>
-                  <ClipboardCheck size={18} color="white" strokeWidth={2.5} />
-                </div>
-                <div>
-                  <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#1e293b", letterSpacing: "-0.01em" }}>
-                    {editingTaskId ? "Edit Task" : "Create Task"}
-                    {contextScopeId && (
-                      <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 700, padding: "2px 9px", borderRadius: 10, background: scopedAuditId ? "#fff9db" : "#e7f5ff", color: scopedAuditId ? "#e67700" : "#1971c2" }}>
-                        {contextLabel}: {contextScopeId}
-                      </span>
-                    )}
-                  </h3>
-                  <p style={{ margin: "4px 0 0", fontSize: 13, color: "#64748b", fontWeight: 500 }}>
-                    Fill in the task details below
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => { if (isCreateMode) { router.push("/task-management"); } else { setIsModalOpen(false); setEditingTaskId(null); } }}
-                  style={{
-                    border: "1.5px solid #e2e8f0", background: "white", borderRadius: 8,
-                    width: 34, height: 34, cursor: "pointer", fontSize: 16, color: "#64748b",
-                    display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s",
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = "#fef2f2"; e.currentTarget.style.color = "#dc2626"; e.currentTarget.style.borderColor = "#fca5a5"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = "white"; e.currentTarget.style.color = "#64748b"; e.currentTarget.style.borderColor = "#e2e8f0"; }}
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* Modal body */}
-            <div style={{ display: "grid", gap: 10 }}>
-              <div>
-                <label style={labelStyle}>Department *</label>
-                <div style={{ position: "relative" }}>
-                  <select
-                    value={formData.department}
-                    onChange={(e) => setForm((prev) => ({ ...prev, department: e.target.value, employee: "", employeeName: "", employeeId: "" }))}
-                    style={selectStyle}
-                    disabled={!!editingTaskId}
-                  >
-                    <option value="">Select department</option>
-                    {departments.map((d) => <option key={d.name} value={d.name}>{d.name}</option>)}
-                  </select>
-                  <ChevronDown size={15} color="#94a3b8" style={{ position: "absolute", right: 12, top: 12, pointerEvents: "none" }} />
-                </div>
-              </div>
-
-              {/* ── Type / Sub Type — both mandatory ── */}
-              <div>
-                <label style={labelStyle}>Type *</label>
-                <div style={{ position: "relative" }}>
-                  <select
-                    value={formData.type}
-                    onChange={(e) => setForm((prev) => ({ ...prev, type: e.target.value, subType: "" }))}
-                    style={selectStyle}
-                  >
-                    <option value="">Select type</option>
-                    {TASK_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-                  </select>
-                  <ChevronDown size={15} color="#94a3b8" style={{ position: "absolute", right: 12, top: 12, pointerEvents: "none" }} />
-                </div>
-              </div>
-                {formData.type === "Module Based" && (
-                  <div>
-                    <label style={labelStyle}>Sub Type *</label>
-                    <div style={{ position: "relative" }}>
-                      <select
-                        value={formData.subType}
-                        onChange={(e) => setForm((prev) => ({ ...prev, subType: e.target.value }))}
-                        style={selectStyle}
-                      >
-                        <option value="">Select module</option>
-                        {MODULE_SUBTYPES.map((s) => <option key={s} value={s}>{s}</option>)}
-                      </select>
-                      <ChevronDown size={15} color="#94a3b8" style={{ position: "absolute", right: 12, top: 12, pointerEvents: "none" }} />
+                {/* Modal header */}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, paddingBottom: 10, borderBottom: "1px solid #f1f5f9" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <div style={{ width: 36, height: 36, borderRadius: 10, background: "linear-gradient(135deg, #6366f1, #4f46e5)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 4px 12px rgba(99,102,241,0.3)" }}>
+                      <ClipboardCheck size={18} color="white" strokeWidth={2.5} />
+                    </div>
+                    <div>
+                      <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#1e293b", letterSpacing: "-0.01em" }}>
+                        {editingTaskId ? "Edit Task" : "Create Task"}
+                        {contextScopeId && (
+                          <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 700, padding: "2px 9px", borderRadius: 10, background: scopedAuditId ? "#fff9db" : "#e7f5ff", color: scopedAuditId ? "#e67700" : "#1971c2" }}>
+                            {contextLabel}: {contextScopeId}
+                          </span>
+                        )}
+                      </h3>
+                      <p style={{ margin: "4px 0 0", fontSize: 13, color: "#64748b", fontWeight: 500 }}>
+                        Fill in the task details below
+                      </p>
                     </div>
                   </div>
-                )}
-                {formData.type === "Framework Based" && (
-                  <div>
-                    <label style={labelStyle}>Sub Type *</label>
-                    <div style={{ position: "relative" }}>
-                      <select
-                        value={formData.subType}
-                        onChange={(e) => setForm((prev) => ({ ...prev, subType: e.target.value }))}
-                        style={selectStyle}
-                        disabled={FRAMEWORK_OPTIONS.length === 0}
-                      >
-                        <option value="">{FRAMEWORK_OPTIONS.length ? "Select framework" : "No frameworks configured yet"}</option>
-                        {FRAMEWORK_OPTIONS.map((f) => <option key={f.value || f} value={f.value || f}>{f.label || f}</option>)}
-                      </select>
-                      <ChevronDown size={15} color="#94a3b8" style={{ position: "absolute", right: 12, top: 12, pointerEvents: "none" }} />
-                    </div>
-                  </div>
-                )}
-                {formData.type === "General" && (
-                  <div>
-                    <label style={labelStyle}>Sub Type *</label>
-                    <div style={{ position: "relative" }}>
-                      <select
-                        value={formData.subType}
-                        onChange={(e) => setForm((prev) => ({ ...prev, subType: e.target.value }))}
-                        style={selectStyle}
-                      >
-                        <option value="">Select sub type</option>
-                        {GENERAL_SUBTYPES.map((s) => <option key={s} value={s}>{s}</option>)}
-                      </select>
-                      <ChevronDown size={15} color="#94a3b8" style={{ position: "absolute", right: 12, top: 12, pointerEvents: "none" }} />
-                    </div>
-                  </div>
-                )}
-              {/* Type and Subtype were in a grid before, but they are now vertically stacked for full width. */}
-              <div>
-                <label style={labelStyle}>Assign To</label>
-                <div style={{ position: "relative" }}>
-                  <select
-                    value={formData.employeeId || ""}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      const matched = users.find((u) => String(u._id || u.id) === val);
-                      const name = matched?.name || "";
-                      const next = { ...(formDataRef.current || {}), employeeId: val, employee: name, employeeName: name };
-                      formDataRef.current = next;
-                      setFormData(next);
-                    }}
-                    style={selectStyle}
-                  >
-                    <option value="">-- Auto Assign (Risk Owner) --</option>
-                    {empOptions.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-                  </select>
-                  <ChevronDown size={15} color="#94a3b8" style={{ position: "absolute", right: 12, top: 12, pointerEvents: "none" }} />
-                </div>
-                {formData.employeeName && (
-                  <div style={{ marginTop: 5, fontSize: 11, color: "#10b981", fontWeight: 600 }}>
-                    ✓ Assigned to: {formData.employeeName}
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <label style={labelStyle}>Task Description *</label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
-                  placeholder="Describe the task..."
-                  rows={3}
-                  style={{ ...inputStyle, resize: "vertical" }}
-                />
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                <div>
-                  <label style={labelStyle}>Start Date *</label>
-                  <input
-                    type="date"
-                    value={formData.startDate}
-                    onChange={(e) => {
-                      const ns = e.target.value;
-                      setForm((prev) => ({ ...prev, startDate: ns, endDate: prev.endDate && prev.endDate < ns ? "" : prev.endDate }));
-                    }}
-                    min={today}
-                    style={{ ...inputStyle, color: formData.startDate ? "#1e293b" : "#94a3b8", textTransform: formData.startDate ? "none" : "uppercase" }}
-                  />
-                </div>
-                <div>
-                  <label style={labelStyle}>End Date *</label>
-                  <input
-                    type="date"
-                    value={formData.endDate}
-                    onChange={(e) => setForm((prev) => ({ ...prev, endDate: e.target.value }))}
-                    min={formData.startDate || today}
-                    style={{ ...inputStyle, color: formData.endDate ? "#1e293b" : "#94a3b8", textTransform: formData.endDate ? "none" : "uppercase" }}
-                  />
-                </div>
-              </div>
-
-              {/* Priority */}
-              <div>
-                <label style={labelStyle}>Priority</label>
-                <div style={{ display: "flex", gap: 8 }}>
-                  {priorityOptions.map((p) => {
-                    const c = PRIORITY_CONFIG[p];
-                    const active = formData.priority === p;
-                    return (
-                      <button
-                        key={p}
-                        type="button"
-                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setForm((prev) => ({ ...prev, priority: p })); }}
-                        style={{
-                          fontSize: 12, fontWeight: 600, padding: "6px 14px",
-                          borderRadius: 20, border: "1.5px solid", cursor: "pointer", transition: "all 0.15s",
-                          background: active ? c.color : "#f8fafc",
-                          borderColor: active ? c.color : "#cbd5e1",
-                          color: active ? "#fff" : "#64748b",
-                          display: "flex", alignItems: "center", gap: 4, flex: 1, justifyItems: "center", justifyContent: "center"
-                        }}
-                      >
-                        <span style={{ fontSize: 10 }}>{c.icon}</span> {p}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {editingTaskId && (
-                <div>
-                  <label style={labelStyle}>Status</label>
-                  <div style={{ position: "relative" }}>
-                    <select
-                      value={formData.status}
-                      onChange={(e) => setForm((prev) => ({ ...prev, status: e.target.value }))}
-                      style={selectStyle}
-                    >
-                      {statusOptions.map((s) => <option key={s} value={s}>{s}</option>)}
-                    </select>
-                    <ChevronDown size={15} color="#94a3b8" style={{ position: "absolute", right: 12, top: 12, pointerEvents: "none" }} />
-                  </div>
-                </div>
-              )}
-
-              <div>
-                <label style={labelStyle}>Remarks</label>
-                <textarea
-                  value={formData.remarks}
-                  onChange={(e) => setForm((prev) => ({ ...prev, remarks: e.target.value }))}
-                  placeholder="Optional notes..."
-                  rows={2}
-                  style={{ ...inputStyle, resize: "vertical" }}
-                />
-              </div>
-
-              {/* Modal footer buttons */}
-              <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 6, paddingTop: 16, borderTop: "1px solid #f1f5f9" }}>
-                <button
-                  type="button"
-                  onClick={() => { if (isCreateMode) { router.push("/task-management"); } else { setIsModalOpen(false); setEditingTaskId(null); } }}
+                  <button
+                    onClick={() => { if (isCreateMode) { router.push("/task-management"); } else { setIsModalOpen(false); setEditingTaskId(null); } }}
                     style={{
-                      padding: "10px 22px", borderRadius: 12, border: "1.5px solid #e2e8f0",
-                      background: "white", color: "#475569", fontWeight: 700, fontSize: 13, cursor: "pointer",
-                      transition: "all 0.15s",
-                      display: "inline-block"
+                      border: "1.5px solid #e2e8f0", background: "white", borderRadius: 8,
+                      width: 34, height: 34, cursor: "pointer", fontSize: 16, color: "#64748b",
+                      display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s",
                     }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = "#f8fafc")}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = "white")}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={saveTask}
-                  disabled={isSaving}
-                  style={{ ...btnPrimary, background: isSaving ? "#94a3b8" : "linear-gradient(135deg,#3b82f6,#2563eb)" }}
-                >
-                  {isSaving ? "Saving..." : editingTaskId ? "Update Task" : "Create Task"}
-                </button>
-              </div>
-            </div>
-            </>
+                    onMouseEnter={(e) => { e.currentTarget.style.background = "#fef2f2"; e.currentTarget.style.color = "#dc2626"; e.currentTarget.style.borderColor = "#fca5a5"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = "white"; e.currentTarget.style.color = "#64748b"; e.currentTarget.style.borderColor = "#e2e8f0"; }}
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {/* Modal body */}
+                <div style={{ display: "grid", gap: 10 }}>
+                  <div>
+                    <label style={labelStyle}>Department *</label>
+                    <div style={{ position: "relative" }}>
+                      <select
+                        value={formData.department}
+                        onChange={(e) => setForm((prev) => ({ ...prev, department: e.target.value, employee: "", employeeName: "", employeeId: "" }))}
+                        style={selectStyle}
+                        disabled={!!editingTaskId}
+                      >
+                        <option value="">Select department</option>
+                        {departments.map((d) => <option key={d.name} value={d.name}>{d.name}</option>)}
+                      </select>
+                      <ChevronDown size={15} color="#94a3b8" style={{ position: "absolute", right: 12, top: 12, pointerEvents: "none" }} />
+                    </div>
+                  </div>
+
+                  {/* ── Type / Sub Type — both mandatory ── */}
+                  <div>
+                    <label style={labelStyle}>Type *</label>
+                    <div style={{ position: "relative" }}>
+                      <select
+                        value={formData.type}
+                        onChange={(e) => setForm((prev) => ({ ...prev, type: e.target.value, subType: "" }))}
+                        style={selectStyle}
+                      >
+                        <option value="">Select type</option>
+                        {TASK_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+                      </select>
+                      <ChevronDown size={15} color="#94a3b8" style={{ position: "absolute", right: 12, top: 12, pointerEvents: "none" }} />
+                    </div>
+                  </div>
+                  {formData.type === "Module Based" && (
+                    <div>
+                      <label style={labelStyle}>Sub Type *</label>
+                      <div style={{ position: "relative" }}>
+                        <select
+                          value={formData.subType}
+                          onChange={(e) => setForm((prev) => ({ ...prev, subType: e.target.value }))}
+                          style={selectStyle}
+                        >
+                          <option value="">Select module</option>
+                          {MODULE_SUBTYPES.map((s) => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                        <ChevronDown size={15} color="#94a3b8" style={{ position: "absolute", right: 12, top: 12, pointerEvents: "none" }} />
+                      </div>
+                    </div>
+                  )}
+                  {formData.type === "Framework Based" && (
+                    <div>
+                      <label style={labelStyle}>Sub Type *</label>
+                      <div style={{ position: "relative" }}>
+                        <select
+                          value={formData.subType}
+                          onChange={(e) => setForm((prev) => ({ ...prev, subType: e.target.value }))}
+                          style={selectStyle}
+                          disabled={FRAMEWORK_OPTIONS.length === 0}
+                        >
+                          <option value="">{FRAMEWORK_OPTIONS.length ? "Select framework" : "No frameworks configured yet"}</option>
+                          {FRAMEWORK_OPTIONS.map((f) => <option key={f.value || f} value={f.value || f}>{f.label || f}</option>)}
+                        </select>
+                        <ChevronDown size={15} color="#94a3b8" style={{ position: "absolute", right: 12, top: 12, pointerEvents: "none" }} />
+                      </div>
+                    </div>
+                  )}
+                  {formData.type === "General" && (
+                    <div>
+                      <label style={labelStyle}>Sub Type *</label>
+                      <div style={{ position: "relative" }}>
+                        <select
+                          value={formData.subType}
+                          onChange={(e) => setForm((prev) => ({ ...prev, subType: e.target.value }))}
+                          style={selectStyle}
+                        >
+                          <option value="">Select sub type</option>
+                          {GENERAL_SUBTYPES.map((s) => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                        <ChevronDown size={15} color="#94a3b8" style={{ position: "absolute", right: 12, top: 12, pointerEvents: "none" }} />
+                      </div>
+                    </div>
+                  )}
+                  {/* Type and Subtype were in a grid before, but they are now vertically stacked for full width. */}
+                  <div>
+                    <label style={labelStyle}>Assign To</label>
+                    <div style={{ position: "relative" }}>
+                      <select
+                        value={formData.employeeId || ""}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          const matched = users.find((u) => String(u._id || u.id) === val);
+                          const name = matched?.name || "";
+                          const next = { ...(formDataRef.current || {}), employeeId: val, employee: name, employeeName: name };
+                          formDataRef.current = next;
+                          setFormData(next);
+                        }}
+                        style={selectStyle}
+                      >
+                        <option value="">-- Auto Assign (Risk Owner) --</option>
+                        {empOptions.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                      </select>
+                      <ChevronDown size={15} color="#94a3b8" style={{ position: "absolute", right: 12, top: 12, pointerEvents: "none" }} />
+                    </div>
+                    {formData.employeeName && (
+                      <div style={{ marginTop: 5, fontSize: 11, color: "#10b981", fontWeight: 600 }}>
+                        ✓ Assigned to: {formData.employeeName}
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
+                    <label style={labelStyle}>Task Description *</label>
+                    <textarea
+                      value={formData.description}
+                      onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
+                      placeholder="Describe the task..."
+                      rows={3}
+                      style={{ ...inputStyle, resize: "vertical" }}
+                    />
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                    <div>
+                      <label style={labelStyle}>Start Date *</label>
+                      <input
+                        type="date"
+                        value={formData.startDate}
+                        onChange={(e) => {
+                          const ns = e.target.value;
+                          setForm((prev) => ({ ...prev, startDate: ns, endDate: prev.endDate && prev.endDate < ns ? "" : prev.endDate }));
+                        }}
+                        min={today}
+                        style={{ ...inputStyle, color: formData.startDate ? "#1e293b" : "#94a3b8", textTransform: formData.startDate ? "none" : "uppercase" }}
+                      />
+                    </div>
+                    <div>
+                      <label style={labelStyle}>End Date *</label>
+                      <input
+                        type="date"
+                        value={formData.endDate}
+                        onChange={(e) => setForm((prev) => ({ ...prev, endDate: e.target.value }))}
+                        min={formData.startDate || today}
+                        style={{ ...inputStyle, color: formData.endDate ? "#1e293b" : "#94a3b8", textTransform: formData.endDate ? "none" : "uppercase" }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Priority */}
+                  <div>
+                    <label style={labelStyle}>Priority</label>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      {priorityOptions.map((p) => {
+                        const c = PRIORITY_CONFIG[p];
+                        const active = formData.priority === p;
+                        return (
+                          <button
+                            key={p}
+                            type="button"
+                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); setForm((prev) => ({ ...prev, priority: p })); }}
+                            style={{
+                              fontSize: 12, fontWeight: 600, padding: "6px 14px",
+                              borderRadius: 20, border: "1.5px solid", cursor: "pointer", transition: "all 0.15s",
+                              background: active ? c.color : "#f8fafc",
+                              borderColor: active ? c.color : "#cbd5e1",
+                              color: active ? "#fff" : "#64748b",
+                              display: "flex", alignItems: "center", gap: 4, flex: 1, justifyItems: "center", justifyContent: "center"
+                            }}
+                          >
+                            <span style={{ fontSize: 10 }}>{c.icon}</span> {p}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {editingTaskId && (
+                    <div>
+                      <label style={labelStyle}>Status</label>
+                      <div style={{ position: "relative" }}>
+                        <select
+                          value={formData.status}
+                          onChange={(e) => setForm((prev) => ({ ...prev, status: e.target.value }))}
+                          style={selectStyle}
+                        >
+                          {statusOptions.map((s) => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                        <ChevronDown size={15} color="#94a3b8" style={{ position: "absolute", right: 12, top: 12, pointerEvents: "none" }} />
+                      </div>
+                    </div>
+                  )}
+
+                  <div>
+                    <label style={labelStyle}>Remarks</label>
+                    <textarea
+                      value={formData.remarks}
+                      onChange={(e) => setForm((prev) => ({ ...prev, remarks: e.target.value }))}
+                      placeholder="Optional notes..."
+                      rows={2}
+                      style={{ ...inputStyle, resize: "vertical" }}
+                    />
+                  </div>
+
+                  {/* Modal footer buttons */}
+                  <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 6, paddingTop: 16, borderTop: "1px solid #f1f5f9" }}>
+                    <button
+                      type="button"
+                      onClick={() => { if (isCreateMode) { router.push("/task-management"); } else { setIsModalOpen(false); setEditingTaskId(null); } }}
+                      style={{
+                        padding: "10px 22px", borderRadius: 12, border: "1.5px solid #e2e8f0",
+                        background: "white", color: "#475569", fontWeight: 700, fontSize: 13, cursor: "pointer",
+                        transition: "all 0.15s",
+                        display: "inline-block"
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = "#f8fafc")}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = "white")}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={saveTask}
+                      disabled={isSaving}
+                      style={{ ...btnPrimary, background: isSaving ? "#94a3b8" : "linear-gradient(135deg,#3b82f6,#2563eb)" }}
+                    >
+                      {isSaving ? "Saving..." : editingTaskId ? "Update Task" : "Create Task"}
+                    </button>
+                  </div>
+                </div>
+              </>
             )}
           </div>
         </div>
