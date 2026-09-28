@@ -1408,6 +1408,7 @@ export default function TaskManagement({ riskFormData = {}, auditFormData = {} }
                         // const isReporter = !canEdit;
                         // const inlineDisabled = isReporter || viewMode === "archived";
                         const resolvedAssigneeName = resolveEmployeeName(task.employee, users);
+                        const resolvedReporterName = resolveEmployeeName(task.reporter, users) || task.reporter;
                         const isTaskAssignee = !!task.employee && (
                           resolvedAssigneeName === currentUserName ||
                           resolvedAssigneeName === user?.name ||
@@ -1416,7 +1417,9 @@ export default function TaskManagement({ riskFormData = {}, auditFormData = {} }
                         const isTaskReporter = !!task.reporter && (
                           task.reporter === currentUserName ||
                           task.reporter === user?.name ||
-                          String(task.reporter) === String(user?._id || user?.id)
+                          String(task.reporter) === String(user?._id || user?.id) ||
+                          resolvedReporterName === currentUserName ||
+                          resolvedReporterName === user?.name
                         );
 
                         const archived = viewMode === "archived";
@@ -1542,9 +1545,9 @@ export default function TaskManagement({ riskFormData = {}, auditFormData = {} }
                             {/* Reporter */}
                             <td style={{ padding: "12px" }}>
                               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                                <Avatar name={task.reporter || currentUserName} size={22} />
-                                <span title={task.reporter || currentUserName} style={{ fontSize: 12, fontWeight: 600, color: "#475569", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 100 }}>
-                                  {task.reporter || currentUserName}
+                                <Avatar name={resolvedReporterName || currentUserName} size={22} />
+                                <span title={resolvedReporterName || currentUserName} style={{ fontSize: 12, fontWeight: 600, color: "#475569", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 100 }}>
+                                  {resolvedReporterName || currentUserName}
                                 </span>
                               </div>
                             </td>
