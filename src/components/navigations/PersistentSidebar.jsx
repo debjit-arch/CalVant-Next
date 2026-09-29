@@ -21,7 +21,7 @@ import {
   Brain,
   UserCheck2,
   Settings,
-  Package,
+  Users,
 } from "lucide-react";
 import UserProfile from "./UserProfile";
 import Maindashboard_profile from "../maindashboard_profile";
@@ -141,6 +141,12 @@ const NAV_ITEMS = [
     expandable: true,
   },
   {
+    icon: Users,
+    label: "People",
+    path: "/people",
+    expandable: false,
+  },
+  {
     icon: UserCheck2,
     label: "Vendors",
     path: "/tprm",
@@ -165,13 +171,6 @@ const NAV_ITEMS = [
     icon: Report,
     label: "Reports",
     path: "/reports",
-    expandable: false,
-    moduleKey: "",
-  },
-  {
-    icon: Package,
-    label: "Plans",
-    path: "/plan",
     expandable: false,
     moduleKey: "",
   },
@@ -480,10 +479,11 @@ const PersistentSidebar = () => {
                       <div
                         className={`
                         grid transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]
-                        ${isModuleExpanded && isExpanded
+                        ${
+                          isModuleExpanded && isExpanded
                             ? "grid-rows-[1fr] opacity-100 mt-1 mb-2"
                             : "grid-rows-[0fr] opacity-0 mt-0 mb-0 pointer-events-none"
-                          }
+                        }
                       `}
                       >
                         <div className="overflow-hidden flex flex-col px-3">
@@ -501,10 +501,11 @@ const PersistentSidebar = () => {
                                   rounded-lg
                                   transition-all duration-200 ease-out
                                   flex items-center group/sub
-                                  ${isSubActive
+                                  ${
+                                    isSubActive
                                       ? "text-[#007bff] font-semibold bg-blue-50/80 shadow-sm shadow-blue-500/5 border border-blue-100/50"
                                       : "text-slate-500 hover:text-[#007bff] hover:bg-slate-50 border border-transparent"
-                                    }
+                                  }
                                 `}
                                 >
                                   <span
@@ -621,9 +622,10 @@ const SidebarNavItem = ({
       text-sm sm:text-[14px] md:text-[15px] font-medium
       transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]
       group relative overflow-hidden
-      ${active
-        ? "bg-blue-50/80 text-[#007bff] shadow-[0_2px_10px_rgba(0,123,255,0.08)] border border-blue-100/30"
-        : "text-slate-600 hover:bg-slate-50 border border-transparent hover:text-[#007bff]"
+      ${
+        active
+          ? "bg-blue-50/80 text-[#007bff] shadow-[0_2px_10px_rgba(0,123,255,0.08)] border border-blue-100/30"
+          : "text-slate-600 hover:bg-slate-50 border border-transparent hover:text-[#007bff]"
       }
     `}
   >
