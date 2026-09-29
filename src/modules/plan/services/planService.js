@@ -16,7 +16,9 @@ import objectivesData from "../data/ObjectivesData.json";
 // Setup plan-specific axios instance
 // ---------------------------------------------------------------------------
 const planApi = axios.create({
-  baseURL: `${process.env.NEXT_PUBLIC_SP}/plan-service`,
+  baseURL:
+    // `${process.env.NEXT_PUBLIC_SP}/plan-service`,
+    'http://localhost:4030/task-service/api/tasks',
 });
 
 planApi.interceptors.request.use((config) => {

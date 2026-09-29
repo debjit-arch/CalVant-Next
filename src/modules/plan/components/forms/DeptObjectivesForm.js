@@ -38,6 +38,7 @@ const DeptObjectivesForm = ({
 }) => {
   const [modalState, setModalState] = useState({ isOpen: false, department: "", objectives: [], riskOwnerId: "", riskOwnerName: "" });
   const [expandedDepts, setExpandedDepts] = useState({});
+  const [assignedDepts, setAssignedDepts] = useState(new Set());
 
   // ── NEW — approval lookup ------------------------------------------------
   const isDeptApproved = (dept) => {
@@ -149,9 +150,18 @@ const DeptObjectivesForm = ({
                 </h4>
                 {!approved && (
                   <div style={{ display: 'flex', gap: '10px' }}>
-                    <button onClick={() => openAssignModal(dept, activeObjs)} style={{ background: 'white', color: '#4f46e5', border: '1px solid #4f46e5', padding: '6px 12px', borderRadius: '6px', fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <Send size={14} /> Submit for Review
-                    </button>
+                    {assignedDepts.has(dept) ? (
+                      <button
+                        disabled
+                        style={{ background: '#dcfce7', color: '#166534', border: '1px solid #bbf7d0', padding: '6px 12px', borderRadius: '6px', fontSize: '13px', cursor: 'not-allowed', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600, opacity: 0.9 }}
+                      >
+                        <CheckCircle2 size={14} /> Task Assigned
+                      </button>
+                    ) : (
+                      <button onClick={() => openAssignModal(dept, activeObjs)} style={{ background: 'white', color: '#4f46e5', border: '1px solid #4f46e5', padding: '6px 12px', borderRadius: '6px', fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <Send size={14} /> Submit for Review
+                      </button>
+                    )}
                     <button onClick={() => handleAddDeptObjective(dept, "generic-org-id")} style={{ background: '#4f46e5', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '6px', fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <Plus size={14} /> Add Custom Dept Objective
                     </button>
@@ -164,10 +174,10 @@ const DeptObjectivesForm = ({
                 )}
               </div>
 
-              <div style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: '8px', background: 'white' }}>
+              <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: '480px', border: '1px solid #e2e8f0', borderRadius: '8px', background: 'white' }}>
                 <table style={{ width: '100%', minWidth: '900px', borderCollapse: 'collapse', fontSize: '13px' }}>
                   <thead>
-                    <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                    <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', position: 'sticky', top: 0, zIndex: 2 }}>
                       <th style={{ padding: '12px', textAlign: 'center', color: '#475569', fontWeight: 600, width: '5%' }}>Sl. No.</th>
                       <th style={{ padding: '12px', textAlign: 'left', color: '#475569', fontWeight: 600, width: '20%' }}>Organization Objective</th>
                       <th style={{ padding: '12px', textAlign: 'left', color: '#475569', fontWeight: 600, width: '25%' }}>Department Objective</th>
@@ -341,6 +351,7 @@ const DeptObjectivesForm = ({
         reporterName={reporterName}
         reporterId={reporterId}
         onSuccess={() => {
+          setAssignedDepts(prev => new Set([...prev, modalState.department]));
           alert("Task assigned successfully!");
           closeAssignModal();
         }}
