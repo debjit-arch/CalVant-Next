@@ -147,6 +147,13 @@ const NAV_ITEMS = [
     expandable: false,
   },
   {
+    icon: Package,
+    label: "Plan",
+    path: "/plan",
+    expandable: false,
+    moduleKey: "",
+  },
+  {
     icon: UserCheck2,
     label: "Vendors",
     path: "/tprm",
