@@ -161,7 +161,7 @@
 
 const API_URL =
   `${process.env.NEXT_PUBLIC_SP}/task-service/api/tasks`;
-// 'http://localhost:4030/task-service/api/tasks';
+
 
 class TaskService {
   constructor() {
