@@ -7,35 +7,35 @@ import { ChevronDown } from "lucide-react";
 
 // ─── Configs ──────────────────────────────────────────────────
 const STATUS_CONFIG = {
-  "To-Do":       { bg: "#f1f3f5", color: "#495057", dot: "#868e96" },
+  "To-Do": { bg: "#f1f3f5", color: "#495057", dot: "#868e96" },
   "In Progress": { bg: "#e7f5ff", color: "#1971c2", dot: "#339af0" },
-  "Done":        { bg: "#ebfbee", color: "#2f9e44", dot: "#40c057" },
-  "On Hold":     { bg: "#fff5f5", color: "#c92a2a", dot: "#fa5252" },
+  "Done": { bg: "#ebfbee", color: "#2f9e44", dot: "#40c057" },
+  "On Hold": { bg: "#fff5f5", color: "#c92a2a", dot: "#fa5252" },
 };
 
 const CHANGE_TYPE_CONFIG = {
-  CREATED:          { icon: "✦", color: "#7950f2", label: "Task Created" },
-  STATUS:           { icon: "◎", color: "#1971c2", label: "Status Changed" },
-  ASSIGNEE:         { icon: "◈", color: "#0ca678", label: "Assignee Changed" },
-  REMARKS:          { icon: "◇", color: "#f59f00", label: "Remarks Updated" },
-  START_DATE:       { icon: "◷", color: "#e8590c", label: "Start Date Changed" },
-  END_DATE:         { icon: "◷", color: "#e8590c", label: "End Date Changed" },
-  DELETED:          { icon: "✕", color: "#c92a2a", label: "Task Deleted" },
-  SUBTASK_CREATED:  { icon: "⊕", color: "#7950f2", label: "Subtask Created" },
-  SUBTASK_STATUS:   { icon: "◎", color: "#1971c2", label: "Subtask Status Changed" },
+  CREATED: { icon: "✦", color: "#7950f2", label: "Task Created" },
+  STATUS: { icon: "◎", color: "#1971c2", label: "Status Changed" },
+  ASSIGNEE: { icon: "◈", color: "#0ca678", label: "Assignee Changed" },
+  REMARKS: { icon: "◇", color: "#f59f00", label: "Remarks Updated" },
+  START_DATE: { icon: "◷", color: "#e8590c", label: "Start Date Changed" },
+  END_DATE: { icon: "◷", color: "#e8590c", label: "End Date Changed" },
+  DELETED: { icon: "✕", color: "#c92a2a", label: "Task Deleted" },
+  SUBTASK_CREATED: { icon: "⊕", color: "#7950f2", label: "Subtask Created" },
+  SUBTASK_STATUS: { icon: "◎", color: "#1971c2", label: "Subtask Status Changed" },
   SUBTASK_ASSIGNEE: { icon: "◈", color: "#0ca678", label: "Subtask Assignee Changed" },
-  SUBTASK_DELETED:  { icon: "⊖", color: "#c92a2a", label: "Subtask Deleted" },
-  PRIORITY:         { icon: "⚡", color: "#f59f00", label: "Priority Changed" },
+  SUBTASK_DELETED: { icon: "⊖", color: "#c92a2a", label: "Subtask Deleted" },
+  PRIORITY: { icon: "⚡", color: "#f59f00", label: "Priority Changed" },
   SUBTASK_PRIORITY: { icon: "⚡", color: "#f59f00", label: "Subtask Priority Changed" },
-  SUBTASK_REMARKS:  { icon: "💬", color: "#f59f00", label: "Subtask Remarks Added" },
+  SUBTASK_REMARKS: { icon: "💬", color: "#f59f00", label: "Subtask Remarks Added" },
 };
 
 const STATUS_OPTIONS = ["To-Do", "In Progress", "Done", "On Hold"];
 
 const PRIORITY_CONFIG = {
-  Low:      { color: "#2f9e44", bg: "#ebfbee", icon: "▼" },
-  Medium:   { color: "#f59f00", bg: "#fff9db", icon: "■" },
-  High:     { color: "#e8590c", bg: "#fff4e6", icon: "▲" },
+  Low: { color: "#2f9e44", bg: "#ebfbee", icon: "▼" },
+  Medium: { color: "#f59f00", bg: "#fff9db", icon: "■" },
+  High: { color: "#e8590c", bg: "#fff4e6", icon: "▲" },
   Critical: { color: "#c92a2a", bg: "#fff5f5", icon: "⚑" },
 };
 
@@ -55,7 +55,7 @@ function formatDate(d) {
 function initials(name) {
   return (name || "?").split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
 }
-const AV_COLORS = ["#7950f2","#1971c2","#0ca678","#e8590c","#c2255c","#f59f00","#364fc7"];
+const AV_COLORS = ["#7950f2", "#1971c2", "#0ca678", "#e8590c", "#c2255c", "#f59f00", "#364fc7"];
 function avColor(name) { return AV_COLORS[(name || "").charCodeAt(0) % AV_COLORS.length]; }
 
 // ─── Shared components ────────────────────────────────────────
@@ -111,7 +111,7 @@ const sidebarLabel = {
 // Portal dropdown
 function StatusDropdownCell({ status, subTaskId, openStatusFor, setOpenStatusFor, onSelect, disabled }) {
   const triggerRef = React.useRef(null);
-  const portalRef  = React.useRef(null);
+  const portalRef = React.useRef(null);
   const [dropPos, setDropPos] = React.useState({ top: 0, left: 0 });
   const isOpen = openStatusFor === subTaskId;
 
@@ -165,7 +165,7 @@ function StatusDropdownCell({ status, subTaskId, openStatusFor, setOpenStatusFor
 
 function PriorityDropdownCell({ priority, taskIdOrSubTaskId, openPriorityFor, setOpenPriorityFor, onSelect, disabled }) {
   const triggerRef = React.useRef(null);
-  const portalRef  = React.useRef(null);
+  const portalRef = React.useRef(null);
   const [dropPos, setDropPos] = React.useState({ top: 0, left: 0 });
   const isOpen = openPriorityFor === taskIdOrSubTaskId;
 
@@ -201,8 +201,8 @@ function PriorityDropdownCell({ priority, taskIdOrSubTaskId, openPriorityFor, se
         cursor: disabled ? "default" : "pointer",
         transition: "background 0.15s",
       }}
-      onMouseOver={e => { if (!disabled) e.currentTarget.style.background = "#f1f5f9"; }}
-      onMouseOut={e => { if (!disabled) e.currentTarget.style.background = pc.bg; }}
+        onMouseOver={e => { if (!disabled) e.currentTarget.style.background = "#f1f5f9"; }}
+        onMouseOut={e => { if (!disabled) e.currentTarget.style.background = pc.bg; }}
       >
         {pc.icon} {priority}
         {!disabled && <span style={{ fontSize: 8, opacity: 0.6 }}>▾</span>}
@@ -235,7 +235,7 @@ function PriorityDropdownCell({ priority, taskIdOrSubTaskId, openPriorityFor, se
 // Status Change Modal
 function StatusChangeModal({ currentStatus, newStatus, onConfirm, onCancel }) {
   const [remarks, setRemarks] = React.useState("");
-  const [error, setError]     = React.useState(false);
+  const [error, setError] = React.useState(false);
   const textRef = React.useRef();
   React.useEffect(() => { setTimeout(() => textRef.current?.focus(), 80); }, []);
 
@@ -265,7 +265,7 @@ function StatusChangeModal({ currentStatus, newStatus, onConfirm, onCancel }) {
             placeholder="Explain the reason for this status change..." rows={3}
             style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: `1.5px solid ${error ? "#dc2626" : "#e2e8f0"}`, fontSize: 13, fontFamily: "inherit", resize: "vertical", boxSizing: "border-box", outline: "none", background: error ? "#fef2f2" : "#f8fafc", transition: "border-color 0.15s, background 0.15s" }}
             onFocus={e => { e.target.style.borderColor = error ? "#dc2626" : "#3b82f6"; e.target.style.background = "#fff"; }}
-            onBlur={e  => { e.target.style.borderColor = error ? "#dc2626" : "#e2e8f0"; e.target.style.background = error ? "#fef2f2" : "#f8fafc"; }}
+            onBlur={e => { e.target.style.borderColor = error ? "#dc2626" : "#e2e8f0"; e.target.style.background = error ? "#fef2f2" : "#f8fafc"; }}
             onKeyDown={e => { if (e.key === "Enter" && e.ctrlKey) handleConfirm(); if (e.key === "Escape") onCancel(); }}
           />
           {error && <div style={{ marginTop: 6, fontSize: 12, color: "#dc2626", fontWeight: 600 }}>⚠ Please enter remarks before changing the status.</div>}
@@ -365,38 +365,46 @@ export default function TaskDetailPanel({ task, onClose, onUpdate, users = [], d
     return item ? item.name : idOrName;
   };
 
-  const [activeTab, setActiveTab]     = useState("history");
-  const [logs, setLogs]               = useState([]);
+  const [activeTab, setActiveTab] = useState("history");
+  const [logs, setLogs] = useState([]);
   const [logsLoading, setLogsLoading] = useState(false);
 
-  const [remarks, setRemarks]                 = useState(task?.remarks || "");
+  const [remarks, setRemarks] = useState(task?.remarks || "");
   const [isSavingRemarks, setIsSavingRemarks] = useState(false);
-  const remarksRef                            = useRef(null);
-  const hasRemarksChanged                     = remarks.trim() !== (task?.remarks || "").trim();
+  const remarksRef = useRef(null);
+  const hasRemarksChanged = remarks.trim() !== (task?.remarks || "").trim();
 
   const [savingStatus, setSavingStatus] = useState(false);
-  const [statusModal, setStatusModal]   = useState(null);
+  const [statusModal, setStatusModal] = useState(null);
 
-  const [workLogs, setWorkLogs]     = useState([]);
+  const [workLogs, setWorkLogs] = useState([]);
   const [newWorkLog, setNewWorkLog] = useState({ description: "", hours: "" });
 
-  const [subTasks, setSubTasks]               = useState([]);
-  const [subTasksOpen, setSubTasksOpen]       = useState(true);
+  const [subTasks, setSubTasks] = useState([]);
+  const [subTasksOpen, setSubTasksOpen] = useState(true);
   const [subTasksLoading, setSubTasksLoading] = useState(false);
-  const [showAddSubTask, setShowAddSubTask]   = useState(false);
-  const [newSubTask, setNewSubTask]           = useState({ description: "", assignee: "", endDate: "", status: "To-Do", priority: "Medium" });
-  const [savingSubTask, setSavingSubTask]     = useState(false);
+  const [showAddSubTask, setShowAddSubTask] = useState(false);
+  const [newSubTask, setNewSubTask] = useState({ description: "", assignee: "", endDate: "", status: "To-Do", priority: "Medium" });
+  const [savingSubTask, setSavingSubTask] = useState(false);
 
-  const [openStatusFor, setOpenStatusFor]           = useState(null);
+  const [openStatusFor, setOpenStatusFor] = useState(null);
   const [subTaskStatusModal, setSubTaskStatusModal] = useState(null);
-  const [openPriorityFor, setOpenPriorityFor]       = useState(null);
+  const [openPriorityFor, setOpenPriorityFor] = useState(null);
+  const [confirmDelete, setConfirmDelete] = useState(null); // { subTask }
+  const [toast, setToast] = useState(null); // { msg, type }
 
   const panelRef = useRef(null);
 
-  const userRoles         = Array.isArray(currentUser?.role) ? currentUser.role : [currentUser?.role || ""];
-  const isOwner           = userRoles.some(r => ["risk_owner", "root", "super_admin", "aio", "ciso", "dpo"].includes(r));
+  const showToast = (msg, type = "success") => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3500);
+  };
+
+  const userRoles = Array.isArray(currentUser?.role) ? currentUser.role : [currentUser?.role || ""];
+  const isOwner = userRoles.some(r => ["risk_owner", "root", "super_admin", "aio", "ciso", "dpo"].includes(r));
   const canManageSubTasks = isOwner;
-  const changedBy         = currentUser?.name || currentUser?.username || "System";
+  const isLockedPlanTask = task?.source === "Plan" && (task?.status === "Done" || task?.status === "Completed");
+  const changedBy = currentUser?.name || currentUser?.username || "System";
 
   const refreshLogs = async () => {
     if (!task?.taskId) return;
@@ -458,7 +466,7 @@ export default function TaskDetailPanel({ task, onClose, onUpdate, users = [], d
       setRemarks(remarksText);
       onUpdate(updated);
       await refreshLogs();
-    } catch { alert("Failed to update status"); }
+    } catch { showToast("Failed to update status.", "error"); }
     finally { setSavingStatus(false); }
   };
 
@@ -470,7 +478,7 @@ export default function TaskDetailPanel({ task, onClose, onUpdate, users = [], d
       await taskService.updateTask(task.taskId, updated, changedBy);
       onUpdate(updated);
       await refreshLogs();
-    } catch { alert("Failed to save remarks"); }
+    } catch { showToast("Failed to save remarks.", "error"); }
     finally { setIsSavingRemarks(false); }
   };
 
@@ -481,32 +489,33 @@ export default function TaskDetailPanel({ task, onClose, onUpdate, users = [], d
       if (taskService.addWorkLog) await taskService.addWorkLog(task.taskId, entry);
       setWorkLogs(prev => [entry, ...prev]);
       setNewWorkLog({ description: "", hours: "" });
-    } catch { alert("Failed to save work log"); }
+    } catch { showToast("Failed to save work log.", "error"); }
   };
 
   const handleCreateSubTask = async () => {
-    if (!newSubTask.description.trim()) { alert("Description is required."); return; }
+    if (!newSubTask.description.trim()) { showToast("Description is required.", "error"); return; }
     if (newSubTask.endDate) {
-      const subEnd    = new Date(newSubTask.endDate);
+      const subEnd = new Date(newSubTask.endDate);
       const taskStart = task?.startDate ? new Date(task.startDate.split("T")[0]) : null;
-      const taskEnd   = task?.endDate   ? new Date(task.endDate.split("T")[0])   : null;
-      if (taskStart && subEnd < taskStart) { alert(`Due date cannot be before the parent task start date (${formatDate(task.startDate)}).`); return; }
-      if (taskEnd   && subEnd > taskEnd)   { alert(`Due date cannot be after the parent task end date (${formatDate(task.endDate)}).`);    return; }
+      const taskEnd = task?.endDate ? new Date(task.endDate.split("T")[0]) : null;
+      if (taskStart && subEnd < taskStart) { showToast(`Due date cannot be before the parent task start date (${formatDate(task.startDate)}).`, "error"); return; }
+      if (taskEnd && subEnd > taskEnd) { showToast(`Due date cannot be after the parent task end date (${formatDate(task.endDate)}).`, "error"); return; }
     }
     setSavingSubTask(true);
     try {
       await taskService.createSubTask(task.taskId, {
         description: newSubTask.description.trim(),
         assignee: newSubTask.assignee || null,
-        endDate:  newSubTask.endDate  || null,
-        status:   newSubTask.status   || "To-Do",
+        endDate: newSubTask.endDate || null,
+        status: newSubTask.status || "To-Do",
         priority: newSubTask.priority || "Medium",
       }, changedBy);
       setNewSubTask({ description: "", assignee: "", endDate: "", status: "To-Do", priority: "Medium" });
       setShowAddSubTask(false);
       await refreshSubTasks();
       await refreshLogs();
-    } catch { alert("Failed to create subtask"); }
+      showToast("Subtask created successfully! ✓");
+    } catch { showToast("Failed to create subtask.", "error"); }
     finally { setSavingSubTask(false); }
   };
 
@@ -523,7 +532,8 @@ export default function TaskDetailPanel({ task, onClose, onUpdate, users = [], d
       await taskService.updateSubTask(task.taskId, subTask.subTaskId, { status: newStatus, remarks: remarksText }, changedBy);
       setSubTasks(prev => prev.map(s => s.subTaskId === subTask.subTaskId ? { ...s, status: newStatus, remarks: remarksText } : s));
       await refreshLogs();
-    } catch { alert("Failed to update subtask status"); }
+      showToast("Subtask status updated! ✓");
+    } catch { showToast("Failed to update subtask status.", "error"); }
   };
 
   const handleSubTaskAssigneeChange = async (subTask, newAssignee) => {
@@ -532,7 +542,8 @@ export default function TaskDetailPanel({ task, onClose, onUpdate, users = [], d
       await taskService.updateSubTask(task.taskId, subTask.subTaskId, { assignee: newAssignee }, changedBy);
       setSubTasks(prev => prev.map(s => s.subTaskId === subTask.subTaskId ? { ...s, assignee: newAssignee } : s));
       await refreshLogs();
-    } catch { alert("Failed to update subtask assignee"); }
+      showToast("Subtask assignee updated! ✓");
+    } catch { showToast("Failed to update subtask assignee.", "error"); }
   };
 
   const handleSubTaskPriorityChange = async (subTask, newPriority) => {
@@ -541,7 +552,8 @@ export default function TaskDetailPanel({ task, onClose, onUpdate, users = [], d
       await taskService.updateSubTask(task.taskId, subTask.subTaskId, { priority: newPriority }, changedBy);
       setSubTasks(prev => prev.map(s => s.subTaskId === subTask.subTaskId ? { ...s, priority: newPriority } : s));
       await refreshLogs();
-    } catch { alert("Failed to update subtask priority"); }
+      showToast("Subtask priority updated! ✓");
+    } catch { showToast("Failed to update subtask priority.", "error"); }
   };
 
   const handlePriorityChange = async (newPriority) => {
@@ -551,26 +563,62 @@ export default function TaskDetailPanel({ task, onClose, onUpdate, users = [], d
       await taskService.updateTask(task.taskId, updated, changedBy);
       onUpdate(updated);
       await refreshLogs();
-    } catch { alert("Failed to update priority"); }
+      showToast("Priority updated! ✓");
+    } catch { showToast("Failed to update priority.", "error"); }
   };
 
-  const handleDeleteSubTask = async (subTask) => {
-    if (!window.confirm(`Delete subtask "${subTask.description}"?`)) return;
+  const handleDeleteSubTask = (subTask) => {
+    setConfirmDelete(subTask);
+  };
+
+  const confirmDeleteSubTask = async () => {
+    const subTask = confirmDelete;
+    setConfirmDelete(null);
     try {
       await taskService.deleteSubTask(task.taskId, subTask.subTaskId, changedBy);
       setSubTasks(prev => prev.filter(s => s.subTaskId !== subTask.subTaskId));
       await refreshLogs();
-    } catch { alert("Failed to delete subtask"); }
+      showToast("Subtask deleted.");
+    } catch { showToast("Failed to delete subtask.", "error"); }
   };
 
-  const doneCount   = subTasks.filter(s => s.status === "Done").length;
-  const totalCount  = subTasks.length;
+  const doneCount = subTasks.filter(s => s.status === "Done").length;
+  const totalCount = subTasks.length;
   const progressPct = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0;
 
   const ST_COLS = "minmax(200px, 1fr) 110px 150px 110px 140px 30px";
 
   return (
     <>
+      {/* Toast */}
+      {toast && (
+        <div style={{
+          position: "fixed", top: 20, right: 24, zIndex: 99999,
+          background: toast.type === "error" ? "#ef4444" : "#10b981",
+          color: "#fff", padding: "12px 20px", borderRadius: 10,
+          fontWeight: 600, fontSize: 14, boxShadow: "0 4px 20px rgba(0,0,0,0.18)",
+          display: "flex", alignItems: "center", gap: 8,
+          animation: "tdpFadeUp 0.22s ease",
+          pointerEvents: "none",
+        }}>
+          {toast.type === "error" ? "⚠" : "✓"} {toast.msg}
+        </div>
+      )}
+
+      {/* Confirm Delete Dialog */}
+      {confirmDelete && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.35)", zIndex: 10010, display: "flex", alignItems: "center", justifyContent: "center", padding: 20, backdropFilter: "blur(3px)" }}>
+          <div style={{ background: "#fff", borderRadius: 14, padding: "24px 28px", maxWidth: 380, width: "100%", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
+            <div style={{ fontSize: 15, fontWeight: 700, color: "#0f172a", marginBottom: 8 }}>Delete Subtask?</div>
+            <div style={{ fontSize: 13, color: "#64748b", marginBottom: 20 }}>"<strong>{confirmDelete.description}</strong>" will be permanently removed.</div>
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+              <button onClick={() => setConfirmDelete(null)} style={{ padding: "8px 18px", borderRadius: 8, border: "1.5px solid #e2e8f0", background: "#fff", color: "#475569", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>Cancel</button>
+              <button onClick={confirmDeleteSubTask} style={{ padding: "8px 18px", borderRadius: 8, border: "none", background: "#ef4444", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Backdrop */}
       <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.2)", zIndex: 1000, backdropFilter: "blur(2px)" }} />
 
@@ -604,7 +652,7 @@ export default function TaskDetailPanel({ task, onClose, onUpdate, users = [], d
           <button onClick={onClose}
             style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8", fontSize: 18, padding: "4px 8px", borderRadius: 6, lineHeight: 1, transition: "color 0.15s, background 0.15s" }}
             onMouseOver={e => { e.currentTarget.style.background = "#f1f5f9"; e.currentTarget.style.color = "#475569"; }}
-            onMouseOut={e  => { e.currentTarget.style.background = "none";     e.currentTarget.style.color = "#94a3b8"; }}>✕</button>
+            onMouseOut={e => { e.currentTarget.style.background = "none"; e.currentTarget.style.color = "#94a3b8"; }}>✕</button>
         </div>
 
         <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
@@ -650,99 +698,99 @@ export default function TaskDetailPanel({ task, onClose, onUpdate, users = [], d
                   <div style={{ overflowX: "auto" }}>
                     <div style={{ minWidth: 780 }}>
                       {totalCount > 0 && (
-                    <div style={{ display: "grid", gridTemplateColumns: ST_COLS, gap: 12, padding: "8px 16px", background: "#f8fafc", borderBottom: "1px solid #e2e8f0", alignItems: "center" }}>
-                      {["Work", "Priority", "Assignee", "Due Date", "Status", ""].map((h, i) => (
-                        <span key={i} style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.5px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{h}</span>
-                      ))}
-                    </div>
-                  )}
+                        <div style={{ display: "grid", gridTemplateColumns: ST_COLS, gap: 12, padding: "8px 16px", background: "#f8fafc", borderBottom: "1px solid #e2e8f0", alignItems: "center" }}>
+                          {["Work", "Priority", "Assignee", "Due Date", "Status", ""].map((h, i) => (
+                            <span key={i} style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.5px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{h}</span>
+                          ))}
+                        </div>
+                      )}
 
-                  {subTasksLoading ? (
-                    <div style={{ padding: 16, textAlign: "center", color: "#94a3b8", fontSize: 13 }}>Loading...</div>
-                  ) : subTasks.map((st, idx) => {
-                    const pc = PRIORITY_CONFIG[st.priority] || PRIORITY_CONFIG["Medium"];
-                    const stEndDate = st.endDate || st.dueDate || null;
-                    const isOverdue = stEndDate && new Date(stEndDate) < new Date() && st.status !== "Done";
-                    const isLast    = idx === subTasks.length - 1 ;
-                    return (
-                      <div key={st.subTaskId} style={{
-                        display: "grid", gridTemplateColumns: ST_COLS, gap: 12,
-                        alignItems: "center", padding: "8px 16px",
-                        borderBottom: isLast ? "none" : "1px solid #f1f5f9",
-                        background: "#fff", transition: "background 0.1s", minWidth: 0,
-                      }}
-                        onMouseOver={e => e.currentTarget.style.background = "#fafbff"}
-                        onMouseOut={e  => e.currentTarget.style.background = "#fff"}
-                      >
-                        <div style={{ display: "flex", alignItems: "center", gap: 5, minWidth: 0, overflow: "hidden" }}>
-                          <span style={{ fontSize: 10, fontWeight: 700, color: "#7c3aed", background: "#f3f0ff", padding: "1px 5px", borderRadius: 3, whiteSpace: "nowrap", flexShrink: 0 }}>{st.subTaskId}</span>
-                          <span title={st.description} style={{
-                            fontSize: 12, fontWeight: 500,
-                            color: st.status === "Done" ? "#94a3b8" : "#0f172a",
-                            textDecoration: st.status === "Done" ? "line-through" : "none",
-                            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                            minWidth: 0, flex: 1,
-                          }}>{st.description}</span>
-                        </div>
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-start", overflow: "hidden" }}>
-                          <PriorityDropdownCell
-                            priority={st.priority || "Medium"}
-                            taskIdOrSubTaskId={st.subTaskId}
-                            openPriorityFor={openPriorityFor}
-                            setOpenPriorityFor={setOpenPriorityFor}
-                            onSelect={(opt) => handleSubTaskPriorityChange(st, opt)}
-                            disabled={!canManageSubTasks}
-                          />
-                        </div>
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-start", overflow: "hidden" }}>
-                          <InlineAssigneeCell
-                            assignee={st.assignee}
-                            users={users}
-                            disabled={!canManageSubTasks}
-                            onSelect={(newAssignee) => handleSubTaskAssigneeChange(st, newAssignee)}
-                          />
-                        </div>
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-start", overflow: "hidden" }}>
-                          {stEndDate
-                            ? <span style={{ fontSize: 11, fontWeight: isOverdue ? 700 : 400, color: isOverdue ? "#dc2626" : "#475569", whiteSpace: "nowrap" }}>
-                                {isOverdue && "⚠ "}{formatDate(stEndDate)}
-                              </span>
-                            : <span style={{ fontSize: 11, color: "#cbd5e1" }}>—</span>}
-                        </div>
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-start" }}>
-                          <StatusDropdownCell
-                            status={st.status}
-                            subTaskId={st.subTaskId}
-                            openStatusFor={openStatusFor}
-                            setOpenStatusFor={setOpenStatusFor}
-                            onSelect={(opt) => handleSubTaskStatusChange(st, opt)}
-                            disabled={!canManageSubTasks}
-                          />
-                        </div>
-                        {canManageSubTasks
-                          ? <button onClick={() => handleDeleteSubTask(st)}
-                              style={{ background: "none", border: "none", cursor: "pointer", color: "#cbd5e1", fontSize: 13, padding: 0, lineHeight: 1 }}
-                              onMouseOver={e => e.target.style.color = "#dc2626"}
-                              onMouseOut={e  => e.target.style.color = "#cbd5e1"}>✕</button>
-                          : <span />}
-                      </div>
-                    );
-                  })}
+                      {subTasksLoading ? (
+                        <div style={{ padding: 16, textAlign: "center", color: "#94a3b8", fontSize: 13 }}>Loading...</div>
+                      ) : subTasks.map((st, idx) => {
+                        const pc = PRIORITY_CONFIG[st.priority] || PRIORITY_CONFIG["Medium"];
+                        const stEndDate = st.endDate || st.dueDate || null;
+                        const isOverdue = stEndDate && new Date(stEndDate) < new Date() && st.status !== "Done";
+                        const isLast = idx === subTasks.length - 1;
+                        return (
+                          <div key={st.subTaskId} style={{
+                            display: "grid", gridTemplateColumns: ST_COLS, gap: 12,
+                            alignItems: "center", padding: "8px 16px",
+                            borderBottom: isLast ? "none" : "1px solid #f1f5f9",
+                            background: "#fff", transition: "background 0.1s", minWidth: 0,
+                          }}
+                            onMouseOver={e => e.currentTarget.style.background = "#fafbff"}
+                            onMouseOut={e => e.currentTarget.style.background = "#fff"}
+                          >
+                            <div style={{ display: "flex", alignItems: "center", gap: 5, minWidth: 0, overflow: "hidden" }}>
+                              <span style={{ fontSize: 10, fontWeight: 700, color: "#7c3aed", background: "#f3f0ff", padding: "1px 5px", borderRadius: 3, whiteSpace: "nowrap", flexShrink: 0 }}>{st.subTaskId}</span>
+                              <span title={st.description} style={{
+                                fontSize: 12, fontWeight: 500,
+                                color: st.status === "Done" ? "#94a3b8" : "#0f172a",
+                                textDecoration: st.status === "Done" ? "line-through" : "none",
+                                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                                minWidth: 0, flex: 1,
+                              }}>{st.description}</span>
+                            </div>
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-start", overflow: "hidden" }}>
+                              <PriorityDropdownCell
+                                priority={st.priority || "Medium"}
+                                taskIdOrSubTaskId={st.subTaskId}
+                                openPriorityFor={openPriorityFor}
+                                setOpenPriorityFor={setOpenPriorityFor}
+                                onSelect={(opt) => handleSubTaskPriorityChange(st, opt)}
+                                disabled={!canManageSubTasks}
+                              />
+                            </div>
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-start", overflow: "hidden" }}>
+                              <InlineAssigneeCell
+                                assignee={st.assignee}
+                                users={users}
+                                disabled={!canManageSubTasks}
+                                onSelect={(newAssignee) => handleSubTaskAssigneeChange(st, newAssignee)}
+                              />
+                            </div>
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-start", overflow: "hidden" }}>
+                              {stEndDate
+                                ? <span style={{ fontSize: 11, fontWeight: isOverdue ? 700 : 400, color: isOverdue ? "#dc2626" : "#475569", whiteSpace: "nowrap" }}>
+                                  {isOverdue && "⚠ "}{formatDate(stEndDate)}
+                                </span>
+                                : <span style={{ fontSize: 11, color: "#cbd5e1" }}>—</span>}
+                            </div>
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-start" }}>
+                              <StatusDropdownCell
+                                status={st.status}
+                                subTaskId={st.subTaskId}
+                                openStatusFor={openStatusFor}
+                                setOpenStatusFor={setOpenStatusFor}
+                                onSelect={(opt) => handleSubTaskStatusChange(st, opt)}
+                                disabled={!canManageSubTasks}
+                              />
+                            </div>
+                            {canManageSubTasks
+                              ? <button onClick={() => handleDeleteSubTask(st)}
+                                style={{ background: "none", border: "none", cursor: "pointer", color: "#cbd5e1", fontSize: 13, padding: 0, lineHeight: 1 }}
+                                onMouseOver={e => e.target.style.color = "#dc2626"}
+                                onMouseOut={e => e.target.style.color = "#cbd5e1"}>✕</button>
+                              : <span />}
+                          </div>
+                        );
+                      })}
 
-                  {!subTasksLoading && subTasks.length === 0 && !showAddSubTask && (
-                    <div style={{ padding: "16px 14px", color: "#94a3b8", fontSize: 12, textAlign: "center" }}>
-                      No subtasks yet.
-                      {canManageSubTasks && (
-                        <span style={{ color: "#3b82f6", cursor: "pointer", fontWeight: 600, marginLeft: 4 }} onClick={() => setShowAddSubTask(true)}>+ Add one</span>
+                      {!subTasksLoading && subTasks.length === 0 && !showAddSubTask && (
+                        <div style={{ padding: "16px 14px", color: "#94a3b8", fontSize: 12, textAlign: "center" }}>
+                          No subtasks yet.
+                          {canManageSubTasks && (
+                            <span style={{ color: "#3b82f6", cursor: "pointer", fontWeight: 600, marginLeft: 4 }} onClick={() => setShowAddSubTask(true)}>+ Add one</span>
+                          )}
+                        </div>
                       )}
                     </div>
-                  )}
-                </div>
-              </div>
+                  </div>
                   {canManageSubTasks && showAddSubTask && (
                     <div style={{
                       padding: "16px 20px",
-                      background: "#f8fafc", 
+                      background: "#f8fafc",
                       borderTop: subTasks.length > 0 ? "1px solid #e2e8f0" : "none",
                       display: "flex",
                       flexDirection: "column",
@@ -784,7 +832,7 @@ export default function TaskDetailPanel({ task, onClose, onUpdate, users = [], d
                           <input type="date"
                             value={newSubTask.endDate || ""}
                             min={task?.startDate ? task.startDate.split("T")[0] : undefined}
-                            max={task?.endDate   ? task.endDate.split("T")[0]   : undefined}
+                            max={task?.endDate ? task.endDate.split("T")[0] : undefined}
                             onChange={e => setNewSubTask(p => ({ ...p, endDate: e.target.value }))}
                             style={{ width: "100%", padding: "10px 12px", border: "1px solid #cbd5e1", borderRadius: 8, fontSize: 13, fontFamily: "inherit", outline: "none", background: "#fff", cursor: "pointer", boxSizing: "border-box", color: newSubTask.endDate ? "inherit" : "#94a3b8", textTransform: newSubTask.endDate ? "none" : "uppercase" }}
                           />
@@ -819,19 +867,19 @@ export default function TaskDetailPanel({ task, onClose, onUpdate, users = [], d
                           style={{ background: "#fff", border: "1px solid #e2e8f0", cursor: "pointer", color: "#475569", fontSize: 13, padding: "8px 16px", fontWeight: 700, borderRadius: 8 }}>Cancel</button>
                         <button onClick={handleCreateSubTask} disabled={savingSubTask}
                           style={{ background: "#3b82f6", border: "none", cursor: savingSubTask ? "not-allowed" : "pointer", color: "#fff", fontSize: 13, padding: "8px 20px", fontWeight: 700, borderRadius: 8 }}
-                          >Create Subtask</button>
+                        >Create Subtask</button>
                       </div>
                     </div>
                   )}
+                </div>
+              )}
             </div>
-          )}
-        </div>
 
             {/* ── Tabs ── */}
             <div style={{ display: "flex", gap: 20, borderBottom: "2px solid #f1f5f9", marginBottom: 20 }}>
               {/* {["history", "remarks", "worklog"].map(tab => ( */}
-               
-               {["history", "remarks"].map(tab => (
+
+              {["history", "remarks"].map(tab => (
                 <button key={tab} onClick={() => setActiveTab(tab)} style={{
                   padding: "8px 4px", border: "none", background: "none", cursor: "pointer",
                   fontSize: 13, fontWeight: 600,
@@ -925,12 +973,12 @@ export default function TaskDetailPanel({ task, onClose, onUpdate, users = [], d
                     onChange={e => setNewWorkLog(p => ({ ...p, description: e.target.value }))}
                     style={{ flex: 1, padding: "8px 10px", borderRadius: 8, border: "1.5px solid #e2e8f0", fontSize: 13, fontFamily: "inherit", outline: "none" }}
                     onFocus={e => e.target.style.borderColor = "#3b82f6"}
-                    onBlur={e  => e.target.style.borderColor = "#e2e8f0"} />
+                    onBlur={e => e.target.style.borderColor = "#e2e8f0"} />
                   <input type="number" placeholder="Hrs" value={newWorkLog.hours}
                     onChange={e => setNewWorkLog(p => ({ ...p, hours: e.target.value }))}
                     style={{ width: 70, padding: "8px", borderRadius: 8, border: "1.5px solid #e2e8f0", fontSize: 13, fontFamily: "inherit", outline: "none" }}
                     onFocus={e => e.target.style.borderColor = "#3b82f6"}
-                    onBlur={e  => e.target.style.borderColor = "#e2e8f0"} />
+                    onBlur={e => e.target.style.borderColor = "#e2e8f0"} />
                 </div>
                 <button onClick={handleAddWorkLog}
                   style={{ padding: "7px 16px", background: "#3b82f6", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontWeight: 700, fontSize: 12 }}>
@@ -969,16 +1017,28 @@ export default function TaskDetailPanel({ task, onClose, onUpdate, users = [], d
 
             {/* Status */}
             <div style={{ marginBottom: 18 }}>
-              <label style={sidebarLabel}>Status</label>
+              <label style={sidebarLabel}>
+                Status
+                {isLockedPlanTask && (
+                  <span style={{ marginLeft: 6, fontWeight: 700, color: "#166534", textTransform: "none" }}>
+                    🔒 Locked
+                  </span>
+                )}
+              </label>
               <StatusDropdownCell
                 status={task?.status || "To-Do"}
                 subTaskId="__main_task__"
                 openStatusFor={openStatusFor}
                 setOpenStatusFor={setOpenStatusFor}
                 onSelect={(newStatus) => handleStatusChange(newStatus)}
-                disabled={savingStatus}
+                disabled={savingStatus || isLockedPlanTask}
               />
               {savingStatus && <p style={{ fontSize: 10, color: "#94a3b8", margin: "4px 0 0" }}>Saving...</p>}
+              {isLockedPlanTask && (
+                <p style={{ fontSize: 10, color: "#166534", margin: "4px 0 0" }}>
+                  Objectives were approved through the Plan review workflow.
+                </p>
+              )}
             </div>
 
             {/* Assignee */}
@@ -1014,7 +1074,7 @@ export default function TaskDetailPanel({ task, onClose, onUpdate, users = [], d
                 openPriorityFor={openPriorityFor}
                 setOpenPriorityFor={setOpenPriorityFor}
                 onSelect={handlePriorityChange}
-                disabled={!isOwner}
+                disabled={!isOwner || isLockedPlanTask}
               />
             </div>
 
@@ -1091,8 +1151,9 @@ export default function TaskDetailPanel({ task, onClose, onUpdate, users = [], d
       )}
 
       <style>{`
-        @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
-        @keyframes dropIn  { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes slideIn  { from { transform: translateX(100%); } to { transform: translateX(0); } }
+        @keyframes dropIn   { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes tdpFadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
       `}</style>
     </>
   );
