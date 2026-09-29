@@ -148,7 +148,7 @@ const NAV_ITEMS = [
   },
   {
     icon: Package,
-    label: "Plan",
+    label: "Planning",
     path: "/plan",
     expandable: false,
     moduleKey: "",
