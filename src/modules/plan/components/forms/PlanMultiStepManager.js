@@ -1408,14 +1408,44 @@ const PlanMultiStepManager = ({ initialPlanId = null }) => {
 
   const handleConfirmCopy = async () => {
     if (pendingCopyPlan) {
-      const { frameworkName, existingPlan } = pendingCopyPlan;
-      const updatedPlan = {
-        ...existingPlan,
-        frameworks: [...(existingPlan.frameworks || []), frameworkName]
-      };
-      setSelectedFramework(updatedPlan);
+      const { frameworkName, domain, existingPlan } = pendingCopyPlan;
 
-      const defaultRows = await fetchDefaultObjectives(pendingCopyPlan.domain);
+      // Fetch the FULL plan (getActivePlans may return summaries without nested data)
+      let fullPlan = existingPlan;
+      const planId = existingPlan.id || existingPlan._id;
+      if (planId) {
+        try {
+          const fetched = await getPlanById(planId);
+          if (fetched) {
+            fullPlan = { ...fetched, ...(fetched.extraProperties || {}) };
+          }
+        } catch (err) {
+          console.warn("Could not fetch full plan for copy, using summary:", err);
+        }
+      }
+
+      // Update selectedFramework — keep existing plan's ID + data, just append the new framework
+      setSelectedFramework({
+        id: fullPlan.id || fullPlan._id,
+        domain: fullPlan.domain || domain,
+        frameworkName: frameworkName,
+        frameworks: [...(fullPlan.frameworks || []), frameworkName],
+        status: fullPlan.status || "Draft",
+        departmentReviews: fullPlan.departmentReviews || [],
+      });
+
+      // Restore scope, assignments, roles, policy
+      const planLocations = fullPlan.scopeData ? Object.keys(fullPlan.scopeData) : ["Primary"];
+      setLocations(planLocations);
+      setScopeData(fullPlan.scopeData || planLocations.reduce((acc, loc) => ({ ...acc, [loc]: { org: actualOrgName, geoLine1: "", geoLine2: "", geoLoc: "", geoPin: "", depts: [], services: "" } }), {}));
+      setOrgAssignments(fullPlan.orgAssignments || {});
+      setGlobalRoles(fullPlan.globalRoles || { steeringCommittee: [], internalAuditor: [], ciso: '' });
+      setCorePolicyStatement(fullPlan.corePolicyStatement || "");
+
+      // Merge default objectives with the existing plan's saved data (same logic as resume flow)
+      const fetchDomain = (domain && domain !== "Unknown") ? domain : "Security";
+      const defaultRows = await fetchDefaultObjectives(fetchDomain);
+
       const initialOrgs = [];
       const initialDepts = [];
       defaultRows.forEach((o, i) => {
@@ -1428,17 +1458,18 @@ const PlanMultiStepManager = ({ initialPlanId = null }) => {
         if (orgText && !isBackendDept) {
             orgObj = initialOrgs.find(org => org.text === orgText);
             if (!orgObj) {
+                const savedOrg = (fullPlan.orgObjectives || []).find(so => (isBackendOrg && o.id && so.id === o.id) || (so.text || so.objective) === orgText);
                 orgObj = {
-                    id: (isBackendOrg ? o.id : null) || `org-${Date.now()}-${i}`,
-                    text: orgText,
-                    metric: o.metric || o.organizationMetric || o["Organization Metric (KPI)"] || "",
-                    measurement: o.measurement || "",
-                    responsibility: o.responsibility || o.Responsibility || "",
-                    frequency: o.frequency || o.frequencyOfReview || "Annually",
-                    target: o.target || o.targetOfAchievement || o["Metric Mapping / Target"] || "100%",
-                    actionPlans: o.actionPlans || "",
-                    actualAchievement: o.actualAchievement || o["Actual Acievement"] || "",
-                    selected: false
+                    id: (isBackendOrg ? o.id : null) || savedOrg?.id || `org-${Date.now()}-${i}`,
+                    text: savedOrg ? (savedOrg.text || savedOrg.objective || orgText) : orgText,
+                    metric: savedOrg?.metric || o["Organization Metric (KPI)"] || o.metric || o.organizationMetric || "",
+                    measurement: savedOrg?.measurement || o.measurement || "",
+                    responsibility: savedOrg?.responsibility || o.Responsibility || o.responsibility || "",
+                    frequency: savedOrg?.frequency || o.frequency || o.frequencyOfReview || "Annually",
+                    target: savedOrg?.target || o["Metric Mapping / Target"] || o.target || o.targetOfAchievement || "100%",
+                    actionPlans: savedOrg?.actionPlans || o.actionPlans || "",
+                    actualAchievement: savedOrg?.actualAchievement || o["Actual Acievement"] || o["Actual Achievement"] || o.actualAchievement || "",
+                    selected: !!savedOrg
                 };
                 initialOrgs.push(orgObj);
             }
@@ -1447,35 +1478,78 @@ const PlanMultiStepManager = ({ initialPlanId = null }) => {
         const deptName = (o["Department Name"] || o.department || o.dept || "").trim();
         const deptText = isBackendDept ? o.objective : (o["Department Objective"] || o.departmentObjective || "");
         if (deptName && deptText && !isBackendOrg) {
-            if (!initialDepts.find(d => d.dept === deptName && d.text === deptText)) {
+            if (!initialDepts.find(d => d.text === deptText && (d.department || d.dept) === deptName)) {
+                const savedDept = (fullPlan.deptObjectives || []).find(sd =>
+                  (isBackendDept && o.id && sd.id === o.id) ||
+                  ((sd.text || sd.objective) === deptText && (sd.department || sd.dept) === deptName)
+                );
                 const mappedOrgId = isBackendDept ? o.orgObjectiveId : (orgObj ? orgObj.id : null);
                 initialDepts.push({
-                    id: (isBackendDept ? o.id : null) || `dept-${Date.now()}-${i}`,
+                    id: (isBackendDept ? o.id : null) || savedDept?.id || `dept-${Date.now()}-${i}`,
                     orgObjectiveId: mappedOrgId,
-                    dept: deptName,
                     department: deptName,
-                    text: deptText,
-                    deptMetric: o.metric || o.departmentMetric || o["Department Metric (KPI)"] || "",
-                    measurement: o.measurement || "",
-                    responsibility: o.responsibility || o.Responsibility || "",
-                    frequency: o.frequency || o.frequencyOfReview || "Monthly",
-                    target: o.target || o.targetOfAchievement || o["Metric Mapping / Target"] || "100%",
-                    actionPlans: o.actionPlans || "",
-                    actualAchievement: o.actualAchievement || o["Actual Acievement"] || "",
-                    selected: false
+                    dept: deptName,
+                    text: savedDept ? (savedDept.text || savedDept.objective || deptText) : deptText,
+                    deptMetric: savedDept?.deptMetric || savedDept?.metric || o["Department Metric (KPI)"] || o.metric || o.departmentMetric || "",
+                    measurement: savedDept?.measurement || o.measurement || "",
+                    responsibility: savedDept?.responsibility || o.Responsibility || o.responsibility || "",
+                    frequency: savedDept?.frequency || o.frequency || o.frequencyOfReview || "Annually",
+                    target: savedDept?.target || o["Metric Mapping / Target"] || o.target || o.targetOfAchievement || "100%",
+                    actionPlans: savedDept?.actionPlans || o.actionPlans || "",
+                    actualAchievement: savedDept?.actualAchievement || o["Actual Acievement"] || o["Actual Achievement"] || o.actualAchievement || "",
+                    selected: !!savedDept
                 });
             }
         }
       });
+
+      // Also add any custom objectives that were saved but not in the defaults
+      (fullPlan.orgObjectives || []).forEach((so, i) => {
+          const text = so.text || so.objective;
+          const metric = so.metric || so.orgMetric || "";
+          if (text && !initialOrgs.find(org => (so.id && org.id === so.id) || org.text === text)) {
+              initialOrgs.push({ ...so, text, metric, selected: true, id: so.id || `custom-org-${Date.now()}-${i}` });
+          }
+      });
+      (fullPlan.deptObjectives || []).forEach((sd, i) => {
+          const text = sd.text || sd.objective;
+          const deptName = sd.department || sd.dept;
+          if (text && deptName && !initialDepts.find(d => (sd.id && d.id === sd.id) || (d.text === text && (d.department || d.dept) === deptName))) {
+              initialDepts.push({ ...sd, text, department: deptName, dept: deptName, selected: true, id: sd.id || `custom-dept-${Date.now()}-${i}` });
+          }
+      });
+
       if (initialOrgs.length === 0) {
         initialOrgs.push({ id: `org-${Date.now()}`, text: "", metric: "", responsibility: "", frequency: "", target: "", selected: true });
       }
-      setOrgObjectives(initialOrgs);
-      setDeptObjectives(initialDepts);
+
+      if (defaultRows && defaultRows.length > 0) {
+        setOrgObjectives(initialOrgs);
+        setDeptObjectives(initialDepts);
+      } else {
+        setOrgObjectives(fullPlan.orgObjectives || []);
+        setDeptObjectives(fullPlan.deptObjectives || []);
+      }
+
+      // Restore visible objective IDs
+      if (fullPlan.visibleOrgObjectiveIds) {
+        setVisibleOrgObjectiveIds(fullPlan.visibleOrgObjectiveIds);
+      }
+      if (fullPlan.visibleDeptObjectiveIds) {
+        const safeVisibleDeptIds = { ...fullPlan.visibleDeptObjectiveIds };
+        const backendDepts = fullPlan.deptObjectives || [];
+        if (fullPlan.departmentReviews) {
+          fullPlan.departmentReviews.forEach(r => {
+              const deptObjs = backendDepts.filter(o => (o.dept || o.department) === r.departmentId);
+              safeVisibleDeptIds[r.departmentId] = deptObjs.map(o => o.id);
+          });
+        }
+        setVisibleDeptObjectiveIds(safeVisibleDeptIds);
+      }
 
       setShowCopyModal(false);
       setShowFrameworkModal(false);
-      setCurrentStep(1);
+      setCurrentStep(fullPlan.currentStep || 1);
       setPendingCopyPlan(null);
     }
   };
