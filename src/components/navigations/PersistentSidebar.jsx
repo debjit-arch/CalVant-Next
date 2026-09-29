@@ -22,6 +22,7 @@ import {
   UserCheck2,
   Settings,
   Users,
+  Package
 } from "lucide-react";
 import UserProfile from "./UserProfile";
 import Maindashboard_profile from "../maindashboard_profile";
@@ -148,7 +149,7 @@ const NAV_ITEMS = [
   },
   {
     icon: Package,
-    label: "Planning",
+    label: "Plans",
     path: "/plan",
     expandable: false,
     moduleKey: "",
