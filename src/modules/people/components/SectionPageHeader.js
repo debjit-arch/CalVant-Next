@@ -21,7 +21,7 @@ export default function SectionPageHeader({
   title,
   description,
   backHref = "/people",
-  backLabel = "Back to People",
+  backLabel = "Back to Dashboard",
   onRefresh,
   right,
   children,
@@ -35,9 +35,10 @@ export default function SectionPageHeader({
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
-        className="mb-3 inline-flex items-center gap-1.5 text-sm font-semibold text-slate-500 hover:text-slate-700 transition-colors"
+        // Same blue gradient "Back to Dashboard" button as the Action Plan (Task) page.
+        className="mb-3 inline-flex items-center gap-1.5 px-5 py-2.5 text-[13px] font-semibold text-white rounded-[10px] bg-gradient-to-br from-blue-500 to-blue-600 shadow-[0_4px_12px_rgba(37,99,235,0.3)] hover:-translate-y-px hover:shadow-[0_6px_16px_rgba(37,99,235,0.35)] transition-all"
       >
-        <ArrowLeft size={15} />
+        <ArrowLeft size={14} />
         {backLabel}
       </motion.button>
 
