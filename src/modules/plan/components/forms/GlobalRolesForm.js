@@ -539,22 +539,22 @@ const GlobalRolesForm = ({
 
                 {/* Process Owner Branch */}
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '300px' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}>
+                  {/* <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}>
                     <div style={{ width: '3px', height: '15px', background: '#cbd5e1' }}></div>
                     <ArrowDown size={14} style={{ color: '#94a3b8', marginTop: '-2px' }} />
-                  </div>
+                  </div> */}
 
                   {/* Process Owner Header Bar */}
-                  <div style={{ background: 'linear-gradient(90deg, #0ea5e9 0%, #2563eb 100%)', border: '1px solid #3b82f6', color: 'white', padding: '10px 16px', borderRadius: '8px', width: '100%', textAlign: 'center', fontWeight: 'bold', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', zIndex: 2, marginTop: '4px' }}>
+                  {/* <div style={{ background: 'linear-gradient(90deg, #0ea5e9 0%, #2563eb 100%)', border: '1px solid #3b82f6', color: 'white', padding: '10px 16px', borderRadius: '8px', width: '100%', textAlign: 'center', fontWeight: 'bold', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', zIndex: 2, marginTop: '4px' }}>
                     Process Owner
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  </div> */}
+                  {/* <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                     <div style={{ width: '3px', height: '15px', background: '#cbd5e1' }}></div>
                     <ArrowDown size={14} style={{ color: '#94a3b8', marginTop: '-2px', marginBottom: '4px' }} />
-                  </div>
+                  </div> */}
 
                   {/* Dotted Container for Departments under Process Owner */}
-                  <div style={{ border: '1px dashed #93c5fd', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px', width: '100%', background: 'rgba(239, 246, 255, 0.5)' }}>
+                  {/* <div style={{ border: '1px dashed #93c5fd', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px', width: '100%', background: 'rgba(239, 246, 255, 0.5)' }}>
                     {allSelectedDepts.map(dept => {
                       const pOIds = Array.isArray(orgAssignments[dept]?.processOwner) ? orgAssignments[dept].processOwner : (orgAssignments[dept]?.processOwner ? [orgAssignments[dept].processOwner] : []);
                       const pOUsers = pOIds.map(id => allUsers.find(u => (u.id || u._id) === id)).filter(Boolean);
@@ -571,7 +571,7 @@ const GlobalRolesForm = ({
                     {allSelectedDepts.length === 0 && (
                       <div style={{ textAlign: 'center', color: '#94a3b8', fontSize: '13px', padding: '10px' }}>No departments</div>
                     )}
-                  </div>
+                  </div> */}
                 </div>
 
               </div>

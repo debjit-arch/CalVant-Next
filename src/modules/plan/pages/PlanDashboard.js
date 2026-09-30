@@ -83,7 +83,7 @@ const PlanDashboard = () => {
 
           // Action required by me (I am the Assignee and task is NOT done)
           const filteredPending = allTasks.filter(t =>
-            t.source === "Plan" && 
+            t.source === "Plan" &&
             t.status !== "Done" && t.status !== "Completed" &&
             (t.employeeId === userId || t.employee === userName)
           );
@@ -91,7 +91,7 @@ const PlanDashboard = () => {
 
           // Tasks I am waiting on (I am the Reporter, NOT the Assignee, and task is NOT done)
           const filteredAssigned = allTasks.filter(t =>
-            t.source === "Plan" && 
+            t.source === "Plan" &&
             t.status !== "Done" && t.status !== "Completed" &&
             (t.reporterId === userId || t.reporter === userName) &&
             t.employeeId !== userId && t.employee !== userName
@@ -100,7 +100,7 @@ const PlanDashboard = () => {
 
           // Completed tasks I was involved in
           const filteredApproved = allTasks.filter(t =>
-            t.source === "Plan" && 
+            t.source === "Plan" &&
             (t.status === "Done" || t.status === "Completed") &&
             (t.reporterId === userId || t.employeeId === userId || t.reporter === userName || t.employee === userName)
           );
@@ -294,7 +294,7 @@ const PlanDashboard = () => {
 
 
                 {/* Manage Tasks Quick Action */}
-                <div
+                {/* <div
                   onClick={() => setShowManageTasks(true)}
                   className="group bg-white/70 backdrop-blur-sm border border-slate-100/50 rounded-xl p-4 flex flex-col justify-between shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 cursor-pointer bg-gradient-to-br from-violet-400 to-violet-500"
                 >
@@ -305,7 +305,7 @@ const PlanDashboard = () => {
                     <h4 className="text-sm lg:text-base font-semibold text-center text-white leading-tight mb-1">Manage Tasks</h4>
                     <p className="text-xs font-bold text-center text-violet-50">Review objectives</p>
                   </div>
-                </div>
+                </div> */}
               </div>
             </motion.section>
           </div>

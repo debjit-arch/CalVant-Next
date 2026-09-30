@@ -157,7 +157,7 @@ const PlanMultiStepManager = ({ initialPlanId = null }) => {
   const [availableDepartments, setAvailableDepartments] = useState([]);
   const [showAddDeptModal, setShowAddDeptModal] = useState(false);
   const [showAddUserModal, setShowAddUserModal] = useState(false);
-  const [globalRoles, setGlobalRoles] = useState({ steeringCommittee: [], internalAuditor: [], ciso: '' });
+  const [globalRoles, setGlobalRoles] = useState({ steeringCommittee: [], internalAuditor: [], ciso: '', removedRoles: { steeringCommittee: [], internalAuditor: [], ciso: [] } });
   const removedGlobalRoleUsersRef = React.useRef({ steeringCommittee: new Set(), internalAuditor: new Set(), ciso: new Set() });
 
   const [allUsers, setAllUsers] = useState([]);
@@ -230,19 +230,24 @@ const PlanMultiStepManager = ({ initialPlanId = null }) => {
         const u = allUsers.find(user => String(user.id || user._id) === String(id));
         return Boolean(u);
       });
-      const removedSC = removedGlobalRoleUsersRef.current.steeringCommittee;
-      const finalSC = Array.from(new Set([...validSC.filter(id => scUserIds.has(String(id))), ...scUserIds])).filter(id => !removedSC.has(String(id)));
+      const removedSCSession = removedGlobalRoleUsersRef.current.steeringCommittee;
+      const removedSCPersisted = new Set(prev.removedRoles?.steeringCommittee || []);
+      const finalSC = Array.from(new Set([...validSC.filter(id => scUserIds.has(String(id))), ...scUserIds]))
+        .filter(id => !removedSCSession.has(String(id)) && !removedSCPersisted.has(String(id)));
 
       const prevAud = Array.isArray(prev.internalAuditor) ? prev.internalAuditor : [];
       const validAud = prevAud.filter(id => {
         const u = allUsers.find(user => String(user.id || user._id) === String(id));
         return Boolean(u);
       });
-      const removedAud = removedGlobalRoleUsersRef.current.internalAuditor;
-      const finalAud = Array.from(new Set([...validAud.filter(id => auditorUserIds.has(String(id))), ...auditorUserIds])).filter(id => !removedAud.has(String(id)));
+      const removedAudSession = removedGlobalRoleUsersRef.current.internalAuditor;
+      const removedAudPersisted = new Set(prev.removedRoles?.internalAuditor || []);
+      const finalAud = Array.from(new Set([...validAud.filter(id => auditorUserIds.has(String(id))), ...auditorUserIds]))
+        .filter(id => !removedAudSession.has(String(id)) && !removedAudPersisted.has(String(id)));
 
       let finalCiso = prev.ciso;
-      const removedCiso = removedGlobalRoleUsersRef.current.ciso;
+      const removedCisoSession = removedGlobalRoleUsersRef.current.ciso;
+      const removedCisoPersisted = new Set(prev.removedRoles?.ciso || []);
       if (finalCiso) {
         const cisoUserObj = allUsers.find(user => String(user.id || user._id) === String(finalCiso));
         const stillHasCisoRole = cisoUserObj && Array.isArray(cisoUserObj.role) && cisoUserObj.role.some(r => {
@@ -251,9 +256,9 @@ const PlanMultiStepManager = ({ initialPlanId = null }) => {
           return norm === 'ciso' || norm === 'chief_information_security_officer';
         });
         if (!stillHasCisoRole) {
-          finalCiso = (cisoUserId && !removedCiso.has(String(cisoUserId))) ? cisoUserId : '';
+          finalCiso = (cisoUserId && !removedCisoSession.has(String(cisoUserId)) && !removedCisoPersisted.has(String(cisoUserId))) ? cisoUserId : '';
         }
-      } else if (cisoUserId && !removedCiso.has(String(cisoUserId))) {
+      } else if (cisoUserId && !removedCisoSession.has(String(cisoUserId)) && !removedCisoPersisted.has(String(cisoUserId))) {
         finalCiso = cisoUserId;
       }
 
@@ -345,10 +350,19 @@ const PlanMultiStepManager = ({ initialPlanId = null }) => {
     }
     removeUserRoleFromCore(userId, roleTitleMap[roleKey] || roleKey);
 
-    setGlobalRoles(prev => ({
-      ...prev,
-      [roleKey]: roleKey === 'ciso' ? '' : (Array.isArray(prev[roleKey]) ? prev[roleKey].filter(id => String(id) !== String(userId)) : [])
-    }));
+    setGlobalRoles(prev => {
+      const updatedRemoved = { ...(prev.removedRoles || { steeringCommittee: [], internalAuditor: [], ciso: [] }) };
+      if (!updatedRemoved[roleKey]) updatedRemoved[roleKey] = [];
+      if (!updatedRemoved[roleKey].includes(String(userId))) {
+        updatedRemoved[roleKey] = [...updatedRemoved[roleKey], String(userId)];
+      }
+
+      return {
+        ...prev,
+        removedRoles: updatedRemoved,
+        [roleKey]: roleKey === 'ciso' ? '' : (Array.isArray(prev[roleKey]) ? prev[roleKey].filter(id => String(id) !== String(userId)) : [])
+      };
+    });
   };
 
   const getUserName = (userId) => {
@@ -538,18 +552,29 @@ const PlanMultiStepManager = ({ initialPlanId = null }) => {
       internalAuditor: "auditor",
       ciso: "ciso"
     };
+    
+    // Clear the user from the removed list if they were previously removed
+    if (removedGlobalRoleUsersRef.current[roleKey]) {
+      removedGlobalRoleUsersRef.current[roleKey].delete(String(userId));
+    }
+
     if (roleKey === 'ciso' && globalRoles.ciso && String(globalRoles.ciso) !== String(userId)) {
       removeUserRoleFromCore(globalRoles.ciso, 'ciso');
     }
     syncUserRoleToCore(userId, roleTitleMap[roleKey] || roleKey);
 
     setGlobalRoles(prev => {
+      const updatedRemoved = { ...(prev.removedRoles || { steeringCommittee: [], internalAuditor: [], ciso: [] }) };
+      if (updatedRemoved[roleKey]) {
+        updatedRemoved[roleKey] = updatedRemoved[roleKey].filter(id => String(id) !== String(userId));
+      }
+
       if (roleKey === 'ciso') {
-        return { ...prev, ciso: userId };
+        return { ...prev, ciso: userId, removedRoles: updatedRemoved };
       }
       const currentList = Array.isArray(prev[roleKey]) ? prev[roleKey] : [];
-      if (currentList.some(id => String(id) === String(userId))) return prev;
-      return { ...prev, [roleKey]: [...currentList, userId] };
+      if (currentList.some(id => String(id) === String(userId))) return { ...prev, removedRoles: updatedRemoved };
+      return { ...prev, [roleKey]: [...currentList, userId], removedRoles: updatedRemoved };
     });
   };
 
@@ -741,7 +766,7 @@ const PlanMultiStepManager = ({ initialPlanId = null }) => {
         setLocations(planLocations);
         setScopeData(loadedPlan.scopeData || planLocations.reduce((acc, loc) => ({ ...acc, [loc]: { org: actualOrgName, geoLine1: "", geoLine2: "", geoLoc: "", geoPin: "", depts: [], services: "" } }), {}));
         setOrgAssignments(loadedPlan.orgAssignments || {});
-        setGlobalRoles(loadedPlan.globalRoles || { steeringCommittee: [], internalAuditor: [], ciso: '' });
+        setGlobalRoles(loadedPlan.globalRoles || { steeringCommittee: [], internalAuditor: [], ciso: '', removedRoles: { steeringCommittee: [], internalAuditor: [], ciso: [] } });
         
         const fetchDomain = (loadedPlan.domain && loadedPlan.domain !== "Unknown") ? loadedPlan.domain : "Security";
         const defaultRows = await fetchDefaultObjectives(fetchDomain);
@@ -1439,7 +1464,7 @@ const PlanMultiStepManager = ({ initialPlanId = null }) => {
       setLocations(planLocations);
       setScopeData(fullPlan.scopeData || planLocations.reduce((acc, loc) => ({ ...acc, [loc]: { org: actualOrgName, geoLine1: "", geoLine2: "", geoLoc: "", geoPin: "", depts: [], services: "" } }), {}));
       setOrgAssignments(fullPlan.orgAssignments || {});
-      setGlobalRoles(fullPlan.globalRoles || { steeringCommittee: [], internalAuditor: [], ciso: '' });
+      setGlobalRoles(fullPlan.globalRoles || { steeringCommittee: [], internalAuditor: [], ciso: '', removedRoles: { steeringCommittee: [], internalAuditor: [], ciso: [] } });
       setCorePolicyStatement(fullPlan.corePolicyStatement || "");
 
       // Merge default objectives with the existing plan's saved data (same logic as resume flow)
