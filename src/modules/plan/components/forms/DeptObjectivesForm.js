@@ -42,6 +42,7 @@ const DeptObjectivesForm = ({
   // Track departments that were just assigned in this session (for immediate UI feedback
   // before departmentReviews prop is refreshed from the parent)
   const [justAssignedDepts, setJustAssignedDepts] = useState(new Set());
+  const [successModal, setSuccessModal] = useState({ isOpen: false, department: null });
 
   // ── approval / review lookup ------------------------------------------------
   const isDeptApproved = (dept) => {
@@ -366,10 +367,45 @@ const DeptObjectivesForm = ({
           if (latestPlan && latestPlan.departmentReviews && onReviewUpdated) {
             onReviewUpdated(latestPlan.departmentReviews);
           }
-          alert("Task assigned successfully!");
+          setSuccessModal({ isOpen: true, department: modalState.department });
           closeAssignModal();
         }}
       />
+
+      {/* Success Modal */}
+      {successModal.isOpen && (
+        <div style={{
+          position: "fixed", top: 0, left: 0, width: "100%", height: "100%",
+          background: "rgba(0, 0, 0, 0.4)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 9999
+        }}>
+          <div style={{
+            background: "white", padding: "30px", borderRadius: "12px", width: "400px", maxWidth: "90%",
+            textAlign: "center", boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)"
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
+              <div style={{ background: '#dcfce7', color: '#166534', padding: '16px', borderRadius: '50%' }}>
+                <CheckCircle2 size={32} />
+              </div>
+            </div>
+            <h3 style={{ margin: "0 0 10px 0", fontSize: "20px", fontWeight: "bold", color: "#1e293b" }}>Task Assigned Successfully</h3>
+            <p style={{ margin: "0 0 24px 0", fontSize: "14px", color: "#64748b", lineHeight: "1.5" }}>
+              The department objectives for <strong style={{ color: "#334155" }}>{successModal.department}</strong> have been submitted for review. The risk owner will be notified.
+            </p>
+            <button
+              onClick={() => setSuccessModal({ isOpen: false, department: null })}
+              style={{
+                background: "#4f46e5", color: "white", border: "none", padding: "10px 24px",
+                borderRadius: "8px", fontSize: "14px", fontWeight: "600", cursor: "pointer", width: "100%",
+                transition: "background 0.2s"
+              }}
+              onMouseEnter={e => e.target.style.background = "#4338ca"}
+              onMouseLeave={e => e.target.style.background = "#4f46e5"}
+            >
+              Okay, got it
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
