@@ -157,6 +157,7 @@ const PlanMultiStepManager = ({ initialPlanId = null }) => {
   const [availableDepartments, setAvailableDepartments] = useState([]);
   const [showAddDeptModal, setShowAddDeptModal] = useState(false);
   const [showAddUserModal, setShowAddUserModal] = useState(false);
+  const [validationModal, setValidationModal] = useState({ isOpen: false, unapprovedDepts: [] });
   const [globalRoles, setGlobalRoles] = useState({ steeringCommittee: [], internalAuditor: [], ciso: '', removedRoles: { steeringCommittee: [], internalAuditor: [], ciso: [] } });
   const removedGlobalRoleUsersRef = React.useRef({ steeringCommittee: new Set(), internalAuditor: new Set(), ciso: new Set() });
 
@@ -1656,7 +1657,7 @@ const PlanMultiStepManager = ({ initialPlanId = null }) => {
 
     if (unapprovedDepts.length > 0) {
       setIsSaving(false);
-      alert(`You cannot submit the plan until all department objectives have been reviewed and approved by their Risk Owners.\n\nUnapproved departments: ${unapprovedDepts.join(', ')}`);
+      setValidationModal({ isOpen: true, unapprovedDepts });
       return;
     }
 
@@ -2297,6 +2298,53 @@ const PlanMultiStepManager = ({ initialPlanId = null }) => {
           </div>
         )}
       </main>
+      {/* Validation Modal for Unapproved Departments */}
+      {validationModal.isOpen && (
+        <div style={{
+          position: "fixed", top: 0, left: 0, width: "100%", height: "100%",
+          background: "rgba(0, 0, 0, 0.4)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 9999
+        }}>
+          <div style={{
+            background: "white", padding: "30px", borderRadius: "12px", width: "500px", maxWidth: "90%",
+            boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)"
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '16px', color: '#b91c1c' }}>
+              <div style={{ background: '#fee2e2', padding: '12px', borderRadius: '50%', marginRight: '16px' }}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg>
+              </div>
+              <h3 style={{ margin: 0, fontSize: "20px", fontWeight: "bold", color: "#1e293b" }}>Submission Blocked</h3>
+            </div>
+            
+            <p style={{ margin: "0 0 16px 0", fontSize: "14px", color: "#475569", lineHeight: "1.5" }}>
+              You cannot submit the plan until all department objectives have been reviewed and approved by their Risk Owners.
+            </p>
+
+            <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "8px", padding: "12px", marginBottom: "24px" }}>
+              <h4 style={{ margin: "0 0 8px 0", fontSize: "13px", fontWeight: "600", color: "#334155", textTransform: "uppercase", letterSpacing: "0.05em" }}>Unapproved Departments</h4>
+              <ul style={{ margin: 0, paddingLeft: "20px", color: "#64748b", fontSize: "14px", lineHeight: "1.6" }}>
+                {validationModal.unapprovedDepts.map((dept, idx) => (
+                  <li key={idx}>{dept}</li>
+                ))}
+              </ul>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setValidationModal({ isOpen: false, unapprovedDepts: [] })}
+                style={{
+                  background: "#f1f5f9", color: "#475569", border: "1px solid #cbd5e1", padding: "10px 24px",
+                  borderRadius: "8px", fontSize: "14px", fontWeight: "600", cursor: "pointer",
+                  transition: "all 0.2s"
+                }}
+                onMouseEnter={e => { e.target.style.background = "#e2e8f0"; e.target.style.color = "#1e293b"; }}
+                onMouseLeave={e => { e.target.style.background = "#f1f5f9"; e.target.style.color = "#475569"; }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
