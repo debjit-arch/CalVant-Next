@@ -302,23 +302,23 @@ const PlanReadOnlyView = ({ plan = {}, allUsers = [], onClose }) => {
                     </div>
 
                     {/* Process Owner Branch */}
-                    <div className="flex flex-col items-center w-[300px]">
+                    {/* <div className="flex flex-col items-center w-[300px]">
                       <div className="flex flex-col items-center relative">
                         <div className="w-0.5 h-3 bg-slate-300"></div>
                         <ArrowDown size={14} className="text-slate-400 -mt-0.5" />
-                      </div>
+                      </div> */}
 
-                      {/* Process Owner Header Bar */}
-                      <div className="bg-gradient-to-r from-sky-500 to-blue-600 border border-blue-500 text-white px-4 py-2.5 rounded-lg w-full text-center font-bold shadow-md z-10 text-sm tracking-wide mt-1 ring-2 ring-sky-50 transition-all">
+                    {/* Process Owner Header Bar */}
+                    {/* <div className="bg-gradient-to-r from-sky-500 to-blue-600 border border-blue-500 text-white px-4 py-2.5 rounded-lg w-full text-center font-bold shadow-md z-10 text-sm tracking-wide mt-1 ring-2 ring-sky-50 transition-all">
                         Process Owner
-                      </div>
-                      <div className="flex flex-col items-center">
+                      </div> */}
+                    {/* <div className="flex flex-col items-center">
                         <div className="w-0.5 h-3 bg-slate-300"></div>
                         <ArrowDown size={14} className="text-slate-400 -mt-0.5 mb-1" />
-                      </div>
+                      </div> */}
 
-                      {/* Dotted Container for Departments under Process Owner */}
-                      <div className="border border-dashed border-blue-300 rounded-xl p-4 flex flex-col gap-3 w-full bg-blue-50/30">
+                    {/* Dotted Container for Departments under Process Owner */}
+                    {/* <div className="border border-dashed border-blue-300 rounded-xl p-4 flex flex-col gap-3 w-full bg-blue-50/30">
                         {allSelectedDepts.map(dept => {
                           const pOIds = Array.isArray(orgAssignments[dept]?.processOwner) ? orgAssignments[dept].processOwner : (orgAssignments[dept]?.processOwner ? [orgAssignments[dept].processOwner] : []);
                           const pOUsers = pOIds.map(id => allUsers.find(u => (u.id || u._id) === id)).filter(Boolean);
@@ -335,8 +335,8 @@ const PlanReadOnlyView = ({ plan = {}, allUsers = [], onClose }) => {
                         {allSelectedDepts.length === 0 && (
                           <div className="text-center text-slate-400 text-xs py-2">No departments</div>
                         )}
-                      </div>
-                    </div>
+                      </div> */}
+                    {/* </div> */}
 
                   </div>
                 </div>
