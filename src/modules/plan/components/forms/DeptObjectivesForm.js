@@ -50,7 +50,7 @@ const DeptObjectivesForm = ({
   const isDeptApproved = (dept) => {
     const review = (departmentReviews || []).find(r => r.departmentId === dept);
     const isAccepted = !!review && review.reviewStatus === "ACCEPTED";
-    
+
     if (isEditingCompletedPlan) {
       // In edit mode, old approvals are ignored so they can be edited.
       // We only lock it again if it was re-assigned and approved in THIS session.
@@ -91,7 +91,7 @@ const DeptObjectivesForm = ({
   return (
     <div style={{ background: 'white', padding: '24px', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
       <div style={{ marginBottom: '20px' }}>
-        <h3 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '4px', color: '#0f172a' }}>Step 4: Dept Level Objectives</h3>
+        <h3 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '4px', color: '#0f172a' }}>Step 4: Department Level Objectives</h3>
         <p style={{ color: '#64748b', fontSize: '14px', margin: 0 }}>Define specific objectives and metrics for each department, mapped to organizational objectives.</p>
       </div>
 
