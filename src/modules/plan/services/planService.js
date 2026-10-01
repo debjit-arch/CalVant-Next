@@ -321,5 +321,16 @@ export async function proposeDepartmentObjectivesChanges(planId, department, act
 
 export async function completePlan(planId) {
   const res = await planApi.post(`/api/plans/${planId}/complete`);
-  return res.data;
+  const saved = res.data;
+  if (typeof window !== "undefined") {
+    try {
+      const activePlans = JSON.parse(localStorage.getItem(ACTIVE_PLANS_KEY) || '[]');
+      const idToMatch = saved.id || saved._id;
+      const idx = activePlans.findIndex(p => (p.id || p._id) === idToMatch);
+      if (idx >= 0) activePlans[idx] = saved;
+      else activePlans.push(saved);
+      localStorage.setItem(ACTIVE_PLANS_KEY, JSON.stringify(activePlans));
+    } catch (e) { /* ignore */ }
+  }
+  return saved;
 }

@@ -271,7 +271,7 @@ const PlanDashboard = () => {
                     <Plus size={20} className="text-white drop-shadow-sm" />
                   </div>
                   <div className="flex-1 flex flex-col justify-center">
-                    <h4 className="text-sm lg:text-base font-semibold text-center text-white leading-tight mb-1">Create Plan</h4>
+                    <h4 className="text-sm lg:text-base font-semibold text-center text-white leading-tight mb-1">Create New Plan</h4>
                     <p className="text-xs font-bold text-center text-emerald-50">Start 5-step wizard</p>
                   </div>
                 </div>
@@ -356,7 +356,7 @@ const PlanDashboard = () => {
                             onClick={() => handleEditPlan(plan)}
                             className="text-blue-600 hover:text-blue-700 font-medium text-xs flex items-center gap-1"
                           >
-                            {plan.status === "Draft" ? "Resume" : "Edit"} <ArrowRight size={14} />
+                            {plan.status === "Draft" ? "Resume" : "View"} <ArrowRight size={14} />
                           </button>
                           <button
                             onClick={() => setPlanToDelete(plan)}

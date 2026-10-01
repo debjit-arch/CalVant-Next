@@ -13,6 +13,7 @@ const OrgObjectivesForm = ({
   handleOrgObjectiveChange,
   handleAddOrgObjective,
   handleRemoveOrgObjective,
+  readOnly = false,
 }) => {
   return (
     <div style={{ background: 'white', padding: '24px', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
@@ -21,12 +22,14 @@ const OrgObjectivesForm = ({
           <h3 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '4px', color: '#0f172a' }}>Step 3: Org Level Objectives</h3>
           <p style={{ color: '#64748b', fontSize: '14px', margin: 0 }}>Define the core organization-level objectives for {selectedFramework?.domain}.</p>
         </div>
-        <button
-          onClick={() => handleAddOrgObjective()}
-          style={{ background: '#e0e7ff', color: '#4f46e5', border: 'none', padding: '8px 16px', borderRadius: '6px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '14px' }}
-        >
-          <Plus size={16} /> Add Organization Objective
-        </button>
+        {!readOnly && (
+          <button
+            onClick={() => handleAddOrgObjective()}
+            style={{ background: '#e0e7ff', color: '#4f46e5', border: 'none', padding: '8px 16px', borderRadius: '6px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '14px' }}
+          >
+            <Plus size={16} /> Add Organization Objective
+          </button>
+        )}
       </div>
 
       <div style={{ marginBottom: '32px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
@@ -54,35 +57,39 @@ const OrgObjectivesForm = ({
                         type="checkbox"
                         checked={row.selected || false}
                         onChange={(e) => handleOrgObjectiveChange(row.id, 'selected', e.target.checked)}
-                        style={{ transform: 'scale(1.2)', cursor: 'pointer' }}
+                        style={{ transform: 'scale(1.2)', cursor: readOnly ? 'not-allowed' : 'pointer' }}
+                        disabled={readOnly}
                       />
                     </td>
                     <td style={{ padding: '12px' }}>
                       <textarea
                         className="form-control"
                         rows={3}
-                        style={{ width: '100%', resize: 'vertical', fontSize: '13px', padding: '8px', border: '1px solid #cbd5e1', borderRadius: '6px' }}
+                        style={{ width: '100%', resize: 'vertical', fontSize: '13px', padding: '8px', border: '1px solid #cbd5e1', borderRadius: '6px', background: readOnly ? '#f1f5f9' : 'white', cursor: readOnly ? 'not-allowed' : 'text' }}
                         value={row.text || ""}
                         onChange={(e) => handleOrgObjectiveChange(row.id, 'text', e.target.value)}
                         placeholder="Enter objective"
+                        disabled={readOnly}
                       />
                     </td>
                     <td style={{ padding: '12px' }}>
                       <textarea
                         className="form-control"
                         rows={3}
-                        style={{ width: '100%', resize: 'vertical', fontSize: '13px', padding: '8px', border: '1px solid #cbd5e1', borderRadius: '6px' }}
+                        style={{ width: '100%', resize: 'vertical', fontSize: '13px', padding: '8px', border: '1px solid #cbd5e1', borderRadius: '6px', background: readOnly ? '#f1f5f9' : 'white', cursor: readOnly ? 'not-allowed' : 'text' }}
                         value={row.metric || row.orgMetric || ""}
                         onChange={(e) => handleOrgObjectiveChange(row.id, 'metric', e.target.value)}
                         placeholder="Enter metric"
+                        disabled={readOnly}
                       />
                     </td>
                     <td style={{ padding: '12px' }}>
                       <select
                         className="form-control"
-                        style={{ width: '100%', padding: '8px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '6px' }}
+                        style={{ width: '100%', padding: '8px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '6px', background: readOnly ? '#f1f5f9' : 'white', cursor: readOnly ? 'not-allowed' : 'pointer' }}
                         value={row.frequency || ""}
                         onChange={(e) => handleOrgObjectiveChange(row.id, 'frequency', e.target.value)}
+                        disabled={readOnly}
                       >
                         <option value="">Select...</option>
                         <option value="Quarterly">Quarterly</option>
@@ -115,10 +122,11 @@ const OrgObjectivesForm = ({
         <textarea
           className="form-control"
           rows={4}
-          style={{ width: '100%', resize: 'vertical', fontSize: '13px', padding: '12px', border: '1px solid #cbd5e1', borderRadius: '6px' }}
+          style={{ width: '100%', resize: 'vertical', fontSize: '13px', padding: '12px', border: '1px solid #cbd5e1', borderRadius: '6px', background: readOnly ? '#f1f5f9' : 'white', cursor: readOnly ? 'not-allowed' : 'text' }}
           value={corePolicyStatement}
           onChange={(e) => setCorePolicyStatement(e.target.value)}
           placeholder="Enter the overarching Core Policy Statement for all objectives"
+          disabled={readOnly}
         />
       </div>
     </div>
