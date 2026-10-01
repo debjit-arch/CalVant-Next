@@ -184,9 +184,12 @@ const DeptObjectivesForm = ({
                         <button onClick={() => openAssignModal(dept, activeObjs)} style={{ background: 'white', color: '#4f46e5', border: '1px solid #4f46e5', padding: '6px 12px', borderRadius: '6px', fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
                           <Send size={14} /> Submit for Review
                         </button>
-                        <button onClick={() => handleAddDeptObjective(dept, "generic-org-id")} style={{ background: '#4f46e5', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '6px', fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <Plus size={14} /> Add Custom Dept Objective
-                        </button>
+                        {/* Hidden when plan is completed and user edits the plan (isEditingCompletedPlan) so they cannot add custom objectives at this stage */}
+                        {!isEditingCompletedPlan && (
+                          <button onClick={() => handleAddDeptObjective(dept, "generic-org-id")} style={{ background: '#4f46e5', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '6px', fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <Plus size={14} /> Add Custom Dept Objective
+                          </button>
+                        )}
                       </>
                     )}
                   </div>
@@ -319,7 +322,7 @@ const DeptObjectivesForm = ({
                   </tbody>
                 </table>
 
-                {!approved && !isDeptReviewStarted(dept) && hiddenObjs.length > 0 && (
+                {/* {!approved && !isDeptReviewStarted(dept) && hiddenObjs.length > 0 && (
                   <div style={{ padding: '16px', background: '#f8fafc', borderTop: '1px solid #e2e8f0' }}>
                     <button
                       onClick={() => setExpandedDepts(prev => ({ ...prev, [dept]: !prev[dept] }))}
@@ -356,7 +359,7 @@ const DeptObjectivesForm = ({
                       </>
                     )}
                   </div>
-                )}
+                )} */}
               </div>
             </div>
           );
