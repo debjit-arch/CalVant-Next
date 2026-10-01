@@ -29,6 +29,9 @@ export default function SiteFooter() {
           <ul>
             <li><Link href="/about">About</Link></li>
             <li><Link href="/careers">Careers</Link></li>
+            <li>
+              <Link href="/collaboration">Collaboration</Link>
+            </li>
           </ul>
         </div>
         <div className="dashboard-footer-section">

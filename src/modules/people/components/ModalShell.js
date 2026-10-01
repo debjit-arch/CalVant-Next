@@ -1,5 +1,6 @@
 "use client";
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { X, Paperclip, AlertTriangle } from "lucide-react";
 
 /**
@@ -38,15 +39,28 @@ export default function ModalShell({
     return () => document.removeEventListener("keydown", onKey);
   }, []);
 
+  // Render into <body>, above the app's top bar and side nav. Inside the page layout the popup sat under
+  // the sticky header (its title was hidden) and a transformed ancestor could shrink "fixed" to a box.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden"; // the page behind shouldn't scroll while the popup is open
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, []);
+  if (!mounted) return null;
+
   const Body = onSubmit ? "form" : "div";
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 px-4 py-6">
+  return createPortal(
+    <div className="fixed inset-0 z-[2147483000] flex items-center justify-center bg-slate-900/40 px-4 py-6">
       <div
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className={`bg-white rounded-2xl shadow-2xl w-full ${maxWidth} max-h-[92vh] flex flex-col`}
+        className={`bg-white rounded-2xl shadow-2xl w-full ${maxWidth} max-h-[calc(100dvh-3rem)] flex flex-col`}
       >
         <div className="flex items-start justify-between gap-4 px-6 pt-5 pb-3">
           <div className="min-w-0">
@@ -72,7 +86,8 @@ export default function ModalShell({
           )}
         </Body>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

@@ -252,7 +252,7 @@ const PeopleDashboard = () => {
   ];
 
   const statCards = [
-    { Icon: Users, value: peopleStats.total, label: "Total", color: "from-blue-400 to-blue-500", path: "/people/directory" },
+    { Icon: Users, value: peopleStats.total, label: "Users", color: "from-blue-400 to-blue-500", path: "/people/directory" },
     { Icon: CheckCircle2, value: peopleStats.active, label: "Active", color: "from-emerald-400 to-emerald-500", path: "/people/directory?status=ACTIVE" },
     { Icon: Circle, value: peopleStats.onboarding, label: "Onboarding", color: "from-sky-400 to-sky-500", path: "/people/directory?status=ONBOARDING" },
     { Icon: ShieldCheck, value: screeningStats.cleared, label: "Screening Cleared", color: "from-teal-400 to-teal-500", path: "/people/directory" },
