@@ -18,6 +18,7 @@ import {
   getActivePlans,
   getPlanById,
   upsertPlan,
+  completePlan,
 } from "../../services/planService";
 
 import "../../styles/PlanStyles.css";
@@ -48,6 +49,7 @@ const PlanMultiStepManager = ({ initialPlanId = null }) => {
   const [mounted, setMounted] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
   const [isResuming, setIsResuming] = useState(false);
+  const [isEditingCompletedPlan, setIsEditingCompletedPlan] = useState(false);
 
   const { user, isPrivilegedRole } = useEffectiveOrg();
   const { availableFrameworks = [], frameworksLoading = false } = useFramework() || {};
@@ -158,6 +160,7 @@ const PlanMultiStepManager = ({ initialPlanId = null }) => {
   const [showAddDeptModal, setShowAddDeptModal] = useState(false);
   const [showAddUserModal, setShowAddUserModal] = useState(false);
   const [validationModal, setValidationModal] = useState({ isOpen: false, unapprovedDepts: [] });
+  const [submissionResultModal, setSubmissionResultModal] = useState({ isOpen: false, success: false, message: '' });
   const [globalRoles, setGlobalRoles] = useState({ steeringCommittee: [], internalAuditor: [], ciso: '', removedRoles: { steeringCommittee: [], internalAuditor: [], ciso: [] } });
   const removedGlobalRoleUsersRef = React.useRef({ steeringCommittee: new Set(), internalAuditor: new Set(), ciso: new Set() });
 
@@ -702,6 +705,38 @@ const PlanMultiStepManager = ({ initialPlanId = null }) => {
     return nonPlainUserList.length > 0 ? nonPlainUserList : allUsers;
   }, [allUsers]);
 
+  const getBackendDeptNames = (fDept) => {
+    const f = (fDept || "").toLowerCase().trim();
+    if (f === "admin" || f === "facilities") return ["Admin & Facilities"];
+    if (f === "it infra") return ["IT Infrastructure"];
+    if (f === "it applications" || f === "it" || f === "it department" || f === "it dept") return ["IT Applications / Software Development"];
+    if (f === "vendor management" || f === "procurement") return ["Vendor Management / Procurement"];
+    if (f === "legal") return ["Legal & Compliance"];
+    if (f === "hr" || f === "human resources") return ["Human Resources"];
+    return [];
+  };
+
+  const getFilteredDeptObjectives = (objectivesToFilter) => {
+    const filtered = [];
+    allSelectedDepts.forEach(dept => {
+      const cat = availableDepartments.find(d => (d.id === dept || d._id === dept || d.name === dept))?.mapping || dept;
+      const lowerCat = cat.toLowerCase().trim();
+      if (lowerCat.includes("steering committee") || lowerCat.includes("steeringcommittee") || lowerCat.includes("security officer")) return;
+
+      const mappedBackendNames = getBackendDeptNames(cat).map(n => n.toLowerCase());
+      mappedBackendNames.push(lowerCat);
+
+      const availableDeptObjs = objectivesToFilter.filter(dObj => (dObj.dept || dObj.department) && mappedBackendNames.includes((dObj.dept || dObj.department).toLowerCase().trim()));
+      const activeIds = visibleDeptObjectiveIds[dept] || availableDeptObjs.map(o => o.id);
+      const activeObjs = availableDeptObjs.filter(o => activeIds.includes(o.id));
+      
+      if (activeObjs.length > 0) {
+        filtered.push(...activeObjs);
+      }
+    });
+    return filtered;
+  };
+
   // Automatic in-progress draft saving (debounced)
   useEffect(() => {
     if (!selectedFramework || !selectedFramework.domain) return;
@@ -717,18 +752,18 @@ const PlanMultiStepManager = ({ initialPlanId = null }) => {
         organizationId: orgId,
         frameworks: selectedFramework?.frameworks || [],
         domain: selectedFramework?.domain || "Unknown",
-        status: "Draft",
         createdAt: selectedFramework?.createdAt || new Date().toISOString(),
         ...selectedFramework,
         scopeData,
         orgAssignments,
         globalRoles,
         orgObjectives: orgObjectives.filter(o => o.selected),
-        deptObjectives,
+        deptObjectives: getFilteredDeptObjectives(deptObjectives),
         corePolicyStatement,
         currentStep,
         visibleOrgObjectiveIds,
-        visibleDeptObjectiveIds
+        visibleDeptObjectiveIds,
+        status: "Draft",
       };
 
       if (!selectedFramework.id && draftPlan.id) {
@@ -1606,7 +1641,37 @@ const PlanMultiStepManager = ({ initialPlanId = null }) => {
   };
   const handleRemoveDeptObjective = (id) => {
     setDeptObjectives(prev => prev.filter(obj => obj.id !== id));
-  };  const handleSubmitPlan = async () => {
+  };
+
+    const calculateUnapprovedDepts = () => {
+      const departmentReviews = selectedFramework?.departmentReviews || [];
+      const authoritativeDeptObjectives = deptObjectives;
+
+      const unapproved = [];
+
+      allSelectedDepts.forEach(dept => {
+        const cat = availableDepartments.find(d => (d.id === dept || d._id === dept || d.name === dept))?.mapping || dept;
+        const lowerCat = cat.toLowerCase().trim();
+        if (lowerCat.includes("steering committee") || lowerCat.includes("steeringcommittee") || lowerCat.includes("security officer")) return;
+
+        const mappedBackendNames = getBackendDeptNames(cat).map(n => n.toLowerCase());
+        mappedBackendNames.push(lowerCat);
+
+        const availableDeptObjs = authoritativeDeptObjectives.filter(dObj => (dObj.dept || dObj.department) && mappedBackendNames.includes((dObj.dept || dObj.department).toLowerCase().trim()));
+        const activeIds = visibleDeptObjectiveIds[dept] || availableDeptObjs.map(o => o.id);
+        const activeObjs = availableDeptObjs.filter(o => activeIds.includes(o.id));
+
+        if (activeObjs.length > 0) {
+          const review = departmentReviews.find(r => r.departmentId === dept);
+          if (!review || review.reviewStatus !== "ACCEPTED") {
+            unapproved.push(cat);
+          }
+        }
+      });
+      return unapproved;
+    };
+
+  const handleSubmitPlan = async () => {
     setIsSaving(true);
     setLoadingMessage("Verifying department approvals...");
 
@@ -1620,38 +1685,27 @@ const PlanMultiStepManager = ({ initialPlanId = null }) => {
     }
 
     const departmentReviews = freshPlan?.departmentReviews || selectedFramework?.departmentReviews || [];
-    // Authoritative — already has proposedForDeletion rows purged by plan-service on accept.
     const authoritativeDeptObjectives = freshPlan?.deptObjectives || deptObjectives;
 
     const unapprovedDepts = [];
+    const finalFilteredDeptObjectives = getFilteredDeptObjectives(authoritativeDeptObjectives);
 
     allSelectedDepts.forEach(dept => {
       const cat = availableDepartments.find(d => (d.id === dept || d._id === dept || d.name === dept))?.mapping || dept;
       const lowerCat = cat.toLowerCase().trim();
       if (lowerCat.includes("steering committee") || lowerCat.includes("steeringcommittee") || lowerCat.includes("security officer")) return;
 
-      const getBackendDeptNames = (fDept) => {
-        const f = (fDept || "").toLowerCase().trim();
-        if (f === "admin" || f === "facilities") return ["Admin & Facilities"];
-        if (f === "it infra") return ["IT Infrastructure"];
-        if (f === "it applications" || f === "it" || f === "it department" || f === "it dept") return ["IT Applications / Software Development"];
-        if (f === "vendor management" || f === "procurement") return ["Vendor Management / Procurement"];
-        if (f === "legal") return ["Legal & Compliance"];
-        if (f === "hr" || f === "human resources") return ["Human Resources"];
-        return [];
-      };
-      const mappedBackendNames = getBackendDeptNames(cat).map(n => n.toLowerCase());
-      mappedBackendNames.push(lowerCat);
+      const review = departmentReviews.find(r => r.departmentId === dept);
+      // We only flag it if there are actually objectives for this department
+      const hasObjs = finalFilteredDeptObjectives.some(o => {
+          const dName = (o.dept || o.department || "").toLowerCase().trim();
+          const mapped = getBackendDeptNames(cat).map(n => n.toLowerCase());
+          mapped.push(lowerCat);
+          return mapped.includes(dName);
+      });
 
-      const availableDeptObjs = authoritativeDeptObjectives.filter(dObj => (dObj.dept || dObj.department) && mappedBackendNames.includes((dObj.dept || dObj.department).toLowerCase().trim()));
-      const activeIds = visibleDeptObjectiveIds[dept] || availableDeptObjs.map(o => o.id);
-      const activeObjs = availableDeptObjs.filter(o => activeIds.includes(o.id));
-
-      if (activeObjs.length > 0) {
-        const review = departmentReviews.find(r => r.departmentId === dept);
-        if (!review || review.reviewStatus !== "ACCEPTED") {
-          unapprovedDepts.push(cat);
-        }
+      if (hasObjs && (!review || review.reviewStatus !== "ACCEPTED")) {
+        unapprovedDepts.push(cat);
       }
     });
 
@@ -1666,7 +1720,8 @@ const PlanMultiStepManager = ({ initialPlanId = null }) => {
       orgAssignments,
       globalRoles,
       orgObjectives: orgObjectives.filter(o => o.selected),
-      deptObjectives: authoritativeDeptObjectives, // never resubmit the stale wizard copy
+      deptObjectives: finalFilteredDeptObjectives, // Only submit objectives for selected departments
+
       corePolicyStatement,
       visibleOrgObjectiveIds,
       visibleDeptObjectiveIds,
@@ -1678,21 +1733,26 @@ const PlanMultiStepManager = ({ initialPlanId = null }) => {
     setLoadingMessage("Submitting complete plan and finalizing objectives & roles...");
 
     try {
-      await upsertPlan({
-        id: selectedFramework?.id || null, // null for new plans
+      const savedPlan = await upsertPlan({
+        id: selectedFramework?.id || null,
         userId: userId,
         organizationId: orgId,
         frameworks: selectedFramework?.frameworks || [],
         domain: selectedFramework?.domain || "Unknown",
-        status: "Completed",
         createdAt: selectedFramework?.createdAt || new Date().toISOString(),
         ...selectedFramework,
-        ...planData
+        ...planData,
+        status: "Pending Review", // Backend will transition it to Completed
       });
-      alert("Plan saved successfully!");
-      router.push("/plan");
+      
+      const planId = savedPlan?.id || savedPlan?._id;
+      if (planId) {
+        await completePlan(planId);
+      }
+      
+      setSubmissionResultModal({ isOpen: true, success: true, message: 'Your plan has been submitted and marked as Completed successfully.' });
     } catch (err) {
-      alert(err.response?.data || "Failed to save plan. Please try again.");
+      setSubmissionResultModal({ isOpen: true, success: false, message: err.response?.data?.message || err.response?.data || 'Failed to complete plan. Ensure all departments have approved their objectives.' });
     } finally {
       setIsSaving(false);
     }
@@ -1704,7 +1764,7 @@ const PlanMultiStepManager = ({ initialPlanId = null }) => {
       orgAssignments,
       globalRoles,
       orgObjectives: orgObjectives.filter(o => o.selected),
-      deptObjectives,
+      deptObjectives: getFilteredDeptObjectives(deptObjectives),
       corePolicyStatement,
       currentStep,
       visibleOrgObjectiveIds,
@@ -1719,21 +1779,20 @@ const PlanMultiStepManager = ({ initialPlanId = null }) => {
 
     try {
       await upsertPlan({
-        id: selectedFramework?.id || null, // null for new plans
+        id: selectedFramework?.id || null,
         userId: userId,
         organizationId: orgId,
         frameworks: selectedFramework?.frameworks || [],
         domain: selectedFramework?.domain || "Unknown",
-        status: "Draft",
         createdAt: selectedFramework?.createdAt || new Date().toISOString(),
         ...selectedFramework,
-        ...planData
+        ...planData,
+        status: "Draft",
       });
 
-      alert("Draft saved successfully!");
-      router.push("/plan");
+      setSubmissionResultModal({ isOpen: true, success: true, message: 'Your draft has been saved successfully.' });
     } catch (err) {
-      alert("Failed to save draft. Please try again.");
+      setSubmissionResultModal({ isOpen: true, success: false, message: 'Failed to save draft. Please try again.' });
     } finally {
       setIsSaving(false);
     }
@@ -1741,6 +1800,8 @@ const PlanMultiStepManager = ({ initialPlanId = null }) => {
 
   const getStepLabel = (step) =>
     ["Scoping", "Org Structuring", "Org Objectives", "Dept Objectives", "Metrics Mapping"][step - 1];
+
+  const isViewMode = selectedFramework?.status === "Completed" && !isEditingCompletedPlan;
 
   const renderFormContent = () => {
     switch (currentStep) {
@@ -1756,6 +1817,7 @@ const PlanMultiStepManager = ({ initialPlanId = null }) => {
             handleDeptToggle={handleDeptToggle}
             handleGlobalServiceChange={handleGlobalServiceChange}
             setShowAddDeptModal={setShowAddDeptModal}
+            readOnly={isViewMode}
           />
         );
       case 2:
@@ -1776,6 +1838,7 @@ const PlanMultiStepManager = ({ initialPlanId = null }) => {
             handleAddOrgAssignmentUser={handleAddOrgAssignmentUser}
             handleRemoveOrgAssignmentUser={handleRemoveOrgAssignmentUser}
             setShowAddUserModal={setShowAddUserModal}
+            readOnly={isViewMode}
           />
         );
       case 3:
@@ -1785,6 +1848,7 @@ const PlanMultiStepManager = ({ initialPlanId = null }) => {
             handleOrgObjectiveChange={handleOrgObjectiveChange}
             handleAddOrgObjective={handleAddOrgObjective}
             handleRemoveOrgObjective={handleRemoveOrgObjective}
+            readOnly={isViewMode}
           />
         );
       case 4:
@@ -1806,38 +1870,19 @@ const PlanMultiStepManager = ({ initialPlanId = null }) => {
             reporterName={user?.name || "System"}
             reporterId={user?._id || user?.id}
             departmentReviews={selectedFramework?.departmentReviews || []}
-            onReviewUpdated={(reviews) => {
+            onReviewUpdated={(latestPlan) => {
               setSelectedFramework(prev => ({
                 ...prev,
-                departmentReviews: reviews
+                departmentReviews: latestPlan.departmentReviews,
+                status: latestPlan.status || prev.status
               }));
             }}
+            isEditingCompletedPlan={isEditingCompletedPlan}
+            readOnly={isViewMode}
           />
         );
       case 5: {
-        const activeDeptObjs = [];
-        allSelectedDepts.forEach(dept => {
-          const cat = availableDepartments.find(d => (d.id === dept || d._id === dept || d.name === dept))?.mapping || dept;
-          const lowerCat = cat.toLowerCase().trim();
-          if (lowerCat.includes("steering committee") || lowerCat.includes("steeringcommittee") || lowerCat.includes("security officer")) return;
-
-          const getBackendDeptNames = (fDept) => {
-            const f = (fDept || "").toLowerCase().trim();
-            if (f === "admin" || f === "facilities") return ["Admin & Facilities"];
-            if (f === "it infra") return ["IT Infrastructure"];
-            if (f === "it applications" || f === "it" || f === "it department" || f === "it dept") return ["IT Applications / Software Development"];
-            if (f === "vendor management" || f === "procurement") return ["Vendor Management / Procurement"];
-            if (f === "legal") return ["Legal & Compliance"];
-            if (f === "hr" || f === "human resources") return ["Human Resources"];
-            return [];
-          };
-          const mappedBackendNames = getBackendDeptNames(cat).map(n => n.toLowerCase());
-          mappedBackendNames.push(lowerCat);
-          
-          const availableDeptObjs = deptObjectives.filter(dObj => (dObj.dept || dObj.department) && mappedBackendNames.includes((dObj.dept || dObj.department).toLowerCase().trim()));
-          const activeIds = visibleDeptObjectiveIds[dept] || availableDeptObjs.map(o => o.id);
-          activeDeptObjs.push(...availableDeptObjs.filter(o => activeIds.includes(o.id)));
-        });
+        const activeDeptObjs = getFilteredDeptObjectives(deptObjectives);
 
         return (
           <CorePolicyStatementForm
@@ -1936,19 +1981,40 @@ const PlanMultiStepManager = ({ initialPlanId = null }) => {
                   ← Previous
                 </button>
               )}
-              <button onClick={handleSaveDraft} className="msf-btn" style={{ background: '#f8fafc', color: '#475569', border: '1px solid #cbd5e1', fontWeight: 'bold' }}>
-                Save Progress
-              </button>
+              {!isViewMode && (
+                <button onClick={handleSaveDraft} className="msf-btn" style={{ background: '#f8fafc', color: '#475569', border: '1px solid #cbd5e1', fontWeight: 'bold' }}>
+                  Save Progress
+                </button>
+              )}
             </div>
-            {currentStep < 5 ? (
-              <button onClick={() => setCurrentStep(prev => prev + 1)} className="msf-btn msf-btn--next">
-                Next →
-              </button>
-            ) : (
-              <button onClick={handleSubmitPlan} className="msf-btn msf-btn--submit">
-                Submit Plan
-              </button>
-            )}
+            <div style={{ display: 'flex', gap: '12px' }}>
+              {currentStep < 5 && (
+                <button onClick={() => setCurrentStep(prev => prev + 1)} className="msf-btn msf-btn--next">
+                  Next →
+                </button>
+              )}
+              {isViewMode && (
+                <button 
+                  onClick={() => setIsEditingCompletedPlan(true)} 
+                  className="msf-btn" 
+                  style={{ background: '#3b82f6', color: 'white', fontWeight: 'bold' }}>
+                  Edit Plan
+                </button>
+              )}
+              {!isViewMode && currentStep === 5 && (
+                <button 
+                  onClick={calculateUnapprovedDepts().length === 0 ? handleSubmitPlan : undefined} 
+                  className={`msf-btn msf-btn--submit ${calculateUnapprovedDepts().length > 0 ? 'disabled' : ''}`}
+                  disabled={calculateUnapprovedDepts().length > 0}
+                  style={{
+                    background: calculateUnapprovedDepts().length > 0 ? '#94a3b8' : '#22c55e',
+                    cursor: calculateUnapprovedDepts().length > 0 ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  Submit Plan
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
@@ -2298,6 +2364,50 @@ const PlanMultiStepManager = ({ initialPlanId = null }) => {
           </div>
         )}
       </main>
+      {/* Submission Result Modal */}
+      {submissionResultModal.isOpen && (
+        <div style={{
+          position: "fixed", top: 0, left: 0, width: "100%", height: "100%",
+          background: "rgba(0, 0, 0, 0.4)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 9999
+        }}>
+          <div style={{
+            background: "white", padding: "30px", borderRadius: "12px", width: "420px", maxWidth: "90%",
+            textAlign: "center", boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)"
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
+              <div style={{ background: submissionResultModal.success ? '#dcfce7' : '#fee2e2', color: submissionResultModal.success ? '#166534' : '#b91c1c', padding: '16px', borderRadius: '50%' }}>
+                {submissionResultModal.success ? (
+                  <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
+                )}
+              </div>
+            </div>
+            <h3 style={{ margin: "0 0 10px 0", fontSize: "20px", fontWeight: "bold", color: "#1e293b" }}>
+              {submissionResultModal.success ? 'Plan Submitted Successfully' : 'Submission Failed'}
+            </h3>
+            <p style={{ margin: "0 0 24px 0", fontSize: "14px", color: "#64748b", lineHeight: "1.5" }}>
+              {submissionResultModal.message}
+            </p>
+            <button
+              onClick={() => {
+                setSubmissionResultModal({ isOpen: false, success: false, message: '' });
+                if (submissionResultModal.success) {
+                  router.push("/plan");
+                }
+              }}
+              style={{
+                background: submissionResultModal.success ? "#22c55e" : "#4f46e5", color: "white", border: "none", padding: "10px 24px",
+                borderRadius: "8px", fontSize: "14px", fontWeight: "600", cursor: "pointer", width: "100%",
+                transition: "background 0.2s"
+              }}
+            >
+              {submissionResultModal.success ? 'Go to Dashboard' : 'Okay'}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Validation Modal for Unapproved Departments */}
       {validationModal.isOpen && (
         <div style={{

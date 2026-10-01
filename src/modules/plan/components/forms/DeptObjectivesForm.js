@@ -35,7 +35,9 @@ const DeptObjectivesForm = ({
   reporterName,
   reporterId,
   departmentReviews = [],
-  onReviewUpdated
+  onReviewUpdated,
+  isEditingCompletedPlan = false,
+  readOnly = false
 }) => {
   const [modalState, setModalState] = useState({ isOpen: false, department: "", objectives: [], riskOwnerId: "", riskOwnerName: "" });
   const [expandedDepts, setExpandedDepts] = useState({});
@@ -47,13 +49,21 @@ const DeptObjectivesForm = ({
   // ── approval / review lookup ------------------------------------------------
   const isDeptApproved = (dept) => {
     const review = (departmentReviews || []).find(r => r.departmentId === dept);
-    return !!review && review.reviewStatus === "ACCEPTED";
+    const isAccepted = !!review && review.reviewStatus === "ACCEPTED";
+    
+    if (isEditingCompletedPlan) {
+      // In edit mode, old approvals are ignored so they can be edited.
+      // We only lock it again if it was re-assigned and approved in THIS session.
+      return isAccepted && justAssignedDepts.has(dept);
+    }
+    return isAccepted;
   };
 
   // A review entry exists for this department (any status: PENDING_REVIEW, IN_REVIEW, ACCEPTED, etc.)
   // OR it was just assigned in this session before the prop refreshes.
   const isDeptReviewStarted = (dept) => {
     if (justAssignedDepts.has(dept)) return true;
+    if (isEditingCompletedPlan) return false; // Ignore old reviews during edit mode to show "Submit for Review"
     const review = (departmentReviews || []).find(r => r.departmentId === dept);
     return !!review;
   };
@@ -137,7 +147,7 @@ const DeptObjectivesForm = ({
           const hiddenObjs = availableDeptObjs.filter(o => !activeDeptIds.includes(o.id));
 
 
-          const rowsAreReadOnly = approved; // single flag driving every disabled/readOnly prop below
+          const rowsAreReadOnly = readOnly || (approved && !isEditingCompletedPlan);
 
           return (
             <div key={dept} style={{
@@ -160,7 +170,7 @@ const DeptObjectivesForm = ({
                     </span>
                   )}
                 </h4>
-                {!approved && (
+                {!readOnly && (!approved || isEditingCompletedPlan) && (
                   <div style={{ display: 'flex', gap: '10px' }}>
                     {isDeptReviewStarted(dept) ? (
                       <button
@@ -179,7 +189,7 @@ const DeptObjectivesForm = ({
                     </button>
                   </div>
                 )}
-                {approved && (
+                {approved && !isEditingCompletedPlan && (
                   <span style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#166534', fontSize: '12px', fontWeight: 600 }}>
                     <Lock size={13} /> Locked — objectives finalized
                   </span>
@@ -365,7 +375,7 @@ const DeptObjectivesForm = ({
         onSuccess={(latestPlan) => {
           setJustAssignedDepts(prev => new Set([...prev, modalState.department]));
           if (latestPlan && latestPlan.departmentReviews && onReviewUpdated) {
-            onReviewUpdated(latestPlan.departmentReviews);
+            onReviewUpdated(latestPlan);
           }
           setSuccessModal({ isOpen: true, department: modalState.department });
           closeAssignModal();

@@ -23,6 +23,7 @@ const GlobalRolesForm = ({
   handleAddOrgAssignmentUser,
   handleRemoveOrgAssignmentUser,
   setShowAddUserModal,
+  readOnly = false,
 }) => {
   const selectableUsers = (deptFilteredUsers && deptFilteredUsers.length > 0) ? deptFilteredUsers : allUsers;
 
@@ -77,7 +78,7 @@ const GlobalRolesForm = ({
   const processOwners = getFilteredUsers("Process Owner");
 
   return (
-    <div style={{ background: 'white', padding: '24px', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
+    <div style={{ background: 'white', padding: '24px', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)', ...(readOnly ? { pointerEvents: 'none', opacity: 0.85 } : {}) }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <div>
           <h3 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '4px', color: '#0f172a' }}>Step 2: Org Structuring</h3>

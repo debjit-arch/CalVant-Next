@@ -62,6 +62,9 @@ const AssignObjectiveTaskModal = ({
             }
         });
         newPlan.deptObjectives = baseDeptObjectives;
+        if (newPlan.status === "Completed") {
+          newPlan.status = "Draft";
+        }
         await upsertPlan(newPlan);
       }
 
