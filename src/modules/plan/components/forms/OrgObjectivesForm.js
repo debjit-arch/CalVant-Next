@@ -19,7 +19,7 @@ const OrgObjectivesForm = ({
     <div style={{ background: 'white', padding: '24px', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
         <div>
-          <h3 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '4px', color: '#0f172a' }}>Step 3: Org Level Objectives</h3>
+          <h3 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '4px', color: '#0f172a' }}>Step 3: Organization Level Objectives</h3>
           <p style={{ color: '#64748b', fontSize: '14px', margin: 0 }}>Define the core organization-level objectives for {selectedFramework?.domain}.</p>
         </div>
         {!readOnly && (

@@ -81,7 +81,7 @@ const GlobalRolesForm = ({
     <div style={{ background: 'white', padding: '24px', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)', ...(readOnly ? { pointerEvents: 'none', opacity: 0.85 } : {}) }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <div>
-          <h3 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '4px', color: '#0f172a' }}>Step 2: Org Structuring</h3>
+          <h3 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '4px', color: '#0f172a' }}>Step 2: Organizational structure</h3>
           <p style={{ color: '#64748b', fontSize: '14px', margin: 0 }}>Define ownership hierarchy for selected departments.</p>
         </div>
         <div style={{ display: 'flex', gap: '8px', background: '#f1f5f9', padding: '4px', borderRadius: '8px' }}>

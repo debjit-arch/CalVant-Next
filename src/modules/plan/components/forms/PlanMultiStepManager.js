@@ -190,7 +190,7 @@ const PlanMultiStepManager = ({ initialPlanId = null }) => {
           const normD = dStr.toLowerCase().replace(/ /g, '_');
           return normD === 'security_officer' || normD === 'steering_committee' || normD === 'steeringcommittee' || normD === 'steering_commitee';
         })();
-        
+
         if (hasDeptSC) return true;
 
         if (!u || !u.role) return false;
@@ -302,8 +302,8 @@ const PlanMultiStepManager = ({ initialPlanId = null }) => {
     const currentRoles = Array.isArray(targetUser.role)
       ? targetUser.role
       : targetUser.role
-      ? [targetUser.role]
-      : [];
+        ? [targetUser.role]
+        : [];
 
     const updatedRoles = currentRoles.filter(r => {
       const rStr = typeof r === 'object' && r.name ? r.name : String(r);
@@ -400,8 +400,8 @@ const PlanMultiStepManager = ({ initialPlanId = null }) => {
     const currentDepts = Array.isArray(targetUser.department)
       ? targetUser.department
       : targetUser.department
-      ? [targetUser.department]
-      : [];
+        ? [targetUser.department]
+        : [];
 
     const alreadyHasDept = currentDepts.some(d => {
       if (!d) return false;
@@ -448,8 +448,8 @@ const PlanMultiStepManager = ({ initialPlanId = null }) => {
     const currentDepts = Array.isArray(targetUser.department)
       ? targetUser.department
       : targetUser.department
-      ? [targetUser.department]
-      : [];
+        ? [targetUser.department]
+        : [];
 
     const updatedDepts = currentDepts.filter(d => {
       if (!d) return false;
@@ -508,8 +508,8 @@ const PlanMultiStepManager = ({ initialPlanId = null }) => {
     const currentRoles = Array.isArray(targetUser.role)
       ? targetUser.role
       : targetUser.role
-      ? [targetUser.role]
-      : [];
+        ? [targetUser.role]
+        : [];
 
     const exists = currentRoles.some(r => {
       const rStr = typeof r === 'object' && r.name ? r.name : String(r);
@@ -556,7 +556,7 @@ const PlanMultiStepManager = ({ initialPlanId = null }) => {
       internalAuditor: "auditor",
       ciso: "ciso"
     };
-    
+
     // Clear the user from the removed list if they were previously removed
     if (removedGlobalRoleUsersRef.current[roleKey]) {
       removedGlobalRoleUsersRef.current[roleKey].delete(String(userId));
@@ -585,7 +585,7 @@ const PlanMultiStepManager = ({ initialPlanId = null }) => {
   // Orphan Cleanup: Automatically remove deleted departments from scopeData and orgAssignments
   useEffect(() => {
     if (!availableDepartments || availableDepartments.length === 0) return;
-    
+
     const validDeptNames = availableDepartments.map(d => d.name);
     let hasOrphanDept = false;
 
@@ -627,7 +627,7 @@ const PlanMultiStepManager = ({ initialPlanId = null }) => {
   // Orphan Cleanup: Automatically remove deleted users from orgAssignments
   useEffect(() => {
     if (!allUsers || allUsers.length === 0) return;
-    
+
     const validUserIds = allUsers.map(u => String(u.id || u._id));
     let hasOrphanUser = false;
 
@@ -729,7 +729,7 @@ const PlanMultiStepManager = ({ initialPlanId = null }) => {
       const availableDeptObjs = objectivesToFilter.filter(dObj => (dObj.dept || dObj.department) && mappedBackendNames.includes((dObj.dept || dObj.department).toLowerCase().trim()));
       const activeIds = visibleDeptObjectiveIds[dept] || availableDeptObjs.map(o => o.id);
       const activeObjs = availableDeptObjs.filter(o => activeIds.includes(o.id));
-      
+
       if (activeObjs.length > 0) {
         filtered.push(...activeObjs);
       }
@@ -783,7 +783,7 @@ const PlanMultiStepManager = ({ initialPlanId = null }) => {
       setShowFrameworkModal(true);
       return;
     }
-    
+
     setIsResuming(true);
     const loadPlan = async () => {
       const plan = await getPlanById(initialPlanId);
@@ -803,16 +803,16 @@ const PlanMultiStepManager = ({ initialPlanId = null }) => {
         setScopeData(loadedPlan.scopeData || planLocations.reduce((acc, loc) => ({ ...acc, [loc]: { org: actualOrgName, geoLine1: "", geoLine2: "", geoLoc: "", geoPin: "", depts: [], services: "" } }), {}));
         setOrgAssignments(loadedPlan.orgAssignments || {});
         setGlobalRoles(loadedPlan.globalRoles || { steeringCommittee: [], internalAuditor: [], ciso: '', removedRoles: { steeringCommittee: [], internalAuditor: [], ciso: [] } });
-        
+
         const fetchDomain = (loadedPlan.domain && loadedPlan.domain !== "Unknown") ? loadedPlan.domain : "Security";
         const defaultRows = await fetchDefaultObjectives(fetchDomain);
-        
+
         const initialOrgs = [];
         const initialDepts = [];
         defaultRows.forEach((o, i) => {
           const isBackendOrg = o.level === 'ORG' || o.level === 'organization';
           const isBackendDept = o.level === 'DEPT' || o.level === 'department';
-          
+
           let orgObj = null;
 
           const orgText = isBackendOrg ? o.objective : (o["Organization Objective"] || o.organizationObjective || o.objective || "");
@@ -838,11 +838,11 @@ const PlanMultiStepManager = ({ initialPlanId = null }) => {
 
           const deptName = (o["Department Name"] || o.department || o.dept || "").trim();
           const deptText = isBackendDept ? o.objective : (o["Department Objective"] || o.departmentObjective || "");
-          
+
           if (deptName && deptText && !isBackendOrg) {
             if (!initialDepts.find(d => d.text === deptText && (d.department || d.dept) === deptName)) {
-              const savedDept = (loadedPlan.deptObjectives || []).find(sd => 
-                (isBackendDept && o.id && sd.id === o.id) || 
+              const savedDept = (loadedPlan.deptObjectives || []).find(sd =>
+                (isBackendDept && o.id && sd.id === o.id) ||
                 ((sd.text || sd.objective) === deptText && (sd.department || sd.dept) === deptName)
               );
               const mappedOrgId = isBackendDept ? o.orgObjectiveId : (orgObj ? orgObj.id : null);
@@ -867,24 +867,24 @@ const PlanMultiStepManager = ({ initialPlanId = null }) => {
 
         // Also add any custom ones that were in loadedPlan but not in defaults
         (loadedPlan.orgObjectives || []).forEach((so, i) => {
-            const text = so.text || so.objective;
-            const metric = so.metric || so.orgMetric || "";
-            if (text && !initialOrgs.find(org => (so.id && org.id === so.id) || org.text === text)) {
-                initialOrgs.push({ ...so, text, metric, selected: true, id: so.id || `custom-org-${Date.now()}-${i}` });
-            }
+          const text = so.text || so.objective;
+          const metric = so.metric || so.orgMetric || "";
+          if (text && !initialOrgs.find(org => (so.id && org.id === so.id) || org.text === text)) {
+            initialOrgs.push({ ...so, text, metric, selected: true, id: so.id || `custom-org-${Date.now()}-${i}` });
+          }
         });
         (loadedPlan.deptObjectives || []).forEach((sd, i) => {
-            const text = sd.text || sd.objective;
-            const deptName = sd.department || sd.dept;
-            if (text && deptName && !initialDepts.find(d => (sd.id && d.id === sd.id) || (d.text === text && (d.department || d.dept) === deptName))) {
-                initialDepts.push({ ...sd, text, department: deptName, dept: deptName, selected: true, id: sd.id || `custom-dept-${Date.now()}-${i}` });
-            }
+          const text = sd.text || sd.objective;
+          const deptName = sd.department || sd.dept;
+          if (text && deptName && !initialDepts.find(d => (sd.id && d.id === sd.id) || (d.text === text && (d.department || d.dept) === deptName))) {
+            initialDepts.push({ ...sd, text, department: deptName, dept: deptName, selected: true, id: sd.id || `custom-dept-${Date.now()}-${i}` });
+          }
         });
 
         if (initialOrgs.length === 0) {
           initialOrgs.push({ id: `org-${Date.now()}`, text: "", metric: "", responsibility: "", frequency: "", target: "", selected: true });
         }
-        
+
         if (defaultRows && defaultRows.length > 0) {
           setOrgObjectives(initialOrgs);
           setDeptObjectives(initialDepts);
@@ -893,10 +893,10 @@ const PlanMultiStepManager = ({ initialPlanId = null }) => {
           setDeptObjectives(loadedPlan.deptObjectives || []);
         }
 
-        
+
         setCorePolicyStatement(loadedPlan.corePolicyStatement || "");
         setCurrentStep(loadedPlan.currentStep || 1);
-        
+
         if (loadedPlan.visibleOrgObjectiveIds) {
           setVisibleOrgObjectiveIds(loadedPlan.visibleOrgObjectiveIds);
         }
@@ -906,8 +906,8 @@ const PlanMultiStepManager = ({ initialPlanId = null }) => {
           // Force the visible list to exactly match reality for any department that is or was under review
           if (loadedPlan.departmentReviews) {
             loadedPlan.departmentReviews.forEach(r => {
-                const deptObjs = backendDepts.filter(o => (o.dept || o.department) === r.departmentId);
-                safeVisibleDeptIds[r.departmentId] = deptObjs.map(o => o.id);
+              const deptObjs = backendDepts.filter(o => (o.dept || o.department) === r.departmentId);
+              safeVisibleDeptIds[r.departmentId] = deptObjs.map(o => o.id);
             });
           }
           setVisibleDeptObjectiveIds(safeVisibleDeptIds);
@@ -1141,7 +1141,7 @@ const PlanMultiStepManager = ({ initialPlanId = null }) => {
         allSelectedDepts.forEach(dept => {
           if (!next[dept]) {
             const cat = availableDepartments.find(d => (d.id === dept || d._id === dept || d.name === dept))?.mapping || dept;
-            
+
             const getBackendDeptNames = (frontendDept) => {
               const fDept = (frontendDept || "").toLowerCase().trim();
               if (fDept === "admin" || fDept === "facilities") return ["Admin & Facilities"];
@@ -1155,11 +1155,11 @@ const PlanMultiStepManager = ({ initialPlanId = null }) => {
 
             const lowerCat = cat.toLowerCase().trim();
             if (lowerCat.includes("steering committee") || lowerCat.includes("steeringcommittee") || lowerCat.includes("security officer")) {
-               // Skip mapping
+              // Skip mapping
             } else {
               const mappedBackendNames = getBackendDeptNames(cat).map(n => n.toLowerCase());
               mappedBackendNames.push(lowerCat);
-              
+
               const availableDeptObjs = deptObjectives.filter(dObj =>
                 dObj.dept && mappedBackendNames.includes(dObj.dept.toLowerCase().trim())
               );
@@ -1381,7 +1381,7 @@ const PlanMultiStepManager = ({ initialPlanId = null }) => {
     const orgId = user?.organization?._id || user?.organization;
     const activePlans = (await getActivePlans(orgId)) || [];
     const existingDomainPlan = activePlans.find(p => p.domain === domain);
-    
+
     // Check if the user already has this specific framework in ANY of their plans for this domain
     const existingPlanWithFramework = activePlans.find(p => p.domain === domain && (p.frameworks || []).includes(frameworkName));
 
@@ -1410,50 +1410,50 @@ const PlanMultiStepManager = ({ initialPlanId = null }) => {
       defaultRows.forEach((o, i) => {
         const isBackendOrg = o.level === 'ORG' || o.level === 'organization';
         const isBackendDept = o.level === 'DEPT' || o.level === 'department';
-        
+
         let orgObj = null;
 
         const orgText = isBackendOrg ? o.objective : (o["Organization Objective"] || o.organizationObjective || o.objective || "");
         if (orgText && !isBackendDept) {
-            orgObj = initialOrgs.find(org => org.text === orgText);
-            if (!orgObj) {
-                orgObj = {
-                    id: (isBackendOrg ? o.id : null) || `org-${Date.now()}-${i}`,
-                    text: orgText,
-                    metric: o.metric || o.organizationMetric || o["Organization Metric (KPI)"] || "",
-                    measurement: o.measurement || "",
-                    responsibility: o.responsibility || o.Responsibility || "",
-                    frequency: o.frequency || o.frequencyOfReview || "Annually",
-                    target: o.target || o.targetOfAchievement || o["Metric Mapping / Target"] || "100%",
-                    actionPlans: o.actionPlans || "",
-                    actualAchievement: o.actualAchievement || o["Actual Acievement"] || "",
-                    selected: true
-                };
-                initialOrgs.push(orgObj);
-            }
+          orgObj = initialOrgs.find(org => org.text === orgText);
+          if (!orgObj) {
+            orgObj = {
+              id: (isBackendOrg ? o.id : null) || `org-${Date.now()}-${i}`,
+              text: orgText,
+              metric: o.metric || o.organizationMetric || o["Organization Metric (KPI)"] || "",
+              measurement: o.measurement || "",
+              responsibility: o.responsibility || o.Responsibility || "",
+              frequency: o.frequency || o.frequencyOfReview || "Annually",
+              target: o.target || o.targetOfAchievement || o["Metric Mapping / Target"] || "100%",
+              actionPlans: o.actionPlans || "",
+              actualAchievement: o.actualAchievement || o["Actual Acievement"] || "",
+              selected: true
+            };
+            initialOrgs.push(orgObj);
+          }
         }
 
         const deptName = (o["Department Name"] || o.department || o.dept || "").trim();
         const deptText = isBackendDept ? o.objective : (o["Department Objective"] || o.departmentObjective || "");
         if (deptName && deptText && !isBackendOrg) {
-            if (!initialDepts.find(d => d.dept === deptName && d.text === deptText)) {
-                const mappedOrgId = isBackendDept ? o.orgObjectiveId : (orgObj ? orgObj.id : null);
-                initialDepts.push({
-                    id: (isBackendDept ? o.id : null) || `dept-${Date.now()}-${i}`,
-                    orgObjectiveId: mappedOrgId,
-                    dept: deptName,
-                    department: deptName,
-                    text: deptText,
-                    deptMetric: o.metric || o.departmentMetric || o["Department Metric (KPI)"] || "",
-                    measurement: o.measurement || "",
-                    responsibility: o.responsibility || o.Responsibility || "",
-                    frequency: o.frequency || o.frequencyOfReview || "Monthly",
-                    target: o.target || o.targetOfAchievement || o["Metric Mapping / Target"] || "100%",
-                    actionPlans: o.actionPlans || "",
-                    actualAchievement: o.actualAchievement || o["Actual Acievement"] || "",
-                    selected: true
-                });
-            }
+          if (!initialDepts.find(d => d.dept === deptName && d.text === deptText)) {
+            const mappedOrgId = isBackendDept ? o.orgObjectiveId : (orgObj ? orgObj.id : null);
+            initialDepts.push({
+              id: (isBackendDept ? o.id : null) || `dept-${Date.now()}-${i}`,
+              orgObjectiveId: mappedOrgId,
+              dept: deptName,
+              department: deptName,
+              text: deptText,
+              deptMetric: o.metric || o.departmentMetric || o["Department Metric (KPI)"] || "",
+              measurement: o.measurement || "",
+              responsibility: o.responsibility || o.Responsibility || "",
+              frequency: o.frequency || o.frequencyOfReview || "Monthly",
+              target: o.target || o.targetOfAchievement || o["Metric Mapping / Target"] || "100%",
+              actionPlans: o.actionPlans || "",
+              actualAchievement: o.actualAchievement || o["Actual Acievement"] || "",
+              selected: true
+            });
+          }
         }
       });
       if (initialOrgs.length === 0) {
@@ -1512,72 +1512,72 @@ const PlanMultiStepManager = ({ initialPlanId = null }) => {
       defaultRows.forEach((o, i) => {
         const isBackendOrg = o.level === 'ORG' || o.level === 'organization';
         const isBackendDept = o.level === 'DEPT' || o.level === 'department';
-        
+
         let orgObj = null;
 
         const orgText = isBackendOrg ? o.objective : (o["Organization Objective"] || o.organizationObjective || o.objective || "");
         if (orgText && !isBackendDept) {
-            orgObj = initialOrgs.find(org => org.text === orgText);
-            if (!orgObj) {
-                const savedOrg = (fullPlan.orgObjectives || []).find(so => (isBackendOrg && o.id && so.id === o.id) || (so.text || so.objective) === orgText);
-                orgObj = {
-                    id: (isBackendOrg ? o.id : null) || savedOrg?.id || `org-${Date.now()}-${i}`,
-                    text: savedOrg ? (savedOrg.text || savedOrg.objective || orgText) : orgText,
-                    metric: savedOrg?.metric || o["Organization Metric (KPI)"] || o.metric || o.organizationMetric || "",
-                    measurement: savedOrg?.measurement || o.measurement || "",
-                    responsibility: savedOrg?.responsibility || o.Responsibility || o.responsibility || "",
-                    frequency: savedOrg?.frequency || o.frequency || o.frequencyOfReview || "Annually",
-                    target: savedOrg?.target || o["Metric Mapping / Target"] || o.target || o.targetOfAchievement || "100%",
-                    actionPlans: savedOrg?.actionPlans || o.actionPlans || "",
-                    actualAchievement: savedOrg?.actualAchievement || o["Actual Acievement"] || o["Actual Achievement"] || o.actualAchievement || "",
-                    selected: !!savedOrg
-                };
-                initialOrgs.push(orgObj);
-            }
+          orgObj = initialOrgs.find(org => org.text === orgText);
+          if (!orgObj) {
+            const savedOrg = (fullPlan.orgObjectives || []).find(so => (isBackendOrg && o.id && so.id === o.id) || (so.text || so.objective) === orgText);
+            orgObj = {
+              id: (isBackendOrg ? o.id : null) || savedOrg?.id || `org-${Date.now()}-${i}`,
+              text: savedOrg ? (savedOrg.text || savedOrg.objective || orgText) : orgText,
+              metric: savedOrg?.metric || o["Organization Metric (KPI)"] || o.metric || o.organizationMetric || "",
+              measurement: savedOrg?.measurement || o.measurement || "",
+              responsibility: savedOrg?.responsibility || o.Responsibility || o.responsibility || "",
+              frequency: savedOrg?.frequency || o.frequency || o.frequencyOfReview || "Annually",
+              target: savedOrg?.target || o["Metric Mapping / Target"] || o.target || o.targetOfAchievement || "100%",
+              actionPlans: savedOrg?.actionPlans || o.actionPlans || "",
+              actualAchievement: savedOrg?.actualAchievement || o["Actual Acievement"] || o["Actual Achievement"] || o.actualAchievement || "",
+              selected: !!savedOrg
+            };
+            initialOrgs.push(orgObj);
+          }
         }
 
         const deptName = (o["Department Name"] || o.department || o.dept || "").trim();
         const deptText = isBackendDept ? o.objective : (o["Department Objective"] || o.departmentObjective || "");
         if (deptName && deptText && !isBackendOrg) {
-            if (!initialDepts.find(d => d.text === deptText && (d.department || d.dept) === deptName)) {
-                const savedDept = (fullPlan.deptObjectives || []).find(sd =>
-                  (isBackendDept && o.id && sd.id === o.id) ||
-                  ((sd.text || sd.objective) === deptText && (sd.department || sd.dept) === deptName)
-                );
-                const mappedOrgId = isBackendDept ? o.orgObjectiveId : (orgObj ? orgObj.id : null);
-                initialDepts.push({
-                    id: (isBackendDept ? o.id : null) || savedDept?.id || `dept-${Date.now()}-${i}`,
-                    orgObjectiveId: mappedOrgId,
-                    department: deptName,
-                    dept: deptName,
-                    text: savedDept ? (savedDept.text || savedDept.objective || deptText) : deptText,
-                    deptMetric: savedDept?.deptMetric || savedDept?.metric || o["Department Metric (KPI)"] || o.metric || o.departmentMetric || "",
-                    measurement: savedDept?.measurement || o.measurement || "",
-                    responsibility: savedDept?.responsibility || o.Responsibility || o.responsibility || "",
-                    frequency: savedDept?.frequency || o.frequency || o.frequencyOfReview || "Annually",
-                    target: savedDept?.target || o["Metric Mapping / Target"] || o.target || o.targetOfAchievement || "100%",
-                    actionPlans: savedDept?.actionPlans || o.actionPlans || "",
-                    actualAchievement: savedDept?.actualAchievement || o["Actual Acievement"] || o["Actual Achievement"] || o.actualAchievement || "",
-                    selected: !!savedDept
-                });
-            }
+          if (!initialDepts.find(d => d.text === deptText && (d.department || d.dept) === deptName)) {
+            const savedDept = (fullPlan.deptObjectives || []).find(sd =>
+              (isBackendDept && o.id && sd.id === o.id) ||
+              ((sd.text || sd.objective) === deptText && (sd.department || sd.dept) === deptName)
+            );
+            const mappedOrgId = isBackendDept ? o.orgObjectiveId : (orgObj ? orgObj.id : null);
+            initialDepts.push({
+              id: (isBackendDept ? o.id : null) || savedDept?.id || `dept-${Date.now()}-${i}`,
+              orgObjectiveId: mappedOrgId,
+              department: deptName,
+              dept: deptName,
+              text: savedDept ? (savedDept.text || savedDept.objective || deptText) : deptText,
+              deptMetric: savedDept?.deptMetric || savedDept?.metric || o["Department Metric (KPI)"] || o.metric || o.departmentMetric || "",
+              measurement: savedDept?.measurement || o.measurement || "",
+              responsibility: savedDept?.responsibility || o.Responsibility || o.responsibility || "",
+              frequency: savedDept?.frequency || o.frequency || o.frequencyOfReview || "Annually",
+              target: savedDept?.target || o["Metric Mapping / Target"] || o.target || o.targetOfAchievement || "100%",
+              actionPlans: savedDept?.actionPlans || o.actionPlans || "",
+              actualAchievement: savedDept?.actualAchievement || o["Actual Acievement"] || o["Actual Achievement"] || o.actualAchievement || "",
+              selected: !!savedDept
+            });
+          }
         }
       });
 
       // Also add any custom objectives that were saved but not in the defaults
       (fullPlan.orgObjectives || []).forEach((so, i) => {
-          const text = so.text || so.objective;
-          const metric = so.metric || so.orgMetric || "";
-          if (text && !initialOrgs.find(org => (so.id && org.id === so.id) || org.text === text)) {
-              initialOrgs.push({ ...so, text, metric, selected: true, id: so.id || `custom-org-${Date.now()}-${i}` });
-          }
+        const text = so.text || so.objective;
+        const metric = so.metric || so.orgMetric || "";
+        if (text && !initialOrgs.find(org => (so.id && org.id === so.id) || org.text === text)) {
+          initialOrgs.push({ ...so, text, metric, selected: true, id: so.id || `custom-org-${Date.now()}-${i}` });
+        }
       });
       (fullPlan.deptObjectives || []).forEach((sd, i) => {
-          const text = sd.text || sd.objective;
-          const deptName = sd.department || sd.dept;
-          if (text && deptName && !initialDepts.find(d => (sd.id && d.id === sd.id) || (d.text === text && (d.department || d.dept) === deptName))) {
-              initialDepts.push({ ...sd, text, department: deptName, dept: deptName, selected: true, id: sd.id || `custom-dept-${Date.now()}-${i}` });
-          }
+        const text = sd.text || sd.objective;
+        const deptName = sd.department || sd.dept;
+        if (text && deptName && !initialDepts.find(d => (sd.id && d.id === sd.id) || (d.text === text && (d.department || d.dept) === deptName))) {
+          initialDepts.push({ ...sd, text, department: deptName, dept: deptName, selected: true, id: sd.id || `custom-dept-${Date.now()}-${i}` });
+        }
       });
 
       if (initialOrgs.length === 0) {
@@ -1601,8 +1601,8 @@ const PlanMultiStepManager = ({ initialPlanId = null }) => {
         const backendDepts = fullPlan.deptObjectives || [];
         if (fullPlan.departmentReviews) {
           fullPlan.departmentReviews.forEach(r => {
-              const deptObjs = backendDepts.filter(o => (o.dept || o.department) === r.departmentId);
-              safeVisibleDeptIds[r.departmentId] = deptObjs.map(o => o.id);
+            const deptObjs = backendDepts.filter(o => (o.dept || o.department) === r.departmentId);
+            safeVisibleDeptIds[r.departmentId] = deptObjs.map(o => o.id);
           });
         }
         setVisibleDeptObjectiveIds(safeVisibleDeptIds);
@@ -1643,33 +1643,33 @@ const PlanMultiStepManager = ({ initialPlanId = null }) => {
     setDeptObjectives(prev => prev.filter(obj => obj.id !== id));
   };
 
-    const calculateUnapprovedDepts = () => {
-      const departmentReviews = selectedFramework?.departmentReviews || [];
-      const authoritativeDeptObjectives = deptObjectives;
+  const calculateUnapprovedDepts = () => {
+    const departmentReviews = selectedFramework?.departmentReviews || [];
+    const authoritativeDeptObjectives = deptObjectives;
 
-      const unapproved = [];
+    const unapproved = [];
 
-      allSelectedDepts.forEach(dept => {
-        const cat = availableDepartments.find(d => (d.id === dept || d._id === dept || d.name === dept))?.mapping || dept;
-        const lowerCat = cat.toLowerCase().trim();
-        if (lowerCat.includes("steering committee") || lowerCat.includes("steeringcommittee") || lowerCat.includes("security officer")) return;
+    allSelectedDepts.forEach(dept => {
+      const cat = availableDepartments.find(d => (d.id === dept || d._id === dept || d.name === dept))?.mapping || dept;
+      const lowerCat = cat.toLowerCase().trim();
+      if (lowerCat.includes("steering committee") || lowerCat.includes("steeringcommittee") || lowerCat.includes("security officer")) return;
 
-        const mappedBackendNames = getBackendDeptNames(cat).map(n => n.toLowerCase());
-        mappedBackendNames.push(lowerCat);
+      const mappedBackendNames = getBackendDeptNames(cat).map(n => n.toLowerCase());
+      mappedBackendNames.push(lowerCat);
 
-        const availableDeptObjs = authoritativeDeptObjectives.filter(dObj => (dObj.dept || dObj.department) && mappedBackendNames.includes((dObj.dept || dObj.department).toLowerCase().trim()));
-        const activeIds = visibleDeptObjectiveIds[dept] || availableDeptObjs.map(o => o.id);
-        const activeObjs = availableDeptObjs.filter(o => activeIds.includes(o.id));
+      const availableDeptObjs = authoritativeDeptObjectives.filter(dObj => (dObj.dept || dObj.department) && mappedBackendNames.includes((dObj.dept || dObj.department).toLowerCase().trim()));
+      const activeIds = visibleDeptObjectiveIds[dept] || availableDeptObjs.map(o => o.id);
+      const activeObjs = availableDeptObjs.filter(o => activeIds.includes(o.id));
 
-        if (activeObjs.length > 0) {
-          const review = departmentReviews.find(r => r.departmentId === dept);
-          if (!review || review.reviewStatus !== "ACCEPTED") {
-            unapproved.push(cat);
-          }
+      if (activeObjs.length > 0) {
+        const review = departmentReviews.find(r => r.departmentId === dept);
+        if (!review || review.reviewStatus !== "ACCEPTED") {
+          unapproved.push(cat);
         }
-      });
-      return unapproved;
-    };
+      }
+    });
+    return unapproved;
+  };
 
   const handleSubmitPlan = async () => {
     setIsSaving(true);
@@ -1698,10 +1698,10 @@ const PlanMultiStepManager = ({ initialPlanId = null }) => {
       const review = departmentReviews.find(r => r.departmentId === dept);
       // We only flag it if there are actually objectives for this department
       const hasObjs = finalFilteredDeptObjectives.some(o => {
-          const dName = (o.dept || o.department || "").toLowerCase().trim();
-          const mapped = getBackendDeptNames(cat).map(n => n.toLowerCase());
-          mapped.push(lowerCat);
-          return mapped.includes(dName);
+        const dName = (o.dept || o.department || "").toLowerCase().trim();
+        const mapped = getBackendDeptNames(cat).map(n => n.toLowerCase());
+        mapped.push(lowerCat);
+        return mapped.includes(dName);
       });
 
       if (hasObjs && (!review || review.reviewStatus !== "ACCEPTED")) {
@@ -1744,12 +1744,12 @@ const PlanMultiStepManager = ({ initialPlanId = null }) => {
         ...planData,
         status: "Pending Review", // Backend will transition it to Completed
       });
-      
+
       const planId = savedPlan?.id || savedPlan?._id;
       if (planId) {
         await completePlan(planId);
       }
-      
+
       setSubmissionResultModal({ isOpen: true, success: true, message: 'Your plan has been submitted and marked as Completed successfully.' });
     } catch (err) {
       setSubmissionResultModal({ isOpen: true, success: false, message: err.response?.data?.message || err.response?.data || 'Failed to complete plan. Ensure all departments have approved their objectives.' });
@@ -1799,7 +1799,7 @@ const PlanMultiStepManager = ({ initialPlanId = null }) => {
   };
 
   const getStepLabel = (step) =>
-    ["Scoping", "Org Structuring", "Org Objectives", "Dept Objectives", "Metrics Mapping"][step - 1];
+    ["Scope ", "Organizational Structure", "Organization Objectives", "Department Objectives", "Summary"][step - 1];
 
   const isViewMode = selectedFramework?.status === "Completed" && !isEditingCompletedPlan;
 
@@ -1994,16 +1994,16 @@ const PlanMultiStepManager = ({ initialPlanId = null }) => {
                 </button>
               )}
               {isViewMode && (
-                <button 
-                  onClick={() => setIsEditingCompletedPlan(true)} 
-                  className="msf-btn" 
+                <button
+                  onClick={() => setIsEditingCompletedPlan(true)}
+                  className="msf-btn"
                   style={{ background: '#3b82f6', color: 'white', fontWeight: 'bold' }}>
                   Edit Plan
                 </button>
               )}
               {!isViewMode && currentStep === 5 && (
-                <button 
-                  onClick={calculateUnapprovedDepts().length === 0 ? handleSubmitPlan : undefined} 
+                <button
+                  onClick={calculateUnapprovedDepts().length === 0 ? handleSubmitPlan : undefined}
                   className={`msf-btn msf-btn--submit ${calculateUnapprovedDepts().length > 0 ? 'disabled' : ''}`}
                   disabled={calculateUnapprovedDepts().length > 0}
                   style={{
@@ -2197,10 +2197,10 @@ const PlanMultiStepManager = ({ initialPlanId = null }) => {
                     </div>
                     <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
                       <button onClick={() => setExistingFrameworkPlan(null)} style={{ padding: '8px 16px', background: 'transparent', border: '1px solid #0369a1', color: '#0369a1', borderRadius: '6px', cursor: 'pointer' }}>Cancel</button>
-                      <button onClick={() => { 
-                         setShowFrameworkModal(false);
-                         setExistingFrameworkPlan(null);
-                         router.push(`/plan/create?id=${existingFrameworkPlan.id || existingFrameworkPlan._id}`);
+                      <button onClick={() => {
+                        setShowFrameworkModal(false);
+                        setExistingFrameworkPlan(null);
+                        router.push(`/plan/create?id=${existingFrameworkPlan.id || existingFrameworkPlan._id}`);
                       }} style={{ padding: '8px 16px', background: '#0369a1', border: 'none', color: 'white', borderRadius: '6px', cursor: 'pointer' }}>
                         Resume Plan
                       </button>
@@ -2212,7 +2212,7 @@ const PlanMultiStepManager = ({ initialPlanId = null }) => {
                     <p style={{ margin: 0, fontSize: '14px', fontWeight: 500 }}>{frameworkError}</p>
                   </div>
                 )}
-                
+
                 <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#334155', marginBottom: '16px' }}>Select Domain</h3>
                 {frameworksLoading ? (
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px', gap: '12px', color: '#64748b' }}>
@@ -2424,7 +2424,7 @@ const PlanMultiStepManager = ({ initialPlanId = null }) => {
               </div>
               <h3 style={{ margin: 0, fontSize: "20px", fontWeight: "bold", color: "#1e293b" }}>Submission Blocked</h3>
             </div>
-            
+
             <p style={{ margin: "0 0 16px 0", fontSize: "14px", color: "#475569", lineHeight: "1.5" }}>
               You cannot submit the plan until all department objectives have been reviewed and approved by their Risk Owners.
             </p>
