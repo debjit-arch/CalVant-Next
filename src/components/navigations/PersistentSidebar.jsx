@@ -329,7 +329,7 @@ const PersistentSidebar = () => {
         className="
           fixed top-0 left-0 right-0 z-[1001]
           h-14 sm:h-16 md:h-16 lg:h-[72px]
-          bg-white/95 backdrop-blur-xl
+          bg-white
           shadow-[0_4px_16px_rgba(0,0,0,0.06)]
           flex items-center justify-between
           px-3 sm:px-5 md:px-8 lg:px-10
