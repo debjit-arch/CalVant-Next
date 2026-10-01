@@ -5,7 +5,9 @@ import {
   ShieldCheck,
   FileText,
   GraduationCap,
-  Ticket,
+  Gavel,
+  Eye,
+  ListChecks,
   LogOut,
   UploadCloud,
   RefreshCw,
@@ -21,6 +23,7 @@ import {
   listPolicyAcceptancesForPerson,
   listTrainingForPerson,
   listTicketsForPerson,
+  listPersons,
   initiateBackgroundCheck,
   refreshBackgroundCheck,
   getOffboardingCase,
@@ -32,6 +35,8 @@ import BgvFormModal from "../components/BgvFormModal";
 import DocumentAcceptanceFormModal from "../components/DocumentAcceptanceFormModal";
 import TrainingFormModal from "../components/TrainingFormModal";
 import CreateTicketModal from "../components/CreateTicketModal";
+import DisciplinaryViewModal from "../components/DisciplinaryViewModal";
+import EventLogTasksModal from "../components/EventLogTasksModal";
 import InitiateOffboardingModal from "../components/InitiateOffboardingModal";
 import OffboardingCaseDetail from "../components/OffboardingCaseDetail";
 import SectionPageHeader from "../components/SectionPageHeader";
@@ -96,9 +101,26 @@ export default function PersonProfilePage({ personId }) {
   const [showAddTraining, setShowAddTraining] = useState(false);
   const [trainingEdit, setTrainingEdit] = useState(null);
   const [ticketCategory, setTicketCategory] = useState(null);
+  const [viewingCase, setViewingCase] = useState(null); // disciplinary case open in the View popup
+  const [managingEvent, setManagingEvent] = useState(null); // event-log entry open in the Tasks popup
+  const [allPersons, setAllPersons] = useState([]); // only needed to pick a task assignee — loaded on first use
   const [viewStep, setViewStep] = useState(null); // null = follow the person's real progress
 
   const latestBgv = bgv[0] || null;
+
+  const openEventTasks = async (ticket) => {
+    if (allPersons.length === 0) {
+      try {
+        setAllPersons((await listPersons()) || []);
+      } catch {
+        setAllPersons(person ? [person] : []);
+      }
+    }
+    setManagingEvent(ticket);
+  };
+
+  const replaceTicket = (updated) =>
+    setTickets((prev) => prev.map((x) => (x.id === updated.id ? updated : x)));
 
   const load = async () => {
     setLoading(true);
@@ -157,7 +179,8 @@ export default function PersonProfilePage({ personId }) {
 
   const docsAccepted = policies.filter((p) => p.accepted).length;
   const trainingPending = training.filter((t) => (t.status || "").toUpperCase() !== "COMPLETED").length;
-  const openTickets = tickets.filter((t) => (t.status || "").toUpperCase() === "OPEN").length;
+  // Disciplinary actions carry no status, so only event-log entries can be "open".
+  const openTickets = tickets.filter((t) => t.category === "SECURITY_EVENT" && (t.status || "").toUpperCase() === "OPEN").length;
 
   const attention = useMemo(
     () =>
@@ -514,47 +537,104 @@ export default function PersonProfilePage({ personId }) {
             </div>
 
             <SectionCard
-              title="HR actions"
-              icon={Ticket}
+              title="Disciplinary actions"
+              icon={Gavel}
               action={
                 canEdit && (
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      onClick={() => setTicketCategory("DISCIPLINARY")}
-                      className="text-xs font-medium text-slate-600 border border-slate-200 bg-white px-2 py-1.5 rounded-lg hover:bg-slate-50"
-                    >
-                      Log disciplinary case
-                    </button>
-                    <button
-                      onClick={() => setTicketCategory("SECURITY_EVENT")}
-                      className="text-xs font-medium text-slate-600 border border-slate-200 bg-white px-2 py-1.5 rounded-lg hover:bg-slate-50"
-                    >
-                      Log security event
-                    </button>
-                  </div>
+                  <button
+                    onClick={() => setTicketCategory("DISCIPLINARY")}
+                    className="text-xs font-medium text-slate-600 border border-slate-200 bg-white px-2 py-1.5 rounded-lg hover:bg-slate-50"
+                  >
+                    Log disciplinary case
+                  </button>
                 )
               }
             >
-              {tickets.length === 0 ? (
-                <Empty text="No actions logged for this person." />
+              {tickets.filter((t) => t.category === "DISCIPLINARY").length === 0 ? (
+                <Empty text="No disciplinary actions logged for this person." />
               ) : (
                 <ul className="space-y-2">
-                  {tickets.map((t) => (
-                    <li key={t.id} className="text-sm border border-slate-100 rounded-lg px-3 py-2.5">
-                      <div className="flex items-center justify-between">
-                        <span className="text-slate-700">{t.summary}</span>
-                        <StatusBadge value={t.status} />
-                      </div>
-                      <div className="text-xs text-slate-400 mt-1 flex items-center gap-2">
-                        <span>{humanize(t.category)}</span>
-                        {t.ticketUrl && (
-                          <a href={t.ticketUrl} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">
-                            View in {t.ticketSystem || "ticketing system"}
-                          </a>
-                        )}
-                      </div>
-                    </li>
-                  ))}
+                  {tickets
+                    .filter((t) => t.category === "DISCIPLINARY")
+                    .map((t) => (
+                      <li key={t.id} className="text-sm border border-slate-100 rounded-lg px-3 py-2.5">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="text-slate-700 break-words">{t.summary}</div>
+                            {t.actionTaken && (
+                              <div className="text-xs text-slate-500 mt-0.5 truncate" title={t.actionTaken}>
+                                Action taken: {t.actionTaken}
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <button
+                              onClick={() => setViewingCase(t)}
+                              className="inline-flex items-center gap-1 text-xs font-medium text-slate-600 border border-slate-200 px-2 py-1 rounded-lg hover:bg-slate-50"
+                            >
+                              <Eye size={12} /> View
+                            </button>
+                          </div>
+                        </div>
+                        <div className="text-xs text-slate-400 mt-1 flex items-center gap-2">
+                          {t.ticketRefId && <span className="font-mono">{t.ticketRefId}</span>}
+                          {t.ticketUrl && (
+                            <a href={t.ticketUrl} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">
+                              View in {t.ticketSystem || "ticketing system"}
+                            </a>
+                          )}
+                        </div>
+                      </li>
+                    ))}
+                </ul>
+              )}
+            </SectionCard>
+
+            <SectionCard
+              title="Event log"
+              icon={AlertTriangle}
+              action={
+                canEdit && (
+                  <button
+                    onClick={() => setTicketCategory("SECURITY_EVENT")}
+                    className="text-xs font-medium text-slate-600 border border-slate-200 bg-white px-2 py-1.5 rounded-lg hover:bg-slate-50"
+                  >
+                    Log event
+                  </button>
+                )
+              }
+            >
+              {tickets.filter((t) => t.category === "SECURITY_EVENT").length === 0 ? (
+                <Empty text="No events logged for this person." />
+              ) : (
+                <ul className="space-y-2">
+                  {tickets
+                    .filter((t) => t.category === "SECURITY_EVENT")
+                    .map((t) => (
+                      <li key={t.id} className="text-sm border border-slate-100 rounded-lg px-3 py-2.5">
+                        <div className="flex items-start justify-between gap-3">
+                          <span className="text-slate-700 break-words">{t.summary}</span>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <StatusBadge value={t.status} />
+                            <button
+                              onClick={() => openEventTasks(t)}
+                              className="inline-flex items-center gap-1 text-xs font-medium text-slate-600 border border-slate-200 px-2 py-1 rounded-lg hover:bg-slate-50"
+                            >
+                              <ListChecks size={12} /> {canEdit ? "Tasks" : "View tasks"}
+                            </button>
+                          </div>
+                        </div>
+                        <div className="text-xs text-slate-400 mt-1 flex items-center gap-2">
+                          {t.ticketRefId && <span className="font-mono">{t.ticketRefId}</span>}
+                          <span>{t.tasksTotal ? `${t.tasksCompleted || 0}/${t.tasksTotal} tasks done` : "No tasks"}</span>
+                          {t.ticketUrl && (
+                            <a href={t.ticketUrl} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">
+                              View in {t.ticketSystem || "ticketing system"}
+                            </a>
+                          )}
+                        </div>
+                      </li>
+                    ))}
                 </ul>
               )}
             </SectionCard>
@@ -661,10 +741,25 @@ export default function PersonProfilePage({ personId }) {
           category={ticketCategory}
           persons={[person]}
           onClose={() => setTicketCategory(null)}
-          onCreated={(created) => {
+          onCreated={(created, info) => {
             setTicketCategory(null);
             setTickets((prev) => [created, ...prev]);
+            // Tasks added in the form are already on the board; only open the Tasks popup when none were
+            // added, or when some couldn't be created, so they can be added/retried there.
+            if (created.category === "SECURITY_EVENT" && (!created.tasksTotal || info?.failed)) openEventTasks(created);
           }}
+        />
+      )}
+
+      {viewingCase && <DisciplinaryViewModal ticket={viewingCase} person={person} hideStatus onClose={() => setViewingCase(null)} />}
+
+      {managingEvent && (
+        <EventLogTasksModal
+          ticket={managingEvent}
+          persons={allPersons.length ? allPersons : [person]}
+          canEdit={canEdit}
+          onClose={() => setManagingEvent(null)}
+          onChanged={replaceTicket}
         />
       )}
 

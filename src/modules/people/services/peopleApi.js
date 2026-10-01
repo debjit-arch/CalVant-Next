@@ -18,6 +18,10 @@ const SERVICE_BASE = process.env.NEXT_PUBLIC_SP
 
 const API = `${SERVICE_BASE}/api/people`;
 
+const USER_BASE = process.env.NEXT_PUBLIC_SP
+  ? `${process.env.NEXT_PUBLIC_SP}/user-service`
+  : "https://api.calvant.com/user-service";
+
 const getToken = () =>
   (typeof window !== "undefined" &&
     (sessionStorage.getItem("token") || localStorage.getItem("token"))) ||
@@ -56,6 +60,14 @@ const sendJson = (url, method, payload) =>
     headers: authHeaders({ "Content-Type": "application/json" }),
     body: payload !== undefined ? JSON.stringify(payload) : undefined,
   }).then(handle);
+
+// ── Organisation users (user-service) — who a task can be assigned to ───────
+
+/** Users of the organisation. assignable=true limits it to users flagged as assignable (canView). */
+export const listOrgUsers = (orgId, assignableOnly = true) =>
+  getJson(
+    `${USER_BASE}/api/users?${orgId ? `organization=${encodeURIComponent(orgId)}&` : ""}${assignableOnly ? "assignable=true" : ""}`.replace(/[?&]$/, ""),
+  );
 
 // ── Persons ──────────────────────────────────────────────────────────────────
 
@@ -111,16 +123,23 @@ export const markOffboardingAccountsDeactivated = (caseId) =>
 export const completeOffboarding = (caseId) =>
   sendJson(`${API}/offboarding/${caseId}/advance/complete`, "POST");
 
-// ── Linked tickets (Disciplinary process / Event report) ───────────────────
+// ── Linked tickets (Disciplinary actions / Event log) ──────────────────────
 
 /** category: DISCIPLINARY | SECURITY_EVENT */
 export const listTickets = (category) => getJson(`${API}/tickets/${category}`);
 export const listTicketsForPerson = (personId) => getJson(`${API}/tickets/person/${personId}`);
 export const getTicket = (id) => getJson(`${API}/tickets/detail/${id}`);
-export const createTicket = (category, { personId, summary, ticketingConfig }) =>
-  sendJson(`${API}/tickets/${category}`, "POST", { personId, summary, ticketingConfig });
+/** actionTaken: Disciplinary only — free text, what action was taken. */
+export const createTicket = (category, { personId, summary, ticketingConfig, actionTaken }) =>
+  sendJson(`${API}/tickets/${category}`, "POST", { personId, summary, ticketingConfig, actionTaken });
 export const updateTicketStatus = (id, status, resolutionSummary) =>
   sendJson(`${API}/tickets/detail/${id}/status`, "PATCH", { status, resolutionSummary });
+// Event Log tasks — { ticket, tasks } comes back from both calls, so the caller can update
+// the row (status + progress) and the task list from one response.
+export const getTicketTasks = (ticketId) => getJson(`${API}/tickets/detail/${ticketId}/tasks`);
+/** task: { description, assigneePersonId, dueDate?, priority? } */
+export const addTicketTask = (ticketId, task) =>
+  sendJson(`${API}/tickets/detail/${ticketId}/tasks`, "POST", task);
 /** Pulls the latest status for every ticketing-synced ticket in a category. */
 export const refreshTickets = (category) => sendJson(`${API}/tickets/${category}/refresh`, "POST");
 

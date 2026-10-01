@@ -1,6 +1,20 @@
 // taskManagement/utils/taskSourceResolver.js
 
+/** Tasks raised by the People module (onboarding / offboarding / event log / disciplinary). */
+export function isPeopleTask(task) {
+  return task?.type === "Module" && !!task?.personnelId;
+}
+
 export function resolveTaskSource(task) {
+  // People module — event log / disciplinary tasks open that section; the rest open the person's profile.
+  if (isPeopleTask(task)) {
+    const sub = String(task.subType || "").toUpperCase();
+    if (sub === "SECURITY_EVENT" || sub === "DISCIPLINARY") {
+      return { label: "People", kind: "direct", route: `/people/tickets?category=${sub}` };
+    }
+    return { label: "People", kind: "direct", route: `/people/directory/${encodeURIComponent(task.personnelId)}` };
+  }
+
   // DPIA — direct link, id is a path segment
   if (task.dpiaId || task.source === "DPIA") {
     const id = task.dpiaId;
