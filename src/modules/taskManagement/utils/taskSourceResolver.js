@@ -9,7 +9,7 @@ export function resolveTaskSource(task) {
   // People module — event log / disciplinary tasks open that section; the rest open the person's profile.
   if (isPeopleTask(task)) {
     const sub = String(task.subType || "").toUpperCase();
-    if (sub === "SECURITY_EVENT" || sub === "DISCIPLINARY") {
+    if (sub === "SECURITY_EVENT") {
       return { label: "People", kind: "direct", route: `/people/tickets?category=${sub}` };
     }
     return { label: "People", kind: "direct", route: `/people/directory/${encodeURIComponent(task.personnelId)}` };
