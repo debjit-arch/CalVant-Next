@@ -243,7 +243,7 @@ const PlanDashboard = () => {
                 { Icon: FileText, value: activePlans.length, label: "Total Plans", color: "from-indigo-400 to-indigo-500" },
                 { Icon: Clock, value: activePlans.filter(p => p.status === "Draft").length, label: "Draft Plans", color: "from-orange-400 to-orange-500" },
                 { Icon: CheckCircle2, value: activePlans.filter(p => p.status === "Completed").length, label: "Completed Plans", color: "from-emerald-400 to-emerald-500" },
-                { Icon: AlertTriangle, value: 0, label: "Overdue Metrics", color: "from-red-400 to-red-500" },
+                // { Icon: AlertTriangle, value: 0, label: "Overdue Metrics", color: "from-red-400 to-red-500" },
               ].map(({ Icon, value, label, color }) => (
                 <div key={label} className="group bg-white/70 backdrop-blur-sm border border-slate-100/50 rounded-lg p-3 shadow-sm hover:shadow-md transition-all duration-300 flex items-center gap-3 h-full min-h-[72px]">
                   <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${color} flex items-center justify-center shadow-sm flex-shrink-0`}>
