@@ -40,7 +40,7 @@ import EventLogTasksModal from "../components/EventLogTasksModal";
 import InitiateOffboardingModal from "../components/InitiateOffboardingModal";
 import OffboardingCaseDetail from "../components/OffboardingCaseDetail";
 import SectionPageHeader from "../components/SectionPageHeader";
-import { formatDate, humanize, canWrite, POLICY_LABELS, POLICY_TYPES, getAttention, attentionLabel } from "../utils/peopleFormat";
+import { formatDate, humanize, canWrite, POLICY_LABELS, POLICY_TYPES, getAttention, attentionLabel, ticketDisplayStatus } from "../utils/peopleFormat";
 import { captureActivity, ACTIONS } from "@/services/activities";
 
 // Journey steps shown at the top of the page. "Joined" is a milestone only (a
@@ -487,7 +487,7 @@ export default function PersonProfilePage({ personId }) {
                           <div className="flex items-center justify-between gap-3">
                             <span className="text-slate-700">{t.courseName}</span>
                             <div className="flex items-center gap-2 flex-shrink-0">
-                              <StatusBadge value={t.status} />
+                              <StatusBadge value={ticketDisplayStatus(t)} />
                               {canEdit && t.source !== "LMS_SYNCED" && (
                                 <button
                                   onClick={() => setTrainingEdit(t)}
@@ -615,7 +615,7 @@ export default function PersonProfilePage({ personId }) {
                         <div className="flex items-start justify-between gap-3">
                           <span className="text-slate-700 break-words">{t.summary}</span>
                           <div className="flex items-center gap-2 flex-shrink-0">
-                            <StatusBadge value={t.status} />
+                            <StatusBadge value={ticketDisplayStatus(t)} />
                             <button
                               onClick={() => openEventTasks(t)}
                               className="inline-flex items-center gap-1 text-xs font-medium text-slate-600 border border-slate-200 px-2 py-1 rounded-lg hover:bg-slate-50"

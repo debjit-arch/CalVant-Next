@@ -6,7 +6,7 @@ import StatusBadge from "./StatusBadge";
 import CreateTicketModal from "./CreateTicketModal";
 import DisciplinaryViewModal from "./DisciplinaryViewModal";
 import { TicketListHeader, useTicketList, refCell } from "./ticketShared";
-import { formatDateTime } from "../utils/peopleFormat";
+import { formatDateTime, ticketDisplayStatus } from "../utils/peopleFormat";
 
 /** Disciplinary actions — its own section: form with "action taken", plus a View button per case. */
 export default function DisciplinaryTable({ title, description, canEdit }) {
@@ -87,7 +87,7 @@ export default function DisciplinaryTable({ title, description, canEdit }) {
                     <td className="px-4 py-3 text-slate-600 max-w-[220px]">
                       <div className="truncate" title={t.actionTaken || ""}>{t.actionTaken || "—"}</div>
                     </td>
-                    <td className="px-4 py-3"><StatusBadge value={t.status} /></td>
+                    <td className="px-4 py-3"><StatusBadge value={ticketDisplayStatus(t)} /></td>
                     <td className="px-4 py-3 text-slate-600">{formatDateTime(t.createdAt)}</td>
                     <td className="px-4 py-3">
                       {t.source === "TICKETING_SYNCED" ? (
