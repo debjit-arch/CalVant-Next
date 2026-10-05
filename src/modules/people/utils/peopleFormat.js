@@ -66,6 +66,11 @@ const STATUS_MAP = {
   // accepted booleans get mapped by the caller, not here
 };
 
+/** Status to show for an Event Log / Disciplinary entry: once it has tasks and every one is done,
+ * the entry reads "Closed" regardless of the stored ticket status. */
+export const ticketDisplayStatus = (t) =>
+  t && t.tasksTotal > 0 && (t.tasksCompleted || 0) >= t.tasksTotal ? "CLOSED" : t?.status;
+
 export const statusStyle = (status) => STATUS_MAP[status] || STATUS_STYLES.NEUTRAL;
 
 export const humanize = (value) =>

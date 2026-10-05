@@ -6,7 +6,7 @@ import StatusBadge from "./StatusBadge";
 import CreateTicketModal from "./CreateTicketModal";
 import EventLogTasksModal from "./EventLogTasksModal";
 import { TicketListHeader, useTicketList, refCell } from "./ticketShared";
-import { formatDateTime } from "../utils/peopleFormat";
+import { formatDateTime, ticketDisplayStatus } from "../utils/peopleFormat";
 
 /** Event log — its own section: each entry carries tasks; completing them completes the entry. */
 export default function EventLogTable({ title, description, canEdit }) {
@@ -96,7 +96,7 @@ export default function EventLogTable({ title, description, canEdit }) {
                         </span>
                       )}
                     </td>
-                    <td className="px-4 py-3"><StatusBadge value={t.status} /></td>
+                    <td className="px-4 py-3"><StatusBadge value={ticketDisplayStatus(t)} /></td>
                     <td className="px-4 py-3 text-slate-600">{formatDateTime(t.createdAt)}</td>
                     <td className="px-4 py-3">
                       {t.source === "TICKETING_SYNCED" ? (

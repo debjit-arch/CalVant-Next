@@ -747,16 +747,17 @@ export default function TaskManagement({ riskFormData = {}, auditFormData = {} }
           scoped = scoped.filter((t) => {
             const emp = t.employee;
             const rep = t.reporter;
-            const isAssignee = !!emp && (
-              String(emp) === String(user?._id || user?.id) ||
+            const myId = String(user?._id || user?.id || "");
+            const isAssignee = (!!emp && (
+              String(emp) === myId ||
               emp === currentUserName ||
               emp === user?.name
-            );
-            const isReporter = !!rep && (
+            )) || (!!myId && !!t.employeeId && String(t.employeeId) === myId);
+            const isReporter = (!!rep && (
               rep === currentUserName ||
               rep === user?.name ||
-              String(rep) === String(user?._id || user?.id)
-            );
+              String(rep) === myId
+            )) || (!!myId && !!t.reporterId && String(t.reporterId) === myId);
             return isAssignee || isReporter;
           });
         }
