@@ -16,8 +16,8 @@ const TABS = [
   { key: "terms", label: "T&C of Employment", icon: FileText },
   { key: "post-termination", label: "Post-termination", icon: FileWarning },
   { key: "nda", label: "NDA", icon: FileSignature },
-  { key: "disciplinary", label: "Disciplinary process", icon: Gavel },
-  { key: "event-report", label: "Event report", icon: AlertTriangle },
+  { key: "disciplinary", label: "Disciplinary actions", icon: Gavel },
+  { key: "event-report", label: "Event log", icon: AlertTriangle },
   { key: "learning", label: "Learning", icon: GraduationCap },
   { key: "offboarding", label: "Offboarding", icon: LogOut },
 ];
@@ -91,16 +91,16 @@ export default function PeopleSection() {
       {active === "disciplinary" && (
         <TicketsTable
           category="DISCIPLINARY"
-          title="Disciplinary process"
-          description="History of disciplinary breaches and how each was handled — synced from the connected ticketing system where available, or tracked here directly."
+          title="Disciplinary actions"
+          description="History of disciplinary breaches, the action taken for each, and how it was resolved."
           canEdit={canEdit}
         />
       )}
       {active === "event-report" && (
         <TicketsTable
           category="SECURITY_EVENT"
-          title="Event report"
-          description="Security events reported through the ticketing system, snapshotted here for audit evidence."
+          title="Event log"
+          description="Reported security events. Add tasks to each event and assign them — the event completes when all its tasks are done."
           canEdit={canEdit}
         />
       )}

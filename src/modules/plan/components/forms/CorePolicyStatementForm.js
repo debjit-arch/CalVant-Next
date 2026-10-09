@@ -16,8 +16,7 @@ const CorePolicyStatementForm = ({ orgObjectives, deptObjectives }) => {
   return (
     <div style={{ background: 'white', padding: '24px', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
       <div style={{ marginBottom: '20px' }}>
-        <h3 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '4px', color: '#0f172a' }}>Step 5: Objectives to Metrics Mapping</h3>
-        <p style={{ color: '#64748b', fontSize: '14px', margin: 0 }}>Define metrics and targets to measure your objectives.</p>
+        <h3 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '4px', color: '#0f172a' }}>Step 5: Summary</h3>
       </div>
 
       <div style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: '8px' }}>

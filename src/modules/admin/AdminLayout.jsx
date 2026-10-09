@@ -87,7 +87,7 @@ const NAV_BASE = [
       // { label: "Risk List",   icon: List,       path: "/admin/risks" },
 
       // { label: "Add Risk",    icon: PlusCircle, path: "/admin/risks/add" },
-      { label: "Bulk Upload", icon: Upload, path: "/admin/risks/bulk" },
+      { label: "Bulk Upload", icon: Upload, path: "/admin/risks/root-bulk" },
     ],
   },
   { label: "Trust Centre", icon: Lock, path: "/admin/trust-centre" },
@@ -258,15 +258,15 @@ export default function AdminLayout({ children }) {
   const NAV = (
     isPartnerRoot
       ? [
-          ...NAV_BASE.slice(
-            0,
-            NAV_BASE.findIndex((i) => i.group === "departments") + 1,
-          ),
-          ORG_ITEM,
-          ...NAV_BASE.slice(
-            NAV_BASE.findIndex((i) => i.group === "departments") + 1,
-          ),
-        ]
+        ...NAV_BASE.slice(
+          0,
+          NAV_BASE.findIndex((i) => i.group === "departments") + 1,
+        ),
+        ORG_ITEM,
+        ...NAV_BASE.slice(
+          NAV_BASE.findIndex((i) => i.group === "departments") + 1,
+        ),
+      ]
       : NAV_BASE
   ).filter((item) => {
     if (item.group === "vendors" && !entLoading && !vendorEntitled)
@@ -341,13 +341,12 @@ export default function AdminLayout({ children }) {
                   <button
                     onClick={() => (collapsed ? null : toggleGroup(item.group))}
                     title={collapsed ? item.label : undefined}
-                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl mb-0.5 text-sm font-medium transition-all duration-150 ${
-                      active
-                        ? isOrgItem
-                          ? "bg-purple-50 text-purple-700"
-                          : "bg-indigo-50 text-indigo-700"
-                        : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                    }`}
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl mb-0.5 text-sm font-medium transition-all duration-150 ${active
+                      ? isOrgItem
+                        ? "bg-purple-50 text-purple-700"
+                        : "bg-indigo-50 text-indigo-700"
+                      : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                      }`}
                     style={{
                       justifyContent: collapsed ? "center" : "flex-start",
                     }}
@@ -373,13 +372,12 @@ export default function AdminLayout({ children }) {
                         <button
                           key={child.path}
                           onClick={() => router.push(child.path)}
-                          className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg mb-0.5 text-sm transition-all duration-150 ${
-                            isActive(child.path)
-                              ? isOrgItem
-                                ? "bg-purple-100 text-purple-700 font-semibold"
-                                : "bg-indigo-100 text-indigo-700 font-semibold"
-                              : "text-gray-500 hover:bg-gray-50 hover:text-gray-800 font-medium"
-                          }`}
+                          className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg mb-0.5 text-sm transition-all duration-150 ${isActive(child.path)
+                            ? isOrgItem
+                              ? "bg-purple-100 text-purple-700 font-semibold"
+                              : "bg-indigo-100 text-indigo-700 font-semibold"
+                            : "text-gray-500 hover:bg-gray-50 hover:text-gray-800 font-medium"
+                            }`}
                         >
                           <child.icon size={15} className="flex-shrink-0" />
                           <span>{child.label}</span>
@@ -397,11 +395,10 @@ export default function AdminLayout({ children }) {
                 key={item.path}
                 onClick={() => router.push(item.path)}
                 title={collapsed ? item.label : undefined}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl mb-0.5 text-sm font-medium transition-all duration-150 ${
-                  active
-                    ? "bg-indigo-50 text-indigo-700"
-                    : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                }`}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl mb-0.5 text-sm font-medium transition-all duration-150 ${active
+                  ? "bg-indigo-50 text-indigo-700"
+                  : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                  }`}
                 style={{ justifyContent: collapsed ? "center" : "flex-start" }}
               >
                 <item.icon size={17} className="flex-shrink-0" />

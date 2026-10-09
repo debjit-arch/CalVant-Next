@@ -5,7 +5,7 @@ import { ArrowUpRight } from "lucide-react";
 import { useEffectiveOrg } from "@/hooks/useEffectiveOrg";
 import ReactDOM from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
-import { resolveTaskSource } from "../utils/taskSourceResolver";
+import { resolveTaskSource, isPeopleTask } from "../utils/taskSourceResolver";
 import PlanReviewView from "../../plan/components/PlanReviewView";
 import {
   ClipboardList,
@@ -99,6 +99,8 @@ const PRIORITY_CONFIG = {
   Critical: { color: "#c92a2a", bg: "#fff5f5", icon: "⚑" },
 };
 function getSourceModule(task) {
+  // Tasks raised by the People module (event log, disciplinary, onboarding, offboarding).
+  if (isPeopleTask(task)) return { label: "People", bg: "#ecfeff", color: "#0e7490" };
   // Prioritize the explicit Type / SubType chosen in the create/edit form.
   if (task.type === "Module Based" && task.subType) {
     const MODULE_SOURCE_MAP = {
@@ -745,16 +747,17 @@ export default function TaskManagement({ riskFormData = {}, auditFormData = {} }
           scoped = scoped.filter((t) => {
             const emp = t.employee;
             const rep = t.reporter;
-            const isAssignee = !!emp && (
-              String(emp) === String(user?._id || user?.id) ||
+            const myId = String(user?._id || user?.id || "");
+            const isAssignee = (!!emp && (
+              String(emp) === myId ||
               emp === currentUserName ||
               emp === user?.name
-            );
-            const isReporter = !!rep && (
+            )) || (!!myId && !!t.employeeId && String(t.employeeId) === myId);
+            const isReporter = (!!rep && (
               rep === currentUserName ||
               rep === user?.name ||
-              String(rep) === String(user?._id || user?.id)
-            );
+              String(rep) === myId
+            )) || (!!myId && !!t.reporterId && String(t.reporterId) === myId);
             return isAssignee || isReporter;
           });
         }
@@ -1398,7 +1401,8 @@ export default function TaskManagement({ riskFormData = {}, auditFormData = {} }
                         const serialNo = (currentPage - 1) * TASKS_PER_PAGE + displayIndex + 1;
                         const isOverdue = isOverdueTask(task);
                         const source = getSourceModule(task);
-                        const sourceId = task.planId || task.sourceId
+                        const sourceId = (isPeopleTask(task) ? task.personnelRefId || task.sourceId : null)
+                          || task.planId || task.sourceId
                           || task.riskId
                           || (task.auditId ? (audits.find((a) => a.id === task.auditId)?.auditId || task.auditId) : null)
                           || task.dpiaRefId || task.dpiaId

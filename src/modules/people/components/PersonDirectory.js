@@ -172,8 +172,16 @@ export default function PersonDirectory({ canEdit, showCreate: showCreateProp, o
     return c;
   }, [persons, attentionById]);
 
+  // Newest first: createdAt, falling back to the Mongo ObjectId timestamp (first 8 hex chars of the id).
+  const addedAt = (p) => {
+    const t = p.createdAt ? new Date(p.createdAt).getTime() : NaN;
+    if (!Number.isNaN(t)) return t;
+    const hex = String(p.id || "").slice(0, 8);
+    return /^[0-9a-f]{8}$/i.test(hex) ? parseInt(hex, 16) * 1000 : 0;
+  };
+
   const filtered = useMemo(() => {
-    return persons.filter((p) => {
+    return [...persons].sort((a, b) => addedAt(b) - addedAt(a)).filter((p) => {
       const status = (p.lifecycleStatus || "").toUpperCase();
       if (sourceFilter !== "ALL" && p.source !== sourceFilter) return false;
       if (LIFECYCLE_VIEWS.includes(view) && status !== view) return false;

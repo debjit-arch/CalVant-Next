@@ -28,14 +28,14 @@ function useUserRoles() {
 
 const CATEGORIES = {
   DISCIPLINARY: {
-    label: "Disciplinary process",
-    title: "Disciplinary process",
-    description: "History of disciplinary breaches and how each was handled — synced from the connected ticketing system where available, or tracked here directly.",
+    label: "Disciplinary actions",
+    title: "Disciplinary actions",
+    description: "History of disciplinary breaches, the action taken for each, and how it was resolved.",
   },
   SECURITY_EVENT: {
-    label: "Event report",
-    title: "Event report",
-    description: "Security events reported through the ticketing system, snapshotted here for audit evidence.",
+    label: "Event log",
+    title: "Event log",
+    description: "Reported security events. Add tasks to each event and assign them — the event completes when all its tasks are done.",
   },
 };
 
@@ -71,7 +71,7 @@ export default function TicketsPage() {
           icon={Gavel}
           iconGradient="from-amber-500 to-amber-600"
           title="Tickets"
-          description="Disciplinary breaches and reported security events, in one place — pick the type below."
+          description="Disciplinary actions and the event log, kept separate — pick the section below."
           right={
             <SegmentedTabs
               tabs={Object.entries(CATEGORIES).map(([key, v]) => ({ key, label: v.label }))}

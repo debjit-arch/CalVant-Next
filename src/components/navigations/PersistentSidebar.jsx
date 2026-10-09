@@ -141,12 +141,12 @@ const NAV_ITEMS = [
     ],
     expandable: true,
   },
-  // {
-  //   icon: Users,
-  //   label: "People",
-  //   path: "/people",
-  //   expandable: false,
-  // },
+  {
+    icon: Users,
+    label: "People",
+    path: "/people",
+    expandable: false,
+  },
   {
     icon: Package,
     label: "Plans",

@@ -1,6 +1,7 @@
 class riskService {
   constructor() {
     this.baseUrl = `${process.env.NEXT_PUBLIC_SP}/risk-service/api/risks`;
+    // this.baseUrl = "http://localhost:4003/api/risks";
     // Replace with your backend credentials
     this.username = `${process.env.NEXT_PUBLIC_BACKEND_USER_NAME}`;
     this.password = `${process.env.NEXT_PUBLIC_BACKEND_USER_PWD}`;
@@ -70,7 +71,7 @@ class riskService {
   }
 
   // --- Get one risk
-  async getRiskById(riskId,organization) {
+  async getRiskById(riskId, organization) {
     try {
       const response = await fetch(`${this.baseUrl}/${riskId}?org=${organization}`, {
         method: "GET",

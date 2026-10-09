@@ -1,0 +1,17 @@
+{
+	"folders": [
+		{
+			"path": "../../.."
+		},
+		{
+			"path": "../../../../calvant-collab-admin"
+		},
+		{
+			"path": "../../../../java-backend-for-collaboration/java-backend-main/collaboration-service"
+		},
+		{
+			"path": "../../../../java-backend-for-collaboration/java-backend-main/user-service"
+		}
+	],
+	"settings": {}
+}

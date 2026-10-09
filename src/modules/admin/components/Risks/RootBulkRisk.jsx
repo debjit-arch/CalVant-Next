@@ -45,23 +45,36 @@ const getAdminFetchHeaders = (extra = {}) => {
 };
 // ─────────────────────────────────────────────────────────────────────────
 
-// ─── Expected CSV column order (matches Java backend) ───────────────────────
-// col[0]: riskId       col[1]: department    col[2]: riskType
-// col[3]: asset        col[4]: threat        col[5]: vulnerability
-// col[6]: riskDescription  col[7]: riskScore  col[8]: probability
 const CSV_COLUMNS = [
   "riskId",
   "department",
+  "date",
   "riskType",
-  "asset",
+  "assetType",
   "threat",
-  "vulnerability",
+  "vulnerabilities",
   "riskDescription",
+  "confidentiality",
+  "integrity",
+  "availability",
+  "impact",
+  "likelihood",
   "riskScore",
-  "probability",
+  "riskLevel",
+  "existingControls",
+  "treatmentDays",
+  "likelihoodAfterTreatment",
+  "impactAfterTreatment",
+  "gdpr",
+  "iso27001",
+  "iso27701",
+  "iso42001",
+  "ksaPdpl",
+  "soc2",
 ];
 
-const UPLOAD_URL = `${process.env.NEXT_PUBLIC_SP}/risk-service/api/risks/upload`;
+// const UPLOAD_URL = `${process.env.NEXT_PUBLIC_SP}/risk-service/api/risks/upload`;
+const UPLOAD_URL = "http://localhost:4003/api/risks/upload";
 
 // ─── Styled components ───────────────────────────────────────────────────────
 const StyledPaper = styled(Paper)(({ theme }) => ({
@@ -188,13 +201,13 @@ function RootBulkRisk() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  /* ── Parse CSV ── */
+  /* ── Parse CSV (Smart Parsing) ── */
   const parseFile = (file) => {
     if (!file) return;
     setFileName(file.name);
 
     Papa.parse(file, {
-      header: false,       // positional mapping — column ORDER matters
+      header: false,
       skipEmptyLines: true,
       complete: (res) => {
         let rawRows = res.data;
@@ -203,28 +216,70 @@ function RootBulkRisk() {
           return;
         }
 
-        // Skip header row if first cell looks like a known field name or "riskId"
-        const firstCell = String(rawRows[0][0]).toLowerCase().trim();
-        if (firstCell === "riskid" || firstCell === "risk_id" || isNaN(Number(firstCell))) {
-          rawRows = rawRows.slice(1);
+        // Try to identify if the first row is a header row by looking for keywords
+        const firstRow = rawRows[0];
+        const isHeaderRow = firstRow.some(cell => {
+           const text = String(cell).toLowerCase().replace(/[^a-z]/g, '');
+           return ["riskid", "department", "date", "risktype", "assettype", "threat", "vulnerabilities", "likelihood"].includes(text);
+        });
+
+        let columnMapping = {}; // column index -> expected field name
+        
+        if (isHeaderRow) {
+           // Dynamic mapping: Match headers to our internal CSV_COLUMNS based on aliases
+           firstRow.forEach((cell, index) => {
+             const h = String(cell).toLowerCase().trim().replace(/[^a-z0-9]/g, '');
+             const aliases = {
+               'riskid': 'riskId', 'id': 'riskId',
+               'department': 'department', 'dept': 'department',
+               'date': 'date',
+               'risktype': 'riskType', 'type': 'riskType',
+               'assettype': 'assetType',
+               'threat': 'threat',
+               'vulnerabilities': 'vulnerabilities', 'vulnerability': 'vulnerabilities', 'vuln': 'vulnerabilities',
+               'riskdescription': 'riskDescription', 'description': 'riskDescription', 'desc': 'riskDescription',
+               'confidentiality': 'confidentiality', 'conf': 'confidentiality', 'c': 'confidentiality',
+               'integrity': 'integrity', 'integ': 'integrity', 'i': 'integrity',
+               'availability': 'availability', 'avail': 'availability', 'a': 'availability',
+               'impact': 'impact',
+               'likelihood': 'likelihood', 'probability': 'likelihood', 'prob': 'likelihood',
+               'currentriskscore': 'riskScore', 'riskscore': 'riskScore', 'score': 'riskScore',
+               'currentrisklevel': 'riskLevel', 'risklevel': 'riskLevel', 'level': 'riskLevel',
+               'existingcontrols': 'existingControls',
+               'noofdaystoimplementtreatment': 'treatmentDays', 'treatmentdays': 'treatmentDays',
+               'likelihoodaftertreatment': 'likelihoodAfterTreatment', 'residualprobability': 'likelihoodAfterTreatment',
+               'impactaftertreatment': 'impactAfterTreatment', 'residualimpact': 'impactAfterTreatment',
+               'gdpr': 'gdpr',
+               'iso27001': 'iso27001',
+               'iso27701': 'iso27701',
+               'iso42001': 'iso42001',
+               'ksapdpl': 'ksaPdpl', 'pdpl': 'ksaPdpl',
+               'soc2': 'soc2'
+             };
+             if (aliases[h]) {
+               columnMapping[index] = aliases[h];
+             }
+           });
+           rawRows = rawRows.slice(1); // Drop the header row
+        } else {
+           // No header row detected, fallback to strict positional mapping
+           CSV_COLUMNS.forEach((col, index) => {
+              columnMapping[index] = col;
+           });
         }
 
-        // Validate column count
-        const badRows = rawRows.filter((r) => r.length < CSV_COLUMNS.length);
-        if (badRows.length > 0) {
-          setSnackbar({
-            open: true,
-            message: `CSV must have ${CSV_COLUMNS.length} columns. Found rows with fewer columns.`,
-            severity: "error",
-          });
-          return;
-        }
-
-        // Map each row array → named object
+        // Map each row array -> named object
         const mappedData = rawRows.map((row) => {
           const obj = {};
-          CSV_COLUMNS.forEach((col, i) => {
-            obj[col] = row[i] ?? "";
+          // Initialize all expected columns to empty strings
+          CSV_COLUMNS.forEach(col => { obj[col] = ""; });
+          
+          // Fill based on the mapping (ignores unrecognized extra columns)
+          row.forEach((val, index) => {
+             const colName = columnMapping[index];
+             if (colName) {
+                obj[colName] = val ?? "";
+             }
           });
           return obj;
         });
@@ -233,7 +288,7 @@ function RootBulkRisk() {
         setShowUploadSection(false);
         setSnackbar({
           open: true,
-          message: `Successfully loaded ${mappedData.length} rows from ${file.name}`,
+          message: `Successfully loaded ${mappedData.length} rows from ${file.name} (Smart Parsed)`,
           severity: "success",
         });
       },
@@ -312,7 +367,36 @@ function RootBulkRisk() {
       const password = "password";
       const basicToken = btoa(`${username}:${password}`);
 
-      const csvContent = Papa.unparse(rows);
+      // Sanitize and validate rows before uploading
+      let cleanRows;
+      const seenRiskIds = new Set();
+      try {
+        cleanRows = rows.map((row, index) => {
+          const newRow = { ...row };
+          const rowRiskId = (row.riskId || "").toString().trim();
+          if (rowRiskId) {
+            if (seenRiskIds.has(rowRiskId.toLowerCase())) {
+              throw new Error(`Row ${index + 1}: Duplicate Risk ID "${rowRiskId}" found in the list.`);
+            }
+            seenRiskIds.add(rowRiskId.toLowerCase());
+          }
+
+          CSV_COLUMNS.forEach(col => {
+            const val = row[col];
+            if (col === "treatmentDays" && val && isNaN(Number(val))) {
+              throw new Error(`Row ${index + 1} has invalid number for Treatment Days: "${val}".`);
+            }
+            newRow[col] = val !== undefined && val !== null ? val : "";
+          });
+          return newRow;
+        });
+      } catch (validationError) {
+        setSnackbar({ open: true, message: validationError.message, severity: "error" });
+        setLoading(false);
+        return;
+      }
+
+      const csvContent = Papa.unparse(cleanRows);
       const blob = new Blob([csvContent], { type: "text/csv" });
       const file = new File([blob], "bulk_risks.csv", { type: "text/csv" });
 
@@ -345,9 +429,10 @@ function RootBulkRisk() {
       setTimeout(() => resetState(), 1500);
     } catch (err) {
       console.error("Upload failed:", err);
+      const errorMessage = err.message || err.response?.data?.message || "Upload failed ❌";
       setSnackbar({
         open: true,
-        message: err.response?.data?.message || "Upload failed ❌",
+        message: errorMessage,
         severity: "error",
       });
     } finally {
@@ -365,7 +450,8 @@ function RootBulkRisk() {
               Bulk Risk Upload
             </Typography>
             <Typography variant="body2" sx={{ color: "#64748b", mb: 2 }}>
-              Upload multiple risks via CSV — organization is auto-detected from your session
+              Upload multiple risks via CSV — organization is auto-detected from your session.<br />
+              The template can be downloaded from <a href="/Risk_Register_Bulk_Upload_Template.xlsx" download style={{ color: "#7c3aed", textDecoration: "underline", fontWeight: "bold" }}>here</a> and filled and uploaded.
             </Typography>
 
             {/* Info tip */}
@@ -376,7 +462,7 @@ function RootBulkRisk() {
                   Required CSV columns (in order)
                 </Typography>
                 <Typography variant="body2" sx={{ fontSize: "13px", color: "#475569" }}>
-                  riskId · department · riskType · asset · threat · vulnerability · riskDescription · riskScore · probability
+                  Risk ID · Department · Date · Risk Type · Asset Type · Threat · Vulnerabilities · Likelihood · Existing Controls · Treatment Days · GDPR · ISO 27001 · ISO 27701 · ISO 42001 · KSA PDPL · SOC 2
                 </Typography>
               </Box>
             </Box>
@@ -550,11 +636,11 @@ function RootBulkRisk() {
 
         <Snackbar
           open={snackbar.open}
-          autoHideDuration={4000}
+          autoHideDuration={6000}
           onClose={() => setSnackbar({ ...snackbar, open: false })}
           anchorOrigin={{ vertical: "top", horizontal: "right" }}
         >
-          <Alert onClose={() => setSnackbar({ ...snackbar, open: false })} severity={snackbar.severity} sx={{ width: "100%" }}>
+          <Alert onClose={() => setSnackbar({ ...snackbar, open: false })} severity={snackbar.severity} sx={{ width: "100%", whiteSpace: "pre-wrap" }}>
             {snackbar.message}
           </Alert>
         </Snackbar>
