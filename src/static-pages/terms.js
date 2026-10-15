@@ -2,6 +2,7 @@
 import Image from "next/image";
 import React, { useState, useEffect } from "react";
 import { Helmet } from "react-helmet-async";
+import SiteHeader from "@/components/SiteHeader";
 import {
   FileText,
   Shield,
@@ -46,90 +47,7 @@ const TermsPage = () => {
   return (
     <div className={`terms-page ${mounted ? "mounted" : ""}`}>
       {/* HEADER - EXACT ABOUT PATTERN */}
-      <header className="terms-header">
-        <div className="terms-header-content">
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              flex: "10px 0 auto",
-            }}
-          >
-            <Image
-              src="/CalVant Logo.svg"
-              alt="CalVant"
-              width={180}
-              height={60}
-              style={{
-                height: isMobile ? "30px" : "60px",
-                width: "auto",
-                transform: isMobile ? "scale(3.9)" : "scale(2.9)",
-                transformOrigin: "center",
-                cursor: "pointer",
-                transition: "transform 0.25s ease",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = "scale(3.7)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = "scale(3.5)";
-              }}
-              onClick={() => (window.location.href = "/")}
-            />
-          </div>
-          <nav className="terms-header-nav">
-            <button
-              className="terms-mobile-menu-toggle"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            >
-              <Menu
-                size={20}
-                className={!mobileMenuOpen ? "block" : "hidden"}
-              />
-              <X size={20} className={mobileMenuOpen ? "block" : "hidden"} />
-            </button>
-            <ul
-              className={`terms-nav-links ${
-                mobileMenuOpen ? "mobile-open" : ""
-              }`}
-            >
-              <li>
-                <button
-                  className="terms-nav-link"
-                  onClick={() => scrollToSection("acceptance")}
-                >
-                  Acceptance
-                </button>
-              </li>
-              <li>
-                <button
-                  className="terms-nav-link"
-                  onClick={() => scrollToSection("services")}
-                >
-                  Services
-                </button>
-              </li>
-
-              <Link href="/" className="about-nav-link">
-                {" "}
-                Home{" "}
-              </Link>
-
-              {!isLoggedIn && (
-                <li>
-                  <Link
-                    href="/login"
-                    className="terms-nav-link terms-nav-link-cta"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    Login
-                  </Link>
-                </li>
-              )}
-            </ul>
-          </nav>
-        </div>
-      </header>
+      <SiteHeader />
 
       {/* HERO */}
       <section className="terms-hero-section">

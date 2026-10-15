@@ -1238,9 +1238,31 @@ export function ConductAuditModal(props) {
                             router.push("/gap-assessment/new");
                             onClose();
                           }}
+                          style={{
+                            flex: 1,
+                            padding: "10px 0",
+                            border: "none",
+                            borderBottomLeftRadius: 14,
+                            borderBottomRightRadius: isLeadAuditor ? 0 : 14,
+                            background: "#4f46e5",
+                            cursor: "pointer",
+                            fontSize: 12,
+                            fontWeight: 700,
+                            color: "#fff",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: 6,
+                          }}
+                          onMouseEnter={function (e) {
+                            e.currentTarget.style.background = "#4338ca";
+                          }}
+                          onMouseLeave={function (e) {
+                            e.currentTarget.style.background = "#4f46e5";
+                          }}
                         >
-                          <ChevronRight size={13} />
                           Conduct Audit
+                          <ChevronRight size={13} />
                         </button>
 
                         {/* Team Progress — only visible to the lead auditor */}
@@ -1620,7 +1642,7 @@ export function ConductAuditModal(props) {
                                               { marginBottom: 4 },
                                             )}
                                           >
-                                            Doc Score
+                                            Document Score
                                           </label>
                                           <select
                                             value={s.docScore || ""}

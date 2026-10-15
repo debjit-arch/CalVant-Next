@@ -5,7 +5,9 @@ import Image from "next/image";
 // ============================================================================
 import Link from "next/link";
 import React, { useState, useEffect } from "react";
+import SiteFooter from "@/components/SiteFooter";
 import { Helmet } from "react-helmet-async";
+import SiteHeader from "@/components/SiteHeader";
 import {
   Shield,
   Code2,
@@ -193,94 +195,7 @@ const CareersPage = () => {
   return (
     <div className={`careers-page ${mounted ? "mounted" : ""}`}>
       {/* HEADER */}
-      <header className="careers-header">
-        <div className="careers-header-content">
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              flex: "10px 0 auto",
-            }}
-          >
-            <Image
-              src="/CalVant Logo.svg"
-              alt="CalVant"
-              width={180}
-              height={60}
-              style={{
-                height: isMobile ? "30px" : "60px",
-                width: "auto",
-                transform: isMobile ? "scale(3.9)" : "scale(2.9)",
-                transformOrigin: "center",
-                cursor: "pointer",
-                transition: "transform 0.25s ease",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = "scale(3.7)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = "scale(3.5)";
-              }}
-              onClick={() => (window.location.href = "/")}
-            />
-          </div>
-
-          <nav className="careers-header-nav">
-            {/* UPDATED NAVBAR */}
-            <ul
-              className={`careers-nav-links ${mobileMenuOpen ? "mobile-open" : ""}`}
-            >
-              <li>
-                <button
-                  className="careers-nav-link"
-                  onClick={() => scrollToSection("positions")}
-                >
-                  Positions
-                </button>
-              </li>
-              <li>
-                <button
-                  className="careers-nav-link"
-                  onClick={() => scrollToSection("culture")}
-                >
-                  Culture
-                </button>
-              </li>
-              <li>
-                <button
-                  className="careers-nav-link"
-                  onClick={() => scrollToSection("process")}
-                >
-                  Hiring
-                </button>
-              </li>
-              <li>
-                <button
-                  className="careers-nav-link"
-                  onClick={() => scrollToSection("benefits")}
-                >
-                  Benefits
-                </button>
-              </li>
-              <Link href="/" className="about-nav-link">
-                {" "}
-                Home{" "}
-              </Link>
-
-              {!isLoggedIn && (
-                <li>
-                  <Link
-                    href="/login"
-                    className="careers-nav-link careers-nav-link-cta"
-                  >
-                    Login
-                  </Link>
-                </li>
-              )}
-            </ul>
-          </nav>
-        </div>
-      </header>
+      <SiteHeader />
 
       {/* HERO SECTION */}
       <section className="careers-hero-section">
@@ -612,88 +527,7 @@ const CareersPage = () => {
       </section>
 
       {/* FOOTER */}
-      <footer className="careers-footer">
-        <div className="careers-footer-content">
-          <div className="careers-footer-section">
-            <h4>Product</h4>
-            <ul>
-              <li>
-                <Link href="/iso-27001">ISO 27001</Link>
-              </li>
-              <li>
-                <Link href="/iso-27701">ISO 27701</Link>
-              </li>
-              <li>
-                <Link href="/risk-assessment">Risk Management</Link>
-              </li>
-              <li>
-                <Link href="/documentation">Documentation</Link>
-              </li>
-            </ul>
-          </div>
-          <div className="careers-footer-section">
-            <h4>Company</h4>
-            <ul>
-              <li>
-                <Link href="/about">About Us</Link>
-              </li>
-              <li>
-                <Link href="/careers">Careers</Link>
-              </li>
-              <li>
-                <Link href="/blog">Blog</Link>
-              </li>
-              <li>
-                <Link href="/demo">Contact</Link>
-              </li>
-            </ul>
-          </div>
-          <div className="careers-footer-section">
-            <h4>Legal</h4>
-            <ul>
-              <li>
-                <Link href="/privacy">Privacy Policy</Link>
-              </li>
-              <li>
-                <Link href="/terms">Terms of Service</Link>
-              </li>
-              <li>
-                <Link href="/security">Security</Link>
-              </li>
-              <li>
-                <Link href="/compliances">Compliance</Link>
-              </li>
-            </ul>
-          </div>
-          <div className="careers-footer-section">
-            <h4>Contact</h4>
-            <ul>
-              <li>
-                <Link href="mailto:careers@calvant.com">careers@calvant.com</Link>
-              </li>
-              <li>
-                <Link href="mailto:support@calvant.com">support@calvant.com</Link>
-              </li>
-              <li>
-                <Link href="tel:+918800000000">+91 8800 000 000</Link>
-              </li>
-              <li>
-                <Link
-                  href="https://www.linkedin.com/company/cf-it-risk-compliance/posts/?feedView=all"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  LinkedIn
-                </Link>
-              </li>
-            </ul>
-          </div>
-        </div>
-        <div className="careers-footer-bottom">
-          © {new Date().getFullYear()} CalVant. All rights reserved. Made in
-          India 🇮🇳
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   );
 };

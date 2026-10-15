@@ -1202,6 +1202,8 @@ export function VerifyCell({ row, onVerify, result, busy, error }) {
 }
 
 // ── Score Breakdown Modal ─────────────────────────────────────────────────────
+import { createPortal } from "react-dom";
+
 function ScoreBreakdownModal({ result, onClose }) {
   const breakdown    = result.scoreBreakdown || {};
   const maxBreakdown = result.maxBreakdown   || {};
@@ -1210,8 +1212,9 @@ function ScoreBreakdownModal({ result, onClose }) {
   const grade        = getGrade(result.overallScore);
   const pct          = getPct(result.overallScore);
 
-  return (
+  const modalContent = (
     <div
+      className="score-breakdown-modal"
       onClick={onClose}
       style={{
         position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)",
@@ -1454,6 +1457,8 @@ function ScoreBreakdownModal({ result, onClose }) {
       </div>
     </div>
   );
+
+  return typeof document !== "undefined" ? createPortal(modalContent, document.body) : modalContent;
 }
 
 // ── Section wrapper ───────────────────────────────────────────────────────────
@@ -1477,8 +1482,9 @@ export function ApproveGateModal({ docId, checker, onClose }) {
   const result = checker.getResult(docId);
   const grade  = result ? getGrade(result.overallScore) : null;
 
-  return (
+  const modalContent = (
     <div
+      className="approve-gate-modal"
       onClick={onClose}
       style={{
         position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)",
@@ -1539,4 +1545,6 @@ export function ApproveGateModal({ docId, checker, onClose }) {
       </div>
     </div>
   );
+
+  return typeof document !== "undefined" ? createPortal(modalContent, document.body) : modalContent;
 }

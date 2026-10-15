@@ -411,6 +411,7 @@ function ListUsers() {
                   </Box>
                 </TableCell>
                 <TableCell>Auditor</TableCell>
+                <TableCell>Status</TableCell>
                 <TableCell
                   sx={{ display: isSuperAdmin ? "none" : "table-cell" }}
                 >
@@ -531,6 +532,15 @@ function ListUsers() {
                             color={u.isAuditor ? "success" : "default"}
                           />
                         )}
+                      </TableCell>
+
+                      {/* Status */}
+                      <TableCell>
+                        <Chip
+                          label={u.status === "active" ? "Active" : "Pending"}
+                          size="small"
+                          color={u.status === "active" ? "success" : "warning"}
+                        />
                       </TableCell>
 
                       {/* Departments */}

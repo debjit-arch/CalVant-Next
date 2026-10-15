@@ -615,36 +615,26 @@ The Compliant / Non-Compliant label on an audit card reflects the percentage of 
         {/* HEADER */}
         <motion.header
           id="dashboard-header"
-          className="bg-white/80 backdrop-blur-md border border-slate-100/50 rounded-xl shadow-md mb-6 p-6 !text-left"
+          className="bg-white/80 backdrop-blur-md border border-slate-100/50 rounded-xl shadow-md mb-2 lg:mb-2 p-4 lg:p-5 !text-left"
           style={{
             textAlign: "left",
             width: "100%",
             justifyContent: "flex-start",
             alignItems: "flex-start",
+            justifyItems: "flex-start"
           }}
           initial={hasMounted ? { opacity: 0, y: -15 } : false}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
         >
           <div className="flex items-center justify-between w-full">
-            <div
-              className="flex items-center gap-4 flex-1"
-              style={{
-                justifyContent: "flex-start",
-                textAlign: "left",
-                alignItems: "flex-start",
-              }}
-            >
-              <div className="w-14 h-14 bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0">
-                <ShieldCheck className="w-7 h-7 text-white drop-shadow-sm" />
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
+                <ShieldCheck className="w-6 h-6 text-white" />
               </div>
-              <div className="flex-1 min-w-0" style={{ textAlign: "left" }}>
-                {/* Title row — dynamic framework badges */}
-                <div
-                  className="flex items-center justify-start gap-2 flex-wrap"
-                  style={{ justifyContent: "flex-start" }}
-                >
-                  <h1 className="text-2xl font-semibold text-slate-800 leading-tight">
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h1 className="text-xl font-semibold text-slate-800">
                     Audit Management
                   </h1>
                   {activeFwBadges.map((fw) => (
@@ -678,14 +668,12 @@ The Compliant / Non-Compliant label on an audit card reflects the percentage of 
                     </span>
                   ))}
                 </div>
-                <p className="text-base text-slate-600 mt-1">
+                <p className="text-sm text-slate-600">
                   {isRoot ? "Root Dashboard" : "Auditor Dashboard"} •{" "}
-                  <span className="font-bold text-2xl text-slate-900">
+                  <span className="font-bold text-slate-900">
                     {filteredStats.total}
                   </span>{" "}
-                  <span className="text-slate-400 text-xs ml-1">
-                    {isAllSelected ? "Total Audits" : "Filtered Audits"}
-                  </span>
+                  {isAllSelected ? "total audits" : "filtered audits"}
                 </p>
               </div>
             </div>
@@ -732,13 +720,13 @@ The Compliant / Non-Compliant label on an audit card reflects the percentage of 
           </div>
         </motion.header>
 
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 lg:gap-10 h-full">
           {/* LEFT COLUMN */}
-          <div className="space-y-8">
+          <div className="space-y-8 lg:space-y-10">
             {/* Stat Cards */}
             {isRoot && (
               <motion.section
-                className="grid grid-cols-2 sm:grid-cols-3 gap-4"
+                className="grid grid-cols-2 md:grid-cols-3 gap-4 items-stretch"
                 initial={hasMounted ? { opacity: 0, y: 15 } : false}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.1 }}
@@ -748,22 +736,22 @@ The Compliant / Non-Compliant label on an audit card reflects the percentage of 
                   return (
                     <motion.div
                       key={stat.label}
-                      className="group bg-white/70 backdrop-blur-sm border border-slate-100/50 rounded-xl p-4 shadow-sm hover:shadow-md transition-all duration-300 cursor-pointer flex items-center gap-3 h-20 hover:bg-white"
+                      className="group bg-white/70 backdrop-blur-sm border border-slate-100/50 rounded-lg p-3 shadow-sm hover:shadow-md transition-all duration-300 cursor-default flex items-center gap-3 h-full min-h-[72px] hover:bg-white"
                       initial={hasMounted ? { opacity: 0, y: 20 } : false}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.4, delay: 0.15 + i * 0.05 }}
                       whileHover={{ scale: 1.02 }}
                     >
                       <div
-                        className={`w-12 h-12 rounded-lg bg-gradient-to-br ${stat.color} flex items-center justify-center shadow-md flex-shrink-0`}
+                        className={`w-8 h-8 rounded-lg bg-gradient-to-br ${stat.color} flex items-center justify-center shadow-sm flex-shrink-0`}
                       >
-                        <Icon size={20} className="text-white drop-shadow-sm" />
+                        <Icon size={16} className="text-white drop-shadow-sm" />
                       </div>
-                      <div>
-                        <span className="text-2xl font-semibold text-slate-800 block leading-tight group-hover:text-slate-900">
+                      <div className="min-w-0 flex-1">
+                        <span className="text-base lg:text-lg font-bold text-slate-800 block leading-none group-hover:text-slate-900 mb-0.5">
                           {loadingStats ? "—" : stat.value}
                         </span>
-                        <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+                        <span className="text-[10px] lg:text-[11px] font-semibold text-slate-500 uppercase tracking-wider leading-none block">
                           {stat.label}
                         </span>
                       </div>
@@ -798,15 +786,16 @@ The Compliant / Non-Compliant label on an audit card reflects the percentage of 
             {/* Quick Actions */}
             <motion.section
               id="action-cards"
+              className="space-y-1"
               initial={hasMounted ? { opacity: 0, y: 20 } : false}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.25 }}
             >
-              <h3 className="text-lg font-semibold text-slate-800 mb-4">
+              <h3 className="text-lg lg:text-xl font-semibold text-slate-800 mb-6 px-1">
                 Quick Actions
               </h3>
               <div
-                className={`grid gap-4 ${isRoot ? "grid-cols-1 sm:grid-cols-3" : "grid-cols-1 sm:grid-cols-2"}`}
+                className={`grid gap-3 h-15 ${isRoot ? "grid-cols-2 md:grid-cols-3" : "grid-cols-2 md:grid-cols-3"}`}
               >
                 <AnimatePresence>
                   {actions.map((action, i) => {
@@ -814,19 +803,12 @@ The Compliant / Non-Compliant label on an audit card reflects the percentage of 
                     return (
                       <motion.div
                         key={action.key}
-                        className="group bg-white/70 backdrop-blur-sm border border-slate-100/50 rounded-xl p-5 shadow-sm hover:shadow-lg hover:-translate-y-1 hover:bg-white transition-all duration-300 cursor-pointer"
+                        className={`group bg-white/70 backdrop-blur-sm border border-slate-100/50 rounded-xl p-4 h-full flex flex-col justify-between shadow-sm hover:shadow-lg hover:-translate-y-1 hover:bg-white transition-all duration-300 cursor-pointer`}
                         initial={hasMounted ? { opacity: 0, scale: 0.93 } : false}
                         animate={{ opacity: 1, scale: 1 }}
                         transition={{ duration: 0.4, delay: 0.3 + i * 0.07 }}
                         whileHover={{ scale: 1.02 }}
                         onClick={() => {
-                          // FIX: this call already fired ACTIONS.CLICK
-                          // correctly, but had no `module`, so it defaulted
-                          // to MODULES.SYSTEM and would be silently dropped
-                          // by the new human-only capture filter. This is
-                          // the exact click ("Manage Audits", "Plan Audit",
-                          // etc. cards) that needed to keep showing in logs —
-                          // added module: MODULES.AUDIT to fix it.
                           captureActivity({
                             action: ACTIONS.CLICK,
                             module: MODULES.AUDIT,
@@ -838,19 +820,21 @@ The Compliant / Non-Compliant label on an audit card reflects the percentage of 
                         }}
                       >
                         <div
-                          className={`w-12 h-12 rounded-xl bg-gradient-to-br ${action.color} flex items-center justify-center shadow-md mb-4`}
+                          className={`w-12 h-12 rounded-xl bg-gradient-to-br ${action.color} flex items-center justify-center shadow-md mb-3 flex-shrink-0`}
                         >
                           <Icon
-                            size={22}
+                            size={20}
                             className="text-white drop-shadow-sm"
                           />
                         </div>
-                        <p className="text-sm font-bold text-slate-800 mb-1 group-hover:text-blue-600 transition-colors">
-                          {action.title}
-                        </p>
-                        <p className="text-xs text-slate-500">
-                          {action.subtitle}
-                        </p>
+                        <div className="flex-1 flex flex-col justify-center">
+                          <h4 className="text-sm lg:text-base font-semibold text-center text-slate-800 leading-tight mb-1 px-1 truncate group-hover:text-blue-600 transition-colors duration-200">
+                            {action.title}
+                          </h4>
+                          <p className="text-xs font-bold text-center text-slate-600 px-1 truncate">
+                            {action.subtitle}
+                          </p>
+                        </div>
                       </motion.div>
                     );
                   })}
@@ -860,18 +844,19 @@ The Compliant / Non-Compliant label on an audit card reflects the percentage of 
           </div>
 
           {/* RIGHT COLUMN: CHARTS */}
-          <div id="charts-container" ref={chartsContainerRef} className="space-y-6">
+          <div id="charts-container" ref={chartsContainerRef} className="space-y-4 lg:space-y-3">
             {/* PIE CHART */}
             <motion.div
-              className="bg-white/70 backdrop-blur-sm border border-slate-100/50 rounded-2xl p-6 shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300 h-60 flex flex-col"
+              className="bg-white/70 backdrop-blur-sm border border-slate-100/50 rounded-2xl p-6 lg:p-7 shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-400 h-80 flex flex-col"
               initial={hasMounted ? { opacity: 0, scale: 0.95 } : false}
               animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.5, delay: 0.2 }}
               whileHover={{ scale: 1.01 }}
             >
-              <h3 className="text-base font-semibold text-slate-800 mb-4">
-                Audit Status
-              </h3>
+              <div className="mb-1 px-1 flex-shrink-0">
+                <h3 className="text-base lg:text-lg font-semibold text-slate-800">
+                  Audit Status
+                </h3>
+              </div>
               <div className="flex-1 flex items-center justify-center min-h-0">
                 {filteredStats.total > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
@@ -882,9 +867,9 @@ The Compliant / Non-Compliant label on an audit card reflects the percentage of 
                         nameKey="name"
                         cx="50%"
                         cy="50%"
-                        innerRadius={42}
-                        outerRadius={75}
-                        paddingAngle={3}
+                        innerRadius={38}
+                        outerRadius={66}
+                        paddingAngle={2}
                         stroke="white"
                         strokeWidth={3}
                       >
@@ -899,27 +884,23 @@ The Compliant / Non-Compliant label on an audit card reflects the percentage of 
                       />
                       <text
                         x="50%"
-                        y="43%"
+                        y="42%"
                         textAnchor="middle"
                         dominantBaseline="middle"
-                        style={{
-                          fill: "#64748b",
-                          fontSize: 11,
-                          fontWeight: 600,
-                        }}
+                        fill="#475569"
+                        fontSize={12}
+                        fontWeight={600}
                       >
                         Total
                       </text>
                       <text
                         x="50%"
-                        y="55%"
+                        y="52%"
                         textAnchor="middle"
                         dominantBaseline="middle"
-                        style={{
-                          fill: "#1e293b",
-                          fontSize: 22,
-                          fontWeight: 800,
-                        }}
+                        fill="#111827"
+                        fontSize={20}
+                        fontWeight={700}
                       >
                         {filteredStats.total}
                       </text>
@@ -949,15 +930,15 @@ The Compliant / Non-Compliant label on an audit card reflects the percentage of 
             <motion.div
               style={{
                 background: "rgba(255,255,255,0.7)",
-                backdropFilter: "blur(6px)",
-                border: "1px solid rgba(241,245,249,0.6)",
+                backdropFilter: "blur(8px)",
+                border: "1px solid #f1f5f9",
                 borderRadius: "16px",
                 padding: "24px",
                 height: "288px",
-                boxShadow: "0 8px 20px rgba(0,0,0,0.05)",
-                transition: "all 0.4s ease",
                 display: "flex",
                 flexDirection: "column",
+                boxShadow: "0 8px 20px rgba(0,0,0,0.05)",
+                transition: "all 0.4s ease",
               }}
               initial={hasMounted ? { opacity: 0, scale: 0.95 } : false}
               animate={{ opacity: 1, scale: 1 }}

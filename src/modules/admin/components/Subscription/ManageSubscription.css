@@ -51,6 +51,51 @@
 .ms-activate-card h2 { margin: 0 0 10px; font-size: 19px; }
 .ms-activate-card p { color: #6b7280; font-size: 13.5px; line-height: 1.6; margin-bottom: 20px; }
 
+/* ── Trial extension (Layer 2) ──────────────────────────────────────── */
+.ms-trial-extension { margin-top: 18px; text-align: left; }
+.ms-trial-extension-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+}
+.ms-trial-extension-note svg { flex-shrink: 0; margin-top: 1px; }
+.ms-trial-extension-note--approved { background: #ecfdf5; color: #065f46; }
+.ms-trial-extension-note--pending { background: #fffbeb; color: #92400e; }
+.ms-trial-extension-note--rejected { background: #fef2f2; color: #991b1b; display: block; }
+.ms-trial-extension-form {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 16px;
+  text-align: left;
+}
+.ms-trial-extension-form label {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 6px;
+}
+.ms-trial-extension-optional { font-weight: 400; color: #9ca3af; }
+.ms-trial-extension-form textarea {
+  width: 100%;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-family: inherit;
+  resize: vertical;
+  box-sizing: border-box;
+}
+.ms-trial-extension-form textarea:disabled { background: #f3f4f6; }
+.ms-trial-extension-error { margin: 10px 0 0; }
+.ms-trial-extension-actions { display: flex; gap: 10px; margin-top: 12px; }
+
 /* ── Header row ──────────────────────────────────────────────────────── */
 .ms-header-row {
   display: flex;

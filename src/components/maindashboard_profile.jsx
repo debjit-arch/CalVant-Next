@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   FileText,
@@ -29,6 +29,7 @@ import HelpDocModal from "./shared/HelpDocModal";
 // ─────────────────────────────────────────────
 
 const BASE_URL = "https://api.calvant.com/task-service";
+// const BASE_URL = "http://localhost:4006"; // Local backend for testing
 const POLL_INTERVAL_MS = 60_000;
 
 const TYPE_META = {
@@ -92,7 +93,7 @@ const NotificationBell = ({ userId }) => {
   const markOneRead = async (id) => {
     await fetch(`${BASE_URL}/api/notifications/${id}/read`, { method: "PUT" });
     setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)),
+      prev.map((n) => (n.id === id ? { ...n, read: true } : n)),
     );
   };
 
@@ -101,7 +102,7 @@ const NotificationBell = ({ userId }) => {
       `${BASE_URL}/api/notifications/read-all?userId=${encodeURIComponent(userId)}`,
       { method: "PUT" },
     );
-    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
   };
 
   const deleteOne = async (id, e) => {
@@ -129,7 +130,7 @@ const NotificationBell = ({ userId }) => {
 
   // ── Derived ──────────────────────────────────
 
-  const unreadCount = notifications.filter((n) => !n.isRead).length;
+  const unreadCount = notifications.filter((n) => !n.read).length;
   const filtered =
     tab === "ALL" ? notifications : notifications.filter((n) => n.type === tab);
 
@@ -309,8 +310,8 @@ const NotificationBell = ({ userId }) => {
               {["ALL", "OVERDUE", "ASSIGNED", "UPDATED"].map((t) => {
                 const count =
                   t === "ALL"
-                    ? notifications.filter((n) => !n.isRead).length
-                    : notifications.filter((n) => n.type === t && !n.isRead)
+                    ? notifications.filter((n) => !n.read).length
+                    : notifications.filter((n) => n.type === t && !n.read)
                         .length;
                 const active = tab === t;
                 return (
@@ -386,15 +387,15 @@ const NotificationBell = ({ userId }) => {
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: -10 }}
                         transition={{ duration: 0.15 }}
-                        onClick={() => !n.isRead && markOneRead(n.id)}
+                        onClick={() => !n.read && markOneRead(n.id)}
                         style={{
                           display: "flex",
                           alignItems: "flex-start",
                           gap: 10,
                           padding: "12px 14px",
-                          background: n.isRead ? "white" : "#f8faff",
+                          background: n.read ? "white" : "#f8faff",
                           borderBottom: "1px solid #f8fafc",
-                          cursor: n.isRead ? "default" : "pointer",
+                          cursor: n.read ? "default" : "pointer",
                           transition: "background 0.15s",
                           position: "relative",
                         }}
@@ -440,7 +441,7 @@ const NotificationBell = ({ userId }) => {
                             <span style={{ fontSize: 10, color: "#94a3b8" }}>
                               {n.taskId}
                             </span>
-                            {!n.isRead && (
+                            {!n.read && (
                               <span
                                 style={{
                                   width: 6,

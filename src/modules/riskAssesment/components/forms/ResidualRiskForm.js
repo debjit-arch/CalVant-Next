@@ -2,6 +2,7 @@ import React, { useEffect, useCallback, useState } from "react";
 import InputField from "../inputs/InputField";
 import SelectField from "../inputs/SelectField";
 import Joyride, { STATUS } from "react-joyride";
+import CustomTooltip from "../CustomTooltip";
 
 const ResidualRiskForm = ({ formData = {}, handleInputChange }) => {
   useEffect(() => {
@@ -139,6 +140,17 @@ const ResidualRiskForm = ({ formData = {}, handleInputChange }) => {
   const residualRiskScore = calculateResidualRiskScore();
   const residualRiskLevel = calculateRiskLevel(residualRiskScore);
 
+  const getTintColors = (level) => {
+    switch (level) {
+      case "Low": return { bg: "#f0fdf4", border: "#bbf7d0", card: "#ffffff", shadow: "rgba(34, 197, 94, 0.15)" };
+      case "Medium": return { bg: "#fffbeb", border: "#fde68a", card: "#ffffff", shadow: "rgba(245, 158, 11, 0.15)" };
+      case "High": return { bg: "#fef2f2", border: "#fecaca", card: "#ffffff", shadow: "rgba(239, 68, 68, 0.15)" };
+      case "Critical": return { bg: "#fff1f2", border: "#fecdd3", card: "#ffffff", shadow: "rgba(225, 29, 72, 0.15)" };
+      default: return { bg: "#f8fafc", border: "#e2e8f0", card: "#ffffff", shadow: "rgba(0,0,0,0.08)" };
+    }
+  };
+  const tints = getTintColors(residualRiskLevel);
+
   const summaryCardStyle = {
     background: "linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%)",
     color: "white",
@@ -155,9 +167,10 @@ const ResidualRiskForm = ({ formData = {}, handleInputChange }) => {
 
   const calculatedFieldsStyle = {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))",
+    gridTemplateColumns: "repeat(4, 1fr)",
     gap: "15px",
-    background: "#ecf0f1",
+    background: tints.bg,
+    border: `1px solid ${tints.border}`,
     padding: "15px",
     borderRadius: "10px",
     marginTop: "15px",
@@ -165,10 +178,11 @@ const ResidualRiskForm = ({ formData = {}, handleInputChange }) => {
 
   const calculatedItemStyle = {
     textAlign: "center",
-    background: "white",
+    background: tints.card,
     padding: "10px",
     borderRadius: "8px",
-    boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+    boxShadow: `0 2px 8px ${tints.shadow}`,
+    border: `1px solid ${tints.border}`,
   };
 
   const calculatedLabelStyle = {
@@ -191,9 +205,12 @@ const ResidualRiskForm = ({ formData = {}, handleInputChange }) => {
   };
 
   const summaryItemStyle = {
+    flex: 1,
+    minWidth: "100px",
     display: "flex",
     flexDirection: "column",
     gap: "3px",
+    textAlign: "center",
   };
 
   const summaryLabelStyle = {
@@ -209,12 +226,7 @@ const ResidualRiskForm = ({ formData = {}, handleInputChange }) => {
   };
 
   const formStyle = {
-    background: "#f8f9fa",
-    padding: "20px",
-    borderRadius: "12px",
-    maxWidth: "700px",
     margin: "0 auto",
-    border: "1px solid #e9ecef",
   };
 
   const formatDateForDisplay = (dateString) => {
@@ -245,15 +257,21 @@ const ResidualRiskForm = ({ formData = {}, handleInputChange }) => {
   return (
     <div style={formStyle}>
       <Joyride
-        steps={residualRiskSteps}
+        steps={residualRiskSteps.map(s => ({ ...s, disableBeacon: true }))}
         run={runTour}
         continuous={true}
         showSkipButton={true}
-        showProgress={true}
+        scrollOffset={200}
+        tooltipComponent={CustomTooltip}
         styles={{
           options: {
             zIndex: 10000,
+            overlayColor: "rgba(0, 0, 0, 0.5)",
           },
+          spotlight: {
+            borderRadius: "12px",
+            boxShadow: "0 0 0 3px #ffffff, 0 0 0 6px #3b82f6, 0 20px 25px -5px rgba(0, 0, 0, 0.1)",
+          }
         }}
         callback={(data) => {
           const { status } = data;
@@ -262,25 +280,44 @@ const ResidualRiskForm = ({ formData = {}, handleInputChange }) => {
           }
         }}
       />
-      {/* Task Scheduling */}
       <div
         style={{
           background: "rgba(155, 89, 182, 0.05)",
           padding: "15px",
           borderRadius: "8px",
           border: "1px solid rgba(155, 89, 182, 0.1)",
-          marginBottom: "15px",
+          marginBottom: "20px",
         }}
       >
-        <button
-          style={{ ...autoGenButtonStyle, marginTop: "10px" }}
-          onClick={() => setRunTour(true)}
-        >
-          Tutorial
-        </button>
-        <h3 style={{ fontSize: "16px", fontWeight: 600,  color: "#000", marginBottom: "12px" }}>
-          Task Scheduling
-        </h3>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+          <h3 style={{ fontSize: "16px", fontWeight: 600, color: "#000", margin: 0 }}>
+            Task Scheduling
+          </h3>
+          <button
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              background: "#ffffff",
+              color: "#3b82f6",
+              border: "1px solid #bfdbfe",
+              padding: "8px 16px",
+              borderRadius: "20px",
+              fontSize: "13px",
+              fontWeight: "700",
+              cursor: "pointer",
+              boxShadow: "0 2px 10px rgba(59, 130, 246, 0.15)",
+              transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+              margin: 0
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = "#eff6ff"; e.currentTarget.style.transform = "translateY(-1px)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = "#ffffff"; e.currentTarget.style.transform = "translateY(0)"; }}
+            onClick={() => setRunTour(true)}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+            Tutorial
+          </button>
+        </div>
         <div
           style={{
             display: "grid",
@@ -327,16 +364,16 @@ const ResidualRiskForm = ({ formData = {}, handleInputChange }) => {
         )}
       </div>
 
-      {/* Residual Risk Assessment */}
       <div
         style={{
           background: "rgba(155, 89, 182, 0.05)",
           padding: "15px",
           borderRadius: "8px",
           border: "1px solid rgba(155, 89, 182, 0.1)",
+          marginBottom: "20px",
         }}
       >
-        <h3 style={{ fontSize: "16px", fontWeight: 600, color: "#000",  marginBottom: "5px"  }}>
+        <h3 style={{ fontSize: "16px", fontWeight: 600, color: "#000", marginBottom: "5px" }}>
           Residual Risk Assessment
         </h3>
         <p style={{ textAlign: "center", color: "#7f8c8d", fontSize: "12px" }}>
@@ -361,6 +398,12 @@ const ResidualRiskForm = ({ formData = {}, handleInputChange }) => {
             <span style={summaryValueStyle}>
               {parseInt(formData.impact) * parseInt(formData.probability) ||
                 "Not Set"}
+            </span>
+          </div>
+          <div className="residual-risk-level-summary" style={summaryItemStyle}>
+            <span style={summaryLabelStyle}>Risk Level</span>
+            <span style={summaryValueStyle}>
+              {formData.riskLevel || "Not Set"}
             </span>
           </div>
         </div>
@@ -458,51 +501,6 @@ const ResidualRiskForm = ({ formData = {}, handleInputChange }) => {
                 {residualRiskLevel}
               </span>
             </div>
-
-            {residualRiskLevel && riskActionMapping[residualRiskLevel] && (
-              <div
-                className="recommended-actions-field"
-                style={{
-                  gridColumn: "1 / -1",
-                  textAlign: "center",
-                  marginTop: "10px",
-                }}
-              >
-                <h4
-                  style={{
-                    marginBottom: "8px",
-                    fontSize: "12px",
-                    color: "#f39c12",
-                  }}
-                >
-                  Recommended Actions
-                </h4>
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "center",
-                    gap: "6px",
-                    flexWrap: "wrap",
-                  }}
-                >
-                  {riskActionMapping[residualRiskLevel].map((action, idx) => (
-                    <span
-                      key={idx}
-                      style={{
-                        padding: "4px 10px",
-                        borderRadius: "12px",
-                        backgroundColor: "#f1c40f",
-                        color: "white",
-                        fontWeight: "500",
-                        fontSize: "10px",
-                      }}
-                    >
-                      {action}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
         )}
       </div>

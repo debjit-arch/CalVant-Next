@@ -1,8 +1,10 @@
+// C:\Users\ak192\Downloads\CalVant-Next-master (3)\CalVant-Next-master\src\modules\documentation\pages\Archived.js
+
 import React, { useEffect, useState, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useEffectiveOrg } from "@/hooks/useEffectiveOrg";
 import documentationService from "../services/documentationService";
-import { Trash2, Archive, Search, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { FileText,  Trash2, Archive, Search, ArrowUpDown, ArrowUp, ArrowDown  } from "lucide-react";
 import Modal from "../../../components/navigations/Modal";
 import { captureActivity, ACTIONS } from "../../../services/activities";
 
@@ -77,6 +79,48 @@ const StaticTh = ({ children }) => (
   >
     {children}
   </th>
+);
+
+// ── StatCard Component ──────────────────────────────────────────────────────
+const StatCard = ({ value, label, index, active, onClick }) => (
+  <div
+    onClick={onClick}
+    style={{
+      background: active ? "#eff6ff" : "white",
+      border: active ? "1.5px solid #3b82f6" : "1px solid #e2e8f0",
+      borderRadius: 12, padding: "16px",
+      display: "flex", flexDirection: "column", gap: 4,
+      boxShadow: active ? "0 4px 12px rgba(59,130,246,0.15)" : "0 1px 3px rgba(0,0,0,0.05)",
+      cursor: onClick ? "pointer" : "default",
+      transition: "all 0.2s ease-in-out",
+      transform: active ? "translateY(-2px)" : "none",
+      animation: `fadeUp 0.3s ease ${0.1 + index * 0.05}s both`,
+      position: "relative", overflow: "hidden",
+    }}
+    onMouseEnter={(e) => {
+      if (!active) {
+        e.currentTarget.style.transform = "translateY(-2px)";
+        e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.08)";
+        e.currentTarget.style.borderColor = "#cbd5e1";
+      }
+    }}
+    onMouseLeave={(e) => {
+      if (!active) {
+        e.currentTarget.style.transform = "none";
+        e.currentTarget.style.boxShadow = "0 1px 3px rgba(0,0,0,0.05)";
+        e.currentTarget.style.borderColor = "#e2e8f0";
+      }
+    }}
+  >
+    <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+      <span style={{ fontSize: 24, fontWeight: 800, color: active ? "#1d4ed8" : "#1e293b", letterSpacing: "-0.02em", lineHeight: 1 }}>
+        {value}
+      </span>
+    </div>
+    <span style={{ fontSize: 12, fontWeight: 700, color: active ? "#3b82f6" : "#64748b", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+      {label}
+    </span>
+  </div>
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -235,111 +279,132 @@ const Archived = () => {
 
   // ─────────────────────────────────────────────────────────────────────────
   return (
-    <div style={{ padding: "16px", maxWidth: "1300px", margin: "0 auto", paddingBottom: "80px" }}>
+    <div style={{ padding: "4px 2px 6px", maxWidth: 1280, margin: "0 auto", width: "100%", boxSizing: "border-box" }}>
       <style>{`
         @keyframes spin { to { transform: rotate(360deg) } }
         .arch-table-wrapper {
-          width: 100%;
-          overflow-x: auto;
-          max-height: 68vh;
-          overflow-y: auto;
-          border-radius: 8px;
+          width: 100%; overflow-x: auto;
+          max-height: 72vh; overflow-y: auto;
         }
         .arch-table {
-          width: 100%;
-          border-collapse: separate;
-          border-spacing: 0;
-          min-width: 900px;
+          width: 100%; border-collapse: collapse;
+          min-width: 900px; background: transparent;
         }
-        .arch-table tbody tr:hover td { background: #fff8f0 !important; }
+        .arch-table tbody tr:hover td { background: #f8fafc !important; }
+        .arch-table tbody tr { transition: background 0.15s; }
       `}</style>
 
-      {/* Nav buttons */}
-      <div style={{ display: "flex", gap: "10px", marginBottom: "16px" }}>
+      {/* ── Back button ── */}
+      <div style={{ marginBottom: 12 }}>
         <button
           onClick={() => router.push("/documentation")}
           style={{
             padding: "10px 20px",
-            borderRadius: "8px",
-            background: "#005FCC",
-            border: "none",
-            color: "#fff",
-            fontWeight: 600,
-            fontSize: "14px",
-            cursor: "pointer",
-            boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+            background: "linear-gradient(135deg,#3b82f6,#2563eb)",
+            color: "white", border: "none", borderRadius: 10,
+            fontSize: 13, fontWeight: 600, cursor: "pointer",
+            display: "inline-flex", alignItems: "center", gap: 6,
+            boxShadow: "0 4px 12px rgba(37,99,235,0.3)",
+            transition: "all 0.2s",
           }}
+          onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = "0 6px 16px rgba(37,99,235,0.35)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "0 4px 12px rgba(37,99,235,0.3)"; }}
         >
           ← Back to Dashboard
         </button>
-        <button
-          onClick={() => router.push("/documentation/mld")}
-          style={{
-            padding: "10px 20px",
-            borderRadius: "8px",
-            background: "#667eea",
-            border: "none",
-            color: "#fff",
-            fontWeight: 600,
-            fontSize: "14px",
-            cursor: "pointer",
-            boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
-          }}
-        >
-          Go to Policies (MLD)
-        </button>
       </div>
 
-      {/* Header banner */}
+      {/* ── Header card ── */}
       <div
         style={{
-          background: "linear-gradient(135deg, #64748b 0%, #374151 100%)",
-          borderRadius: "12px",
-          padding: "24px",
-          marginBottom: "20px",
-          color: "white",
-          boxShadow: "0 5px 20px rgba(0,0,0,0.15)",
+          background: "rgba(255,255,255,0.85)", backdropFilter: "blur(8px)",
+          border: "1px solid rgba(241,245,249,0.8)", borderRadius: 14,
+          boxShadow: "0 2px 10px rgba(0,0,0,0.06)",
+          padding: "18px 24px 16px", marginBottom: 16,
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: "14px", marginBottom: "8px" }}>
-          <Archive size={32} />
-          <h1 style={{ margin: 0, fontSize: "26px", fontWeight: 700 }}>Archived Policies</h1>
-        </div>
-        <p style={{ margin: 0, fontSize: "15px", opacity: 0.85 }}>
-          Policies archived from the MLD are stored here. You can permanently delete them when no longer needed.
-        </p>
-        {!loading && (
-          <div style={{ marginTop: "14px", display: "flex", gap: "24px", fontSize: "14px", flexWrap: "wrap" }}>
-            <div>
-              <span style={{ fontWeight: 700 }}>Total Archived:</span> {allDocs.length}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+            <div
+              style={{
+                width: 48, height: 48, borderRadius: 12,
+                background: "linear-gradient(135deg,#3b82f6,#2563eb)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                flexShrink: 0, boxShadow: "0 4px 12px rgba(37,99,235,0.3)",
+              }}
+            >
+              <Archive size={22} color="white" strokeWidth={2} />
             </div>
             <div>
-              <span style={{ fontWeight: 700 }}>Shown:</span> {filteredDocs.length}
+              <h1 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#1e293b", letterSpacing: "-0.01em", lineHeight: 1.2 }}>
+                Archived Policies
+              </h1>
+              <p style={{ margin: "3px 0 0", fontSize: 13, color: "#64748b", fontWeight: 400 }}>
+                Policies archived from the MLD are stored here.
+              </p>
             </div>
           </div>
-        )}
+
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <button
+              onClick={() => router.push("/documentation/mld")}
+              style={{
+                padding: "10px 20px", borderRadius: 10,
+                background: "linear-gradient(135deg,#3b82f6,#2563eb)",
+                border: "none", color: "white", fontWeight: 600, fontSize: 13,
+                cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6,
+                boxShadow: "0 4px 12px rgba(37,99,235,0.3)", transition: "all 0.2s",
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = "0 6px 16px rgba(37,99,235,0.35)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "0 4px 12px rgba(37,99,235,0.3)"; }}
+            >
+              Go to Policies (MLD)
+            </button>
+          </div>
+        </div>
       </div>
 
-      {/* Search bar */}
+      {/* ── Stat Cards ── */}
+      {/* !loading && (
+        <section
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+            gap: 14, marginBottom: 18,
+          }}
+        >
+          <StatCard
+            value={allDocs.length}
+            label="Total Archived"
+            index={0}
+            active={false}
+          />
+          <StatCard
+            value={filteredDocs.length}
+            label="Shown"
+            index={1}
+            active={false}
+          />
+        </section>
+      ) */}
+
+      {/* ── Filter / Toolbar ── */}
       <div
         style={{
-          display: "flex",
-          gap: "10px",
-          alignItems: "center",
-          marginBottom: "14px",
-          flexWrap: "wrap",
+          background: "rgba(255,255,255,0.85)", backdropFilter: "blur(8px)",
+          border: "1px solid rgba(241,245,249,0.8)", borderRadius: 12,
+          boxShadow: "0 1px 4px rgba(0,0,0,0.04)",
+          padding: "8px 16px", marginBottom: 16,
+          display: "flex", alignItems: "center", gap: 8,
+          flexWrap: "wrap", overflow: "visible",
+          position: "relative", zIndex: 100,
         }}
       >
-        <div style={{ position: "relative" }}>
+        <div style={{ position: "relative", flex: "1 1 180px", maxWidth: 320 }}>
           <Search
-            size={15}
-            style={{
-              position: "absolute",
-              left: "10px",
-              top: "50%",
-              transform: "translateY(-50%)",
-              color: "#9ca3af",
-            }}
+            size={13}
+            color="#94a3b8"
+            style={{ position: "absolute", left: 9, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}
           />
           <input
             type="text"
@@ -347,46 +412,28 @@ const Archived = () => {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             style={{
-              padding: "8px 12px 8px 32px",
-              borderRadius: "8px",
-              border: "1px solid #ccc",
-              minWidth: "320px",
-              fontSize: "13px",
+              width: "100%", padding: "7px 10px 7px 30px",
+              border: "1.5px solid #e2e8f0", borderRadius: 8, fontSize: 13,
+              outline: "none", background: "#f8fafc", boxSizing: "border-box",
+              transition: "all 0.2s", color: "#1e293b",
             }}
+            onFocus={(e) => { e.target.style.borderColor = "#3b82f6"; e.target.style.background = "#fff"; e.target.style.boxShadow = "0 0 0 3px rgba(59,130,246,.1)"; }}
+            onBlur={(e) => { e.target.style.borderColor = "#e2e8f0"; e.target.style.background = "#f8fafc"; e.target.style.boxShadow = "none"; }}
           />
         </div>
-        <span style={{ fontSize: "13px", color: "#6b7280" }}>
+        <span style={{ fontSize: 12, color: "#94a3b8", fontWeight: 600, whiteSpace: "nowrap", flexShrink: 0 }}>
           {filteredDocs.length} of {allDocs.length} archived
         </span>
       </div>
 
-      {/* Table */}
-      <div
-        style={{
-          background: "white",
-          borderRadius: "12px",
-          padding: "20px",
-          boxShadow: "0 3px 15px rgba(0,0,0,0.06)",
-          border: "1px solid #e9ecef",
-        }}
-      >
-        <h2
-          style={{
-            color: "#374151",
-            marginBottom: "16px",
-            fontSize: "17px",
-            borderBottom: "3px solid #64748b",
-            paddingBottom: "8px",
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
-          }}
-        >
-          <Archive size={18} style={{ color: "#64748b" }} />
-          Archive
-        </h2>
-
-        <div className="arch-table-wrapper">
+      {/* ── Table card ── */}
+      <div style={{
+        background: "rgba(255,255,255,0.8)", backdropFilter: "blur(8px)",
+        borderRadius: 14, boxShadow: "0 2px 12px rgba(0,0,0,0.06)",
+        border: "1px solid rgba(241,245,249,0.8)",
+        overflow: "hidden", marginBottom: 16,
+      }}>
+          <div className="arch-table-wrapper">
           <table className="arch-table">
             <thead>
               <tr style={{ backgroundColor: "#f8f9fa" }}>

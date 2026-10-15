@@ -5,6 +5,7 @@ import SelectField from "../inputs/SelectField";
 import TextAreaField from "../inputs/TextAreaField";
 import Select from "react-select";
 import Joyride, { STATUS } from "react-joyride";
+import CustomTooltip from "../CustomTooltip";
 import { useFramework } from "../../../../context/FrameworkContex";
 
 // ─── Threat → Vulnerability mapping (UNCHANGED) ──────────────────────────────
@@ -103,6 +104,8 @@ const RiskDetailsForm = ({
     handleInputChangeRef.current = handleInputChange;
   });
 
+  // Auto-generation is handled safely by MultiStepFormManager after fetching existing IDs.
+
   const [runTour, setRunTour]                               = useState(false);
   const [selectedThreat, setSelectedThreat]                 = useState("");
   const [isCustomThreat, setIsCustomThreat]                 = useState(false);
@@ -185,7 +188,6 @@ const RiskDetailsForm = ({
     if (onceRef.current) return;
     onceRef.current = true;
     window.scrollTo(0, 0);
-    if (!formData.riskId && !isEditing) generateRiskId();
     if (!formData.riskType)
       handleInputChangeRef.current({ target: { name: "riskType", value: ["Privacy"] } });
     if (!formData.date) {
@@ -301,14 +303,14 @@ const RiskDetailsForm = ({
   ];
 
   const S = {
-    form:      { background: "linear-gradient(135deg,#ffffff,#f8f9fa)", padding: 20, borderRadius: 10, boxShadow: "0 4px 15px rgba(0,0,0,0.05)", maxWidth: 800, margin: "0 auto", border: "1px solid #e9ecef" },
+    form:      { background: "linear-gradient(135deg,#ffffff,#f8f9fa)", padding: 20, borderRadius: 10, boxShadow: "0 4px 15px rgba(0,0,0,0.05)", margin: "0 auto", border: "1px solid #e9ecef" },
     header:    { textAlign: "center", marginBottom: 20, paddingBottom: 10, borderBottom: "2px solid #3498db" },
     title:     { color: "#2c3e50", fontSize: 22, fontWeight: 600, marginBottom: 4 },
     subtitle:  { color: "#7f8c8d", fontSize: 13, fontWeight: 400 },
     grid:      { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(250px,1fr))", gap: 15, marginBottom: 20 },
     section:   { background: "rgba(52,152,219,0.03)", padding: 15, borderRadius: 8, border: "1px solid rgba(52,152,219,0.1)", marginBottom: 15 },
     secTitle:  { color: "#2c3e50", fontSize: 16, fontWeight: 600, marginBottom: 10 },
-    calcGrid:  { display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 12, background: "#f4f6f7", padding: 15, borderRadius: 8, marginTop: 15 },
+    calcGrid:  { display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, background: "#f4f6f7", padding: 15, borderRadius: 8, marginTop: 15 },
     calcItem:  { textAlign: "center", background: "#fff", padding: 12, borderRadius: 6, boxShadow: "0 2px 8px rgba(0,0,0,0.05)" },
     calcLabel: { display: "block", fontWeight: 500, color: "#34495e", marginBottom: 6, fontSize: 12, textTransform: "uppercase" },
     calcVal:   { fontSize: 18, fontWeight: 600, padding: "4px 8px", borderRadius: 6, background: "#fff", color: "#2c3e50", border: "1px solid #ecf0f1" },
@@ -356,11 +358,19 @@ const RiskDetailsForm = ({
       `}</style>
       <div style={S.form} className="risk-form">
         <Joyride
-          steps={steps} run={runTour} continuous showSkipButton showProgress
-          styles={{ options: { zIndex: 10000 } }}
+          steps={steps.map(s => ({ ...s, disableBeacon: true }))} run={runTour} continuous showSkipButton scrollOffset={200} tooltipComponent={CustomTooltip}
+          styles={{
+            options: {
+              zIndex: 10000,
+              overlayColor: "rgba(0, 0, 0, 0.5)",
+            },
+            spotlight: {
+              borderRadius: "12px",
+              boxShadow: "0 0 0 3px #ffffff, 0 0 0 6px #3b82f6, 0 20px 25px -5px rgba(0, 0, 0, 0.1)",
+            }
+          }}
           callback={({ status }) => { if ([STATUS.FINISHED, STATUS.SKIPPED].includes(status)) setRunTour(false); }}
         />
-        <button style={{ ...S.genBtn, marginTop: 10 }} onClick={() => setRunTour(true)}>Tutorial</button>
 
         {/* ──────────────────────────────────────────────────────────────────
             Framework Filter Banner — only when a specific framework is active
@@ -419,27 +429,63 @@ const RiskDetailsForm = ({
           </div>
         )}
 
-        <div style={S.header}>
-          <h2 style={S.title} className="form-title">Risk Assessment</h2>
-          <p style={S.subtitle}>Identify and Assess Risks</p>
-        </div>
+
 
         <div style={S.section}>
           <div style={S.idHeader}>
             <h3 style={{ ...S.secTitle, marginBottom: 0 }}>Risk Identification</h3>
-            {!isEditing && (
-              <button style={S.genBtn} onClick={generateRiskId}
-                onMouseEnter={(e) => (e.target.style.backgroundColor = "#2980b9")}
-                onMouseLeave={(e) => (e.target.style.backgroundColor = "#3498db")}>
-                Generate New ID
+            <div style={{ display: "flex", gap: "10px" }}>
+              <button
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  background: "#ffffff",
+                  color: "#3b82f6",
+                  border: "1px solid #bfdbfe",
+                  padding: "8px 16px",
+                  borderRadius: "20px",
+                  fontSize: "13px",
+                  fontWeight: "700",
+                  cursor: "pointer",
+                  boxShadow: "0 2px 10px rgba(59, 130, 246, 0.15)",
+                  transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+                  margin: 0
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = "#eff6ff"; e.currentTarget.style.transform = "translateY(-1px)"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "#ffffff"; e.currentTarget.style.transform = "translateY(0)"; }}
+                onClick={() => setRunTour(true)}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                Tutorial
               </button>
-            )}
+              <button
+                type="button"
+                onClick={generateRiskId}
+                style={{
+                  background: "#e2e8f0",
+                  color: "#475569",
+                  border: "1px solid #cbd5e1",
+                  padding: "8px 16px",
+                  borderRadius: "20px",
+                  fontSize: "13px",
+                  fontWeight: "600",
+                  cursor: "pointer",
+                  transition: "all 0.2s ease",
+                  margin: 0
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = "#f1f5f9"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "#e2e8f0"; }}
+              >
+                Generate ID
+              </button>
+            </div>
           </div>
           <div style={S.grid} className="risk-grid">
             <div>
               <InputField label="Risk ID" name="riskId" value={formData.riskId || ""}
                 onChange={handleInputChange} placeholder="Auto-generated or enter custom ID"
-                required readOnly={isEditing} className="risk-id-field" />
+                required className="risk-id-field" />
               {isDuplicateRiskId() && <div style={S.dupWarn}>⚠️ This Risk ID already exists.</div>}
             </div>
             <SelectField label="Department" name="department" value={formData.department || ""}

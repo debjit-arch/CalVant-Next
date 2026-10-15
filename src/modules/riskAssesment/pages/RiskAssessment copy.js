@@ -377,7 +377,7 @@ useEffect(() => { setHasMounted(true); }, []);
     {
       id: "add",
       icon: PlusCircle,
-      title: "New Risk",
+      title: "New Risks",
       subtitle: "Add Risk",
       path: "/risk-assessment/add",
       color: "from-emerald-400 to-emerald-500",

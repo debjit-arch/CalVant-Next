@@ -224,6 +224,28 @@ export async function initiateOneTimeCheckout(addOnCode, quantity = 1) {
   return data;
 }
 
+/**
+ * POST /api/billing/trial-extension/request — root asks for a one-time,
+ * billing.policy.trial-extension-days (3) extension. Backend enforces
+ * eligibility (must still be TRIAL, or lapsed-but-never-paid) and the
+ * one-request-at-a-time / one-shot-ever guards — this call can 409, which
+ * ManageSubscription.jsx surfaces via err.response.data.message.
+ */
+export async function requestTrialExtension(reason) {
+  const { data } = await adminAxios.post(`${API}/trial-extension/request`, { reason });
+  return data;
+}
+
+/**
+ * GET /api/billing/trial-extension/mine — every trial-extension request this
+ * tenant has ever made (PENDING/APPROVED/REJECTED), newest and oldest alike.
+ * ManageSubscription.jsx picks the most recent to decide what to show.
+ */
+export async function getMyTrialExtensionRequests() {
+  const { data } = await adminAxios.get(`${API}/trial-extension/mine`);
+  return data;
+}
+
 export default {
   getCurrentSubscription,
   getAddOnCatalog,
@@ -235,4 +257,6 @@ export default {
   cancelSubscription,
   startCheckout,
   initiateOneTimeCheckout,
+  requestTrialExtension,
+  getMyTrialExtensionRequests,
 };

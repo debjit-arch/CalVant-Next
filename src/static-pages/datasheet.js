@@ -1,8 +1,11 @@
+"use client";
 // //C:\Users\ak192\Downloads\calvant-frontend-2-cv_nextjs4\calvant-frontend-2-cv_nextjs4\src\static-pages\datasheet.js
 
+import SiteHeader from "@/components/SiteHeader";
 
 // "use client";
 // import React, { useState, useEffect } from "react";
+import SiteFooter from "@/components/SiteFooter";
 // import Image from "next/image";
 // import Link from "next/link";
 // import { useRouter } from "next/navigation";
@@ -363,49 +366,7 @@
 //       </section>
 
 //       {/* ── Footer ── */}
-//       <footer className="ds-footer">
-//         <div className="ds-footer-content">
-//           <div className="ds-footer-section">
-//             <h4>Product</h4>
-//             <ul>
-//               <li><Link href="/iso-27001">ISO 27001</Link></li>
-//               <li><Link href="/iso-27701">ISO 27701</Link></li>
-//               <li><Link href="/risk-assessment">Risk Management</Link></li>
-//               <li><Link href="/documentation">Documentation</Link></li>
-//             </ul>
-//           </div>
-//           <div className="ds-footer-section">
-//             <h4>Company</h4>
-//             <ul>
-//               <li><Link href="/about">About Us</Link></li>
-//               <li><Link href="/careers">Careers</Link></li>
-//               <li><Link href="/blog">Blog</Link></li>
-//               <li><Link href="/demo">Contact</Link></li>
-//             </ul>
-//           </div>
-//           <div className="ds-footer-section">
-//             <h4>Resources</h4>
-//             <ul>
-//               <li><Link href="/datasheet">Datasheets</Link></li>
-//               <li><Link href="/security">Security</Link></li>
-//               <li><Link href="/privacy">Privacy Policy</Link></li>
-//               <li><Link href="/terms">Terms of Service</Link></li>
-//             </ul>
-//           </div>
-//           <div className="ds-footer-section">
-//             <h4>Contact</h4>
-//             <ul>
-//               <li><Link href="mailto:sales@consultantsfactory.com">sales@consultantsfactory.com</Link></li>
-//               <li><Link href="mailto:support@calvant.com">support@calvant.com</Link></li>
-//               <li><Link href="https://linkedin.com" target="_blank" rel="noreferrer">LinkedIn</Link></li>
-//               <li><Link href="https://twitter.com" target="_blank" rel="noreferrer">Twitter</Link></li>
-//             </ul>
-//           </div>
-//         </div>
-//         <div className="ds-footer-bottom">
-//           © {new Date().getFullYear()} CalVant. All rights reserved. Made in India 🇮🇳
-//         </div>
-//       </footer>
+      <SiteFooter />
 //     </div>
 //   );
 // };
@@ -415,7 +376,7 @@
 
 //C:\Users\ak192\Downloads\calvant-frontend-2-cv_nextjs4\calvant-frontend-2-cv_nextjs4\src\static-pages\datasheet.js
 
-"use client";
+
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
@@ -539,53 +500,7 @@ const DatasheetPage = () => {
     <div className={`ds-page ${mounted ? "ds-mounted" : ""}`}>
 
       {/* ── Header ── */}
-      <header className="ds-header">
-        <div className="ds-header-inner">
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              flex: "10px 0 auto",
-            }}
-          >
-            <Image
-              src="/CalVant Logo.svg"
-              alt="CalVant"
-              width={180}
-              height={60}
-              style={{
-                height: isMobile ? "30px" : "60px",
-                width: "auto",
-                transform: isMobile ? "scale(3.9)" : "scale(2.9)",
-                transformOrigin: "center",
-                cursor: "pointer",
-                transition: "transform 0.25s ease",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = "scale(3.7)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = "scale(3.5)";
-              }}
-              onClick={() => router.push("/")}
-            />
-          </div>
-          <nav className="ds-nav">
-            <ul className="ds-nav-links">
-              <li><Link href="/" className="ds-nav-link">Home</Link></li>
-              <li><Link href="/about" className="ds-nav-link">About</Link></li>
-              <li><Link href="/blog" className="ds-nav-link">Blog</Link></li>
-              {!isLoggedIn && (
-                <li>
-                  <Link href="/login" className="ds-nav-link ds-nav-cta">
-                    Login
-                  </Link>
-                </li>
-              )}
-            </ul>
-          </nav>
-        </div>
-      </header>
+      <SiteHeader />
 
       {/* ── Hero ── */}
       <section className="ds-hero">
@@ -743,49 +658,7 @@ const DatasheetPage = () => {
       </section>
 
       {/* ── Footer ── */}
-      <footer className="ds-footer">
-        <div className="ds-footer-content">
-          <div className="ds-footer-section">
-            <h4>Product</h4>
-            <ul>
-              <li><Link href="/iso-27001">ISO 27001</Link></li>
-              <li><Link href="/iso-27701">ISO 27701</Link></li>
-              <li><Link href="/risk-assessment">Risk Management</Link></li>
-              <li><Link href="/documentation">Documentation</Link></li>
-            </ul>
-          </div>
-          <div className="ds-footer-section">
-            <h4>Company</h4>
-            <ul>
-              <li><Link href="/about">About Us</Link></li>
-              <li><Link href="/careers">Careers</Link></li>
-              <li><Link href="/blog">Blog</Link></li>
-              <li><Link href="/demo">Contact</Link></li>
-            </ul>
-          </div>
-          <div className="ds-footer-section">
-            <h4>Resources</h4>
-            <ul>
-              <li><Link href="/datasheet">Datasheets</Link></li>
-              <li><Link href="/security">Security</Link></li>
-              <li><Link href="/privacy">Privacy Policy</Link></li>
-              <li><Link href="/terms">Terms of Service</Link></li>
-            </ul>
-          </div>
-          <div className="ds-footer-section">
-            <h4>Contact</h4>
-            <ul>
-              <li><Link href="mailto:sales@consultantsfactory.com">sales@consultantsfactory.com</Link></li>
-              <li><Link href="mailto:support@calvant.com">support@calvant.com</Link></li>
-              <li><Link href="https://linkedin.com" target="_blank" rel="noreferrer">LinkedIn</Link></li>
-              <li><Link href="https://twitter.com" target="_blank" rel="noreferrer">Twitter</Link></li>
-            </ul>
-          </div>
-        </div>
-        <div className="ds-footer-bottom">
-          © {new Date().getFullYear()} CalVant. All rights reserved. Made in India 🇮🇳
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   );
 };

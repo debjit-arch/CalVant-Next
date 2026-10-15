@@ -21,51 +21,116 @@ const multiStepStyles = `
   }
 
   .msf-layout {
-    display: grid;
-    grid-template-columns: 260px minmax(0, 1fr);
-    gap: 16px;
-    align-items: flex-start;
-  }
-
-  .msf-stepper {
-    position: sticky;
-    top: 90px;
     display: flex;
     flex-direction: column;
     gap: 24px;
+    align-items: stretch;
+  }
+
+  .msf-stepper {
+    position: relative;
+    top: 0;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: flex-start;
+    background: transparent;
+    padding: 10px 0 24px 0;
     z-index: 1;
+    margin-bottom: 0px;
+  }
+
+  .msf-stepper-line-bg {
+    position: absolute;
+    top: 24.5px;
+    left: 16.66%;
+    right: 16.66%;
+    height: 3px;
+    background: #e2e8f0;
+    z-index: 0;
+    border-radius: 2px;
+  }
+
+  .msf-stepper-line-active {
+    position: absolute;
+    top: 24.5px;
+    left: 16.66%;
+    height: 3px;
+    background: #3b82f6;
+    z-index: 0;
+    border-radius: 2px;
+    transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   .msf-step {
+    position: relative;
+    z-index: 1;
     display: flex;
+    flex-direction: column;
     align-items: center;
+    gap: 10px;
+    background: transparent;
+    width: 33.33%;
   }
 
   .msf-step-circle {
-    width: 38px;
-    height: 38px;
+    width: 32px;
+    height: 32px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     font-weight: 600;
     font-size: 14px;
-    transition: all 0.3s ease;
+    transition: all 0.4s ease;
+    background: #ffffff;
+    border: 2px solid #e2e8f0;
+    color: #94a3b8;
+  }
+
+  .msf-step-circle.active {
+    border-color: #3b82f6;
+    color: #3b82f6;
+    transform: scale(1.1);
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+  }
+
+  .msf-step-circle.completed {
+    background: #3b82f6;
+    border-color: #3b82f6;
+    color: #ffffff;
   }
 
   .msf-step-label {
-    margin-left: 8px;
+    margin-left: 0;
+    font-size: 15px;
+    font-weight: 600;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    color: #64748b;
+    transition: color 0.3s ease;
+  }
+
+  .msf-step-label.active {
+    color: #0f172a;
+  }
+
+  .msf-step-subtitle {
     font-size: 13px;
     font-weight: 500;
+    color: #94a3b8;
+    transition: color 0.3s ease;
+  }
+
+  .msf-step-label.active .msf-step-subtitle {
+    color: #64748b;
   }
 
   .msf-main {
-    background: #ffffff;
-    border-radius: 12px;
-    padding: 20px;
     margin-bottom: 20px;
-    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
-    border: 1px solid #e9ecef;
   }
 
   .msf-nav {
@@ -127,14 +192,13 @@ const multiStepStyles = `
 
   @media (max-width: 768px) {
     .msf-wrapper { padding: 12px 10px 90px 10px; }
-    .msf-layout { grid-template-columns: 1fr; }
     .msf-stepper {
-      position: static;
-      flex-direction: row;
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: 12px;
-      margin-bottom: 8px;
+      padding: 10px 0;
+    }
+    .msf-stepper-line-bg, .msf-stepper-line-active {
+      left: 16.66%;
+      right: 16.66%;
+      top: 24.5px;
     }
     .msf-step-label { display: none; }
     .msf-main { margin: 0; padding: 16px 12px; }
@@ -229,9 +293,9 @@ const MultiStepFormManager = ({ onSubmit, focusArea = "risk" }) => {
 
         const filtered = Array.isArray(data)
           ? data.filter((dept) => {
-              const deptOrgId = dept.organization?._id || dept.organization;
-              return String(deptOrgId) === String(userOrgId);
-            })
+            const deptOrgId = dept.organization?._id || dept.organization;
+            return String(deptOrgId) === String(userOrgId);
+          })
           : [];
         setDepartments(filtered);
       } catch (err) {
@@ -294,8 +358,8 @@ const MultiStepFormManager = ({ onSubmit, focusArea = "risk" }) => {
   const isStep1Valid = () => {
     const duplicateCheck = isEditing
       ? existingRiskIds
-          .filter((id) => id !== existingRiskId)
-          .includes(formData.riskId)
+        .filter((id) => id !== existingRiskId)
+        .includes(formData.riskId)
       : existingRiskIds.includes(formData.riskId);
 
     return (
@@ -490,7 +554,7 @@ const MultiStepFormManager = ({ onSubmit, focusArea = "risk" }) => {
         return (
           <>
             <h4 style={{ marginBottom: "10px", color: "#2c3e50" }}>
-              📋 Task Management
+
             </h4>
             <TaskManagement
               riskFormData={formData}
@@ -507,6 +571,9 @@ const MultiStepFormManager = ({ onSubmit, focusArea = "risk" }) => {
   const getStepLabel = (step) =>
     ["Risk Assessment", "Treatment Planning", "Task Management"][step - 1];
 
+  const getStepSubtitle = (step) =>
+    ["Identify and Assess Risks", "Define Response and Controls", "Assign Follow-up Tasks"][step - 1];
+
   const getNextButtonDisabled = () => {
     if (currentStep === 1) return !isStep1Valid();
     if (currentStep === 2) return !isStep2Valid();
@@ -519,38 +586,38 @@ const MultiStepFormManager = ({ onSubmit, focusArea = "risk" }) => {
       <style>{multiStepStyles}</style>
       <div className="msf-layout">
         <div className="msf-stepper">
-          {[1, 2, 3].map((step) => (
-            <div key={step} className="msf-step">
-              <div
-                className="msf-step-circle"
-                style={{
-                  backgroundColor:
-                    currentStep === step
-                      ? "#2980b9"
-                      : currentStep > step
-                        ? "#3498db"
-                        : "#ecf0f1",
-                  color: currentStep >= step ? "#ffffff" : "#7f8c8d",
-                  transform: currentStep === step ? "scale(1.15)" : "scale(1)",
-                  boxShadow:
-                    currentStep >= step
-                      ? "0 2px 8px rgba(52,152,219,0.3)"
-                      : "none",
-                }}
-              >
-                {step}
+          <div className="msf-stepper-line-bg"></div>
+          <div 
+            className="msf-stepper-line-active" 
+            style={{ width: currentStep === 1 ? '0%' : currentStep === 2 ? '33.34%' : '66.68%' }}
+          ></div>
+          
+          {[1, 2, 3].map((step) => {
+            const isCompleted = currentStep > step;
+            const isActive = currentStep === step;
+            
+            return (
+              <div key={step} className="msf-step">
+                <div 
+                  className={`msf-step-circle ${isActive ? 'active' : ''} ${isCompleted ? 'completed' : ''}`}
+                >
+                  {isCompleted ? (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                  ) : (
+                    step
+                  )}
+                </div>
+                <span className={`msf-step-label ${isActive || isCompleted ? 'active' : ''}`}>
+                  <span>{getStepLabel(step)}</span>
+                  <span className="msf-step-subtitle">
+                    {getStepSubtitle(step)}
+                  </span>
+                </span>
               </div>
-              <span
-                className="msf-step-label"
-                style={{
-                  fontWeight: currentStep === step ? 600 : 500,
-                  color: currentStep >= step ? "#3498db" : "#7f8c8d",
-                }}
-              >
-                {getStepLabel(step)}
-              </span>
-            </div>
-          ))}
+            );
+          })}
         </div>
         <div className="msf-main">{renderCurrentStep()}</div>
       </div>

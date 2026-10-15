@@ -13,7 +13,9 @@ const API_BASE = "https://api.calvant.com/framework/api";
 async function getFramework(id) {
   try {
     const res = await fetch(`${API_BASE}/frameworks/${id}`, {
-      next: { revalidate: 3600 },
+      
+
+      next: { revalidate: 0 },
       headers: {
         Origin: process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
       },
