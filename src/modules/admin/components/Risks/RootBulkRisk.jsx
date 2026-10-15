@@ -73,8 +73,9 @@ const CSV_COLUMNS = [
   "soc2",
 ];
 
-// const UPLOAD_URL = `${process.env.NEXT_PUBLIC_SP}/risk-service/api/risks/upload`;
-const UPLOAD_URL = "http://localhost:4003/api/risks/upload";
+const UPLOAD_URL = `${process.env.NEXT_PUBLIC_SP}/risk-service/api/risks/upload`;
+// const UPLOAD_URL = "http://localhost:4003/api/risks/upload";
+
 
 // ─── Styled components ───────────────────────────────────────────────────────
 const StyledPaper = styled(Paper)(({ theme }) => ({
