@@ -7,20 +7,21 @@ import {
   Alert, CircularProgress, Dialog, DialogTitle,
   DialogContent, Tooltip, Divider, LinearProgress,
 } from '@mui/material';
-import SyncIcon             from '@mui/icons-material/Sync';
-import ExtensionIcon        from '@mui/icons-material/Extension';
-import CloseIcon            from '@mui/icons-material/Close';
-import AddIcon              from '@mui/icons-material/Add';
-import EditIcon             from '@mui/icons-material/Edit';
-import DeleteIcon           from '@mui/icons-material/Delete';
+import SyncIcon from '@mui/icons-material/Sync';
+import ExtensionIcon from '@mui/icons-material/Extension';
+import CloseIcon from '@mui/icons-material/Close';
+import AddIcon from '@mui/icons-material/Add';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
 import PowerSettingsNewIcon from '@mui/icons-material/PowerSettingsNew';
-import LockIcon              from '@mui/icons-material/Lock';
+import LockIcon from '@mui/icons-material/Lock';
 
-import integrationApi          from './integrationApi';
-import BuiltInProviderForm     from './BuiltInProviderForm';
+import integrationApi from './integrationApi';
+import BuiltInProviderForm from './BuiltInProviderForm';
 import CustomIntegrationDialog from './CustomIntegrationDialog';
 import { BUILT_IN_PROVIDERS, TYPE_COLORS } from './providerMeta';
-import ProviderCard             from './ProviderCard';
+import ProviderCard from './ProviderCard';
+import IntegrationIntermediaryPage from './IntegrationIntermediaryPage';
 import useIntegrationEntitlement, {
   ENTITLEMENT_CUSTOM,
 } from '../../hooks/useIntegrationEntitlement';
@@ -229,7 +230,7 @@ export default function IntegrationsPage() {
   // Read from sessionStorage cache first (already set by compliance page),
   // otherwise fetch from user-service. Never use JWT.organization directly
   // because that is the MongoDB _id, not the tenantId string.
-  const [tenantId,  setTenantId]  = useState(null);
+  const [tenantId, setTenantId] = useState(null);
   const [tenantErr, setTenantErr] = useState(false);
 
   useEffect(() => {
@@ -238,7 +239,7 @@ export default function IntegrationsPage() {
       if (cached) { setTenantId(cached); return; }
 
       try {
-        const user  = JSON.parse(sessionStorage.getItem('user') || '{}');
+        const user = JSON.parse(sessionStorage.getItem('user') || '{}');
         const orgId = user?.organization?._id ?? user?.organization;
         if (!orgId) { setTenantErr(true); return; }
 
@@ -258,10 +259,10 @@ export default function IntegrationsPage() {
   }, []);
 
   const [builtInConfig, setBuiltInConfig] = useState({});
-  const [customList,    setCustomList]    = useState([]);
-  const [loading,       setLoading]       = useState(true);
-  const [syncing,       setSyncing]       = useState(false);
-  const [syncAlert,     setSyncAlert]     = useState(null);
+  const [customList, setCustomList] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
+  const [syncAlert, setSyncAlert] = useState(null);
 
   // ── Subscription entitlement — how many integration slots this tenant
   // is allowed, per contract §4. mode === CUSTOM means unlimited
@@ -277,9 +278,23 @@ export default function IntegrationsPage() {
   const configOpen = !!configProviderKey;
   const configProvider = BUILT_IN_PROVIDERS.find(p => p.key === configProviderKey) ?? null;
 
+  // Intermediary landing page state
+  const [selectedIntermediaryProvider, setSelectedIntermediaryProvider] = useState(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const toolParam = params.get('tool') || params.get('provider');
+      if (toolParam) {
+        const found = BUILT_IN_PROVIDERS.find(p => p.key.toLowerCase() === toolParam.toLowerCase());
+        if (found) setSelectedIntermediaryProvider(found);
+      }
+    }
+  }, []);
+
   // Custom tool dialog (unchanged behavior, just re-used here)
   const [customDialogOpen, setCustomDialogOpen] = useState(false);
-  const [editingCustom,    setEditingCustom]    = useState(null);
+  const [editingCustom, setEditingCustom] = useState(null);
 
   useEffect(() => { if (tenantId) loadAll(); }, [tenantId]);
 
@@ -300,8 +315,8 @@ export default function IntegrationsPage() {
   };
 
   const connectedBuiltIn = BUILT_IN_PROVIDERS.filter(p => !!builtInConfig[p.configKey ?? p.key]).length;
-  const activeCustom     = customList.filter(c => c.status === 'ACTIVE').length;
-  const totalConnected   = connectedBuiltIn + activeCustom;
+  const activeCustom = customList.filter(c => c.status === 'ACTIVE').length;
+  const totalConnected = connectedBuiltIn + activeCustom;
   const atCap = !isUnlimited && totalConnected >= slotCap;
 
   // Built-in handlers
@@ -337,7 +352,7 @@ export default function IntegrationsPage() {
   // Custom handlers
   const handleCustomSubmit = async (form, id) => {
     if (id) await integrationApi.updateCustom(tenantId, id, form);
-    else    await integrationApi.createCustom(tenantId, form);
+    else await integrationApi.createCustom(tenantId, form);
     setCustomDialogOpen(false);
     setEditingCustom(null);
     await loadAll();
@@ -402,128 +417,139 @@ export default function IntegrationsPage() {
   );
 
   return (
-    <Box sx={{ p: 3, maxWidth: 1200, mx: 'auto' }}>
-
-      {/* Page header */}
-      <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 3, flexWrap: 'wrap', gap: 2 }}>
-        <Box>
-          <Typography variant="h5" fontWeight={800} color="text.primary" letterSpacing="-0.3px">
-            Integrations
-          </Typography>
-          <Typography variant="body2" color="text.secondary" mt={0.5}>
-            Connect your cloud, HR, and security tools. Credentials are encrypted before storage.
-          </Typography>
-        </Box>
-        <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center' }}>
-          <Chip
-            label={`${totalConnected} active`}
-            size="small"
-            color={totalConnected > 0 ? 'success' : 'default'}
-            sx={{ fontWeight: 600, fontSize: '0.75rem' }}
-          />
-          <Button
-            variant="contained"
-            startIcon={syncing ? <CircularProgress size={14} color="inherit" /> : <SyncIcon />}
-            onClick={handleSync}
-            disabled={syncing || totalConnected === 0}
-            size="small"
-            sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px', fontSize: '0.82rem' }}
-          >
-            {syncing ? 'Syncing…' : 'Run compliance sync'}
-          </Button>
-        </Box>
-      </Box>
-
-      {/* Slot-usage banner — only meaningful once entitlement has loaded and
-          the tenant isn't on the unlimited/custom tier. */}
-      {!entLoading && !entError && !isUnlimited && (
-        <Box
-          sx={{
-            mb: 3, p: 2, borderRadius: '10px',
-            border: '1px solid', borderColor: atCap ? '#fde68a' : '#e8edf2',
-            background: atCap ? '#fffbeb' : '#f8fafc',
-          }}
-        >
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.75 }}>
-            <Typography variant="body2" fontWeight={600} color={atCap ? '#92400e' : 'text.secondary'}>
-              {totalConnected} of {slotCap} integration slot{slotCap === 1 ? '' : 's'} used
-            </Typography>
-            {atCap && (
-              <Button
+    <Box sx={selectedIntermediaryProvider ? { minHeight: '100%', background: 'transparent', p: 0, maxWidth: 1240, mx: 'auto' } : { p: 3, maxWidth: 1200, mx: 'auto' }}>
+      {selectedIntermediaryProvider ? (
+        <IntegrationIntermediaryPage
+          provider={selectedIntermediaryProvider}
+          isConnected={!!builtInConfig[selectedIntermediaryProvider.configKey ?? selectedIntermediaryProvider.key]}
+          onConnect={() => handleOpenProvider(selectedIntermediaryProvider)}
+          onBack={() => setSelectedIntermediaryProvider(null)}
+          atCap={atCap}
+        />
+      ) : (
+        <>
+          {/* Page header */}
+          <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 3, flexWrap: 'wrap', gap: 2 }}>
+            <Box>
+              <Typography variant="h5" fontWeight={800} color="text.primary" letterSpacing="-0.3px">
+                Integrations
+              </Typography>
+              <Typography variant="body2" color="text.secondary" mt={0.5}>
+                Connect your cloud, HR, and security tools. Credentials are encrypted before storage.
+              </Typography>
+            </Box>
+            <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center' }}>
+              <Chip
+                label={`${totalConnected} active`}
                 size="small"
-                variant="text"
-                href="/admin/subscription"
-                sx={{ textTransform: 'none', fontWeight: 700, fontSize: '0.78rem' }}
+                color={totalConnected > 0 ? 'success' : 'default'}
+                sx={{ fontWeight: 600, fontSize: '0.75rem' }}
+              />
+              <Button
+                variant="contained"
+                startIcon={syncing ? <CircularProgress size={14} color="inherit" /> : <SyncIcon />}
+                onClick={handleSync}
+                disabled={syncing || totalConnected === 0}
+                size="small"
+                sx={{ textTransform: 'none', fontWeight: 600, borderRadius: '8px', fontSize: '0.82rem' }}
               >
-                Upgrade plan
+                {syncing ? 'Syncing…' : 'Run compliance sync'}
               </Button>
+            </Box>
+          </Box>
+
+          {/* Slot-usage banner — only meaningful once entitlement has loaded and
+          the tenant isn't on the unlimited/custom tier. */}
+          {!entLoading && !entError && !isUnlimited && (
+            <Box
+              sx={{
+                mb: 3, p: 2, borderRadius: '10px',
+                border: '1px solid', borderColor: atCap ? '#fde68a' : '#e8edf2',
+                background: atCap ? '#fffbeb' : '#f8fafc',
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.75 }}>
+                <Typography variant="body2" fontWeight={600} color={atCap ? '#92400e' : 'text.secondary'}>
+                  {totalConnected} of {slotCap} integration slot{slotCap === 1 ? '' : 's'} used
+                </Typography>
+                {atCap && (
+                  <Button
+                    size="small"
+                    variant="text"
+                    href="/admin/subscription"
+                    sx={{ textTransform: 'none', fontWeight: 700, fontSize: '0.78rem' }}
+                  >
+                    Upgrade plan
+                  </Button>
+                )}
+              </Box>
+              <LinearProgress
+                variant="determinate"
+                value={slotCap > 0 ? Math.min(100, (totalConnected / slotCap) * 100) : 100}
+                sx={{
+                  height: 6, borderRadius: 3,
+                  backgroundColor: '#e2e8f0',
+                  '& .MuiLinearProgress-bar': { backgroundColor: atCap ? '#f59e0b' : '#6366f1' },
+                }}
+              />
+            </Box>
+          )}
+
+          {syncAlert && (
+            <Alert severity={syncAlert.type} sx={{ mb: 3, borderRadius: '10px' }} onClose={() => setSyncAlert(null)}>
+              {syncAlert.message}
+            </Alert>
+          )}
+
+          {/* Built-in providers */}
+          <Typography variant="subtitle2" fontWeight={700} color="text.disabled" sx={{ letterSpacing: '0.06em', fontSize: '0.72rem', mb: 1.5 }}>
+            BUILT-IN TOOLS
+          </Typography>
+          <Box sx={{ ...CARD_GRID_SX, mb: 4 }}>
+            {[...BUILT_IN_PROVIDERS].sort((a, b) => a.label.localeCompare(b.label)).map(provider => {
+              const alreadyConnected = !!builtInConfig[provider.configKey ?? provider.key];
+              return (
+                <ProviderCard
+                  key={provider.key}
+                  icon={provider.Icon}
+                  logoUrl={provider.logoUrl}
+                  accent={provider.accent}
+                  label={provider.label}
+                  description={provider.description}
+                  isConnected={alreadyConnected}
+                  locked={!alreadyConnected && atCap}
+                  onOpen={() => setSelectedIntermediaryProvider(provider)}
+                />
+              );
+            })}
+          </Box>
+
+          <Divider sx={{ mb: 4 }} />
+
+          {/* Custom tools */}
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+            <Typography variant="subtitle2" fontWeight={700} color="text.disabled" sx={{ letterSpacing: '0.06em', fontSize: '0.72rem' }}>
+              CUSTOM TOOLS
+            </Typography>
+            {customList.length > 0 && (
+              <Chip label={customList.length} size="small" color="primary" sx={{ height: 20, fontSize: '0.65rem' }} />
             )}
           </Box>
-          <LinearProgress
-            variant="determinate"
-            value={slotCap > 0 ? Math.min(100, (totalConnected / slotCap) * 100) : 100}
-            sx={{
-              height: 6, borderRadius: 3,
-              backgroundColor: '#e2e8f0',
-              '& .MuiLinearProgress-bar': { backgroundColor: atCap ? '#f59e0b' : '#6366f1' },
-            }}
-          />
-        </Box>
+          <Box sx={CARD_GRID_SX}>
+            {customList.map(item => (
+              <CustomToolCard
+                key={item.id}
+                item={item}
+                onToggle={handleToggle}
+                onEdit={(i) => { setEditingCustom(i); setCustomDialogOpen(true); }}
+                onDelete={handleCustomDelete}
+                blockActivate={atCap}
+              />
+            ))}
+            <AddCustomTile onClick={handleAddCustomClick} blocked={atCap} />
+          </Box>
+        </>
       )}
-
-      {syncAlert && (
-        <Alert severity={syncAlert.type} sx={{ mb: 3, borderRadius: '10px' }} onClose={() => setSyncAlert(null)}>
-          {syncAlert.message}
-        </Alert>
-      )}
-
-      {/* Built-in providers */}
-      <Typography variant="subtitle2" fontWeight={700} color="text.disabled" sx={{ letterSpacing: '0.06em', fontSize: '0.72rem', mb: 1.5 }}>
-        BUILT-IN TOOLS
-      </Typography>
-      <Box sx={{ ...CARD_GRID_SX, mb: 4 }}>
-        {[...BUILT_IN_PROVIDERS].sort((a, b) => a.label.localeCompare(b.label)).map(provider => {
-          const alreadyConnected = !!builtInConfig[provider.configKey ?? provider.key];
-          return (
-            <ProviderCard
-              key={provider.key}
-              icon={provider.Icon}
-              logoUrl={provider.logoUrl}
-              accent={provider.accent}
-              label={provider.label}
-              description={provider.description}
-              isConnected={alreadyConnected}
-              locked={!alreadyConnected && atCap}
-              onOpen={() => handleOpenProvider(provider)}
-            />
-          );
-        })}
-      </Box>
-
-      <Divider sx={{ mb: 4 }} />
-
-      {/* Custom tools */}
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
-        <Typography variant="subtitle2" fontWeight={700} color="text.disabled" sx={{ letterSpacing: '0.06em', fontSize: '0.72rem' }}>
-          CUSTOM TOOLS
-        </Typography>
-        {customList.length > 0 && (
-          <Chip label={customList.length} size="small" color="primary" sx={{ height: 20, fontSize: '0.65rem' }} />
-        )}
-      </Box>
-      <Box sx={CARD_GRID_SX}>
-        {customList.map(item => (
-          <CustomToolCard
-            key={item.id}
-            item={item}
-            onToggle={handleToggle}
-            onEdit={(i) => { setEditingCustom(i); setCustomDialogOpen(true); }}
-            onDelete={handleCustomDelete}
-            blockActivate={atCap}
-          />
-        ))}
-        <AddCustomTile onClick={handleAddCustomClick} blocked={atCap} />
-      </Box>
 
       {/* ── Built-in provider config dialog ──────────────────────────────── */}
       <Dialog
